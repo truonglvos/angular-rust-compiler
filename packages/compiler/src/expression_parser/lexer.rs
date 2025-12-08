@@ -60,6 +60,10 @@ impl Token {
         }
     }
 
+    pub fn operator(index: usize, end: usize, str_value: &str) -> Self {
+        Token::new(index, end, TokenType::Operator, 0.0, str_value.to_string())
+    }
+
     pub fn with_kind(mut self, kind: StringTokenKind) -> Self {
         self.kind = Some(kind);
         self
@@ -265,6 +269,10 @@ struct Scanner {
     index: usize,
     peek: char,
     tokens: Vec<Token>,
+    // Track brace depth for template interpolation
+    interpolation_brace_stack: Vec<i32>,
+    brace_depth: i32,
+    resume_template: bool,
 }
 
 
@@ -283,11 +291,19 @@ impl Scanner {
             index: 0,
             peek,
             tokens: Vec::new(),
+            interpolation_brace_stack: Vec::new(),
+            brace_depth: 0,
+            resume_template: false,
         }
     }
 
     fn scan(mut self) -> Vec<Token> {
+        let mut count = 0;
         while let Some(token) = self.scan_token() {
+            count += 1;
+            if count > 10000 {
+                panic!("Lexer infinite loop! Generated over 10000 tokens for input: {}", self.input);
+            }
             self.tokens.push(token);
         }
         self.tokens
@@ -303,6 +319,11 @@ impl Scanner {
     }
 
     fn scan_token(&mut self) -> Option<Token> {
+        if self.resume_template {
+            self.resume_template = false;
+            return Some(self.scan_template_literal_part(self.index));
+        }
+
         // Skip whitespace
         while self.index < self.length && chars::is_whitespace(self.peek) {
             self.advance();
@@ -314,6 +335,26 @@ impl Scanner {
 
         let start = self.index;
         let ch = self.peek;
+
+        // Handle ${ operator specifically before identifiers
+        if ch == chars::DOLLAR {
+            let next_char = if self.index + 1 < self.length {
+                self.input[self.index + 1..].chars().next()
+            } else {
+                None
+            };
+            
+            if next_char == Some(chars::LBRACE) {
+                self.advance(); // consume $
+                self.advance(); // consume {
+                
+                // Track interpolation
+                self.interpolation_brace_stack.push(self.brace_depth);
+                self.brace_depth += 1;
+                
+                return Some(Token::operator(start, self.index, "${"));
+            }
+        }
 
         // Handle identifiers and keywords
         if chars::is_identifier_start(ch) {
@@ -345,10 +386,21 @@ impl Scanner {
                 return Some(self.scan_character(start, ch));
             }
             chars::LBRACE => {
+                self.brace_depth += 1;
                 return Some(self.scan_character(start, ch));
             }
             chars::RBRACE => {
-                return Some(self.scan_character(start, ch));
+                self.brace_depth -= 1;
+                let token = self.scan_character(start, ch);
+                
+                if let Some(&target_depth) = self.interpolation_brace_stack.last() {
+                     if self.brace_depth == target_depth {
+                         self.interpolation_brace_stack.pop();
+                         self.resume_template = true;
+                     }
+                }
+                
+                return Some(token);
             }
             chars::SQ | chars::DQ => {
                 return Some(self.scan_string(ch));
@@ -367,34 +419,227 @@ impl Scanner {
                 return Some(self.scan_complex_operator(start, "-", chars::EQ, '='));
             }
             chars::STAR => {
-                return Some(self.scan_complex_operator(start, "*", chars::EQ, '='));
+                self.advance();
+                if self.peek == chars::EQ {
+                    self.advance();
+                    return Some(Token::operator(start, self.index, "*="));
+                }
+                if self.peek == chars::STAR {
+                    self.advance();
+                    if self.peek == chars::EQ {
+                        self.advance();
+                        return Some(Token::operator(start, self.index, "**="));
+                    }
+                    return Some(Token::operator(start, self.index, "**"));
+                }
+                return Some(Token::operator(start, self.index, "*"));
             }
             chars::SLASH => {
-                return Some(self.scan_complex_operator(start, "/", chars::EQ, '='));
+                // Check if this is a comment //
+                let next_char = if self.index + 1 < self.length {
+                    self.input[self.index + 1..].chars().next()
+                } else {
+                    None
+                };
+
+                if next_char == Some(chars::SLASH) {
+                     self.advance(); // consume first /
+                     self.advance(); // consume second /
+                     while self.index < self.length {
+                        if self.peek == chars::CR || self.peek == chars::LF {
+                            break;
+                        }
+                        self.advance();
+                     }
+                     return None;
+                }
+                
+                // Check if this slash is a division operator or a regex literal
+                // If the last token was an identifier, number, or closing brace/paren, it's likely division
+                // Otherwise (start of expr, operator, keyword, open brace/paren), it's likely a regex
+                
+                let is_regex_start = if let Some(last) = self.tokens.last() {
+                     match last.token_type {
+                         TokenType::Identifier | TokenType::PrivateIdentifier | TokenType::Number | 
+                         TokenType::String | TokenType::RegExpFlags => false,
+                         TokenType::Character => {
+                             let s = &last.str_value;
+                             s != ")" && s != "]" && s != "}"
+                         },
+                         TokenType::Operator => {
+                             // SPECIAL CASE: `!` can be prefix (Logical Not) or postfix (Non-null assertion).
+                             // If `!` is postfix, then `/` is division.
+                             // If `!` is prefix, then `/` is regex.
+                             // We determine this by looking at what came BEFORE `!`.
+                             if last.str_value == "!" {
+                                 if self.tokens.len() > 1 {
+                                     let prev = &self.tokens[self.tokens.len() - 2];
+                                     match prev.token_type {
+                                         TokenType::Identifier | TokenType::PrivateIdentifier | TokenType::Number | 
+                                         TokenType::String | TokenType::RegExpFlags => false, // Postfix ! found, so / is division
+                                         TokenType::Character => {
+                                             let s = &prev.str_value;
+                                             // If `!` follows `)`, `]`, `}` -> Postfix
+                                             !(s == ")" || s == "]" || s == "}")
+                                         },
+                                         _ => true // Prefix !
+                                     }
+                                 } else {
+                                     true // Start of input ! -> Prefix
+                                 }
+                             } else {
+                                 true // Other operators imply regex start
+                             }
+                         }, 
+                         TokenType::Keyword => {
+                             // "this" can be followed by division, others like "return", "typeof" etc likely regex
+                             last.str_value != "this"
+                         },
+                         _ => true
+                     }
+                } else {
+                    true // Start of input
+                };
+
+                if is_regex_start {
+                    self.advance();
+                    return Some(self.scan_regexp_body(start));
+                }
+
+                self.advance();
+                if self.peek == chars::EQ {
+                    self.advance();
+                    return Some(Token::operator(start, self.index, "/="));
+                }
+                return Some(Token::operator(start, self.index, "/"));
             }
             chars::PERCENT => {
-                return Some(self.scan_complex_operator(start, "%", chars::EQ, '='));
+                self.advance();
+                if self.peek == chars::EQ {
+                    self.advance();
+                    return Some(Token::operator(start, self.index, "%="));
+                }
+                return Some(Token::operator(start, self.index, "%"));
             }
-            chars::LT => {
-                return Some(self.scan_complex_operator(start, "<", chars::EQ, '='));
-            }
-            chars::GT => {
-                return Some(self.scan_complex_operator(start, ">", chars::EQ, '='));
-            }
-            chars::EQ => {
-                return Some(self.scan_complex_operator(start, "=", chars::EQ, '='));
-            }
-            chars::BANG => {
-                return Some(self.scan_complex_operator(start, "!", chars::EQ, '='));
+            chars::CARET => {
+                self.advance();
+                if self.peek == chars::EQ {
+                    self.advance();
+                    return Some(Token::operator(start, self.index, "^="));
+                }
+                return Some(Token::operator(start, self.index, "^"));
             }
             chars::AMPERSAND => {
-                return Some(self.scan_complex_operator(start, "&", chars::AMPERSAND, '&'));
+                self.advance();
+                if self.peek == chars::AMPERSAND {
+                    self.advance();
+                    if self.peek == chars::EQ {
+                        self.advance();
+                        return Some(Token::operator(start, self.index, "&&="));
+                    }
+                    return Some(Token::operator(start, self.index, "&&"));
+                }
+                if self.peek == chars::EQ {
+                    self.advance();
+                    return Some(Token::operator(start, self.index, "&="));
+                }
+                return Some(Token::operator(start, self.index, "&"));
             }
             chars::BAR => {
-                return Some(self.scan_complex_operator(start, "|", chars::BAR, '|'));
+                self.advance();
+                if self.peek == chars::BAR {
+                    self.advance();
+                    if self.peek == chars::EQ {
+                        self.advance();
+                        return Some(Token::operator(start, self.index, "||="));
+                    }
+                    return Some(Token::operator(start, self.index, "||"));
+                }
+                if self.peek == chars::EQ {
+                    self.advance();
+                    return Some(Token::operator(start, self.index, "|="));
+                }
+                return Some(Token::operator(start, self.index, "|"));
+            }
+            chars::LT => {
+                self.advance();
+                if self.peek == chars::EQ {
+                    self.advance();
+                    return Some(Token::operator(start, self.index, "<="));
+                }
+                if self.peek == chars::LT {
+                    self.advance();
+                    if self.peek == chars::EQ {
+                        self.advance();
+                        return Some(Token::operator(start, self.index, "<<="));
+                    }
+                    return Some(Token::operator(start, self.index, "<<"));
+                }
+                return Some(Token::operator(start, self.index, "<"));
+            }
+            chars::GT => {
+                self.advance();
+                if self.peek == chars::EQ {
+                    self.advance();
+                    return Some(Token::operator(start, self.index, ">="));
+                }
+                if self.peek == chars::GT {
+                    self.advance();
+                    if self.peek == chars::EQ {
+                        self.advance();
+                        return Some(Token::operator(start, self.index, ">>="));
+                    }
+                    if self.peek == chars::GT {
+                        self.advance();
+                        if self.peek == chars::EQ {
+                            self.advance();
+                            return Some(Token::operator(start, self.index, ">>>="));
+                        }
+                        return Some(Token::operator(start, self.index, ">>>"));
+                    }
+                    return Some(Token::operator(start, self.index, ">>"));
+                }
+                return Some(Token::operator(start, self.index, ">"));
             }
             chars::QUESTION => {
-                return Some(self.scan_operator(start, "?"));
+                self.advance();
+                if self.peek == chars::PERIOD {
+                    self.advance();
+                    return Some(Token::operator(start, self.index, "?."));
+                }
+                if self.peek == chars::QUESTION {
+                    self.advance();
+                    if self.peek == chars::EQ {
+                        self.advance();
+                        return Some(Token::operator(start, self.index, "??="));
+                    }
+                    return Some(Token::operator(start, self.index, "??"));
+                }
+                return Some(Token::operator(start, self.index, "?"));
+            }
+            chars::BANG => {
+                self.advance();
+                if self.peek == chars::EQ {
+                    self.advance();
+                    if self.peek == chars::EQ {
+                        self.advance();
+                        return Some(Token::operator(start, self.index, "!=="));
+                    }
+                    return Some(Token::operator(start, self.index, "!="));
+                }
+                return Some(Token::operator(start, self.index, "!"));
+            }
+            chars::EQ => {
+                self.advance();
+                if self.peek == chars::EQ {
+                    self.advance();
+                    if self.peek == chars::EQ {
+                        self.advance();
+                        return Some(Token::operator(start, self.index, "==="));
+                    }
+                    return Some(Token::operator(start, self.index, "=="));
+                }
+                return Some(Token::operator(start, self.index, "="));
             }
             _ => {
                 self.advance();
@@ -403,7 +648,7 @@ impl Scanner {
                     self.index,
                     TokenType::Error,
                     0.0,
-                    format!("Unexpected character: {}", ch),
+                    format!("Lexer Error: Invalid character [{}] at column {} in expression [{}]", ch, start, self.input),
                 ));
             }
         }
@@ -448,7 +693,7 @@ impl Scanner {
                 self.index,
                 TokenType::Error,
                 0.0,
-                "Invalid private identifier".to_string(),
+                format!("Lexer Error: Invalid character [#] at column {} in expression [{}]", start, self.input),
             );
         }
 
@@ -461,13 +706,40 @@ impl Scanner {
     }
 
     fn scan_number(&mut self, start: usize) -> Token {
-        let mut has_dot = false;
-
+        let mut simple = true;
         while self.index < self.length {
             if chars::is_digit(self.peek) {
                 self.advance();
-            } else if self.peek == chars::PERIOD && !has_dot {
-                has_dot = true;
+            } else if self.peek == chars::PERIOD {
+                simple = false;
+                self.advance();
+            } else if self.peek == 'e' || self.peek == 'E' {
+                simple = false;
+                self.advance();
+                if self.peek == '+' || self.peek == '-' {
+                    self.advance();
+                }
+            } else if self.peek == chars::UNDERSCORE {
+                simple = false;
+                // Separators are only valid when they're surrounded by digits
+                // Check previous character
+                let prev_char = if self.index > 0 {
+                    self.input[..self.index].chars().last()
+                } else {
+                    None
+                };
+                let next_char = if self.index + 1 < self.length {
+                    self.input[self.index + 1..].chars().next()
+                } else {
+                    None
+                };
+                 
+                let prev_is_digit = prev_char.map_or(false, |c| chars::is_digit(c));
+                let next_is_digit = next_char.map_or(false, |c| chars::is_digit(c));
+                
+                if !prev_is_digit || !next_is_digit {
+                    return Token::new(self.index, self.index, TokenType::Error, 0.0, format!("Lexer Error: Invalid numeric separator at column {} in expression [{}]", self.index, self.input));
+                }
                 self.advance();
             } else {
                 break;
@@ -475,7 +747,18 @@ impl Scanner {
         }
 
         let str_value = self.input[start..self.index].to_string();
-        let num_value = str_value.parse::<f64>().unwrap_or(0.0);
+        let value_str = if simple { 
+            str_value.clone()
+        } else {
+            str_value.chars().filter(|&c| c != '_').collect()
+        };
+        
+        // Handle invalid exp like '1e'
+        if value_str.ends_with('e') || value_str.ends_with('E') || value_str.ends_with('+') || value_str.ends_with('-') {
+             return Token::new(self.index - 1, self.index, TokenType::Error, 0.0, format!("Lexer Error: Invalid exponent at column {} in expression [{}]", self.index - 1, self.input));
+        }
+        
+        let num_value = value_str.parse::<f64>().unwrap_or(0.0);
 
         Token::new(start, self.index, TokenType::Number, num_value, str_value)
     }
@@ -491,28 +774,162 @@ impl Scanner {
             let ch = self.peek;
 
             if escaped {
-                buffer.push(match ch {
-                    'n' => '\n',
-                    'r' => '\r',
-                    't' => '\t',
-                    _ => ch,
-                });
+                if ch == 'u' {
+                    // Unicode escape \uXXXX
+                    self.advance();
+                    let mut hex = String::new();
+                    for _ in 0..4 {
+                        if self.index < self.length {
+                            hex.push(self.peek);
+                            self.advance();
+                        } else {
+                            break;
+                        }
+                    }
+                    if hex.len() == 4 {
+                        if let Ok(code) = u32::from_str_radix(&hex, 16) {
+                            if let Some(c) = std::char::from_u32(code) {
+                                buffer.push(c);
+                            } else {
+                                return Token::new(self.index - hex.len() - 1, self.index - hex.len() - 1, TokenType::Error, 0.0, format!("Lexer Error: Invalid unicode escape [\\u{}] at column {} in expression [{}]", hex, self.index - hex.len() - 1, self.input));
+                            }
+                        } else {
+                            return Token::new(self.index - hex.len() - 1, self.index - hex.len() - 1, TokenType::Error, 0.0, format!("Lexer Error: Invalid unicode escape [\\u{}] at column {} in expression [{}]", hex, self.index - hex.len() - 1, self.input));
+                        }
+                    } else {
+                        return Token::new(self.index - hex.len() - 1, self.index - hex.len() - 1, TokenType::Error, 0.0, format!("Lexer Error: Invalid unicode escape [\\u{}] at column {} in expression [{}]", hex, self.index - hex.len() - 1, self.input));
+                    }
+                } else {
+                    buffer.push(match ch {
+                        'n' => '\n',
+                        'r' => '\r',
+                        't' => '\t',
+                        'b' => '\x08',
+                        'f' => '\x0c',
+                        'v' => '\x0b',
+                        _ => ch,
+                    });
+                    self.advance();
+                }
                 escaped = false;
-                self.advance();
             } else if ch == '\\' {
                 escaped = true;
                 self.advance();
             } else if ch == quote {
                 self.advance(); // Skip closing quote
-                break;
+                
+                return Token::new(start, self.index, TokenType::String, 0.0, buffer)
+                    .with_kind(StringTokenKind::Plain);
             } else {
                 buffer.push(ch);
                 self.advance();
             }
         }
+        
+        // Unterminated string
+        Token::new(start, self.index, TokenType::Error, 0.0, format!("Lexer Error: Unterminated quote at column {} in expression [{}]", start, self.input))
+    }
+    
+    fn scan_regexp_body(&mut self, start: usize) -> Token {
+        let mut buffer = String::new();
+        let mut in_class = false;
+        let mut escaped = false;
+        
+        while self.index < self.length {
+            let ch = self.peek;
+            
+            if escaped {
+                buffer.push(ch);
+                escaped = false;
+                self.advance();
+            } else if ch == '\\' {
+                buffer.push(ch);
+                escaped = true;
+                self.advance();
+            } else if in_class {
+                if ch == ']' {
+                    in_class = false;
+                }
+                buffer.push(ch);
+                self.advance();
+            } else if ch == '[' {
+                in_class = true;
+                buffer.push(ch);
+                self.advance();
+            } else if ch == '/' {
+                self.advance(); // Consume closing slash
+                
+                // Scan flags
+                return self.scan_regexp_flags(start, buffer);
+            } else {
+                if ch == chars::EOF || ch == chars::CR || ch == chars::LF {
+                     return Token::new(self.index, self.index, TokenType::Error, 0.0, format!("Lexer Error: Unterminated regular expression at column {} in expression [{}]", self.index, self.input));
+                }
+                buffer.push(ch);
+                self.advance();
+            }
+        }
+        
+        Token::new(self.index, self.index, TokenType::Error, 0.0, format!("Lexer Error: Unterminated regular expression at column {} in expression [{}]", self.index, self.input))
+    }
 
-        Token::new(start, self.index, TokenType::String, 0.0, buffer)
-            .with_kind(StringTokenKind::Plain)
+    fn scan_regexp_flags(&mut self, start: usize, body: String) -> Token {
+        let mut flags = String::new();
+        let mut seen = std::collections::HashSet::new();
+
+        while self.index < self.length && chars::is_identifier_part(self.peek) {
+            let ch = self.peek;
+            // Validate flag
+            if !['g', 'i', 'm', 'u', 'y'].contains(&ch) {
+                 return Token::new(
+                    self.index, 
+                    self.index + 1, 
+                    TokenType::Error, 
+                    0.0, 
+                    format!("Lexer Error: Invalid regular expression flag {}", ch)
+                );
+            }
+            // Check duplicate
+            if seen.contains(&ch) {
+                 return Token::new(
+                    self.index, 
+                    self.index + 1, 
+                    TokenType::Error, 
+                    0.0, 
+                    format!("Lexer Error: Duplicated regular expression flag {}", ch)
+                );
+            }
+            
+            seen.insert(ch);
+            flags.push(ch);
+            self.advance();
+        }
+
+        if flags.is_empty() {
+             Token::new(
+                start, 
+                self.index, 
+                TokenType::RegExpBody, 
+                0.0, 
+                body
+            )
+        } else {
+            self.tokens.push(Token::new(
+                start, 
+                self.index - flags.len(), 
+                TokenType::RegExpBody, 
+                0.0, 
+                body
+            ));
+            
+            Token::new(
+                self.index - flags.len(),
+                self.index,
+                TokenType::RegExpFlags,
+                0.0,
+                flags
+            )
+        }
     }
 
     fn scan_template_literal_part(&mut self, start: usize) -> Token {
@@ -521,25 +938,68 @@ impl Scanner {
         while self.index < self.length {
             let ch = self.peek;
 
-            if ch == chars::BT {
+            if ch == chars::BACKSLASH {
+                self.advance();
+                if self.index < self.length {
+                    let escaped_char = self.peek;
+                     // Handle escaping: only specific chars strictly or just passthrough?
+                     // Verify behavior with scans_string. 
+                     // For template literals, \` is escaped backtick. \$ is escaped dollar.
+                     // Standard string escapes also usually apply.
+                     buffer.push(match escaped_char {
+                        'n' => '\n',
+                        'r' => '\r',
+                        't' => '\t',
+                        'b' => '\x08',
+                        'f' => '\x0c',
+                        'v' => '\x0b',
+                        // TODO: Unicode escapes in template literals? Assuming simplified for now or handled by parser?
+                        // Tests `should_be_able_to_use_interpolation_characters_inside_template_string` likely uses `\${`.
+                        _ => escaped_char,
+                     });
+                     self.advance();
+                } else {
+                     buffer.push(chars::BACKSLASH); // Trailing backslash
+                }
+            } else if ch == chars::BT {
                 self.advance();
                 return Token::new(start, self.index, TokenType::String, 0.0, buffer)
                     .with_kind(StringTokenKind::TemplateLiteralEnd);
             } else if ch == chars::DOLLAR {
                 // Check for ${
-                self.advance();
-                if self.peek == chars::LBRACE {
-                    return Token::new(start, self.index - 1, TokenType::String, 0.0, buffer)
+                let next_char = if self.index + 1 < self.length {
+                    self.input[self.index + 1..].chars().next()
+                } else {
+                    None
+                };
+
+                if next_char == Some(chars::LBRACE) {
+                     return Token::new(start, self.index, TokenType::String, 0.0, buffer)
                         .with_kind(StringTokenKind::TemplateLiteralPart);
                 }
                 buffer.push(chars::DOLLAR);
+                self.advance();
+            } else if ch == chars::EOF {
+                return Token::new(
+                    self.index, 
+                    self.index, 
+                    TokenType::Error,
+                    0.0,
+                    format!("Lexer Error: Unterminated template literal at column {} in expression [{}]", self.index, self.input)
+                );
             } else {
                 buffer.push(ch);
                 self.advance();
             }
         }
 
-        Token::new(start, self.index, TokenType::Error, 0.0, "Unterminated template literal".to_string())
+        Token::new(
+            self.index, 
+            self.index, 
+            TokenType::Error,
+            0.0,
+            format!("Lexer Error: Unterminated template literal at column {} in expression [{}]", self.index, self.input)
+        )
     }
 
     fn scan_operator(&mut self, start: usize, op: &str) -> Token {

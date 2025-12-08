@@ -8,7 +8,7 @@
 use super::ast::*;
 use super::lexer::{Lexer, Token, TokenType};
 use crate::error::{CompilerError, Result};
-use crate::parse_util::{ParseError as ParseUtilError, ParseSourceSpan};
+use crate::parse_util::{ParseError as ParseUtilError, ParseLocation, ParseSourceFile, ParseSourceSpan};
 
 /// Interpolation piece (part of interpolation)
 #[derive(Debug, Clone)]
@@ -31,6 +31,13 @@ pub struct SplitInterpolation {
 pub struct TemplateBindingParseResult {
     pub template_bindings: Vec<TemplateBinding>,
     pub warnings: Vec<String>,
+    pub errors: Vec<ParseUtilError>,
+}
+
+/// Result of parsing an action or binding expression
+#[derive(Debug, Clone)]
+pub struct ParseActionResult {
+    pub ast: AST,
     pub errors: Vec<ParseUtilError>,
 }
 
@@ -74,9 +81,345 @@ impl Parser {
         parse_ast.parse_chain()
     }
 
+    /// Parse an action expression with error collection (for tests)
+    pub fn parse_action_with_errors(&self, input: &str, absolute_offset: usize) -> ParseActionResult {
+        let tokens = self.lexer.tokenize(input);
+        let mut parse_ast = ParseAST::new(input, absolute_offset, tokens, ParseFlags::Action);
+        match parse_ast.parse_chain() {
+            Ok(ast) => {
+                // Check for remaining tokens
+                if parse_ast.index < parse_ast.tokens.len() {
+                    let token = &parse_ast.tokens[parse_ast.index];
+                    parse_ast.record_error(format!("Unexpected token '{:?}'", token));
+                }
+                ParseActionResult {
+                    ast,
+                    errors: parse_ast.errors,
+                }
+            }
+            Err(e) => {
+                parse_ast.record_error(format!("{:?}", e));
+                ParseActionResult {
+                    ast: AST::EmptyExpr(EmptyExpr::new(
+                        ParseSpan::new(0, input.len()),
+                        AbsoluteSourceSpan::new(absolute_offset, absolute_offset + input.len()),
+                    )),
+                    errors: parse_ast.errors,
+                }
+            }
+        }
+    }
+
+    /// Parse a binding expression with error collection (for tests)
+    pub fn parse_binding_with_errors(&self, input: &str, absolute_offset: usize) -> ParseActionResult {
+        let tokens = self.lexer.tokenize(input);
+        let mut parse_ast = ParseAST::new(input, absolute_offset, tokens, ParseFlags::None);
+        match parse_ast.parse_chain() {
+            Ok(ast) => {
+                // Check for remaining tokens
+                if parse_ast.index < parse_ast.tokens.len() {
+                    let token = &parse_ast.tokens[parse_ast.index];
+                    parse_ast.record_error(format!("Unexpected token '{:?}'", token));
+                }
+                ParseActionResult {
+                    ast,
+                    errors: parse_ast.errors,
+                }
+            }
+            Err(e) => {
+                parse_ast.record_error(format!("{:?}", e));
+                ParseActionResult {
+                    ast: AST::EmptyExpr(EmptyExpr::new(
+                        ParseSpan::new(0, input.len()),
+                        AbsoluteSourceSpan::new(absolute_offset, absolute_offset + input.len()),
+                    )),
+                    errors: parse_ast.errors,
+                }
+            }
+        }
+    }
+
     /// Parse simple binding (for host bindings)
     pub fn parse_simple_binding(&self, input: &str, absolute_offset: usize) -> Result<AST> {
-        self.parse_binding(input, absolute_offset)
+        let ast = self.parse_binding(input, absolute_offset)?;
+        self.check_simple_binding_restrictions(&ast)?;
+        Ok(ast)
+    }
+
+    fn check_simple_binding_restrictions(&self, ast: &AST) -> Result<()> {
+        if self.contains_pipe(ast) {
+             return Err(CompilerError::ParseError {
+                message: "Bindings cannot contain pipes".to_string(),
+            });
+        }
+        Ok(())
+    }
+
+    fn contains_pipe(&self, ast: &AST) -> bool {
+        match ast {
+            AST::BindingPipe(_) => true,
+            AST::Binary(b) => self.contains_pipe(&b.left) || self.contains_pipe(&b.right),
+            AST::Chain(c) => c.expressions.iter().any(|e| self.contains_pipe(e)),
+            AST::Conditional(c) => self.contains_pipe(&c.condition) || self.contains_pipe(&c.true_exp) || self.contains_pipe(&c.false_exp),
+            AST::PropertyRead(p) => self.contains_pipe(&p.receiver),
+            AST::SafePropertyRead(p) => self.contains_pipe(&p.receiver),
+            AST::KeyedRead(k) => self.contains_pipe(&k.receiver) || self.contains_pipe(&k.key),
+            AST::SafeKeyedRead(k) => self.contains_pipe(&k.receiver) || self.contains_pipe(&k.key),
+            AST::LiteralArray(a) => a.expressions.iter().any(|e| self.contains_pipe(e)),
+            AST::LiteralMap(m) => m.values.iter().any(|v| self.contains_pipe(v)),
+            AST::Call(c) => self.contains_pipe(&c.receiver) || c.args.iter().any(|a| self.contains_pipe(a)),
+            AST::SafeCall(c) => self.contains_pipe(&c.receiver) || c.args.iter().any(|a| self.contains_pipe(a)),
+            AST::PrefixNot(p) => self.contains_pipe(&p.expression),
+            AST::Unary(u) => self.contains_pipe(&u.expr),
+            AST::NonNullAssert(n) => self.contains_pipe(&n.expression),
+            AST::PropertyWrite(p) => self.contains_pipe(&p.receiver) || self.contains_pipe(&p.value),
+            AST::KeyedWrite(k) => self.contains_pipe(&k.receiver) || self.contains_pipe(&k.key) || self.contains_pipe(&k.value),
+            AST::TypeofExpression(t) => self.contains_pipe(&t.expression),
+            AST::VoidExpression(v) => self.contains_pipe(&v.expression),
+            AST::TemplateLiteral(t) => t.expressions.iter().any(|e| self.contains_pipe(e)),
+            AST::TaggedTemplateLiteral(t) => self.contains_pipe(&t.tag) || t.template.expressions.iter().any(|e| self.contains_pipe(e)),
+            AST::ParenthesizedExpression(p) => self.contains_pipe(&p.expression),
+            AST::ImplicitReceiver(_) | AST::ThisReceiver(_) | AST::LiteralPrimitive(_) |
+            AST::RegularExpressionLiteral(_) | AST::Interpolation(_) | AST::EmptyExpr(_) => false,
+        }
+    }
+
+    /// Parse interpolation string (e.g., "Hello {{name}}!")
+    pub fn parse_interpolation(
+        &self,
+        input: &str,
+        absolute_offset: usize,
+    ) -> Result<Interpolation> {
+        let parts = self.split_interpolation(input, absolute_offset)?;
+        let mut strings = Vec::new();
+        let mut expressions = Vec::new();
+
+        for piece in &parts.strings {
+            strings.push(piece.text.clone());
+        }
+
+        for piece in &parts.expressions {
+            let expr_text = piece.text.trim();
+            if expr_text.is_empty() {
+                return Err(CompilerError::ParseError {
+                    message: "Blank expressions are not allowed in interpolated strings".to_string(),
+                });
+            }
+            let tokens = self.lexer.tokenize(&piece.text);
+            if tokens.is_empty() {
+                return Err(CompilerError::ParseError {
+                    message: "Blank expressions are not allowed in interpolated strings".to_string(),
+                });
+            }
+            let mut parse_ast = ParseAST::new(&piece.text, piece.start, tokens, ParseFlags::None);
+            let ast = parse_ast.parse_chain()?;
+            expressions.push(Box::new(ast));
+            
+            if parse_ast.index < parse_ast.tokens.len() {
+                return Err(CompilerError::ParseError {
+                    message: format!("Unexpected token {:?} at column {} in expression [{}]", 
+                        parse_ast.tokens[parse_ast.index], 
+                        parse_ast.tokens[parse_ast.index].index, 
+                        piece.text
+                    )
+                });
+            }
+        }
+
+        Ok(Interpolation {
+            span: ParseSpan::new(0, input.len()),
+            source_span: AbsoluteSourceSpan::new(absolute_offset, absolute_offset + input.len()),
+            strings,
+            expressions,
+        })
+    }
+
+    /// Split interpolation string into strings and expressions
+    pub fn split_interpolation(
+        &self,
+        input: &str,
+        absolute_offset: usize,
+    ) -> Result<SplitInterpolation> {
+        let mut strings = Vec::new();
+        let mut expressions = Vec::new();
+        let mut offsets = Vec::new();
+        let mut current_pos = 0;
+        let mut i = 0;
+
+        while i < input.len() {
+            if i + 1 < input.len() && &input[i..i + 2] == "{{" {
+                // Found start of interpolation
+                strings.push(InterpolationPiece {
+                    text: input[current_pos..i].to_string(),
+                    start: absolute_offset + current_pos,
+                    end: absolute_offset + i,
+                });
+                i += 2;
+                let expr_start = i;
+                let mut depth = 1;
+
+                // Find matching }}
+                let mut in_single_quote = false;
+                let mut in_double_quote = false;
+                let mut in_backtick = false;
+                let mut in_comment = false;
+                let mut loop_count = 0;
+
+                while i < input.len() {
+                    loop_count += 1;
+                    if loop_count > 10000 {
+                         panic!("Parser infinite loop detected at i={} in input: '{}'", i, input);
+                    }
+                    let char = input.chars().nth(i).unwrap(); // Use checked access in production
+
+                    if in_single_quote {
+                        if char == '\\' {
+                            i += 1; // Skip backslash
+                            if i < input.len() {
+                                i += 1; // Skip escaped char
+                            }
+                            continue;
+                        }
+                        if char == '\'' {
+                            in_single_quote = false;
+                        }
+                        i += 1;
+                        continue;
+                    }
+                    if in_double_quote {
+                        if char == '\\' {
+                             i += 1; // Skip backslash
+                             if i < input.len() {
+                                 i += 1; // Skip escaped char
+                             }
+                             continue;
+                        }
+                        if char == '"' {
+                            in_double_quote = false;
+                        }
+                        i += 1;
+                        continue;
+                    }
+                    if in_backtick {
+                         if char == '\\' {
+                             i += 1; // Skip backslash
+                             if i < input.len() {
+                                 i += 1; // Skip escaped char
+                             }
+                             continue;
+                        }
+                        if char == '`' {
+                            in_backtick = false;
+                        }
+                        i += 1;
+                        continue;
+                    }
+
+                    // Check for comment start
+                    if !in_comment && char == '/' {
+                        if i + 1 < input.len() && input[i + 1..].starts_with('/') {
+                            in_comment = true;
+                            i += 2;
+                            continue;
+                        }
+                    }
+
+                    if in_comment {
+                        if char == '\n' {
+                            in_comment = false;
+                        }
+                    }
+
+                    if !in_comment {
+                        if char == '\'' {
+                            in_single_quote = true;
+                            i += 1;
+                            continue;
+                        }
+                        if char == '"' {
+                            in_double_quote = true;
+                            i += 1;
+                            continue;
+                        }
+                        if char == '`' {
+                            in_backtick = true;
+                            i += 1;
+                            continue;
+                        }
+                    }
+
+                    if depth > 0 {
+                        if i + 1 < input.len() && &input[i..i + 2] == "}}" {
+                            depth -= 1;
+                            if depth == 0 {
+                                break;
+                            }
+                            i += 2;
+                            continue;
+                        } else if i + 1 < input.len() && &input[i..i + 2] == "{{" {
+                            if !in_comment {
+                                depth += 1;
+                            }
+                            i += 2;
+                            continue;
+                        }
+                    }
+                    
+                    i += 1;
+                }
+
+                if depth == 0 {
+                    let expr_text = input[expr_start..i].trim().to_string();
+                    expressions.push(InterpolationPiece {
+                        text: expr_text,
+                        start: absolute_offset + expr_start,
+                        end: absolute_offset + i,
+                    });
+                    offsets.push(absolute_offset + expr_start);
+                    i += 2; // Skip }}
+                    current_pos = i;
+                } else {
+                    // Unclosed interpolation, treat as string
+                    strings.pop();
+                    break;
+                }
+            } else {
+                i += 1;
+            }
+        }
+
+        strings.push(InterpolationPiece {
+            text: input[current_pos..].to_string(),
+            start: absolute_offset + current_pos,
+            end: absolute_offset + input.len(),
+        });
+
+        // Ensure strings and expressions alternate correctly
+        if expressions.is_empty() && !strings.is_empty() {
+            // No interpolation, just a string
+        } else if expressions.len() != strings.len() - 1 {
+            return Err(CompilerError::ParseError {
+                message: "Invalid interpolation format".to_string(),
+            });
+        }
+
+        Ok(SplitInterpolation {
+            strings,
+            expressions,
+            offsets,
+        })
+    }
+
+    /// Parse template bindings (e.g., "*ngFor=\"let item of items\"")
+    pub fn parse_template_bindings(
+        &self,
+        input: &str,
+        directive_name: Option<&str>,
+        absolute_offset: usize,
+    ) -> TemplateBindingParseResult {
+        let tokens = self.lexer.tokenize(input);
+        let mut parse_ast = ParseAST::new(input, absolute_offset, tokens, ParseFlags::None);
+        parse_ast.parse_template_bindings(directive_name)
     }
 }
 
@@ -89,6 +432,7 @@ struct ParseAST {
     flags: ParseFlags,
     rparens_expected: usize,
     rbrackets_expected: usize,
+    errors: Vec<ParseUtilError>,
 }
 
 impl ParseAST {
@@ -101,13 +445,28 @@ impl ParseAST {
             flags,
             rparens_expected: 0,
             rbrackets_expected: 0,
+            errors: Vec::new(),
         }
+    }
+
+    fn record_error(&mut self, message: String) {
+        let location = ParseLocation::new(
+            ParseSourceFile::new(self.input.clone(), "".to_string()),
+            self.input_index(),
+            0,
+            0,
+        );
+        self.errors.push(ParseUtilError::new(
+            ParseSourceSpan::new(location.clone(), location),
+            message,
+        ));
     }
 
     fn current(&self) -> Option<&Token> {
         self.tokens.get(self.index)
     }
 
+    #[allow(dead_code)]
     fn peek(&self, offset: usize) -> Option<&Token> {
         self.tokens.get(self.index + offset)
     }
@@ -126,6 +485,16 @@ impl ParseAST {
         false
     }
 
+    fn consume_optional_operator(&mut self, op: &str) -> bool {
+        if let Some(token) = self.current() {
+            if token.is_operator(op) {
+                self.advance();
+                return true;
+            }
+        }
+        false
+    }
+
     fn expect_character(&mut self, code: char) -> Result<()> {
         if self.consume_optional_character(code) {
             Ok(())
@@ -136,21 +505,26 @@ impl ParseAST {
         }
     }
 
-    /// Parse chain of expressions (e.g., `a; b; c`)
+    /// Parse a chain of pipes
     fn parse_chain(&mut self) -> Result<AST> {
         let start = self.input_index();
-        let mut expressions = vec![self.parse_conditional()?];
+        let mut expressions = vec![self.parse_pipe()?];
 
         while self.consume_optional_character(';') {
             if self.index >= self.tokens.len() {
                 break;
             }
-            expressions.push(self.parse_conditional()?);
+            expressions.push(self.parse_pipe()?);
         }
 
         if expressions.len() == 1 {
             Ok(expressions.into_iter().next().unwrap())
         } else {
+            if self.flags != ParseFlags::Action {
+                return Err(CompilerError::ParseError {
+                    message: "Bindings cannot contain chained expressions".to_string(),
+                });
+            }
             Ok(AST::Chain(Chain {
                 span: self.span(start),
                 source_span: self.source_span(start),
@@ -159,16 +533,64 @@ impl ParseAST {
         }
     }
 
+    fn is_assignable(&self, ast: &AST) -> bool {
+        match ast {
+            AST::PropertyRead(_) | AST::KeyedRead(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Parse assignment (e.g., a = b)
+    fn parse_assignment(&mut self) -> Result<AST> {
+        let start = self.input_index();
+        let left = self.parse_conditional()?;
+
+        if let Some(token) = self.current() {
+            // println!("DEBUG: parse_assignment token: {:?}", token);
+            if token.token_type == TokenType::Operator {
+                let op = &token.str_value;
+                if matches!(
+                    op.as_str(),
+                    "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "^=" | "|=" | "<<=" | ">>="
+                        | ">>>=" | "**=" | "&&=" | "||=" | "??="
+                ) {
+                    if self.flags != ParseFlags::Action {
+                        return Err(CompilerError::ParseError {
+                            message: "Bindings cannot contain assignments".to_string(),
+                        });
+                    }
+                    if !self.is_assignable(&left) {
+                        return Err(CompilerError::ParseError {
+                            message: format!("Expression {:?} is not assignable", left),
+                        });
+                    }
+                    let operation = op.clone();
+                    self.advance();
+                    let right = self.parse_assignment()?;
+                    return Ok(AST::Binary(Binary {
+                        span: self.span(start),
+                        source_span: self.source_span(start),
+                        operation,
+                        left: Box::new(left),
+                        right: Box::new(right),
+                    }));
+                }
+            }
+        }
+
+        Ok(left)
+    }
+
     /// Parse conditional/ternary expression (e.g., `a ? b : c`)
     fn parse_conditional(&mut self) -> Result<AST> {
         let start = self.input_index();
-        let result = self.parse_pipe()?;
+        let result = self.parse_logical_or()?;
 
         // Check for ternary operator
         if let Some(token) = self.current() {
             if token.token_type == TokenType::Operator && token.str_value == "?" {
                 self.advance();
-                let true_exp = self.parse_pipe()?;
+                let true_exp = self.parse_conditional()?;
                 self.expect_character(':')?;
                 let false_exp = self.parse_conditional()?; // Right-associative
 
@@ -188,36 +610,41 @@ impl ParseAST {
     /// Parse pipe expression (e.g., `value | pipeName:arg`)
     fn parse_pipe(&mut self) -> Result<AST> {
         let start = self.input_index();
-        let mut result = self.parse_logical_or()?;
+        let mut result = self.parse_assignment()?;
 
         // Check for pipe operator (| is an Operator token)
         while let Some(token) = self.current() {
             if token.token_type == TokenType::Operator && token.str_value == "|" {
+                if self.flags == ParseFlags::Action {
+                    return Err(CompilerError::ParseError {
+                        message: "Cannot have a pipe in an action expression".to_string(),
+                    });
+                }
                 self.advance();
                 let name_start = self.input_index();
 
-            let name = if let Some(token) = self.current() {
-                if token.is_identifier() {
-                    let n = token.str_value.clone();
-                    self.advance();
-                    n
+                let name = if let Some(token) = self.current() {
+                    if token.is_identifier() {
+                        let n = token.str_value.clone();
+                        self.advance();
+                        n
+                    } else {
+                        return Err(CompilerError::ParseError {
+                            message: "Expected pipe name".to_string(),
+                        });
+                    }
                 } else {
                     return Err(CompilerError::ParseError {
                         message: "Expected pipe name".to_string(),
                     });
+                };
+
+                let name_span = self.source_span(name_start);
+                let mut args = Vec::new();
+
+                while self.consume_optional_character(':') {
+                    args.push(Box::new(self.parse_assignment()?)); // Parse pipe args
                 }
-            } else {
-                return Err(CompilerError::ParseError {
-                    message: "Expected pipe name".to_string(),
-                });
-            };
-
-            let name_span = self.source_span(name_start);
-            let mut args = Vec::new();
-
-            while self.consume_optional_character(':') {
-                args.push(Box::new(self.parse_logical_or()?)); // Parse pipe args without creating recursion
-            }
 
             result = AST::BindingPipe(BindingPipe {
                 span: self.span(start),
@@ -264,16 +691,40 @@ impl ParseAST {
     /// Parse logical AND (&&)
     fn parse_logical_and(&mut self) -> Result<AST> {
         let start = self.input_index();
-        let mut result = self.parse_equality()?;
+        let mut result = self.parse_nullish_coalescing()?;
 
         while let Some(token) = self.current() {
             if token.token_type == TokenType::Operator && token.str_value == "&&" {
+                self.advance();
+                let right = self.parse_nullish_coalescing()?;
+                result = AST::Binary(Binary {
+                    span: self.span(start),
+                    source_span: self.source_span(start),
+                    operation: "&&".to_string(),
+                    left: Box::new(result),
+                    right: Box::new(right),
+                });
+            } else {
+                break;
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Parse nullish coalescing (??)
+    fn parse_nullish_coalescing(&mut self) -> Result<AST> {
+        let start = self.input_index();
+        let mut result = self.parse_equality()?;
+
+        while let Some(token) = self.current() {
+            if token.token_type == TokenType::Operator && token.str_value == "??" {
                 self.advance();
                 let right = self.parse_equality()?;
                 result = AST::Binary(Binary {
                     span: self.span(start),
                     source_span: self.source_span(start),
-                    operation: "&&".to_string(),
+                    operation: "??".to_string(),
                     left: Box::new(result),
                     right: Box::new(right),
                 });
@@ -337,6 +788,17 @@ impl ParseAST {
                 } else {
                     break;
                 }
+            } else if token.is_keyword_in() {
+                let operator = "in".to_string();
+                self.advance();
+                let right = self.parse_additive()?;
+                result = AST::Binary(Binary {
+                    span: self.span(start),
+                    source_span: self.source_span(start),
+                    operation: operator,
+                    left: Box::new(result),
+                    right: Box::new(right),
+                });
             } else {
                 break;
             }
@@ -378,7 +840,7 @@ impl ParseAST {
     /// Parse multiplicative operators (*, /, %)
     fn parse_multiplicative(&mut self) -> Result<AST> {
         let start = self.input_index();
-        let mut result = self.parse_prefix()?;
+        let mut result = self.parse_exponentiation()?;
 
         while let Some(token) = self.current() {
             if token.token_type == TokenType::Operator {
@@ -386,7 +848,7 @@ impl ParseAST {
                 if matches!(op.as_str(), "*" | "/" | "%") {
                     let operator = op.clone();
                     self.advance();
-                    let right = self.parse_prefix()?;
+                    let right = self.parse_exponentiation()?;
                     result = AST::Binary(Binary {
                         span: self.span(start),
                         source_span: self.source_span(start),
@@ -399,6 +861,28 @@ impl ParseAST {
                 }
             } else {
                 break;
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Parse exponentiation operator (**)
+    fn parse_exponentiation(&mut self) -> Result<AST> {
+        let start = self.input_index();
+        let result = self.parse_prefix()?;
+
+        if let Some(token) = self.current() {
+            if token.token_type == TokenType::Operator && token.str_value == "**" {
+                self.advance();
+                let right = self.parse_exponentiation()?;
+                return Ok(AST::Binary(Binary {
+                    span: self.span(start),
+                    source_span: self.source_span(start),
+                    operation: "**".to_string(),
+                    left: Box::new(result),
+                    right: Box::new(right),
+                }));
             }
         }
 
@@ -440,11 +924,10 @@ impl ParseAST {
             if token.is_keyword() && token.str_value == "typeof" {
                 self.advance();
                 let expr = self.parse_prefix()?;
-                return Ok(AST::Unary(Unary {
+                return Ok(AST::TypeofExpression(TypeofExpression {
                     span: self.span(start),
                     source_span: self.source_span(start),
-                    operator: "typeof".to_string(),
-                    expr: Box::new(expr),
+                    expression: Box::new(expr),
                 }));
             }
 
@@ -452,11 +935,10 @@ impl ParseAST {
             if token.is_keyword() && token.str_value == "void" {
                 self.advance();
                 let expr = self.parse_prefix()?;
-                return Ok(AST::Unary(Unary {
+                return Ok(AST::VoidExpression(VoidExpression {
                     span: self.span(start),
                     source_span: self.source_span(start),
-                    operator: "void".to_string(),
-                    expr: Box::new(expr),
+                    expression: Box::new(expr),
                 }));
             }
         }
@@ -470,43 +952,177 @@ impl ParseAST {
         let mut result = self.parse_primary()?;
 
         loop {
-            if self.consume_optional_character('.') {
-                // Property access or method call
-                result = self.parse_access_member(result, start, false)?;
-            } else if self.consume_optional_character('[') {
-                // Keyed read: obj[key]
-                self.rbrackets_expected += 1;
-                let key = self.parse_pipe()?;
-                self.rbrackets_expected -= 1;
-                self.expect_character(']')?;
+            // Check for safe navigation operator (?.)
+            if let Some(token) = self.current() {
+                if token.token_type == TokenType::Operator && token.str_value == "?." {
+                    self.advance();
+                    // Safe property access or method call
+                    if let Some(next_token) = self.current() {
+                        if next_token.is_character('(') {
+                            // Safe call: obj?.(args)
+                            self.consume_optional_character('(');
+                            self.rparens_expected += 1;
+                            let (args, has_trailing_comma) = self.parse_call_arguments()?;
+                            self.rparens_expected -= 1;
+                            self.expect_character(')')?;
 
-                result = AST::KeyedRead(KeyedRead {
-                    span: self.span(start),
-                    source_span: self.source_span(start),
-                    receiver: Box::new(result),
-                    key: Box::new(key),
-                });
-            } else if self.consume_optional_character('(') {
-                // Method call: fn(args)
-                self.rparens_expected += 1;
-                let args = self.parse_call_arguments()?;
-                self.rparens_expected -= 1;
-                self.expect_character(')')?;
+                            result = AST::SafeCall(SafeCall {
+                                span: self.span(start),
+                                source_span: self.source_span(start),
+                                receiver: Box::new(result),
+                                args,
+                                argument_span: self.source_span(start),
+                                has_trailing_comma,
+                            });
+                        } else if next_token.is_character('[') {
+                            // Safe keyed read: obj?.[key]
+                            self.consume_optional_character('[');
+                            self.rbrackets_expected += 1;
+                            let key = self.parse_pipe()?;
+                            self.rbrackets_expected -= 1;
+                            self.expect_character(']')?;
 
-                result = AST::Call(Call {
-                    span: self.span(start),
-                    source_span: self.source_span(start),
-                    receiver: Box::new(result),
-                    args,
-                    argument_span: self.source_span(start),
-                });
-            } else if self.consume_optional_character('!') {
-                // Non-null assertion: expr!
-                result = AST::NonNullAssert(NonNullAssert {
-                    span: self.span(start),
-                    source_span: self.source_span(start),
-                    expression: Box::new(result),
-                });
+                            result = AST::SafeKeyedRead(SafeKeyedRead {
+                                span: self.span(start),
+                                source_span: self.source_span(start),
+                                receiver: Box::new(result),
+                                key: Box::new(key),
+                            });
+                        } else {
+                            // Safe property access: obj?.prop
+                            result = self.parse_access_member(result, start, true)?;
+                        }
+                    } else {
+                        break;
+                    }
+                } else if self.consume_optional_character('.') {
+                    // Property access or method call
+                    result = self.parse_access_member(result, start, false)?;
+                } else if self.consume_optional_character('[') {
+                    // Keyed read: obj[key]
+                    self.rbrackets_expected += 1;
+                    let key = self.parse_pipe()?;
+                    self.rbrackets_expected -= 1;
+                    self.expect_character(']')?;
+
+                    result = AST::KeyedRead(KeyedRead {
+                        span: self.span(start),
+                        source_span: self.source_span(start),
+                        receiver: Box::new(result),
+                        key: Box::new(key),
+                    });
+                } else if self.consume_optional_character('(') {
+                    // Method call: fn(args)
+                    self.rparens_expected += 1;
+                    let (args, has_trailing_comma) = self.parse_call_arguments()?;
+                    self.rparens_expected -= 1;
+                    self.expect_character(')')?;
+
+                    match result {
+                        AST::SafePropertyRead(r) => {
+                             result = AST::SafeCall(SafeCall {
+                                 span: self.span(start),
+                                 source_span: self.source_span(start),
+                                 receiver: Box::new(AST::PropertyRead(PropertyRead {
+                                     span: r.span,
+                                     source_span: r.source_span,
+                                     name_span: r.name_span,
+                                     receiver: r.receiver,
+                                     name: r.name,
+                                 })),
+                                 args,
+                                 argument_span: self.source_span(start),
+                                 has_trailing_comma,
+                             });
+                        }
+                        AST::SafeKeyedRead(r) => {
+                             result = AST::SafeCall(SafeCall {
+                                 span: self.span(start),
+                                 source_span: self.source_span(start),
+                                 receiver: Box::new(AST::KeyedRead(KeyedRead {
+                                     span: r.span,
+                                     source_span: r.source_span,
+                                     receiver: r.receiver,
+                                     key: r.key,
+                                 })),
+                                 args,
+                                 argument_span: self.source_span(start),
+                                 has_trailing_comma,
+                             });
+                        }
+                        _ => {
+                            result = AST::Call(Call {
+                                span: self.span(start),
+                                source_span: self.source_span(start),
+                                receiver: Box::new(result),
+                                args,
+                                argument_span: self.source_span(start),
+                                has_trailing_comma,
+                            });
+                        }
+                    }
+                } else if let Some(token) = self.current() {
+                    if token.is_template_literal_part() || token.is_template_literal_end() {
+                         let template = if let AST::TemplateLiteral(t) = self.parse_template_literal()? {
+                             t
+                         } else {
+                             // Should calculate span/error appropriately
+                             return Err(CompilerError::ParseError { message: "Expected template literal".to_string() });
+                         };
+                         
+                         result = AST::TaggedTemplateLiteral(TaggedTemplateLiteral {
+                             span: self.span(start),
+                             source_span: self.source_span(start),
+                             tag: Box::new(result),
+                             template,
+                         });
+                    } else if token.is_operator("=") {
+                        if self.flags != ParseFlags::Action {
+                            return Err(CompilerError::ParseError {
+                                message: "Bindings cannot contain assignments".to_string(),
+                            });
+                        }
+                        if !self.is_assignable(&result) {
+                            return Err(CompilerError::ParseError {
+                                message: format!("Expression {:?} is not assignable", result),
+                            });
+                        }
+                        self.advance();
+                        let value = self.parse_conditional()?;
+                        
+                        result = match result {
+                            AST::PropertyRead(r) => AST::PropertyWrite(PropertyWrite {
+                                span: self.span(start),
+                                source_span: self.source_span(start),
+                                receiver: r.receiver,
+                                name: r.name,
+                                value: Box::new(value),
+                            }),
+                            AST::KeyedRead(r) => AST::KeyedWrite(KeyedWrite {
+                                span: self.span(start),
+                                source_span: self.source_span(start),
+                                receiver: r.receiver,
+                                key: r.key,
+                                value: Box::new(value),
+                            }),
+                            _ => return Err(CompilerError::ParseError {
+                                message: format!("Expression {:?} is not assignable", result),
+                            }),
+                        };
+                    } else if token.is_operator("!") {
+                        self.advance();
+                        // Non-null assertion: expr!
+                        result = AST::NonNullAssert(NonNullAssert {
+                            span: self.span(start),
+                            source_span: self.source_span(start),
+                            expression: Box::new(result),
+                        });
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
             } else {
                 break;
             }
@@ -520,14 +1136,28 @@ impl ParseAST {
         let start = self.input_index();
 
         if let Some(token) = self.current() {
+            // Template literal: `text ${expr} text`
+            if token.is_template_literal_part() || token.is_template_literal_end() {
+                return self.parse_template_literal();
+            }
+
+            // Regular expression literal: /pattern/flags
+            if token.is_regexp_body() {
+                return self.parse_regexp_literal();
+            }
+
             // Parenthesized expression
             if token.is_character('(') {
                 self.consume_optional_character('(');
                 self.rparens_expected += 1;
-                let result = self.parse_pipe()?;
+                let expr = self.parse_pipe()?;
                 self.rparens_expected -= 1;
                 self.expect_character(')')?;
-                return Ok(result);
+                return Ok(AST::ParenthesizedExpression(ParenthesizedExpression {
+                    span: self.span(start),
+                    source_span: self.source_span(start),
+                    expression: Box::new(expr),
+                }));
             }
 
             // Array literal: [1, 2, 3]
@@ -593,6 +1223,13 @@ impl ParseAST {
                 return self.parse_access_member(receiver, start, false);
             }
 
+            // Private Identifier
+            if token.is_private_identifier() {
+                return Err(CompilerError::ParseError {
+                    message: format!("Private identifier '{}' is not supported on implicit receiver", token.str_value),
+                });
+            }
+
             // Number
             if token.is_number() {
                 let value = token.num_value;
@@ -616,7 +1253,13 @@ impl ParseAST {
             }
         }
 
-        // Empty expression or error
+        if let Some(token) = self.current() {
+            return Err(CompilerError::ParseError {
+                message: format!("Unexpected token {}", token.str_value),
+            });
+        }
+
+        // Empty expression (EOF)
         Ok(AST::EmptyExpr(EmptyExpr::new(
             self.span(start),
             self.source_span(start),
@@ -651,14 +1294,61 @@ impl ParseAST {
                     }))
                 }
             } else {
-                Err(CompilerError::ParseError {
-                    message: "Expected identifier for property access".to_string(),
-                })
+                // Record error for invalid member name (number, string, or other non-identifiers)  
+                if let Some(current_token) = self.current() {
+                    self.record_error(format!(
+                        "Unexpected {:?}, expected identifier or keyword",
+                        current_token.token_type
+                    ));
+                } else {
+                    self.record_error("expected identifier or keyword".to_string());
+                }
+                
+                // Return PropertyRead with empty name for error recovery
+                let name = "".to_string();
+                let name_span = self.source_span(self.input_index()); // Empty span
+
+                 if is_safe {
+                    Ok(AST::SafePropertyRead(SafePropertyRead {
+                        span: self.span(start),
+                        source_span: self.source_span(start),
+                        name_span,
+                        receiver: Box::new(receiver),
+                        name,
+                    }))
+                } else {
+                    Ok(AST::PropertyRead(PropertyRead {
+                        span: self.span(start),
+                        source_span: self.source_span(start),
+                        name_span,
+                        receiver: Box::new(receiver),
+                        name,
+                    }))
+                }
             }
         } else {
-            Err(CompilerError::ParseError {
-                message: "Unexpected end of expression".to_string(),
-            })
+            // End of input - record error and return recovery AST
+            self.record_error("expected identifier or keyword".to_string());
+            let name = "".to_string();
+            let name_span = self.source_span(self.input_index());
+            
+            if is_safe {
+                Ok(AST::SafePropertyRead(SafePropertyRead {
+                    span: self.span(start),
+                    source_span: self.source_span(start),
+                    name_span,
+                    receiver: Box::new(receiver),
+                    name,
+                }))
+            } else {
+                Ok(AST::PropertyRead(PropertyRead {
+                    span: self.span(start),
+                    source_span: self.source_span(start),
+                    name_span,
+                    receiver: Box::new(receiver),
+                    name,
+                }))
+            }
         }
     }
 
@@ -705,6 +1395,7 @@ impl ParseAST {
         if !self.consume_optional_character('}') {
             loop {
                 // Parse key
+                let key_start = self.input_index();
                 let (key, quoted) = if let Some(token) = self.current() {
                     if token.is_identifier() {
                         let k = token.str_value.clone();
@@ -725,10 +1416,25 @@ impl ParseAST {
                     });
                 };
 
-                keys.push(LiteralMapKey { key, quoted });
+                keys.push(LiteralMapKey { key: key.clone(), quoted });
 
-                self.expect_character(':')?;
-                values.push(Box::new(self.parse_conditional()?));
+                // Check for property shorthand - if no colon, use key as value
+                if self.consume_optional_character(':') {
+                    values.push(Box::new(self.parse_conditional()?));
+                } else {
+                    // Property shorthand: {a} is equivalent to {a: a}
+                    let value = AST::PropertyRead(PropertyRead {
+                        span: self.span(key_start),
+                        source_span: self.source_span(key_start),
+                        name_span: self.source_span(key_start),
+                        receiver: Box::new(AST::ImplicitReceiver(ImplicitReceiver::new(
+                            self.span(key_start),
+                            self.source_span(key_start),
+                        ))),
+                        name: key,
+                    });
+                    values.push(Box::new(value));
+                }
 
                 if self.consume_optional_character(',') {
                     if self.consume_optional_character('}') {
@@ -750,22 +1456,36 @@ impl ParseAST {
     }
 
     /// Parse call arguments (arg1, arg2, ...)
-    fn parse_call_arguments(&mut self) -> Result<Vec<Box<AST>>> {
+    fn parse_call_arguments(&mut self) -> Result<(Vec<Box<AST>>, bool)> {
         let mut args = Vec::new();
+        let mut has_trailing_comma = false;
 
         if let Some(token) = self.current() {
             if !token.is_character(')') {
                 loop {
-                    args.push(Box::new(self.parse_conditional()?));
+                    if let Some(token) = self.current() {
+                         if token.is_character(')') {
+                             break;
+                         }
+                    }
+                    args.push(Box::new(self.parse_pipe()?));
 
-                    if !self.consume_optional_character(',') {
+                    if self.consume_optional_character(',') {
+                        // Check if next token is ')' - that means trailing comma
+                        if let Some(token) = self.current() {
+                            if token.is_character(')') {
+                                has_trailing_comma = true;
+                                break;
+                            }
+                        }
+                    } else {
                         break;
                     }
                 }
             }
         }
 
-        Ok(args)
+        Ok((args, has_trailing_comma))
     }
 
     // Helper methods
@@ -783,7 +1503,408 @@ impl ParseAST {
             self.absolute_offset + self.input_index(),
         )
     }
+
+    /// Parse template literal: `text ${expr} text`
+    fn parse_template_literal(&mut self) -> Result<AST> {
+        let start = self.input_index();
+        let mut elements = Vec::new();
+        let mut expressions = Vec::new();
+
+        // Parse first template part
+        if let Some(token) = self.current() {
+            if token.is_template_literal_part() || token.is_template_literal_end() {
+                let text = token.str_value.clone();
+                let span = self.span(start);
+                let source_span = self.source_span(start);
+                elements.push(TemplateLiteralElement {
+                    span,
+                    source_span,
+                    text,
+                });
+                self.advance();
+            }
+        }
+
+        // Parse interpolations and remaining parts
+        while let Some(token) = self.current() {
+            if token.is_template_literal_interpolation_start() {
+                // Parse ${expression}
+                self.advance(); // consume '${'
+                let expr = self.parse_pipe()?;
+                expressions.push(Box::new(expr));
+                self.expect_character('}')?;
+
+                // Parse next template part
+                let is_end = if let Some(next_token) = self.current() {
+                    if next_token.is_template_literal_part() || next_token.is_template_literal_end() {
+                        let text = next_token.str_value.clone();
+                        let is_end = next_token.is_template_literal_end();
+                        let span = self.span(self.input_index());
+                        let source_span = self.source_span(self.input_index());
+                        elements.push(TemplateLiteralElement {
+                            span,
+                            source_span,
+                            text,
+                        });
+                        self.advance();
+                        is_end
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+                if is_end {
+                    break;
+                }
+            } else if token.is_template_literal_end() {
+                break;
+            } else {
+                break;
+            }
+        }
+
+        Ok(AST::TemplateLiteral(TemplateLiteral {
+            span: self.span(start),
+            source_span: self.source_span(start),
+            elements,
+            expressions,
+        }))
+    }
+
+    /// Parse regular expression literal: /pattern/flags
+    fn parse_regexp_literal(&mut self) -> Result<AST> {
+        let start = self.input_index();
+        
+        if let Some(token) = self.current() {
+            if token.is_regexp_body() {
+                let body = token.str_value.clone();
+                self.advance();
+
+                let flags = if let Some(flags_token) = self.current() {
+                    if flags_token.is_regexp_flags() {
+                        let f = flags_token.str_value.clone();
+                        self.advance();
+                        Some(f)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                return Ok(AST::RegularExpressionLiteral(RegularExpressionLiteral {
+                    span: self.span(start),
+                    source_span: self.source_span(start),
+                    body,
+                    flags,
+                }));
+            }
+        }
+
+        Err(CompilerError::ParseError {
+            message: "Expected regular expression literal".to_string(),
+        })
+    }
+
+    /// Parse template bindings (e.g., "let item of items")
+    fn parse_template_bindings(&mut self, directive_name: Option<&str>) -> TemplateBindingParseResult {
+        let mut bindings = Vec::new();
+        let warnings = Vec::new();
+        let mut errors = Vec::new();
+
+        // Skip whitespace
+        while let Some(token) = self.current() {
+            if token.token_type == TokenType::Character && token.str_value == " " {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        while self.index < self.tokens.len() {
+            // Removed debug prints
+            let mut key_is_var = false;
+            let mut key_name: Option<String> = None;
+            let mut key_span: Option<AbsoluteSourceSpan> = None;
+            let mut value: Option<Box<AST>> = None;
+            let mut name: Option<String> = None;
+
+            if let Some(token) = self.current() {
+                if token.is_keyword_let() {
+                    // Variable binding: let item [= value]
+                    self.advance();
+                    key_is_var = true;
+                    if let Some(ident) = self.current() {
+                        if ident.is_identifier() {
+                            key_name = Some(ident.str_value.clone());
+                            key_span = Some(self.source_span(self.input_index()));
+                            self.advance();
+                        } else {
+                            // Error: expected identifier
+                             let span = self.source_span(self.input_index());
+                             errors.push(ParseUtilError::new(
+                                ParseSourceSpan::new(ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.start, 0, 0), ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.end, 0, 0)),
+                                "Expected identifier after 'let'".to_string(),
+                            ));
+                        }
+                    } else {
+                         // Error
+                    }
+                    
+                    // Check for optional value assignment: = value
+                     if self.consume_optional_operator("=") {
+                         match self.parse_pipe() {
+                             Ok(expr) => value = Some(Box::new(expr)),
+                             Err(e) => {
+                                 let span = self.source_span(self.input_index());
+                                 errors.push(ParseUtilError::new(
+                                     ParseSourceSpan::new(ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.start, 0, 0), ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.end, 0, 0)),
+                                     e.to_string(),
+                                 ));
+                             }
+                         }
+                     }
+                } else {
+                    // Expression binding
+                    // Could be:
+                    // 1. directive_name [as alias] (if first binding)
+                    // 2. key [assignments]
+                    // 3. key [as alias]
+                    
+                    // We try to parse an identifier as key first?
+                    // Angular logic: check if it is a keyword?
+                    
+                    let start = self.input_index();
+                    // Peek ahead logic would be best, but we'll try to parse chain and see.
+                    // But parsing chain consumes tokens.
+                    
+                    // If we have directive_name, and this is the first binding (bindings.is_empty()), 
+                    // we treat the expression as value for directive_name.
+                    // UNLESS the expression is a simple identifier AND followed by another expression?
+                    
+                    // Simplification: Parse chain.
+                    let start_token_index = self.index;
+                    match self.parse_chain() {
+                        Ok(expr) => {
+                             let mut is_key = false;
+                             
+                             // If expr is a simple PropertyRead (identifier), check if we should treat it as a key.
+                             // It is a key if:
+                             // 1. It is followed by 'as' (e.g. exportAs) ? NO, 'as' binds the result.
+                             // 2. It is followed by ':' ? YES.
+                             // 3. It is followed by another expression (no comma/semicolon)? YES. (e.g. of items)
+                             
+                             if let AST::PropertyRead(ref prop) = expr {
+                                 if prop.receiver.is_implicit_receiver() {
+                                     // Simple identifier
+                                     if self.consume_optional_character(':') {
+                                       is_key = true;
+                                     } else if !bindings.is_empty() {
+                                         // If not empty, assumed to be key (unless followed by 'as' which is handled as Alias?)
+                                         // But even if followed by 'as': `ngIf as y`. `ngIf` is Key.
+                                         is_key = true;
+                                     } else if let Some(next_token) = self.current() {
+                                          if next_token.token_type != TokenType::Operator || (next_token.str_value != ";" && next_token.str_value != "," && next_token.str_value != "=" && !next_token.is_keyword_as()) {
+                                             // If followed by something that looks like an expression, it is a key
+                                              // 'of items'. 'of' is key.
+                                              is_key = true;
+                                          }
+                                     }
+                                 }
+                             }
+                             
+                             if is_key {
+                                 // The expr was actually a key.
+                                 if let AST::PropertyRead(prop) = expr {
+                                      key_name = Some(prop.name);
+                                      key_span = Some(prop.source_span);
+                                 }
+                                 
+                                 // Parse actual value
+                                 if self.current().map_or(false, |t| !t.is_keyword_as() && t.str_value != ";" && t.str_value != ",") {
+                                     match self.parse_chain() {
+                                         Ok(val_expr) => value = Some(Box::new(val_expr)),
+                                         Err(e) => {
+                                             let span = self.source_span(self.input_index());
+                                             errors.push(ParseUtilError::new(
+                                                 ParseSourceSpan::new(ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.start, 0, 0), ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.end, 0, 0)),
+                                                 e.to_string(),
+                                             ));
+                                         }
+                                     }
+                                 }
+                                 
+                                 if let Some(ref dir) = directive_name {
+                                     // Transform key: prefix + Capitalized
+                                     if let Some(ref k) = key_name {
+                                         let mut result = dir.to_string();
+                                         let mut chars = k.chars();
+                                         if let Some(first) = chars.next() {
+                                             result.push(first.to_ascii_uppercase());
+                                             result.push_str(chars.as_str());
+                                         }
+                                         key_name = Some(result);
+                                     }
+                                 }
+                             } else {
+                                 // It was the value.
+                                 value = Some(Box::new(expr));
+                                 if let Some(dir) = directive_name {
+                                     if bindings.is_empty() {
+                                         key_name = Some(dir.to_string());
+                                         // source span? should be empty or cover value?
+                                         // For "ngIf", source is "ngIf". But we don't have it in input.
+                                         // We'll use a synthetic span or the directive name if available?
+                                         // Actually let's use the directive name as source for now.
+                                         // key_span?
+                                     }
+                                 }
+                             }
+                             
+                             // Check for 'as'
+                             if let Some(token) = self.current() {
+                                 if token.is_keyword_as() {
+                                     self.advance();
+                                     if let Some(ident) = self.current() {
+                                         if ident.is_identifier() {
+                                             name = Some(ident.str_value.clone());
+                                             self.advance();
+                                         } else {
+                                             // Error
+                                             let span = self.source_span(self.input_index());
+                                             errors.push(ParseUtilError::new(
+                                                ParseSourceSpan::new(ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.start, 0, 0), ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.end, 0, 0)),
+                                                "Expected identifier after 'as'".to_string(),
+                                            ));
+                                         }
+                                     }
+                                 }
+                             }
+                        }
+                        Err(e) => {
+                             let span = self.source_span(self.input_index());
+                             errors.push(ParseUtilError::new(
+                                 ParseSourceSpan::new(ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.start, 0, 0), ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.end, 0, 0)),
+                                 e.to_string(),
+                             ));
+                             // Fix infinite loop: Advance if parsing failed to consume token
+                             if self.index == start_token_index {
+                                 self.advance();
+                             }
+                        }
+                    }
+                }
+            } else {
+                break; 
+            }
+            
+            // Push bindings
+            if key_is_var {
+                 if let Some(k) = key_name {
+                     bindings.push(TemplateBinding::Variable(VariableBinding {
+                         key: TemplateBindingIdentifier {
+                             source: k,
+                             span: key_span.unwrap_or(AbsoluteSourceSpan::new(0,0)), // TODO: correct span
+                         },
+                         value: value,
+                         span: AbsoluteSourceSpan::new(0,0), // TODO: correct span
+                     }));
+                 }
+            } else if let Some(k) = key_name {
+                         let b_span = if let Some(v) = &value { v.source_span().clone() } else { AbsoluteSourceSpan::new(0,0) };
+                         // If there is a value, OR if there is no alias ('as'), we emit the expression binding.
+                         // If we have `key as alias` (and no value), TS only emits the VariableBinding for alias.
+                         if value.is_some() || name.is_none() {
+                             bindings.push(TemplateBinding::Expression(ExpressionBinding {
+                                 key: TemplateBindingIdentifier {
+                                     source: k,
+                                     span: key_span.unwrap_or(AbsoluteSourceSpan::new(0,0)), // TODO
+                                 },
+                                 value: value,
+                                 span: b_span, // TOOD: correct binding span
+                             }));
+                         }
+                         
+                         // If there was an 'as' binding
+                     if let Some(n) = name {
+                         // create variable binding for the 'as' part?
+                         // TS: "ngIf as foo" -> VariableBinding name="foo", value="ngIf" (key)
+                         // Wait, value is the directiveName?
+                         // In TS `humanize`: "foo", "ngIf", true.
+                         // If value is missing in VariableBinding, it's null.
+                         // But for "as", it assigns result of expression?
+                         
+                         // TS Parser creates a VariableBinding where value is... ?
+                         // Actually, for "as" binding:
+                         // "foo" (key=foo) value="ngIf" ?
+                         // Let's check parser_spec output for "ngIf as foo".
+                         // ['foo', 'ngIf', true].
+                         // Key='foo'. Value='ngIf'. and IsVar=true.
+                         
+                         // So we create a VariableBinding: key='foo', value=PropertyRead('ngIf')?
+                         // But 'ngIf' is just string here?
+                         // If directive_name is available, use it.
+                         
+                         if let Some(dir) = directive_name {
+                              // create PropertyRead for dir
+                              let v = AST::PropertyRead(PropertyRead {
+                                  span: ParseSpan::new(0,0), 
+                                  source_span: AbsoluteSourceSpan::new(0,0),
+                                  name_span: AbsoluteSourceSpan::new(0,0),
+                                  receiver: Box::new(AST::ImplicitReceiver(ImplicitReceiver{ span: ParseSpan::new(0,0), source_span: AbsoluteSourceSpan::new(0,0) })),
+                                  name: dir.to_string(),
+                              });
+                              bindings.push(TemplateBinding::Variable(VariableBinding {
+                                  key: TemplateBindingIdentifier {
+                                      source: n,
+                                      span: AbsoluteSourceSpan::new(0,0), // span of 'foo'
+                                  },
+                                  value: Some(Box::new(v)),
+                                  span: AbsoluteSourceSpan::new(0,0),
+                              }));
+                         }
+                     }
+                 } else if let Some(v) = value {
+                     // No key name? Should only happen if directive_name missing?
+                     // Or logic error.
+                 }
+
+            
+            // Consume sep
+            if self.consume_optional_character(';') || self.consume_optional_character(',') {
+                continue;
+            }
+            // else break or next loop?
+        }
+        
+        if let Some(dir) = directive_name {
+            let has_dir_binding = bindings.iter().any(|b| match b {
+                TemplateBinding::Expression(e) => e.key.source == dir,
+                _ => false,
+            });
+
+            if !has_dir_binding {
+                bindings.insert(0, TemplateBinding::Expression(ExpressionBinding {
+                    key: TemplateBindingIdentifier {
+                        source: dir.to_string(),
+                        span: AbsoluteSourceSpan::new(0,0), // Synthetic span
+                    },
+                    value: None,
+                    span: AbsoluteSourceSpan::new(0,0),
+                }));
+            }
+        }
+
+        TemplateBindingParseResult {
+            template_bindings: bindings,
+            warnings,
+            errors,
+        }
+    }
 }
+
+
 
 #[cfg(test)]
 mod tests {

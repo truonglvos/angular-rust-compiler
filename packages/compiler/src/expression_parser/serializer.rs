@@ -20,7 +20,9 @@ fn visit_ast(visitor: &mut SerializeExpressionVisitor, ast: &AST) -> String {
         AST::Binary(b) => visitor.visit_binary(b),
         AST::PropertyRead(p) => visitor.visit_property_read(p),
         AST::SafePropertyRead(p) => visitor.visit_safe_property_read(p),
+        AST::PropertyWrite(p) => visitor.visit_property_write(p),
         AST::KeyedRead(k) => visitor.visit_keyed_read(k),
+        AST::KeyedWrite(k) => visitor.visit_keyed_write(k),
         AST::SafeKeyedRead(k) => visitor.visit_safe_keyed_read(k),
         AST::LiteralPrimitive(l) => visitor.visit_literal_primitive(l),
         AST::LiteralArray(a) => visitor.visit_literal_array(a),
@@ -85,11 +87,21 @@ impl SerializeExpressionVisitor {
         String::new()
     }
 
+
     fn visit_keyed_read(&mut self, ast: &KeyedRead) -> String {
         format!(
             "{}[{}]",
             visit_ast(self, &ast.receiver),
             visit_ast(self, &ast.key)
+        )
+    }
+
+    fn visit_keyed_write(&mut self, ast: &KeyedWrite) -> String {
+        format!(
+            "{}[{}] = {}",
+            visit_ast(self, &ast.receiver),
+            visit_ast(self, &ast.key),
+            visit_ast(self, &ast.value)
         )
     }
 
@@ -110,7 +122,7 @@ impl SerializeExpressionVisitor {
             .zip(ast.values.iter())
             .map(|(key, value)| {
                 let key_str = if key.quoted {
-                    format!("'{}'", key.key)
+                    format!("\"{}\"", key.key)
                 } else {
                     key.key.clone()
                 };
@@ -122,7 +134,7 @@ impl SerializeExpressionVisitor {
 
     fn visit_literal_primitive(&mut self, ast: &LiteralPrimitive) -> String {
         match ast {
-            LiteralPrimitive::String { value, .. } => format!("'{}'", value.replace('\'', "\\'")),
+            LiteralPrimitive::String { value, .. } => format!("'{}'", value.replace("'", "\\'")),
             LiteralPrimitive::Number { value, .. } => value.to_string(),
             LiteralPrimitive::Boolean { value, .. } => value.to_string(),
             LiteralPrimitive::Null { .. } => "null".to_string(),
@@ -143,6 +155,7 @@ impl SerializeExpressionVisitor {
                     .join(":")
             )
         };
+        // No parentheses around pipe expression to match TypeScript serializer.ts
         format!("{} | {}{}", visit_ast(self, &ast.exp), ast.name, args)
     }
 
@@ -155,12 +168,24 @@ impl SerializeExpressionVisitor {
     }
 
     fn visit_property_read(&mut self, ast: &PropertyRead) -> String {
-        let receiver_str = visit_ast(self, &ast.receiver);
-        if receiver_str.is_empty() {
-            // Implicit receiver
+        let receiver = visit_ast(self, &ast.receiver);
+        if receiver.is_empty() {
+            // ImplicitReceiver - return just the name
             ast.name.clone()
         } else {
-            format!("{}.{}", receiver_str, ast.name)
+            // ThisReceiver or other receiver - format with dot notation
+            format!("{}.{}", receiver, ast.name)
+        }
+    }
+
+    fn visit_property_write(&mut self, ast: &PropertyWrite) -> String {
+        let receiver = visit_ast(self, &ast.receiver);
+        if receiver.is_empty() {
+            // ImplicitReceiver - return just name = value
+            format!("{} = {}", ast.name, visit_ast(self, &ast.value))
+        } else {
+            // ThisReceiver or other receiver - format with dot notation
+            format!("{}.{} = {}", receiver, ast.name, visit_ast(self, &ast.value))
         }
     }
 
@@ -183,7 +208,8 @@ impl SerializeExpressionVisitor {
             .map(|a| visit_ast(self, a))
             .collect::<Vec<_>>()
             .join(", ");
-        format!("{}({})", visit_ast(self, &ast.receiver), args)
+        let trailing = if ast.has_trailing_comma { ", " } else { "" };
+        format!("{}({}{})", visit_ast(self, &ast.receiver), args, trailing)
     }
 
     fn visit_safe_call(&mut self, ast: &SafeCall) -> String {
@@ -193,7 +219,8 @@ impl SerializeExpressionVisitor {
             .map(|a| visit_ast(self, a))
             .collect::<Vec<_>>()
             .join(", ");
-        format!("{}?.({})", visit_ast(self, &ast.receiver), args)
+        let trailing = if ast.has_trailing_comma { ", " } else { "" };
+        format!("{}?.({}{})", visit_ast(self, &ast.receiver), args, trailing)
     }
 
     fn visit_interpolation(&mut self, ast: &Interpolation) -> String {

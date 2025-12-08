@@ -30,7 +30,7 @@ impl ParseSpan {
 }
 
 /// Absolute source span for mapping back to source
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct AbsoluteSourceSpan {
     pub start: usize,
     pub end: usize,
@@ -40,6 +40,24 @@ impl AbsoluteSourceSpan {
     pub fn new(start: usize, end: usize) -> Self {
         AbsoluteSourceSpan { start, end }
     }
+}
+
+impl AstNode for PropertyRead {
+    fn span(&self) -> &ParseSpan { &self.span }
+    fn source_span(&self) -> &AbsoluteSourceSpan { &self.source_span }
+    fn visit<V: AstVisitor>(&self, visitor: &mut V) -> V::Result { visitor.visit_property_read(self) }
+}
+
+impl AstNode for PropertyWrite {
+    fn span(&self) -> &ParseSpan { &self.span }
+    fn source_span(&self) -> &AbsoluteSourceSpan { &self.source_span }
+    fn visit<V: AstVisitor>(&self, visitor: &mut V) -> V::Result { visitor.visit_property_write(self) }
+}
+
+impl AstNode for SafePropertyRead {
+    fn span(&self) -> &ParseSpan { &self.span }
+    fn source_span(&self) -> &AbsoluteSourceSpan { &self.source_span }
+    fn visit<V: AstVisitor>(&self, visitor: &mut V) -> V::Result { visitor.visit_safe_property_read(self) }
 }
 
 /// Base trait for all AST nodes
@@ -71,6 +89,8 @@ pub trait AstVisitor {
     fn visit_prefix_not(&mut self, ast: &PrefixNot) -> Self::Result;
     fn visit_unary(&mut self, ast: &Unary) -> Self::Result;
     fn visit_non_null_assert(&mut self, ast: &NonNullAssert) -> Self::Result;
+    fn visit_property_write(&mut self, ast: &PropertyWrite) -> Self::Result;
+    fn visit_keyed_write(&mut self, ast: &KeyedWrite) -> Self::Result;
 }
 
 /// Main AST enum containing all node types
@@ -98,6 +118,8 @@ pub enum AST {
     VoidExpression(VoidExpression),
     NonNullAssert(NonNullAssert),
     Call(Call),
+    PropertyWrite(PropertyWrite),
+    KeyedWrite(KeyedWrite),
     SafeCall(SafeCall),
     TemplateLiteral(TemplateLiteral),
     TaggedTemplateLiteral(TaggedTemplateLiteral),
@@ -154,6 +176,16 @@ pub struct PropertyRead {
     pub name: String,
 }
 
+/// Property write (e.g., `obj.property = value`)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PropertyWrite {
+    pub span: ParseSpan,
+    pub source_span: AbsoluteSourceSpan,
+    pub receiver: Box<AST>,
+    pub name: String,
+    pub value: Box<AST>,
+}
+
 /// Safe property read (e.g., `obj?.property`)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SafePropertyRead {
@@ -171,6 +203,16 @@ pub struct KeyedRead {
     pub source_span: AbsoluteSourceSpan,
     pub receiver: Box<AST>,
     pub key: Box<AST>,
+}
+
+/// Keyed write (e.g., `obj[key] = value`)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KeyedWrite {
+    pub span: ParseSpan,
+    pub source_span: AbsoluteSourceSpan,
+    pub receiver: Box<AST>,
+    pub key: Box<AST>,
+    pub value: Box<AST>,
 }
 
 /// Safe keyed read (e.g., `obj?.[key]`)
@@ -291,6 +333,7 @@ pub struct Call {
     pub receiver: Box<AST>,
     pub args: Vec<Box<AST>>,
     pub argument_span: AbsoluteSourceSpan,
+    pub has_trailing_comma: bool,
 }
 
 /// Safe function call (e.g., `fn?.(a, b)`)
@@ -301,6 +344,7 @@ pub struct SafeCall {
     pub receiver: Box<AST>,
     pub args: Vec<Box<AST>>,
     pub argument_span: AbsoluteSourceSpan,
+    pub has_trailing_comma: bool,
 }
 
 /// Non-null assertion (e.g., `expr!`)
@@ -702,6 +746,15 @@ impl RecursiveAstVisitor {
             AST::ParenthesizedExpression(p) => {
                 self.visit(&p.expression);
             }
+            AST::PropertyWrite(p) => {
+                self.visit(&p.receiver);
+                self.visit(&p.value);
+            }
+            AST::KeyedWrite(k) => {
+                self.visit(&k.receiver);
+                self.visit(&k.key);
+                self.visit(&k.value);
+            }
             AST::RegularExpressionLiteral(_) |
             AST::EmptyExpr(_) |
             AST::ImplicitReceiver(_) |
@@ -716,6 +769,52 @@ impl RecursiveAstVisitor {
 impl Default for RecursiveAstVisitor {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+
+impl AST {
+    pub fn source_span(&self) -> AbsoluteSourceSpan {
+        match self {
+            AST::EmptyExpr(e) => e.source_span,
+            AST::ImplicitReceiver(e) => e.source_span,
+            AST::ThisReceiver(e) => e.source_span,
+            AST::Chain(e) => e.source_span,
+            AST::Conditional(e) => e.source_span,
+            AST::PropertyRead(e) => e.source_span,
+            AST::SafePropertyRead(e) => e.source_span,
+            AST::KeyedRead(e) => e.source_span,
+            AST::SafeKeyedRead(e) => e.source_span,
+            AST::BindingPipe(e) => e.source_span,
+            AST::LiteralPrimitive(e) => match e {
+                LiteralPrimitive::String { source_span, .. } => *source_span,
+                LiteralPrimitive::Number { source_span, .. } => *source_span,
+                LiteralPrimitive::Boolean { source_span, .. } => *source_span,
+                LiteralPrimitive::Null { source_span, .. } => *source_span,
+                LiteralPrimitive::Undefined { source_span, .. } => *source_span,
+            },
+            AST::LiteralArray(e) => e.source_span,
+            AST::LiteralMap(e) => e.source_span,
+            AST::Interpolation(e) => e.source_span,
+            AST::Binary(e) => e.source_span,
+            AST::PrefixNot(e) => e.source_span,
+            AST::Unary(e) => e.source_span,
+            AST::TypeofExpression(e) => e.source_span,
+            AST::VoidExpression(e) => e.source_span,
+            AST::NonNullAssert(e) => e.source_span,
+            AST::Call(e) => e.source_span,
+            AST::PropertyWrite(e) => e.source_span,
+            AST::KeyedWrite(e) => e.source_span,
+            AST::SafeCall(e) => e.source_span,
+            AST::TemplateLiteral(e) => e.source_span,
+            AST::TaggedTemplateLiteral(e) => e.source_span,
+            AST::ParenthesizedExpression(e) => e.source_span,
+            AST::RegularExpressionLiteral(e) => e.source_span,
+        }
+    }
+
+    pub fn is_implicit_receiver(&self) -> bool {
+        matches!(self, AST::ImplicitReceiver(_))
     }
 }
 
