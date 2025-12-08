@@ -9,7 +9,6 @@ use crate::ml_parser::lexer::TokenizeOptions;
 use crate::ml_parser::parser::ParseTreeResult;
 use crate::i18n::digest::digest;
 use crate::i18n::extractor_merger::merge_translations;
-use crate::i18n::serializers::serializer::Serializer;
 use crate::i18n::serializers::xliff::Xliff;
 use crate::i18n::serializers::xliff2::Xliff2;
 use crate::i18n::serializers::xmb::Xmb;
@@ -32,14 +31,14 @@ impl I18NHtmlParser {
         missing_translation: MissingTranslationStrategy,
     ) -> Self {
         let translation_bundle = if let Some(trans) = translations {
-            let serializer = create_serializer(translations_format.as_deref());
-            TranslationBundle::load(
-                &trans,
-                "i18n",
-                serializer.as_ref(),
-                missing_translation,
-            )
-            .unwrap_or_else(|_| {
+            let format = translations_format.as_deref().unwrap_or("xlf").to_lowercase();
+            let result = match format.as_str() {
+                "xmb" => TranslationBundle::load(&trans, "i18n", Xmb::new(), missing_translation),
+                "xtb" => TranslationBundle::load(&trans, "i18n", Xtb::new(), missing_translation),
+                "xliff2" | "xlf2" => TranslationBundle::load(&trans, "i18n", Xliff2::new(), missing_translation),
+                "xliff" | "xlf" | _ => TranslationBundle::load(&trans, "i18n", Xliff::new(), missing_translation),
+            };
+            result.unwrap_or_else(|_| {
                 TranslationBundle::new(
                     HashMap::new(),
                     None,
@@ -87,20 +86,10 @@ impl I18NHtmlParser {
         )
     }
 
-    pub fn get_tag_definition(&self, tag_name: &str) -> Option<()> {
+    pub fn get_tag_definition(&self, _tag_name: &str) -> Option<()> {
         // TODO: Implement tag definition lookup
         None
     }
 }
 
-fn create_serializer(format: Option<&str>) -> Box<dyn Serializer> {
-    let format = format.unwrap_or("xlf").to_lowercase();
-
-    match format.as_str() {
-        "xmb" => Box::new(Xmb::new()),
-        "xtb" => Box::new(Xtb::new()),
-        "xliff2" | "xlf2" => Box::new(Xliff2::new()),
-        "xliff" | "xlf" | _ => Box::new(Xliff::new()),
-    }
-}
 
