@@ -128,6 +128,7 @@ impl Comment {
 pub struct Block {
     pub name: String,
     pub parameters: Vec<BlockParameter>,
+    pub has_opening_brace: bool,  // Track if block received { token
     pub children: Vec<Node>,
     pub source_span: ParseSourceSpan,
     pub name_span: ParseSourceSpan,

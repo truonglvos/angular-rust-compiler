@@ -105,6 +105,8 @@ pub enum Token {
     DirectiveName(DirectiveNameToken),
     DirectiveOpen(DirectiveOpenToken),
     DirectiveClose(DirectiveCloseToken),
+    RawText(RawTextToken),
+    EscapableRawText(EscapableRawTextToken),
 }
 
 // Token type definitions
@@ -297,6 +299,18 @@ pub struct LetEndToken {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IncompleteLetToken {
+    pub parts: Vec<String>,
+    pub source_span: ParseSourceSpan,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RawTextToken {
+    pub parts: Vec<String>,
+    pub source_span: ParseSourceSpan,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EscapableRawTextToken {
     pub parts: Vec<String>,
     pub source_span: ParseSourceSpan,
 }

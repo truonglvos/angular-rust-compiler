@@ -50,6 +50,23 @@ path = "test/expression_parser/ast_tests.rs"
 name = "expression_parser_serializer"
 path = "test/expression_parser/serializer_tests.rs"
 
+# ML Parser tests
+[[test]]
+name = "ml_parser_lexer"
+path = "test/ml_parser/lexer_tests.rs"
+
+[[test]]
+name = "ml_parser_html_parser"
+path = "test/ml_parser/html_parser_tests.rs"
+
+[[test]]
+name = "ml_parser_html_whitespaces"
+path = "test/ml_parser/html_whitespaces_tests.rs"
+
+[[test]]
+name = "ml_parser_ast_serializer"
+path = "test/ml_parser/ast_serializer_tests.rs"
+
 [[test]]
 name = "util_spec"
 path = "test/util_spec.rs"

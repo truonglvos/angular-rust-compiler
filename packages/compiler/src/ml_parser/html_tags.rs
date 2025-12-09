@@ -2,11 +2,14 @@
 //!
 //! Corresponds to packages/compiler/src/ml_parser/html_tags.ts (194 lines)
 
-use super::tags::{get_ns_prefix, TagContentType, TagDefinition};
+use super::tags::{get_ns_prefix, TagDefinition};
 use crate::schema::dom_element_schema_registry::DomElementSchemaRegistry;
 use crate::schema::element_schema_registry::ElementSchemaRegistry;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
+
+// Re-export TagContentType for easy access
+pub use super::tags::TagContentType;
 
 /// HTML tag definition with specific parsing rules
 #[derive(Debug, Clone)]
@@ -40,7 +43,7 @@ impl HtmlTagDefinition {
             implicit_namespace_prefix: None,
             is_void: false,
             ignore_first_lf: false,
-            can_self_close: true,
+            can_self_close: false,
             prevent_namespace_inheritance: false,
         }
     }
@@ -347,6 +350,10 @@ static DEFAULT_TAG_DEFINITION: Lazy<HtmlTagDefinition> = Lazy::new(|| {
 });
 
 /// Get HTML tag definition for a given tag name
+pub fn check_is_known_tag(tag_name: &str) -> bool {
+    TAG_DEFINITIONS.contains_key(tag_name) || TAG_DEFINITIONS.contains_key(&tag_name.to_lowercase())
+}
+
 pub fn get_html_tag_definition(tag_name: &str) -> &'static HtmlTagDefinition {
     // We have to make both a case-sensitive and a case-insensitive lookup, because
     // HTML tag names are case insensitive, whereas some SVG tags are case sensitive.

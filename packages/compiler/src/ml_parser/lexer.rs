@@ -10,6 +10,8 @@ use crate::parse_util::{ParseError, ParseLocation, ParseSourceFile, ParseSourceS
 use super::tags::{TagDefinition, TagContentType};
 use super::tokens::*;
 use regex::Regex;
+use super::entities::NAMED_ENTITIES;
+use super::html_tags;
 use once_cell::sync::Lazy;
 
 /// Tokenization result
@@ -157,12 +159,12 @@ impl PlainCharacterCursor {
 
     fn update_peek(&mut self) {
         if self.state.offset < self.file.content.len() {
-            // Use byte indexing for efficiency
-            let bytes = self.file.content.as_bytes();
-            if self.state.offset < bytes.len() {
-                self.state.peek = bytes[self.state.offset] as char;
+            // Use string slicing to get correct unicode char
+            // Note: This relies on offset being at char boundary, which should be guaranteed by logic
+            if let Some(c) = self.file.content[self.state.offset..].chars().next() {
+                self.state.peek = c;
             } else {
-                self.state.peek = chars::EOF;
+                 self.state.peek = chars::EOF;
             }
         } else {
             self.state.peek = chars::EOF;
@@ -177,7 +179,8 @@ impl CharacterCursor for PlainCharacterCursor {
 
     fn advance(&mut self) {
         if self.state.offset < self.range.end_pos {
-            self.state.offset += 1;
+            let char_len = self.state.peek.len_utf8();
+            self.state.offset += char_len;
             if self.state.peek == '\n' {
                 self.state.line += 1;
                 self.state.column = 0;
@@ -245,6 +248,252 @@ impl CharacterCursor for PlainCharacterCursor {
     }
 }
 
+/// Character cursor that handles escape sequences in strings
+struct EscapedCharacterCursor {
+    file: ParseSourceFile,
+    range: LexerRange,
+    internal_state: EscapedCursorState,
+}
+
+#[derive(Debug, Clone)]
+struct EscapedCursorState {
+    peek: char,
+    offset: usize,      // Logical offset (what the user sees as current position)
+    source_index: usize, // Actual index in source string
+    line: usize,
+    column: usize,
+}
+
+impl EscapedCharacterCursor {
+    fn new(file: ParseSourceFile, range: Option<LexerRange>) -> Self {
+        let default_range = LexerRange {
+            start_pos: 0,
+            start_line: 0,
+            start_col: 0,
+            end_pos: file.content.len(),
+        };
+        
+        let range = range.unwrap_or(default_range);
+        
+        let mut cursor = EscapedCharacterCursor {
+            file,
+            range: range.clone(),
+            internal_state: EscapedCursorState {
+                peek: '\0',
+                offset: range.start_pos,
+                source_index: range.start_pos,
+                line: range.start_line,
+                column: range.start_col,
+            },
+        };
+        cursor.update_peek();
+        cursor
+    }
+
+    fn update_peek(&mut self) {
+        if self.internal_state.source_index < self.file.content.len() {
+             let ch = self.file.content[self.internal_state.source_index..].chars().next().unwrap_or(chars::EOF);
+             
+             if ch == '\\' {
+                 // Check next char for escape sequence
+                 let next_char_idx = self.internal_state.source_index + ch.len_utf8();
+                 if next_char_idx < self.file.content.len() {
+                     let next_char = self.file.content[next_char_idx..].chars().next().unwrap_or(chars::EOF);
+                     
+                     match next_char {
+                         'n' => self.internal_state.peek = '\n',
+                         'r' => self.internal_state.peek = '\r',
+                         't' => self.internal_state.peek = '\t',
+                         'b' => self.internal_state.peek = '\x08', // backspace
+                         'f' => self.internal_state.peek = '\x0c', // form feed
+                         'v' => self.internal_state.peek = '\x0b', // vertical tab
+                         '"' => self.internal_state.peek = '"',
+                         '\'' => self.internal_state.peek = '\'',
+                         '\\' => self.internal_state.peek = '\\',
+                         'u' => {
+                             // Unicode escape \uXXXX
+                             // We need to peek ahead further. This is complex to do "statelessly".
+                             // For simplicity in this implementation, we will decode it here 
+                             // BUT we won't consume it until advance() is called.
+                             // This means peek() is slightly expensive for unicode escapes but that's fine.
+                             
+                             // Try to parse 4 hex digits
+                             if next_char_idx + 1 + 4 <= self.file.content.len() {
+                                 let hex_str = &self.file.content[next_char_idx + 1..next_char_idx + 5];
+                                 if let Ok(code) = u32::from_str_radix(hex_str, 16) {
+                                     if let Some(c) = std::char::from_u32(code) {
+                                         self.internal_state.peek = c;
+                                     } else {
+                                          self.internal_state.peek = chars::EOF; // Invalid unicode
+                                     }
+                                 } else {
+                                     // Not valid hex, just treat as 'u'
+                                     self.internal_state.peek = 'u'; 
+                                 }
+                             } else {
+                                 self.internal_state.peek = 'u';
+                             }
+                         }
+                         _ => self.internal_state.peek = next_char, // Unknown escape, just return the char
+                     }
+                 } else {
+                     self.internal_state.peek = '\\'; // Trailing backslash
+                 }
+             } else {
+                 self.internal_state.peek = ch;
+             }
+        } else {
+            self.internal_state.peek = chars::EOF;
+        }
+    }
+}
+
+impl CharacterCursor for EscapedCharacterCursor {
+    fn peek(&self) -> char {
+        self.internal_state.peek
+    }
+
+    fn advance(&mut self) {
+        if self.internal_state.source_index < self.file.content.len() {
+            let current_char = self.file.content[self.internal_state.source_index..].chars().next().unwrap_or(chars::EOF);
+            let mut char_len = current_char.len_utf8();
+            
+            // Calculate how much to advance in SOURCE
+            if current_char == '\\' {
+                let next_idx = self.internal_state.source_index + char_len;
+                if next_idx < self.file.content.len() {
+                    let next_char = self.file.content[next_idx..].chars().next().unwrap_or(chars::EOF);
+                    char_len += next_char.len_utf8();
+                    
+                    if next_char == 'u' {
+                        // Check if it was a valid unicode escape
+                         if next_idx + 1 + 4 <= self.file.content.len() {
+                             let hex_str = &self.file.content[next_idx + 1..next_idx + 5];
+                             if u32::from_str_radix(hex_str, 16).is_ok() {
+                                 char_len += 4; // Consume the 4 hex digits too
+                             }
+                         }
+                    }
+                }
+            }
+            
+            self.internal_state.source_index += char_len;
+            self.internal_state.offset += 1; // Logical advance is always 1 char (the decoded char)
+
+            // Update line/col based on DECODED char (peek)
+             if self.internal_state.peek == '\n' {
+                self.internal_state.line += 1;
+                self.internal_state.column = 0;
+            } else {
+                self.internal_state.column += 1;
+            }
+            
+            self.update_peek();
+        }
+    }
+
+    fn clone_cursor(&self) -> Box<dyn CharacterCursor> {
+        Box::new(EscapedCharacterCursor {
+            file: self.file.clone(),
+            range: self.range.clone(),
+            internal_state: self.internal_state.clone(),
+        })
+    }
+
+    fn get_chars(&self, start: &dyn CharacterCursor) -> String {
+        // This is tricky because start might be a different type of cursor or have different internal state structure
+        // We assume start is also EscapedCharacterCursor and cast or use offset.
+        // Actually, since we are decoding on the fly, get_chars should probably return the DECODED chars.
+        // But ParseSourceSpan usually refers to ORIGINAL source.
+        
+        // TypeScript implementation of getChars for EscapedCharacterCursor returns the DECODED characters.
+        
+        let start_offset = start.get_offset(); // This is logical offset
+        let end_offset = self.internal_state.offset;
+        
+        if start_offset >= end_offset {
+            return String::new();
+        }
+        
+        // To get the string, we might need to re-decode the range.
+        // Or simpler: verify if we can trust source indices.
+        // Since we don't expose source_index in Trait, we can't easily slice source.
+        
+        // Re-simulate from start to end? That's expensive.
+        // Ideally we should track accumulated string or similar.
+        
+        // Hack for now: If it's a small range, just step through?
+        // OR: Since we only use get_chars for tokens, maybe we can implement a way to get source slice?
+        
+        // Let's implement a naive re-decoding from start position. 
+        // We need to find the START source index.
+        // The `start` cursor should have it if we cast.
+        
+        // NOTE: In Rust we can't easily downcast generic Trait object without Any. 
+        // But we know we only use one cursor type at a time.
+        
+        // HACK: For now returning empty string if cast fails, but it shouldn't.
+        // We'll rely on the fact that we clone cursors.
+        
+        // "TODO: optimize this" - basic implementation:
+        // We can't easily get the characters without re-scanning because we don't store the decoded string.
+        // Let's walk from start to current.
+        
+        let mut result = String::new();
+        // We need a way to clone 'start' into a concrete type we can advance
+        let mut temp = start.clone_cursor(); 
+        
+        while temp.get_offset() < self.internal_state.offset {
+            result.push(temp.peek());
+            temp.advance();
+        }
+        result
+    }
+
+    fn get_span(&self, start: &dyn CharacterCursor) -> ParseSourceSpan {
+        // Spans should refer to the LOGICAL (decoded) position? 
+        // OR Original Source position?
+        // TS `ParseSourceSpan` uses `ParseLocation` which uses `offset`.
+        // In `EscapedCharacterCursor`, `offset` is the logical offset.
+        // So we return logical spans.
+        
+         let start_location = ParseLocation::new(
+            self.file.clone(),
+            start.get_offset(),
+            start.get_line(),
+            start.get_column(),
+        );
+        let end_location = ParseLocation::new(
+            self.file.clone(),
+            self.internal_state.offset,
+            self.internal_state.line,
+            self.internal_state.column,
+        );
+        ParseSourceSpan::new(start_location, end_location)
+    }
+
+    fn init(&mut self) -> Result<(), String> {
+        self.internal_state.offset = self.range.start_pos;
+         self.internal_state.source_index = self.range.start_pos;
+        self.internal_state.line = self.range.start_line;
+        self.internal_state.column = self.range.start_col;
+        self.update_peek();
+        Ok(())
+    }
+
+    fn get_offset(&self) -> usize {
+        self.internal_state.offset
+    }
+
+    fn get_line(&self) -> usize {
+        self.internal_state.line
+    }
+
+    fn get_column(&self) -> usize {
+        self.internal_state.column
+    }
+}
+
 /// Main tokenizer
 struct Tokenizer {
     cursor: Box<dyn CharacterCursor>,
@@ -275,11 +524,7 @@ impl Tokenizer {
     ) -> Self {
         let range = options.range.clone();
         let cursor: Box<dyn CharacterCursor> = if options.escaped_string {
-            // NOTE: EscapedCharacterCursor not yet implemented
-            // This handles escape sequences like \n, \t, \uXXXX
-            // For now, use PlainCharacterCursor (works for most cases)
-            // Full implementation would decode escape sequences on-the-fly
-            Box::new(PlainCharacterCursor::new(file.clone(), range))
+            Box::new(EscapedCharacterCursor::new(file.clone(), range))
         } else {
             Box::new(PlainCharacterCursor::new(file.clone(), range))
         };
@@ -308,6 +553,25 @@ impl Tokenizer {
             errors: Vec::new(),
             non_normalized_icu_expressions: Vec::new(),
         }
+    }
+
+    fn process_carriage_returns(&self, content: String) -> String {
+        if self.preserve_line_endings {
+            return content;
+        }
+        let mut result = String::with_capacity(content.len());
+        let mut chars = content.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c == '\r' {
+                if chars.peek() == Some(&'\n') {
+                    chars.next();
+                }
+                result.push('\n');
+            } else {
+                result.push(c);
+            }
+        }
+        result
     }
 
     fn tokenize(&mut self) {
@@ -345,22 +609,12 @@ impl Tokenizer {
             } else if self.tokenize_blocks && self.is_block_start() {
                 // @block start
                 self.consume_block_start(start);
-            } else if self.tokenize_blocks && !self.in_interpolation && self.expansion_case_stack.is_empty() && self.block_depth > 0 && self.cursor.peek() == '}' {
-                // Check if this is '}' from '}}' (end interpolation)
-                let mut temp = self.cursor.clone_cursor();
-                temp.advance();
-                let next_ch = temp.peek();
+            } else if self.tokenize_blocks && !self.in_interpolation && self.expansion_case_stack.is_empty() && self.cursor.peek() == '}' {
+                // When tokenize_blocks is true and we're NOT in interpolation,
+                // a single } is always a block close, never part of {{}}
+                self.attempt_char_code('}');
+                self.consume_block_end(start);
 
-                // If next char is NOT '}', this is a block close
-                // If next char IS '}', this is part of interpolation end - let consume_text handle it
-                if next_ch != '}' {
-                    // Block end - only if we have open blocks
-                    self.attempt_char_code('}');
-                    self.consume_block_end(start);
-                } else {
-                    // This is '}}' - let consume_text handle interpolation
-                    self.consume_text();
-                }
             } else {
                 // Try ICU expansion form tokenization
                 let before_offset = self.cursor.get_offset();
@@ -389,53 +643,75 @@ impl Tokenizer {
 
     fn consume_text(&mut self) {
         // Use consumeWithInterpolation logic from Angular
-        self.consume_with_interpolation(TokenType::Text, TokenType::Interpolation);
+        self.consume_with_interpolation(TokenType::Text, TokenType::Interpolation, None);
     }
 
-    fn consume_with_interpolation(&mut self, text_token_type: TokenType, interpolation_token_type: TokenType) {
+    fn consume_with_interpolation(&mut self, text_token_type: TokenType, interpolation_token_type: TokenType, end_char: Option<char>) {
         self.begin_token(text_token_type);
         let mut parts: Vec<String> = Vec::new();
-        let mut content = String::new();
 
-        while !self.is_text_end() {
-            let current = self.cursor.clone_cursor();
+        loop {
+            // Check end condition
+            if let Some(end) = end_char {
+                if self.cursor.peek() == end || self.cursor.peek() == chars::EOF {
+                    break;
+                }
+            } else {
+                if self.is_text_end() {
+                    break;
+                }
+            }
+
             let ch = self.cursor.peek();
-
+            
             // Check for interpolation start {{
             if ch == '{' {
                 let mut temp = self.cursor.clone_cursor();
                 temp.advance();
                 if temp.peek() == '{' {
                     // Found {{ - start interpolation
-                    // ALWAYS end current text token (even if empty)
-                    self.end_token(vec![content.clone()]);
-                    content.clear();
+                    // ALWAYS end current text token (even if empty) - matching TS line 1149
+                    self.end_token(vec![self.process_carriage_returns(parts.join(""))]);
+                    parts.clear();
 
-                    // Consume interpolation
-                    self.consume_interpolation(interpolation_token_type, current);
+                    let interpolation_start = self.cursor.clone_cursor();
+                self.consume_interpolation(interpolation_token_type, interpolation_start, end_char);
 
-                    // Begin new text token
+                // Begin new text token - matching TS line 1152
                     self.begin_token(text_token_type);
                     continue;
                 }
             }
 
-            if self.cursor.peek() == '&' {
-                // TODO: Handle entities
-                content.push(self.cursor.peek());
-                self.cursor.advance();
-            } else {
-                content.push(self.cursor.peek());
-                self.cursor.advance();
+            // Check for entity &
+            if ch == '&' {
+                // ALWAYS end current text token (even if empty) - matching TS line 1154
+                self.end_token(vec![self.process_carriage_returns(parts.join(""))]);
+                parts.clear();
+                
+                // Consume entity (returns true if successful)
+                if self.consume_entity() {
+                    // Entity consumed - begin new text token - matching TS line 1157
+                    self.begin_token(text_token_type);
+                    continue;
+                } else {
+                    // Not a valid entity - begin new text token and fall through to push &
+                    self.begin_token(text_token_type);
+                }
             }
+                
+            // Read one character
+            let ch = String::from(self.cursor.peek());
+            self.cursor.advance();
+            parts.push(ch);
         }
 
-        // End final text token
+        // ALWAYS end final text token (even if empty) - matching TS line 1167
         self.in_interpolation = false;
-        self.end_token(vec![content]);
+        self.end_token(vec![self.process_carriage_returns(parts.join(""))]);
     }
 
-    fn consume_interpolation(&mut self, interpolation_token_type: TokenType, interpolation_start: Box<dyn CharacterCursor>) {
+    fn consume_interpolation(&mut self, interpolation_token_type: TokenType, interpolation_start: Box<dyn CharacterCursor>, end_char: Option<char>) {
         // Consume {{
         self.cursor.advance();
         self.cursor.advance();
@@ -448,13 +724,34 @@ impl Tokenizer {
         // Consume content until }}
         let mut content = String::new();
         while self.cursor.peek() != chars::EOF {
+            let ch = self.cursor.peek();
+
+            // Handle escapes: consume backslash and next char
+            if ch == '\\' {
+                content.push(ch);
+                self.cursor.advance();
+                
+                if self.cursor.peek() != chars::EOF {
+                    content.push(self.cursor.peek());
+                    self.cursor.advance();
+                }
+                continue;
+            }
+
+            // Check for end char
+            if let Some(end) = end_char {
+                if ch == end {
+                    break;
+                }
+            }
+            
             // Check for }}
-            if self.cursor.peek() == '}' {
+            if ch == '}' {
                 let mut temp = self.cursor.clone_cursor();
                 temp.advance();
                 if temp.peek() == '}' {
                     // Found end marker
-                    parts.push(content);
+                    parts.push(self.process_carriage_returns(content));
                     parts.push("}}".to_string());
 
                     // Consume }}
@@ -467,14 +764,108 @@ impl Tokenizer {
                 }
             }
 
+            // Check for entity
+            if self.cursor.peek() == '&' {
+                if let Some((_, decoded)) = self.try_read_entity() {
+                    content.push_str(&decoded);
+                    continue;
+                }
+            }
+
             content.push(self.cursor.peek());
             self.cursor.advance();
         }
 
-        // EOF reached without closing }}
-        self.in_interpolation = false;
-        parts.push(content);
-        self.end_token(parts);
+        // EOF reached without closing }} or hit end_char
+    if self.cursor.peek() == chars::EOF {
+        self.handle_error("Unexpected character \"EOF\", expected \"}}\"".to_string());
+    }
+    self.in_interpolation = false;
+    parts.push(self.process_carriage_returns(content));
+    self.end_token(parts);
+    }
+
+    fn consume_entity(&mut self) -> bool {
+        // Match TypeScript's _consumeEntity which calls _beginToken inside
+        self.begin_token(TokenType::EncodedEntity);
+        let start = self.cursor.clone_cursor();
+        
+        if let Some((content, decoded)) = self.try_read_entity() {
+             // DON'T set current_token_start here - it should already be set by begin_token
+             // before consume_entity is called (matching TypeScript behavior)
+             self.end_token(vec![decoded, content]);
+             return true;
+        } else {
+             // Entity parsing failed - token was begun but not ended
+             // This shouldn't happen in normal flow as try_read_entity handles invalid entities
+             false
+        }
+    }
+
+    fn try_read_entity(&mut self) -> Option<(String, String)> {
+        let start = self.cursor.clone_cursor();
+        self.cursor.advance(); // consume '&'
+
+        let mut content = String::from("&");
+        let mut decoded = String::new();
+
+        if self.attempt_char_code('#') {
+            content.push('#');
+            let is_hex = self.attempt_char_code('x');
+            if is_hex {
+                content.push('x');
+            }
+
+            let mut num_str = String::new();
+            while (is_hex && self.cursor.peek().is_digit(16)) || (!is_hex && self.cursor.peek().is_digit(10)) {
+                let ch = self.cursor.peek();
+                num_str.push(ch);
+                content.push(ch);
+                self.cursor.advance();
+            }
+
+            if num_str.is_empty() {
+                self.cursor = start;
+                return None;
+            }
+
+            if self.attempt_char_code(';') {
+                content.push(';');
+            }
+
+            let num = u32::from_str_radix(&num_str, if is_hex { 16 } else { 10 }).unwrap_or(0);
+            if let Some(c) = std::char::from_u32(num) {
+                decoded.push(c);
+            } else {
+                decoded.push('\u{FFFD}');
+            }
+        } else {
+            let mut name = String::new();
+            while self.cursor.peek().is_alphanumeric() {
+                let ch = self.cursor.peek();
+                name.push(ch);
+                content.push(ch);
+                self.cursor.advance();
+            }
+
+            if name.is_empty() {
+                self.cursor = start;
+                return None;
+            }
+
+            if self.attempt_char_code(';') {
+                content.push(';');
+            }
+
+            if let Some(&val) = NAMED_ENTITIES.get(name.as_str()) {
+                decoded.push_str(val);
+            } else {
+                self.cursor = start;
+                return None;
+            }
+        }
+
+        Some((content, decoded))
     }
 
     fn attempt_str(&mut self, s: &str) -> bool {
@@ -511,10 +902,15 @@ impl Tokenizer {
             TokenType::Interpolation => Token::Interpolation(InterpolationToken { parts, source_span }),
             TokenType::EncodedEntity => Token::EncodedEntity(EncodedEntityToken { parts, source_span }),
             TokenType::TagOpenStart => Token::TagOpenStart(TagOpenStartToken { parts, source_span }),
+            TokenType::ComponentOpenStart => Token::ComponentOpenStart(ComponentOpenStartToken { parts, source_span }),
             TokenType::TagOpenEnd => Token::TagOpenEnd(TagOpenEndToken { parts, source_span }),
+            TokenType::ComponentOpenEnd => Token::ComponentOpenEnd(ComponentOpenEndToken { parts, source_span }),
             TokenType::TagOpenEndVoid => Token::TagOpenEndVoid(TagOpenEndVoidToken { parts, source_span }),
+            TokenType::ComponentOpenEndVoid => Token::ComponentOpenEndVoid(ComponentOpenEndVoidToken { parts, source_span }),
             TokenType::TagClose => Token::TagClose(TagCloseToken { parts, source_span }),
+            TokenType::ComponentClose => Token::ComponentClose(ComponentCloseToken { parts, source_span }),
             TokenType::IncompleteTagOpen => Token::IncompleteTagOpen(IncompleteTagOpenToken { parts, source_span }),
+            TokenType::DirectiveName => Token::DirectiveName(DirectiveNameToken { parts, source_span }),
             TokenType::AttrName => Token::AttrName(AttributeNameToken { parts, source_span }),
             TokenType::AttrValueText => Token::AttrValueText(AttributeValueTextToken { parts, source_span }),
             TokenType::AttrValueInterpolation => Token::AttrValueInterpolation(AttributeValueInterpolationToken { parts, source_span }),
@@ -527,16 +923,22 @@ impl Tokenizer {
             TokenType::BlockOpenEnd => Token::BlockOpenEnd(BlockOpenEndToken { parts: vec![], source_span }),
             TokenType::BlockClose => Token::BlockClose(BlockCloseToken { parts: vec![], source_span }),
             TokenType::BlockParameter => Token::BlockParameter(BlockParameterToken { parts, source_span }),
+            TokenType::IncompleteBlockOpen => Token::IncompleteBlockOpen(IncompleteBlockOpenToken { parts, source_span }),
             TokenType::LetStart => Token::LetStart(LetStartToken { parts, source_span }),
             TokenType::LetValue => Token::LetValue(LetValueToken { parts, source_span }),
             TokenType::LetEnd => Token::LetEnd(LetEndToken { parts: vec![], source_span }),
+            TokenType::DirectiveOpen => Token::DirectiveOpen(DirectiveOpenToken { parts, source_span }),
+            TokenType::DirectiveClose => Token::DirectiveClose(DirectiveCloseToken { parts: vec![], source_span }),
             TokenType::IncompleteLet => Token::IncompleteLet(IncompleteLetToken { parts, source_span }),
-            TokenType::ExpansionFormStart => Token::ExpansionFormStart(ExpansionFormStartToken { parts: vec![], source_span }),
+            TokenType::ExpansionFormStart => Token::ExpansionFormStart(ExpansionFormStartToken { parts, source_span }),
             TokenType::ExpansionFormEnd => Token::ExpansionFormEnd(ExpansionFormEndToken { parts: vec![], source_span }),
             TokenType::ExpansionCaseValue => Token::ExpansionCaseValue(ExpansionCaseValueToken { parts, source_span }),
             TokenType::ExpansionCaseExpStart => Token::ExpansionCaseExpStart(ExpansionCaseExpressionStartToken { parts: vec![], source_span }),
             TokenType::ExpansionCaseExpEnd => Token::ExpansionCaseExpEnd(ExpansionCaseExpressionEndToken { parts: vec![], source_span }),
-            TokenType::Eof => Token::Eof(EndOfFileToken { parts, source_span }),
+            TokenType::Eof => Token::Eof(EndOfFileToken { parts: vec![], source_span }),
+            TokenType::DocType => Token::DocType(DocTypeToken { parts, source_span }),
+            TokenType::RawText => Token::RawText(RawTextToken { parts, source_span }),
+            TokenType::EscapableRawText => Token::EscapableRawText(EscapableRawTextToken { parts, source_span }),
             _ => Token::Text(TextToken { parts, source_span }), // Fallback
         };
 
@@ -608,8 +1010,8 @@ impl Tokenizer {
 
         // Add content as text token
         if !content.is_empty() {
-            self.begin_token(TokenType::Text);
-            self.end_token(vec![content]);
+            self.begin_token(TokenType::RawText);
+            self.end_token(vec![self.process_carriage_returns(content)]);
         }
 
         // Consume end marker "]]>"
@@ -623,37 +1025,38 @@ impl Tokenizer {
     fn consume_comment(&mut self, start: Box<dyn CharacterCursor>) {
         // Comment format: <!--...-->
         self.begin_token(TokenType::CommentStart);
+        self.require_char_code('-');
         self.end_token(vec![]);
 
         // Consume content until "-->"
+        // Use attempt_str to check for end marker, similar to TypeScript's _consumeRawText
         let mut content = String::new();
         loop {
-            let ch = self.cursor.peek();
-            if ch == chars::EOF {
+            if self.cursor.peek() == chars::EOF {
                 break;
             }
 
             // Check for end marker "-->"
-            if ch == '-' {
-                let mut temp = self.cursor.clone_cursor();
-                temp.advance();
-                if temp.peek() == '-' {
-                    temp.advance();
-                    if temp.peek() == '>' {
-                        // Found end marker
-                        break;
-                    }
-                }
+            let cursor_before_check = self.cursor.clone_cursor();
+            if self.attempt_str("-->") {
+                // Found end marker, reset cursor and break
+                self.cursor = cursor_before_check;
+                break;
             }
 
+            // Not the end marker, read one character
+            let ch = self.cursor.peek();
+            if ch == chars::EOF {
+                break;
+            }
             content.push(ch);
             self.cursor.advance();
         }
 
         // Add content as text token
         if !content.is_empty() {
-            self.begin_token(TokenType::Text);
-            self.end_token(vec![content]);
+            self.begin_token(TokenType::RawText);
+            self.end_token(vec![self.process_carriage_returns(content)]);
         }
 
         // Consume end marker "-->"
@@ -679,6 +1082,9 @@ impl Tokenizer {
 
         if self.cursor.peek() == '>' {
             self.cursor.advance();
+        } else {
+            let char_str = if self.cursor.peek() == chars::EOF { "EOF".to_string() } else { self.cursor.peek().to_string() };
+            self.handle_error(format!("Unexpected character \"{}\", expected \">\"", char_str));
         }
 
         self.end_token(vec![content]);
@@ -686,17 +1092,17 @@ impl Tokenizer {
 
     fn consume_tag_open(&mut self, start: Box<dyn CharacterCursor>) {
         // Parse <tagName> or <prefix:tagName>
-        self.begin_token(TokenType::TagOpenStart);
+        self.current_token_start = Some(start);
 
         // Read tag name
         let name_start = self.cursor.clone_cursor();
         let mut prefix = String::new();
         let mut tag_name = String::new();
-
+        
         // Read until whitespace, '>', '/', or ':'
         while self.cursor.peek() != chars::EOF {
             let ch = self.cursor.peek();
-            if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '>' || ch == '/' || ch == ':' {
+            if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '>' || ch == '/' || ch == ':' || ch == '<' {
                 break;
             }
             tag_name.push(ch);
@@ -720,10 +1126,28 @@ impl Tokenizer {
             }
         }
 
-        let prefix_str = if prefix.is_empty() { None } else { Some(prefix.as_str()) };
-        let tag_name_for_lookup = tag_name.clone();
+        // Determine if it's a component
+        let prefix_is_component = prefix.chars().next().map_or(false, |c| c.is_uppercase());
+        let tag_is_component = !html_tags::check_is_known_tag(&tag_name) && tag_name.chars().next().map_or(false, |c| c.is_uppercase());
+        let is_component = prefix_is_component || tag_is_component || tag_name == "ng-content";
 
-        self.end_token(vec![prefix, tag_name]);
+        if is_component {
+             self.current_token_type = Some(TokenType::ComponentOpenStart);
+             let mut parts = Vec::new();
+             if !prefix.is_empty() {
+                 parts.push(prefix.clone());
+                 if !tag_name.contains(':') {
+                      parts.push(String::new());
+                 }
+             }
+             for part in tag_name.split(':') {
+                 parts.push(part.to_string());
+             }
+             self.end_token(parts);
+        } else {
+             self.current_token_type = Some(TokenType::TagOpenStart);
+             self.end_token(vec![prefix.clone(), tag_name.clone()]);
+        }
 
         // Skip whitespace
         while matches!(self.cursor.peek(), ' ' | '\t' | '\n' | '\r') {
@@ -740,7 +1164,9 @@ impl Tokenizer {
             if before_offset == after_offset && !self.is_attribute_terminator() {
                 // We're stuck - advance cursor and add error
                 self.handle_error("Unexpected character in tag".to_string());
-                self.cursor.advance();
+                // Do NOT advance safely if we want main loop to pick it up (e.g. quote start)
+                // But if we don't advance, we must ensure we break the loop.
+                break;
             }
 
             // Skip whitespace after attribute
@@ -749,15 +1175,8 @@ impl Tokenizer {
             }
         }
 
-        // Check if this is a void tag (self-closing with />)
-        let is_void_tag = self.cursor.peek() == '/' && {
-            let mut temp = self.cursor.clone_cursor();
-            temp.advance();
-            temp.peek() == '>'
-        };
-
         // Consume tag end
-        self.consume_tag_open_end();
+        self.consume_tag_open_end(is_component, tag_name, prefix);
 
         // NOTE: For Angular templates, even tags like <title> and <textarea> (ESCAPABLE_RAW_TEXT)
         // need to support interpolation {{ }}. So we DON'T consume raw text here.
@@ -771,6 +1190,18 @@ impl Tokenizer {
     }
 
     fn consume_attribute(&mut self) {
+        // Check for selectorless directive
+        if self.selectorless_enabled && self.is_selectorless_directive_start() {
+            let start = self.cursor.clone_cursor();
+            self.consume_selectorless_directive(start);
+            
+             // Skip whitespace after attribute/directive
+            while matches!(self.cursor.peek(), ' ' | '\t' | '\n' | '\r') {
+                self.cursor.advance();
+            }
+            return;
+        }
+
         // Consume attribute name
         self.consume_attribute_name();
 
@@ -793,6 +1224,117 @@ impl Tokenizer {
             self.cursor.advance();
         }
     }
+    
+    fn consume_raw_text_with_tag_close(&mut self, consume_entities: bool, tag_name: &str, prefix: &str, is_component: bool) {
+        // Consume raw or escapable raw text content
+        let token_type = if consume_entities {
+            TokenType::EscapableRawText
+        } else {
+            TokenType::RawText
+        };
+        
+        self.begin_token(token_type);
+        let mut parts: Vec<String> = Vec::new();
+        
+        loop {
+            // Check for closing tag
+            let tag_close_start = self.cursor.clone_cursor();
+            let full_tag_name = if prefix.is_empty() { tag_name.to_string() } else { format!("{}:{}", prefix, tag_name) };
+            let found_end = self.is_closing_tag_match(&full_tag_name);
+            self.cursor = tag_close_start;
+            
+            if found_end {
+                break;
+            }
+            
+            // Handle entities in escapable raw text
+            if consume_entities && self.cursor.peek() == '&' {
+                // End current text token (even if empty)
+                self.end_token(vec![self.process_carriage_returns(parts.join(""))]);
+                parts.clear();
+                
+                // Consume entity
+                if self.consume_entity() {
+                    // Begin new text token
+                    self.begin_token(token_type);
+                    continue;
+                } else {
+                    // Not a valid entity, re-begin token and continue
+                    self.begin_token(token_type);
+                }
+            }
+            
+            // Read one character
+            // Read one character
+            let ch_code = self.cursor.peek();
+            if ch_code == chars::EOF {
+                break;
+            }
+            let ch = String::from(ch_code);
+            self.cursor.advance();
+            parts.push(ch);
+        }
+        
+        // Always emit final token (even if empty)
+        self.end_token(vec![self.process_carriage_returns(parts.join(""))]);
+        
+        // Consume the closing tag
+        self.begin_token(if is_component { TokenType::ComponentClose } else { TokenType::TagClose });
+        // Consume </tagName>
+        self.cursor.advance(); // <
+        self.cursor.advance(); // /
+        // Skip whitespace
+        while matches!(self.cursor.peek(), ' ' | '\t' | '\n' | '\r') {
+            self.cursor.advance();
+        }
+        // Skip tag name
+        let full_tag_name = if prefix.is_empty() { tag_name.to_string() } else { format!("{}:{}", prefix, tag_name) };
+        for _ in full_tag_name.chars() {
+            self.cursor.advance();
+        }
+        // Skip whitespace
+        while matches!(self.cursor.peek(), ' ' | '\t' | '\n' | '\r') {
+            self.cursor.advance();
+        }
+        // Require >
+        self.require_char_code('>');
+        self.end_token(vec![prefix.to_string(), tag_name.to_string()]);
+    }
+    
+    fn is_closing_tag_match(&self, tag_name: &str) -> bool {
+        let mut temp = self.cursor.clone_cursor();
+        
+        if temp.peek() != '<' {
+            return false;
+        }
+        temp.advance();
+        
+        if temp.peek() != '/' {
+            return false;
+        }
+        temp.advance();
+        
+        // Skip whitespace
+        while matches!(temp.peek(), ' ' | '\t' | '\n' | '\r') {
+            temp.advance();
+        }
+        
+        // Check tag name (case insensitive)
+        for expected_ch in tag_name.chars() {
+            let actual_ch = temp.peek();
+            if actual_ch.to_lowercase().to_string() != expected_ch.to_lowercase().to_string() {
+                return false;
+            }
+            temp.advance();
+        }
+        
+        // Skip whitespace
+        while matches!(temp.peek(), ' ' | '\t' | '\n' | '\r') {
+            temp.advance();
+        }
+        
+        temp.peek() == '>'
+    }
 
     fn consume_attribute_name(&mut self) {
         let attr_name_start = self.cursor.peek();
@@ -804,88 +1346,200 @@ impl Tokenizer {
             return;
         }
 
-        self.begin_token(TokenType::AttrName);
+        if attr_name_start == '@' || attr_name_start == '*' {
+             self.begin_token(TokenType::DirectiveName);
+        } else {
+             self.begin_token(TokenType::AttrName);
+        }
 
         let name_start = self.cursor.clone_cursor();
         let mut prefix = String::new();
         let mut name = String::new();
 
-        // Read attribute name until we hit name-ending character
-        while !self.is_name_end(self.cursor.peek()) {
-            let ch = self.cursor.peek();
-            if ch == chars::EOF {
-                break;
-            }
-            name.push(ch);
-            self.cursor.advance();
-        }
+        // Determine nameEndPredicate based on attribute start character
+        // Match TypeScript logic in lexer.ts lines 965-983
+        let attr_start = name_start.peek();
+        let is_bracketed = attr_start == '[' || attr_start == '(';
 
-        // Check for namespace prefix (attr:name)
-        if self.cursor.peek() == ':' {
-            self.cursor.advance();
-            prefix = name;
-            name = String::new();
-
-            while !self.is_name_end(self.cursor.peek()) {
+        // First, attempt to consume prefix (up to ':')
+        // This matches TypeScript's _consumePrefixAndName (lexer.ts:774-791)
+        let name_or_prefix_start = self.cursor.clone_cursor();
+        
+        if is_bracketed {
+            // For bracketed attributes, consume until end, tracking brackets
+            // Do NOT treat ':' as separator inside brackets
+            let mut open_brackets = 0;
+            
+            while self.cursor.peek() != chars::EOF {
                 let ch = self.cursor.peek();
-                if ch == chars::EOF {
+                
+                if ch == '[' || ch == '(' {
+                    open_brackets += 1;
+                } else if ch == ']' || ch == ')' {
+                    open_brackets -= 1;
+                }
+                
+                // Check end condition for bracketed names
+                let should_end = if open_brackets <= 0 {
+                    self.is_name_end(ch)
+                } else {
+                    ch == '\n' || ch == '\r'
+                };
+                
+                if should_end {
                     break;
                 }
-                name.push(ch);
+                
                 self.cursor.advance();
             }
+            
+            // For bracketed attributes, no namespace splitting
+            name = self.cursor.get_chars(&*name_or_prefix_start);
+            self.end_token(vec![String::new(), name.clone()]);
+        } else {
+            // Standard parsing: consume until ':' or name end
+            while self.cursor.peek() != ':' && !self.is_name_end(self.cursor.peek()) {
+                if self.cursor.peek() == chars::EOF {
+                    break;
+                }
+                self.cursor.advance();
+            }
+            
+            // Check if we found a ':'
+            let has_namespace = self.cursor.peek() == ':';
+            
+            if has_namespace {
+                // Get the prefix and skip ':'
+                prefix = self.cursor.get_chars(&*name_or_prefix_start);
+                self.cursor.advance(); // Skip ':'
+                
+                // Now consume the name part
+                let name_part_start = self.cursor.clone_cursor();
+                
+                while !self.is_name_end(self.cursor.peek()) {
+                    if self.cursor.peek() == chars::EOF {
+                        break;
+                    }
+                    self.cursor.advance();
+                }
+                
+                name = self.cursor.get_chars(&*name_part_start);
+                self.end_token(vec![prefix, name]);
+            } else {
+                // No namespace, everything is the name
+                name = self.cursor.get_chars(&*name_or_prefix_start);
+                self.end_token(vec![String::new(), name]);
+            }
+        }
+    }
+
+    fn consume_directive_attribute(&mut self) {
+        // Consume attribute name specially for directives (stop at ')')
+        let attr_name_start = self.cursor.peek();
+        
+        if attr_name_start == '\'' || attr_name_start == '"' {
+             let err_msg = format!("Unexpected character \"{}\"", attr_name_start);
+             self.handle_error(err_msg);
+             self.cursor.advance();
+             return;
+        }
+        
+        // Determine token type
+        if attr_name_start == '@' || attr_name_start == '*' {
+             self.begin_token(TokenType::DirectiveName);
+        } else {
+             self.begin_token(TokenType::AttrName);
         }
 
-        self.end_token(vec![prefix, name]);
+        let name_start = self.cursor.clone_cursor();
+        
+        // Consume name until space, =, or )
+        while !self.is_name_end(self.cursor.peek()) && self.cursor.peek() != ')' {
+            if self.cursor.peek() == chars::EOF { break; }
+            self.cursor.advance();
+        }
+        
+        let name = self.cursor.get_chars(&*name_start);
+        self.end_token(vec!["".to_string(), name.clone()]); // No prefix logic for now, or assume simple names
+        
+        // Skip whitespace
+        while matches!(self.cursor.peek(), ' ' | '\t' | '\n' | '\r') {
+            self.cursor.advance();
+        }
+
+        // Check for '=' and consume value
+        // Check for '=' and consume value
+        let has_assignment = self.attempt_char_code('=');
+        if has_assignment {
+            // Skip whitespace after '='
+            while matches!(self.cursor.peek(), ' ' | '\t' | '\n' | '\r') {
+                self.cursor.advance();
+            }
+            self.consume_attribute_value();
+        } else if name.is_empty() {
+             // If name is empty and no assignment, we are stuck on an invalid character
+             let ch = self.cursor.peek();
+             // Don't error if we are at ')' or EOF (handled by loop condition)
+             if ch != ')' && ch != chars::EOF {
+                 self.handle_error(format!("Unexpected character \"{}\"", ch));
+                 self.cursor.advance();
+             }
+        }
     }
 
     fn consume_attribute_value(&mut self) {
         let quote_char = self.cursor.peek();
 
         if quote_char == '\'' || quote_char == '"' {
-            // Quoted attribute value
+            // Quoted attribute value - delegate to consume_with_interpolation
             self.consume_quote(quote_char);
-
-            // Consume value text until closing quote
-            self.begin_token(TokenType::AttrValueText);
-            let value_start = self.cursor.clone_cursor();
-            let mut value = String::new();
-
-            while self.cursor.peek() != quote_char && self.cursor.peek() != chars::EOF {
-                // Check for interpolation {{ }}
-                if self.cursor.peek() == '{' {
-                    let mut temp = self.cursor.clone_cursor();
-                    temp.advance();
-                    if temp.peek() == '{' {
-                        // Found interpolation start - need to handle this
-                        // For now, just include it in the value
-                        value.push(self.cursor.peek());
-                        self.cursor.advance();
-                        continue;
-                    }
-                }
-
-                value.push(self.cursor.peek());
-                self.cursor.advance();
-            }
-
-            self.end_token(vec![value]);
-
+            
+            // Use consume_with_interpolation which handles entities properly  
+            self.consume_with_interpolation(
+                TokenType::AttrValueText,
+                TokenType::AttrValueInterpolation,
+                Some(quote_char)
+            );
+            
             // Consume closing quote
             if self.cursor.peek() == quote_char {
                 self.consume_quote(quote_char);
+            } else {
+                 let char_str = if self.cursor.peek() == chars::EOF { "EOF".to_string() } else { self.cursor.peek().to_string() };
+                 self.handle_error(format!("Unexpected character \"{}\", expected \"{}\"", char_str, quote_char));
             }
         } else {
-            // Unquoted attribute value (rare but valid in HTML)
+            // Unquoted attribute value - simple text collection (and interpolations)
             self.begin_token(TokenType::AttrValueText);
             let mut value = String::new();
 
             while !matches!(self.cursor.peek(), ' ' | '\t' | '\n' | '\r' | '>' | '/' | chars::EOF) {
-                value.push(self.cursor.peek());
+                let ch = self.cursor.peek();
+                
+                // Check for interpolation start {{
+                if ch == '{' {
+                    let mut temp = self.cursor.clone_cursor();
+                    temp.advance();
+                    if temp.peek() == '{' {
+                        // Found {{ - start interpolation
+                        // End current text token
+                        self.end_token(vec![self.process_carriage_returns(value)]);
+                        value = String::new();
+                        
+                        let interpolation_start = self.cursor.clone_cursor();
+                        self.consume_interpolation(TokenType::AttrValueInterpolation, interpolation_start, None);
+                        
+                        // Begin new text token
+                        self.begin_token(TokenType::AttrValueText);
+                        continue;
+                    }
+                }
+                
+                value.push(ch);
                 self.cursor.advance();
             }
 
-            self.end_token(vec![value]);
+            self.end_token(vec![self.process_carriage_returns(value)]);
         }
     }
 
@@ -895,16 +1549,56 @@ impl Tokenizer {
         self.end_token(vec![quote_char.to_string()]);
     }
 
-    fn consume_tag_open_end(&mut self) {
-        let token_type = if self.attempt_char_code('/') {
-            TokenType::TagOpenEndVoid
+    fn consume_tag_open_end(&mut self, is_component: bool, tag_name: String, prefix: String) {
+        let is_void = self.attempt_char_code('/');
+        
+        if is_void {
+            if self.attempt_char_code('>') {
+                self.begin_token(if is_component { TokenType::ComponentOpenEndVoid } else { TokenType::TagOpenEndVoid });
+                self.end_token(vec![]);
+            } else {
+                self.begin_token(if is_component { TokenType::IncompleteComponentOpen } else { TokenType::IncompleteTagOpen });
+                self.end_token(vec![prefix.clone(), tag_name.clone()]);
+            }
+            return; // Void tags don't have content
+        }
+        
+        self.begin_token(if is_component { TokenType::ComponentOpenEnd } else { TokenType::TagOpenEnd });
+        if self.attempt_char_code('>') {
+             self.end_token(vec![]);
         } else {
-            TokenType::TagOpenEnd
-        };
-
-        self.begin_token(token_type);
-        self.require_char_code('>');
-        self.end_token(vec![]);
+             // Failed to find '>'.
+             // Reset the token type to IncompleteTagOpen.
+             // begin_token overwrites current_token_type and current_token_start.
+             // calling begin_token again resets start to current position, which is what we want (since attempting > failed and cursor didn't move)
+             self.begin_token(if is_component { TokenType::IncompleteComponentOpen } else { TokenType::IncompleteTagOpen });
+             self.end_token(vec![prefix.clone(), tag_name.clone()]);
+             
+             let char_str = if self.cursor.peek() == chars::EOF { "EOF".to_string() } else { self.cursor.peek().to_string() };
+             self.handle_error(format!("Unexpected character \"{}\", expected \">\"", char_str));
+             return;
+        }
+        
+        // Check tag content type to determine how to consume content
+        let tag_def = html_tags::get_html_tag_definition(&tag_name);
+        let content_type = tag_def.get_content_type(
+            if prefix.is_empty() { None } else { Some(&prefix) }
+        );
+        
+        match content_type {
+            html_tags::TagContentType::RawText => {
+                // Consume raw text (script, style tags)
+                self.consume_raw_text_with_tag_close(false, &tag_name, &prefix, is_component);
+            }
+            html_tags::TagContentType::EscapableRawText => {
+                // Consume escapable raw text (title, textarea tags)  
+                self.consume_raw_text_with_tag_close(true, &tag_name, &prefix, is_component);
+            }
+            _ => {
+                // Normal parsable data - continue with normal tokenization
+                // Will consume text/interpolations as usual
+            }
+        }
     }
 
     fn is_name_end(&self, ch: char) -> bool {
@@ -915,7 +1609,7 @@ impl Tokenizer {
 
     fn consume_tag_close(&mut self, start: Box<dyn CharacterCursor>) {
         // Parse </tagName>
-        self.begin_token(TokenType::TagClose);
+        self.current_token_start = Some(start);
 
         let mut prefix = String::new();
         let mut tag_name = String::new();
@@ -954,9 +1648,48 @@ impl Tokenizer {
         // Expect '>'
         if self.cursor.peek() == '>' {
             self.cursor.advance();
+        } else {
+            let char_str = if self.cursor.peek() == chars::EOF { "EOF".to_string() } else { self.cursor.peek().to_string() };
+            self.handle_error(format!("Unexpected character \"{}\", expected \">\"", char_str));
         }
 
-        self.end_token(vec![prefix, tag_name]);
+        // Determine if it's a component close tag
+        let prefix_is_component = prefix.chars().next().map_or(false, |c| c.is_uppercase());
+        let tag_is_component = !html_tags::check_is_known_tag(&tag_name) && tag_name.chars().next().map_or(false, |c| c.is_uppercase());
+        let is_component = prefix_is_component || tag_is_component || tag_name == "ng-content";
+
+        if is_component {
+            self.current_token_type = Some(TokenType::ComponentClose);
+            let mut parts = Vec::new();
+            if !prefix.is_empty() {
+                parts.push(prefix.clone());
+                // For 3-part components like MyComp:svg:title, start tag logic uses parts[0] and parts[2].
+                // Lexer must emit 3 parts.
+                // Start tag logic pushes empty string if name doesn't contain colon?
+                // consume_tag_open logic:
+                // if !prefix.is_empty() {
+                //    parts.push(prefix)
+                //    if !tag_name.contains(':') { parts.push(String::new()); }
+                // }
+                // Here tag_name might contain colon.
+                // If tag_name is "svg:title". It contains colon.
+                // So start tag matches tag_name.split(':').
+                if !tag_name.contains(':') && prefix.chars().next().map_or(false, |c| c.is_uppercase()) {
+                     // This mimics consume_tag_open logic for checking 2-part vs 3-part?
+                     // Actually, just pushing parts from split is safer if we align parser logic.
+                     // But consume_tag_open inserts empty string intermediate if no colon?
+                     // Let's verify consume_tag_open logic again.
+                     parts.push(String::new());
+                }
+            }
+            for part in tag_name.split(':') {
+                parts.push(part.to_string());
+            }
+            self.end_token(parts);
+        } else {
+            self.current_token_type = Some(TokenType::TagClose);
+            self.end_token(vec![prefix, tag_name]);
+        }
     }
 
     fn consume_let_declaration(&mut self, start: Box<dyn CharacterCursor>) {
@@ -968,40 +1701,145 @@ impl Tokenizer {
             self.require_char_code(ch);
         }
 
-        // Skip whitespace
-        while matches!(self.cursor.peek(), ' ' | '\t') {
-            self.cursor.advance();
+        // Check for space after let - STRICT check
+        let has_space = matches!(self.cursor.peek(), ' ' | '\t' | '\n' | '\r');
+        
+        if !has_space {
+            // Immediately emit IncompleteLet and return.
+            // Do NOT consume name (it will be parsed as text).
+            self.begin_token(TokenType::IncompleteLet);
+            self.end_token(vec!["@let".to_string()]);
+            return;
+        }
+
+        while matches!(self.cursor.peek(), ' ' | '\t' | '\n' | '\r') {
+             self.cursor.advance();
         }
 
         // Read variable name
         self.begin_token(TokenType::LetStart);
         let mut name = String::new();
+        let mut first_char = true;
+        
         while self.cursor.peek() != chars::EOF {
             let ch = self.cursor.peek();
-            if !ch.is_alphanumeric() && ch != '_' && ch != '$' {
-                break;
+            
+            let is_valid_char = if first_char {
+                ch.is_alphabetic() || ch == '_' || ch == '$'
+            } else {
+                ch.is_alphanumeric() || ch == '_' || ch == '$'
+            };
+
+            if !is_valid_char {
+                 break;
             }
+
             name.push(ch);
             self.cursor.advance();
+            first_char = false;
         }
-        self.end_token(vec![name]);
+        self.end_token(vec![name.clone()]);
 
-        // Skip whitespace and '='
-        while matches!(self.cursor.peek(), ' ' | '\t') {
-            self.cursor.advance();
+        // If name is valid but something else is wrong (e.g. invalid chars in name after valid start?)
+        // My loop breaks on invalid char.
+        // e.g. `@let name\bar`.
+        // Name `name`. Break on `\`.
+        // Next I expect whitespace then `=`.
+        
+        // Skip whitespace
+        while matches!(self.cursor.peek(), ' ' | '\t' | '\n' | '\r') {
+             self.cursor.advance();
         }
-        self.require_char_code('=');
-        while matches!(self.cursor.peek(), ' ' | '\t') {
+
+        // Expect '='
+        if self.cursor.peek() == '=' {
             self.cursor.advance();
+        } else {
+             // Missing '='.
+             self.handle_error("Unexpected token, expected '='".to_string());
+             // Convert LetStart to IncompleteLet.
+             if let Some(Token::LetStart(token)) = self.tokens.last_mut() {
+                 let incomplete = IncompleteLetToken {
+                     parts: token.parts.clone(),
+                     source_span: token.source_span.clone(),
+                 };
+                 self.tokens.pop();
+                 self.tokens.push(Token::IncompleteLet(incomplete));
+             }
+             return; // Stop here.
+        }
+        
+        // Skip whitespace
+        while matches!(self.cursor.peek(), ' ' | '\t' | '\n' | '\r') {
+             self.cursor.advance();
         }
 
         // Read value until ';'
+        // Must handle nested braces/parens/brackets and quotes
         self.begin_token(TokenType::LetValue);
         let mut value = String::new();
-        while self.cursor.peek() != ';' && self.cursor.peek() != chars::EOF {
-            value.push(self.cursor.peek());
+        
+        let mut stack: Vec<char> = Vec::new(); // Tracks (, [, {
+        let mut in_quote: Option<char> = None;
+        
+        loop {
+            let ch = self.cursor.peek();
+            
+            if ch == chars::EOF {
+                if in_quote.is_some() {
+                     self.handle_error("Unexpected character EOF".to_string());
+                }
+                break;
+            }
+            
+            // Handle quotes
+            if let Some(quote) = in_quote {
+                if ch == quote {
+                    if ch == '\\' {
+                        value.push(ch);
+                         self.cursor.advance();
+                         if self.cursor.peek() != chars::EOF {
+                             value.push(self.cursor.peek());
+                             self.cursor.advance();
+                         }
+                         continue;
+                    } 
+                     in_quote = None;
+                } else if ch == '\\' {
+                     value.push(ch);
+                     self.cursor.advance();
+                     if self.cursor.peek() != chars::EOF {
+                         value.push(self.cursor.peek());
+                         self.cursor.advance();
+                     }
+                     continue;
+                }
+            } else {
+                if ch == '\'' || ch == '"' || ch == '`' {
+                    in_quote = Some(ch);
+                } else if ch == '(' || ch == '[' || ch == '{' {
+                    stack.push(ch);
+                } else if ch == ')' {
+                    if stack.last() == Some(&'(') {
+                        stack.pop();
+                    }
+                } else if ch == ']' {
+                    if stack.last() == Some(&'[') {
+                        stack.pop();
+                    }
+                } else if ch == '}' {
+                    if stack.last() == Some(&'{') {
+                        stack.pop();
+                    }
+                } else if ch == ';' {
+                    break;
+                }
+            }
+            
+            value.push(ch);
             self.cursor.advance();
         }
+        
         self.end_token(vec![value]);
 
         // Expect ';'
@@ -1009,6 +1847,29 @@ impl Tokenizer {
             self.cursor.advance();
             self.begin_token(TokenType::LetEnd);
             self.end_token(vec![]);
+        } else {
+            // Missing ';' (EOF or otherwise).
+            // Logic: convert PREVIOUS LetStart to IncompleteLet?
+            // Test expect: LetStart -> IncompleteLet.
+            // But I have LetValue in between.
+            // The test says `result[0][0]` is `INCOMPLETE_LET`.
+            // So `LetStart` token (index 0) is mutated even if `LetValue` (index 1) exists.
+            
+            // Find the last LetStart token index.
+            // It should be `self.tokens.len() - 2` (LetStart, LetValue).
+            // Or use an index passed/stored?
+            // I'll search backwards for LetStart.
+            
+            if let Some(idx) = self.tokens.iter().rposition(|t| matches!(t, Token::LetStart(_))) {
+                if let Token::LetStart(token) = &self.tokens[idx] {
+                    // Replace at idx
+                     let incomplete = IncompleteLetToken {
+                         parts: token.parts.clone(),
+                         source_span: token.source_span.clone(),
+                     };
+                     self.tokens[idx] = Token::IncompleteLet(incomplete);
+                }
+            }
         }
     }
 
@@ -1027,6 +1888,26 @@ impl Tokenizer {
             }
             block_name.push(ch);
             self.cursor.advance();
+        }
+
+        // Handle "else if"
+        if block_name == "else" && self.cursor.peek() == ' ' {
+             let mut temp = self.cursor.clone_cursor();
+             temp.advance(); // Skip space
+             if temp.peek() == 'i' {
+                 temp.advance();
+                 if temp.peek() == 'f' {
+                     temp.advance();
+                     let next = temp.peek();
+                     if next == ' ' || next == '(' || next == '{' {
+                         // Consumed " if"
+                         self.cursor.advance(); // space
+                         self.cursor.advance(); // i
+                         self.cursor.advance(); // f
+                         block_name.push_str(" if");
+                     }
+                 }
+             }
         }
 
         self.end_token(vec![block_name]);
@@ -1061,6 +1942,15 @@ impl Tokenizer {
                 while self.cursor.peek() != chars::EOF {
                     let ch = self.cursor.peek();
                     
+                    // Handle escapes
+                    if ch == '\\' {
+                        self.cursor.advance();
+                        if self.cursor.peek() != chars::EOF {
+                             self.cursor.advance();
+                        }
+                        continue;
+                    }
+                    
                     // Track quotes
                     if (ch == '"' || ch == '\'') && in_quote.is_none() {
                         in_quote = Some(ch);
@@ -1086,6 +1976,10 @@ impl Tokenizer {
                     }
                     
                     self.cursor.advance();
+                }
+                
+                if in_quote.is_some() {
+                     self.handle_error("Unclosed quote in block parameter".to_string());
                 }
                 
                 let param_value = self.cursor.get_chars(&*param_start);
@@ -1118,6 +2012,17 @@ impl Tokenizer {
             self.cursor.advance();
             self.begin_token(TokenType::BlockOpenEnd);
             self.end_token(vec![]);
+        } else {
+             // Missing '{'. Convert BlockOpenStart to IncompleteBlockOpen.
+             if let Some(idx) = self.tokens.iter().rposition(|t| matches!(t, Token::BlockOpenStart(_))) {
+                 if let Token::BlockOpenStart(token) = &self.tokens[idx] {
+                      let incomplete = IncompleteBlockOpenToken {
+                          parts: token.parts.clone(),
+                          source_span: token.source_span.clone(),
+                      };
+                      self.tokens[idx] = Token::IncompleteBlockOpen(incomplete);
+                 }
+             }
         }
     }
 
@@ -1162,11 +2067,7 @@ impl Tokenizer {
     }
 
     fn is_expansion_form_start(&self) -> bool {
-        // Don't start new expansion form if already in expansion case
-        // (but DO allow starting in expansion form for cases like {count, plural, ...})
-        if self.is_in_expansion_case() {
-            return false;
-        }
+        // Check for single { (not {{)
 
         // Check for single { (not {{)
         if self.cursor.peek() != '{' {
@@ -1218,13 +2119,26 @@ impl Tokenizer {
         self.expansion_case_stack.push(TokenType::ExpansionFormStart);
 
         // Read condition (switch value) until comma
-        self.begin_token(TokenType::Text); // TypeScript uses RAW_TEXT
+        self.begin_token(TokenType::RawText); // TypeScript uses RAW_TEXT
         let mut condition = String::new();
         while self.cursor.peek() != ',' && self.cursor.peek() != chars::EOF {
             condition.push(self.cursor.peek());
             self.cursor.advance();
         }
-        self.end_token(vec![condition.trim().to_string()]);
+
+        if self.i18n_normalize_line_endings_in_icus {
+            // We explicitly want to normalize line endings for this text.
+            self.end_token(vec![self.process_carriage_returns(condition.trim().to_string())]);
+        } else {
+            // We are not normalizing line endings.
+            let trimmed = condition.trim().to_string();
+            let token = self.end_token(vec![trimmed.clone()]);
+            // Check if normalization differs from original (trimmed) content
+            // Note: process_carriage_returns handles \r\n -> \n
+            if self.process_carriage_returns(trimmed.clone()) != trimmed {
+                self.non_normalized_icu_expressions.push(token);
+            }
+        }
 
         // Require comma
         self.require_char_code(',');
@@ -1235,7 +2149,8 @@ impl Tokenizer {
         }
 
         // Read type (plural, select, etc.) until comma
-        self.begin_token(TokenType::Text); // TypeScript uses RAW_TEXT
+
+        self.begin_token(TokenType::RawText); // TypeScript uses RAW_TEXT
         let mut exp_type = String::new();
         while self.cursor.peek() != ',' && self.cursor.peek() != chars::EOF {
             exp_type.push(self.cursor.peek());
@@ -1257,8 +2172,10 @@ impl Tokenizer {
         self.cursor.advance(); // Skip }
         self.end_token(vec![]);
 
-        if !self.expansion_case_stack.is_empty() {
-            self.expansion_case_stack.pop();
+        if self.expansion_case_stack.is_empty() {
+             self.handle_error("Unexpected closing brace".to_string());
+        } else {
+             self.expansion_case_stack.pop();
         }
     }
 
@@ -1325,9 +2242,18 @@ impl Tokenizer {
         temp_cursor.advance(); // Skip @
 
         // Check for block keywords
-        let next_char = temp_cursor.peek();
-        matches!(next_char, 'i' | 'f' | 's' | 'd' | 'e')
+        // Covers: @if, @for, @switch, @defer, @default, @else, @empty, @error, @case, @placeholder, @loading
+        let mut name = String::new();
+        while temp_cursor.peek().is_alphabetic() {
+             name.push(temp_cursor.peek());
+             temp_cursor.advance();
+        }
+        
+        let is_block = matches!(name.as_str(), "if" | "for" | "switch" | "defer" | "default" | "else" | "empty" | "error" | "case" | "placeholder" | "loading");
+        // eprintln!("DEBUG: is_block_start name='{}' result={}", name, is_block);
+        is_block
     }
+    
 
     fn is_let_start(&self) -> bool {
         // Check for @let
@@ -1343,17 +2269,94 @@ impl Tokenizer {
         temp_cursor.advance(); // Skip @
 
         // Check for 'let'
+        // Just peek 'l' for optimization, consume_let_declaration verifies usage
         temp_cursor.peek() == 'l'
     }
+
+    fn is_selectorless_directive_start(&self) -> bool {
+        self.cursor.peek() == '@'
+    }
+
+
+
+    fn consume_selectorless_directive(&mut self, start: Box<dyn CharacterCursor>) {
+        self.current_token_start = Some(start);
+        self.require_char_code('@');
+
+        let mut name = String::new();
+        let name_start = self.cursor.clone_cursor();
+        
+        while self.cursor.peek() != chars::EOF {
+            let ch = self.cursor.peek();
+            if is_selectorless_name_char(ch) {
+                name.push(ch);
+                self.cursor.advance();
+            } else {
+                break;
+            }
+        }
+        
+        // Check for arguments (parentheses)
+    // Do NOT skip whitespace (Angular requires @dir(args) without space)
+    if self.cursor.peek() == '(' {
+         self.begin_token(TokenType::DirectiveOpen);
+         self.end_token(vec![name]);
+
+         self.cursor.advance();
+         
+         // Loop to consume attributes until ')' or EOF
+         while self.cursor.peek() != ')' && self.cursor.peek() != chars::EOF {
+             self.consume_directive_attribute();
+             
+             // Skip whitespace/comma separating attributes
+              while matches!(self.cursor.peek(), ' ' | '\t' | '\n' | '\r' | ',') {
+                 self.cursor.advance();
+             }
+         }
+         
+         if self.cursor.peek() == ')' {
+             self.cursor.advance();
+         } else if self.cursor.peek() == chars::EOF {
+             self.handle_error("Unexpected character \"EOF\", expected \")\"".to_string());
+         }
+         
+         self.begin_token(TokenType::DirectiveClose);
+         self.end_token(vec![]);
+    } else {
+        // No arguments -> DirectiveName
+        self.begin_token(TokenType::DirectiveName);
+        self.end_token(vec![name]);
+    }
+    }
+
 
     fn is_text_end(&self) -> bool {
         let ch = self.cursor.peek();
 
-        // Text ends at: <, @block, @let, EOF
+        // Text ends at: <, {{, or EOF
+        // We do NOT stop at @ for selectorless directives (they are attributes)
         if ch == '<' || ch == chars::EOF {
             return true;
         }
 
+        if self.tokenize_blocks && self.is_block_start() {
+            return true;
+        }
+
+        if self.tokenize_let && self.is_let_start() {
+            return true;
+        }
+        
+        if self.in_interpolation {
+            // checking for interpolation end is handled by consume_interpolation loop
+            // or consume_with_interpolation with end_char
+            return false;
+        }
+
+        if self.cursor.get_chars(&*self.cursor).starts_with(INTERPOLATION_START) {
+             return true;
+        }
+        
         // ICU expansion: check before blocks (higher priority)
         if self.tokenize_icu && !self.in_interpolation {
             // Start of expansion form
@@ -1368,7 +2371,7 @@ impl Tokenizer {
         }
 
         // Block closing brace (but NOT }} from interpolation)
-        if ch == '}' && self.tokenize_blocks && !self.in_interpolation && self.block_depth > 0 {
+        if ch == '}' && self.tokenize_blocks && !self.in_interpolation {
             // Check if this is }} (interpolation end) or just } (block end)
             let mut temp = self.cursor.clone_cursor();
             temp.advance();
@@ -1396,20 +2399,18 @@ impl Tokenizer {
         let span = self.cursor.get_span(&*self.cursor.clone_cursor());
         let parse_error = self.create_error(error, span);
         self.errors.push(parse_error);
-
-        // Reset token state
-        self.current_token_start = None;
-        self.current_token_type = None;
     }
 }
 
 /// Merge consecutive text tokens
 fn merge_text_tokens(src_tokens: Vec<Token>) -> Vec<Token> {
+    // println!("Running merge_text_tokens");
     let mut merged = Vec::new();
     let mut pending_parts: Vec<String> = Vec::new();
     let mut pending_span: Option<ParseSourceSpan> = None;
 
     for token in src_tokens {
+        // println!("Processing token: {:?}", token);
         match &token {
             Token::Text(t) => {
                 // Skip empty text tokens
@@ -1422,13 +2423,14 @@ fn merge_text_tokens(src_tokens: Vec<Token>) -> Vec<Token> {
                     pending_span = Some(t.source_span.clone());
                 }
             }
-            Token::EncodedEntity(e) => {
-                // Accumulate entity parts into text
-                pending_parts.extend(e.parts.clone());
-                if pending_span.is_none() {
-                    pending_span = Some(e.source_span.clone());
-                }
-            }
+            // Token::EncodedEntity(e) => {
+            //     // Don't merge EncodedEntity into Text - keeping them separate allows parser to handle decoding properly
+            //     // Accumulate entity parts into text
+            //     // pending_parts.extend(e.parts.clone());
+            //     // if pending_span.is_none() {
+            //     //     pending_span = Some(e.source_span.clone());
+            //     // }
+            // }
             _ => {
                 // Flush accumulated text tokens
                 if !pending_parts.is_empty() {
@@ -1540,7 +2542,7 @@ fn is_selectorless_name_char(code: char) -> bool {
 }
 
 fn is_attribute_terminator(code: char) -> bool {
-    code == '>' || code == '/' || chars::is_whitespace(code)
+    code == '>' || code == '/' || chars::is_whitespace(code) || code == chars::EOF
 }
 
 /// Cursor error
@@ -1575,6 +2577,8 @@ mod tests {
         assert!(options.tokenize_blocks);
         assert!(options.tokenize_let);
     }
+
+
 
     #[test]
     fn test_is_not_whitespace() {

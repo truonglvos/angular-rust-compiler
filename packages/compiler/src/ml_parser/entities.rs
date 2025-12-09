@@ -16,6 +16,10 @@ pub const NGSP_UNICODE: char = '\u{E500}';
 pub static NAMED_ENTITIES: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
     let mut map = HashMap::new();
 
+    // Angular-specific pseudo-entity
+    // ngsp is a placeholder for non-removable space (converted to NGSP_UNICODE 0xE500)
+    map.insert("ngsp", &NGSP_UNICODE.to_string().leak()[..]);
+
     map.insert("AElig", "Æ");
     map.insert("AMP", "&");
     map.insert("amp", "&");
@@ -505,7 +509,7 @@ pub static NAMED_ENTITIES: Lazy<HashMap<&'static str, &'static str>> = Lazy::new
     map.insert("Nfr", "𝔑");
     map.insert("NoBreak", "⁠");
     map.insert("NonBreakingSpace", " ");
-    map.insert("nbsp", " ");
+    map.insert("nbsp", "\u{00A0}");
     map.insert("Nopf", "ℕ");
     map.insert("naturals", "ℕ");
     map.insert("Not", "⫬");
