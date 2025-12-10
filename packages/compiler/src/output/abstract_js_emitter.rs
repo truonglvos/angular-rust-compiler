@@ -41,7 +41,7 @@ impl AbstractJsEmitterVisitor {
             if i > 0 {
                 ctx.print(None, ", ", false);
             }
-            let param_name = escape_identifier(&param.name, false);
+            let param_name = escape_identifier(&param.name, false, false);
             ctx.print(None, &param_name, false);
         }
     }
@@ -208,7 +208,7 @@ impl o::StatementVisitor for AbstractJsEmitterVisitor {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             ctx.print(Some(stmt), "var ", false);
-            let name = escape_identifier(&stmt.name, false);
+            let name = escape_identifier(&stmt.name, false, false);
             ctx.print(Some(stmt), &name, false);
             if let Some(_value) = &stmt.value {
                 ctx.print(Some(stmt), " = ", false);

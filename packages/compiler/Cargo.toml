@@ -107,6 +107,26 @@ path = "test/util_spec.rs"
        name = "shadow_css_keyframes_spec"
        path = "test/shadow_css/keyframes_spec.rs"
 
+       [[test]]
+       name = "output_source_map_tests"
+       path = "test/output/source_map_tests.rs"
+
+       [[test]]
+       name = "output_abstract_emitter_node_only_tests"
+       path = "test/output/abstract_emitter_node_only_tests.rs"
+
+       [[test]]
+       name = "output_abstract_emitter_tests"
+       path = "test/output/abstract_emitter_tests.rs"
+
+       [[test]]
+       name = "output_jit_tests"
+       path = "test/output/output_jit_tests.rs"
+
+       [[test]]
+       name = "selector_tests"
+       path = "test/selector/selector_tests.rs"
+
 [profile.release]
 opt-level = 3
 lto = true

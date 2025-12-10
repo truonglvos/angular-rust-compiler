@@ -119,6 +119,10 @@ impl<'a> JitEmitterVisitor<'a> {
         // TODO: Create return statement with exported vars
     }
 
+    pub fn visit_all_statements(&mut self, statements: &[o::Statement], ctx: &mut EmitterVisitorContext) {
+        self.base.visit_all_statements(statements, ctx);
+    }
+
     pub fn get_args(&self) -> HashMap<String, Box<dyn std::any::Any>> {
         // Note: Cannot clone Box<dyn Any>, so we return empty HashMap
         // This is a placeholder implementation - actual implementation would need

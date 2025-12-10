@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::any::Any;
 
 const SINGLE_QUOTE_ESCAPE_STRING_RE: &str = r"'|\\|\n|\r|\$";
-const LEGAL_IDENTIFIER_RE: &str = r"^[$A-Z_][0-9A-Z_$]*$";
+const LEGAL_IDENTIFIER_RE: &str = r"^[a-zA-Z_$][0-9a-zA-Z_$]*$";
 const INDENT_WITH: &str = "  ";
 
 #[derive(Debug, Clone)]
@@ -163,6 +163,9 @@ impl EmitterVisitorContext {
         let mut map = SourceMapGenerator::new(Some(gen_file_path.to_string()));
 
         let mut first_offset_mapped = false;
+        let mut last_file_url: Option<String> = None;
+        let mut last_line: Option<usize> = None;
+        let mut last_col: Option<usize> = None;
 
         for _ in 0..starts_at_line {
             map.add_line();
@@ -171,27 +174,62 @@ impl EmitterVisitorContext {
                 map.add_source(gen_file_path.to_string(), Some(" ".to_string()));
                 let _ = map.add_mapping(0, Some(gen_file_path.to_string()), Some(0), Some(0));
                 first_offset_mapped = true;
+                last_file_url = Some(gen_file_path.to_string());
+                last_line = Some(0);
+                last_col = Some(0);
             }
         }
 
-        for line in self.source_lines() {
+        let lines = self.source_lines();
+        let effective_len = if !lines.is_empty() && lines.last().unwrap().parts.is_empty() {
+             lines.len() - 1
+        } else {
+             lines.len()
+        };
+
+        for line in &lines[0..effective_len] {
             map.add_line();
             let mut col0 = line.indent * INDENT_WITH.len();
 
             for (i, part) in line.parts.iter().enumerate() {
-                if let Some(Some(span)) = line.src_spans.get(i) {
-                    if !first_offset_mapped {
-                        // Add a single space so that tools won't try to load the file from disk
+                if !first_offset_mapped {
+                    let has_span = line.src_spans.get(i).and_then(|s| s.as_ref()).is_some();
+                    if !has_span || col0 > 0 {
+                         // Add a single space so that tools won't try to load the file from disk
                         map.add_source(gen_file_path.to_string(), Some(" ".to_string()));
                         let _ = map.add_mapping(0, Some(gen_file_path.to_string()), Some(0), Some(0));
-                        first_offset_mapped = true;
+                        last_file_url = Some(gen_file_path.to_string());
+                        last_line = Some(0);
+                        last_col = Some(0);
                     }
-                    let _ = map.add_mapping(
-                        col0,
-                        Some(span.start.file.url.clone()),
-                        Some(span.start.line),
-                        Some(span.start.col),
-                    );
+                    first_offset_mapped = true;
+                }
+
+                if let Some(Some(span)) = line.src_spans.get(i) {
+                     let url = span.start.file.url.clone();
+                     let line = span.start.line;
+                     let col = span.start.col;
+
+                     // Coalesce identical spans
+                     let is_identical = last_file_url.as_ref() == Some(&url) &&
+                                        last_line == Some(line) &&
+                                        last_col == Some(col);
+                    
+                     if !is_identical {
+                        map.add_source(
+                            url.clone(),
+                            Some(span.start.file.content.clone()),
+                        );
+                        let _ = map.add_mapping(
+                            col0,
+                            Some(url.clone()),
+                            Some(line),
+                            Some(col),
+                        );
+                        last_file_url = Some(url);
+                        last_line = Some(line);
+                        last_col = Some(col);
+                     }
                 }
                 col0 += part.len();
             }
@@ -214,13 +252,25 @@ fn create_indent(count: usize) -> String {
 }
 
 /// Escape identifier for safe use in generated code
-pub fn escape_identifier(input: &str, quote: bool) -> String {
-    // TODO: Implement proper escaping logic
-    if quote {
-        format!("'{}'", input.replace('\'', "\\'"))
-    } else {
-        input.to_string()
+pub fn escape_identifier(input: &str, escape_dollar: bool, always_quote: bool) -> String {
+    if input.is_empty() {
+        return "''".to_string();
     }
+    
+    let is_legal = regex::Regex::new(LEGAL_IDENTIFIER_RE).unwrap().is_match(input);
+    if !always_quote && is_legal {
+        return input.to_string();
+    }
+    
+    let mut escaped = input.replace('\\', "\\\\");
+    escaped = escaped.replace('\'', "\\'");
+    escaped = escaped.replace('\n', "\\n");
+    escaped = escaped.replace('\r', "\\r");
+    if escape_dollar {
+        escaped = escaped.replace('$', "\\$");
+    }
+    
+    format!("'{}'", escaped)
 }
 
 /// Abstract base emitter visitor
@@ -237,7 +287,7 @@ impl AbstractEmitterVisitor {
 impl o::ExpressionVisitor for AbstractEmitterVisitor {
     fn visit_read_var_expr(&mut self, expr: &o::ReadVarExpr, context: &mut dyn Any) -> Box<dyn Any> {
         let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
-        let name = escape_identifier(&expr.name, false);
+        let name = escape_identifier(&expr.name, false, false);
         ctx.print(Some(expr as &dyn HasSourceSpan), &name, false);
         Box::new(())
     }
@@ -245,7 +295,7 @@ impl o::ExpressionVisitor for AbstractEmitterVisitor {
     fn visit_write_var_expr(&mut self, expr: &o::WriteVarExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any> {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
-            let name = escape_identifier(&expr.name, false);
+            let name = escape_identifier(&expr.name, false, false);
             ctx.print(Some(expr), &name, false);
             ctx.print(Some(expr), " = ", false);
         }
@@ -273,7 +323,7 @@ impl o::ExpressionVisitor for AbstractEmitterVisitor {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             ctx.print(Some(expr), ".", false);
-            let name = escape_identifier(&expr.name, false);
+            let name = escape_identifier(&expr.name, false, false);
             ctx.print(Some(expr), &name, false);
             ctx.print(Some(expr), " = ", false);
         }
@@ -338,7 +388,7 @@ impl o::ExpressionVisitor for AbstractEmitterVisitor {
         let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
         let value_str = match &expr.value {
             o::LiteralValue::Null => "null".to_string(),
-            o::LiteralValue::String(s) => escape_identifier(s, true),
+            o::LiteralValue::String(s) => escape_identifier(s, true, true),
             o::LiteralValue::Number(n) => n.to_string(),
             o::LiteralValue::Bool(b) => b.to_string(),
         };
@@ -383,7 +433,7 @@ impl o::ExpressionVisitor for AbstractEmitterVisitor {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             ctx.print(Some(expr), ".", false);
-            let name = escape_identifier(&expr.name, false);
+            let name = escape_identifier(&expr.name, false, false);
             ctx.print(Some(expr), &name, false);
         }
         Box::new(())
@@ -446,7 +496,7 @@ impl o::ExpressionVisitor for AbstractEmitterVisitor {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             if let Some(name) = &expr.name {
                 ctx.print(Some(expr), "function ", false);
-                let func_name = escape_identifier(name, false);
+                let func_name = escape_identifier(name, false, false);
                 ctx.print(Some(expr), &func_name, false);
             } else {
                 ctx.print(Some(expr), "function", false);
@@ -456,7 +506,7 @@ impl o::ExpressionVisitor for AbstractEmitterVisitor {
                 if i > 0 {
                     ctx.print(Some(expr), ", ", false);
                 }
-                let param_name = escape_identifier(&param.name, false);
+                let param_name = escape_identifier(&param.name, false, false);
                 ctx.print(Some(expr), &param_name, false);
             }
             ctx.println(Some(expr), ") {");
@@ -481,7 +531,7 @@ impl o::ExpressionVisitor for AbstractEmitterVisitor {
                 if i > 0 {
                     ctx.print(Some(expr), ", ", false);
                 }
-                let param_name = escape_identifier(&param.name, false);
+                let param_name = escape_identifier(&param.name, false, false);
                 ctx.print(Some(expr), &param_name, false);
             }
             ctx.print(Some(expr), ") => ", false);
@@ -542,9 +592,9 @@ impl o::ExpressionVisitor for AbstractEmitterVisitor {
                     ctx.print(Some(expr), ", ", false);
                 }
                 let key = if entry.quoted {
-                    escape_identifier(&entry.key, true)
+                    escape_identifier(&entry.key, true, true)
                 } else {
-                    escape_identifier(&entry.key, false)
+                    escape_identifier(&entry.key, false, false)
                 };
                 ctx.print(Some(expr), &key, false);
                 ctx.print(Some(expr), ": ", false);
@@ -628,7 +678,7 @@ impl o::ExpressionVisitor for AbstractEmitterVisitor {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             ctx.print(Some(expr), "import(", false);
-            let url = escape_identifier(&expr.url, true);
+            let url = escape_identifier(&expr.url, true, true);
             ctx.print(Some(expr), &url, false);
             ctx.print(Some(expr), ")", false);
         }
@@ -676,7 +726,7 @@ impl o::StatementVisitor for AbstractEmitterVisitor {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             ctx.print(Some(stmt), "var ", false);
-            let name = escape_identifier(&stmt.name, false);
+            let name = escape_identifier(&stmt.name, false, false);
             ctx.print(Some(stmt), &name, false);
             if let Some(_value) = &stmt.value {
                 ctx.print(Some(stmt), " = ", false);
@@ -696,14 +746,14 @@ impl o::StatementVisitor for AbstractEmitterVisitor {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             ctx.print(Some(stmt), "function ", false);
-            let name = escape_identifier(&stmt.name, false);
+            let name = escape_identifier(&stmt.name, false, false);
             ctx.print(Some(stmt), &name, false);
             ctx.print(Some(stmt), "(", false);
             for (i, param) in stmt.params.iter().enumerate() {
                 if i > 0 {
                     ctx.print(Some(stmt), ", ", false);
                 }
-                let param_name = escape_identifier(&param.name, false);
+                let param_name = escape_identifier(&param.name, false, false);
                 ctx.print(Some(stmt), &param_name, false);
             }
             ctx.println(Some(stmt), ") {");
