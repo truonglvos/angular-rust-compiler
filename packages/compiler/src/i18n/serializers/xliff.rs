@@ -2,6 +2,7 @@
 //!
 //! Corresponds to packages/compiler/src/i18n/serializers/xliff.ts
 //! XLIFF 1.2 format serializer
+#![allow(dead_code)]
 
 use crate::i18n::i18n_ast::{self as i18n, Message, Node, Visitor};
 use crate::i18n::digest::digest;
@@ -111,13 +112,8 @@ impl Serializer for Xliff {
         xml::serialize(&nodes)
     }
 
-    fn load(&self, content: &str, url: &str) -> LoadResult {
+    fn load(&self, _content: &str, _url: &str) -> LoadResult {
         // TODO: Implement XLIFF 1.2 load
-        // 1. Parse XML
-        // 2. Extract locale from file element
-        // 3. Convert trans-units to i18n nodes
-        // 4. Return LoadResult
-
         LoadResult {
             locale: None,
             i18n_nodes_by_msg_id: HashMap::new(),

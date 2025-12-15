@@ -3,7 +3,7 @@
 //! Corresponds to packages/compiler/src/i18n/serializers/serializer.ts
 //! Base traits and implementations for i18n serializers
 
-use crate::i18n::i18n_ast::{self as i18n, Message, Node, Visitor, RecurseVisitor};
+use crate::i18n::i18n_ast::{self as i18n, Message, Visitor};
 use crate::i18n::translation_bundle::LoadResult;
 use std::collections::HashMap;
 
@@ -23,7 +23,7 @@ pub trait Serializer {
 
     /// Creates a name mapper, see `PlaceholderMapper`
     /// Returning `None` means that no name mapping is used.
-    fn create_name_mapper(&self, message: &Message) -> Option<Box<dyn PlaceholderMapper>> {
+    fn create_name_mapper(&self, _message: &Message) -> Option<Box<dyn PlaceholderMapper>> {
         None
     }
 }

@@ -305,11 +305,11 @@ pub enum I18nMeta {
 
 /// Visitor trait for traversing i18n AST
 pub trait Visitor {
-    fn visit_text(&mut self, text: &Text, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any>;
+    fn visit_text(&mut self, text: &Text, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any>;
     fn visit_container(&mut self, container: &Container, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any>;
     fn visit_icu(&mut self, icu: &Icu, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any>;
     fn visit_tag_placeholder(&mut self, ph: &TagPlaceholder, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any>;
-    fn visit_placeholder(&mut self, ph: &Placeholder, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any>;
+    fn visit_placeholder(&mut self, ph: &Placeholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any>;
     fn visit_icu_placeholder(&mut self, ph: &IcuPlaceholder, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any>;
     fn visit_block_placeholder(&mut self, ph: &BlockPlaceholder, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any>;
 }
@@ -322,7 +322,7 @@ impl Visitor for CloneVisitor {
         Box::new(Node::Text(Text::new(text.value.clone(), text.source_span.clone())))
     }
 
-    fn visit_container(&mut self, container: &Container, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_container(&mut self, container: &Container, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
         // Note: context cannot be moved in closure, so we pass None for now
         // This needs proper implementation with context handling
         let children = container
@@ -336,7 +336,7 @@ impl Visitor for CloneVisitor {
         Box::new(Node::Container(Container::new(children, container.source_span.clone())))
     }
 
-    fn visit_icu(&mut self, icu: &Icu, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_icu(&mut self, icu: &Icu, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
         let mut cases = HashMap::new();
         for (key, node) in &icu.cases {
             let result = node.visit(self, None); // TODO: Fix context passing
@@ -351,7 +351,7 @@ impl Visitor for CloneVisitor {
         )))
     }
 
-    fn visit_tag_placeholder(&mut self, ph: &TagPlaceholder, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_tag_placeholder(&mut self, ph: &TagPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
         let children = ph
             .children
             .iter()
@@ -389,7 +389,7 @@ impl Visitor for CloneVisitor {
         )))
     }
 
-    fn visit_block_placeholder(&mut self, ph: &BlockPlaceholder, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_block_placeholder(&mut self, ph: &BlockPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
         let children = ph
             .children
             .iter()

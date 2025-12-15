@@ -4,7 +4,7 @@
 //! Computes message IDs using various hashing algorithms
 
 use crate::i18n::i18n_ast::{self as i18n, Message, Node, Visitor};
-use std::collections::HashMap;
+
 
 /// Return the message id or compute it using the XLIFF1 digest.
 pub fn digest(message: &Message) -> String {

@@ -2,6 +2,7 @@
 //!
 //! Corresponds to packages/compiler/src/i18n/serializers/xmb.ts
 //! XMB (XML Message Bundle) format serializer
+#![allow(dead_code)]
 
 use crate::i18n::i18n_ast::{self as i18n, Message, Node, Visitor};
 use crate::i18n::digest::decimal_digest;

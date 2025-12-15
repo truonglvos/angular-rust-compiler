@@ -2,8 +2,9 @@
 //!
 //! Corresponds to packages/compiler/src/i18n/serializers/xtb.ts
 //! XTB (XML Translation Bundle) format loader
+#![allow(dead_code)]
 
-use crate::i18n::i18n_ast::{Message, Node};
+use crate::i18n::i18n_ast::Message;
 use crate::i18n::serializers::serializer::{Serializer, PlaceholderMapper, SimplePlaceholderMapper};
 use crate::i18n::serializers::xmb::{to_public_name, Xmb};
 use crate::i18n::translation_bundle::LoadResult;
@@ -38,14 +39,8 @@ impl Serializer for Xtb {
         panic!("Unsupported: XTB is a read-only format. Use XMB to write messages.");
     }
 
-    fn load(&self, content: &str, url: &str) -> LoadResult {
+    fn load(&self, _content: &str, _url: &str) -> LoadResult {
         // TODO: Implement XTB load
-        // 1. Parse XTB XML
-        // 2. Extract locale from translationbundle element
-        // 3. Convert translation elements to i18n nodes
-        // 4. Create lazy properties for deferred conversion
-        // 5. Return LoadResult
-
         LoadResult {
             locale: None,
             i18n_nodes_by_msg_id: HashMap::new(),
