@@ -12,6 +12,6 @@ pub mod util;
 
 pub use compilation::*;
 pub use conversion::*;
-pub use emit::*;
+// pub use emit::*; // Unused for now
 pub use ingest::*;
-pub use instruction::*;
+// pub use instruction::*; // Unused for now

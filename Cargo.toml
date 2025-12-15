@@ -32,6 +32,9 @@ thiserror = "1.0"
 rayon = "1.10"
 smallvec = "1.13"
 
+# Bitflags for enum flags
+bitflags = "2.5"
+
 [workspace.build-dependencies]
 napi-build = "2.1"
 

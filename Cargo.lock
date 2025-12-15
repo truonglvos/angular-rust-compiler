@@ -16,6 +16,7 @@ name = "angular-compiler"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bitflags",
  "indexmap",
  "lazy_static",
  "napi",
