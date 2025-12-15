@@ -1675,7 +1675,7 @@ impl ParseAST {
                     // We try to parse an identifier as key first?
                     // Angular logic: check if it is a keyword?
                     
-                    let start = self.input_index();
+                    let _start = self.input_index();
                     // Peek ahead logic would be best, but we'll try to parse chain and see.
                     // But parsing chain consumes tokens.
                     
@@ -1865,7 +1865,7 @@ impl ParseAST {
                               }));
                          }
                      }
-                 } else if let Some(v) = value {
+                 } else if let Some(_v) = value {
                      // No key name? Should only happen if directive_name missing?
                      // Or logic error.
                  }
