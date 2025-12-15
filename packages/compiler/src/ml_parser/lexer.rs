@@ -7,7 +7,7 @@
 
 use crate::chars;
 use crate::parse_util::{ParseError, ParseLocation, ParseSourceFile, ParseSourceSpan};
-use super::tags::{TagDefinition, TagContentType};
+use super::tags::TagDefinition;
 use super::tokens::*;
 use regex::Regex;
 use super::entities::NAMED_ENTITIES;
@@ -711,7 +711,7 @@ impl Tokenizer {
         self.end_token(vec![self.process_carriage_returns(parts.join(""))]);
     }
 
-    fn consume_interpolation(&mut self, interpolation_token_type: TokenType, interpolation_start: Box<dyn CharacterCursor>, end_char: Option<char>) {
+    fn consume_interpolation(&mut self, interpolation_token_type: TokenType, _interpolation_start: Box<dyn CharacterCursor>, end_char: Option<char>) {
         // Consume {{
         self.cursor.advance();
         self.cursor.advance();
@@ -788,7 +788,7 @@ impl Tokenizer {
     fn consume_entity(&mut self) -> bool {
         // Match TypeScript's _consumeEntity which calls _beginToken inside
         self.begin_token(TokenType::EncodedEntity);
-        let start = self.cursor.clone_cursor();
+        let _start = self.cursor.clone_cursor();
         
         if let Some((content, decoded)) = self.try_read_entity() {
              // DON'T set current_token_start here - it should already be set by begin_token
@@ -973,7 +973,7 @@ impl Tokenizer {
     }
 
     // Helper methods for consuming specific tokens
-    fn consume_cdata(&mut self, start: Box<dyn CharacterCursor>) {
+    fn consume_cdata(&mut self, _start: Box<dyn CharacterCursor>) {
         // CDATA format: <![CDATA[...]]>
         self.begin_token(TokenType::CdataStart);
 
@@ -1022,7 +1022,7 @@ impl Tokenizer {
         self.end_token(vec![]);
     }
 
-    fn consume_comment(&mut self, start: Box<dyn CharacterCursor>) {
+    fn consume_comment(&mut self, _start: Box<dyn CharacterCursor>) {
         // Comment format: <!--...-->
         self.begin_token(TokenType::CommentStart);
         self.require_char_code('-');
@@ -1067,7 +1067,7 @@ impl Tokenizer {
         self.end_token(vec![]);
     }
 
-    fn consume_doc_type(&mut self, start: Box<dyn CharacterCursor>) {
+    fn consume_doc_type(&mut self, _start: Box<dyn CharacterCursor>) {
         // DOCTYPE format: <!DOCTYPE...>
         self.begin_token(TokenType::DocType);
 
@@ -1095,7 +1095,7 @@ impl Tokenizer {
         self.current_token_start = Some(start);
 
         // Read tag name
-        let name_start = self.cursor.clone_cursor();
+        let _name_start = self.cursor.clone_cursor();
         let mut prefix = String::new();
         let mut tag_name = String::new();
         
@@ -1353,8 +1353,8 @@ impl Tokenizer {
         }
 
         let name_start = self.cursor.clone_cursor();
-        let mut prefix = String::new();
-        let mut name = String::new();
+        let prefix;
+        let name;
 
         // Determine nameEndPredicate based on attribute start character
         // Match TypeScript logic in lexer.ts lines 965-983
@@ -1692,7 +1692,7 @@ impl Tokenizer {
         }
     }
 
-    fn consume_let_declaration(&mut self, start: Box<dyn CharacterCursor>) {
+    fn consume_let_declaration(&mut self, _start: Box<dyn CharacterCursor>) {
         // Parse @let name = value;
         self.require_char_code('@');
 
@@ -1873,7 +1873,7 @@ impl Tokenizer {
         }
     }
 
-    fn consume_block_start(&mut self, start: Box<dyn CharacterCursor>) {
+    fn consume_block_start(&mut self, _start: Box<dyn CharacterCursor>) {
         // Parse @if, @for, @switch, etc.
         self.require_char_code('@');
 
@@ -2026,7 +2026,7 @@ impl Tokenizer {
         }
     }
 
-    fn consume_block_end(&mut self, start: Box<dyn CharacterCursor>) {
+    fn consume_block_end(&mut self, _start: Box<dyn CharacterCursor>) {
         // Parse }
         self.begin_token(TokenType::BlockClose);
         self.end_token(vec![]);
@@ -2284,7 +2284,7 @@ impl Tokenizer {
         self.require_char_code('@');
 
         let mut name = String::new();
-        let name_start = self.cursor.clone_cursor();
+        let _name_start = self.cursor.clone_cursor();
         
         while self.cursor.peek() != chars::EOF {
             let ch = self.cursor.peek();

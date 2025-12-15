@@ -1438,7 +1438,7 @@ fn create_token_discriminant(token_type: TokenType) -> Token {
         TokenType::IncompleteTagOpen => Token::IncompleteTagOpen(IncompleteTagOpenToken { parts: vec![], source_span: dummy_span }),
         TokenType::IncompleteLet => Token::IncompleteLet(IncompleteLetToken { parts: vec![], source_span: dummy_span }),
         TokenType::IncompleteBlockOpen => Token::IncompleteBlockOpen(IncompleteBlockOpenToken { parts: vec![], source_span: dummy_span }),
-        _ => Token::Eof(EndOfFileToken { parts: vec![], source_span: dummy_span }),
+
     }
 }
 
