@@ -15,7 +15,7 @@ use napi_derive::napi;
 mod assertions;
 pub mod chars;
 pub mod combined_visitor;
-mod compiler;
+pub mod compiler;
 pub mod compiler_facade_interface;
 mod config;
 pub mod constant_pool;
