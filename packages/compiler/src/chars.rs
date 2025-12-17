@@ -87,7 +87,7 @@ pub const NINE: char = '9';       // Alias for CHAR_9
 
 /// Check if character is whitespace
 pub fn is_whitespace(ch: char) -> bool {
-    ch == SPACE || ch == TAB || ch == NEWLINE || ch == RETURN || ch == VTAB || ch == FF || ch <= ' '
+    ch == SPACE || ch == TAB || ch == NEWLINE || ch == RETURN || ch == VTAB || ch == FF || ch <= ' ' || ch == NBSP
 }
 
 /// Check if character is a digit

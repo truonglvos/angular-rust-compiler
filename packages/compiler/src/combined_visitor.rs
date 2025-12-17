@@ -369,4 +369,8 @@ impl Visitor for CombinedRecursiveAstVisitor {
     fn visit_unknown_block(&mut self, _block: &t::UnknownBlock) {
         // Unknown blocks don't contain AST expressions to visit
     }
+
+    fn visit_comment(&mut self, _comment: &t::Comment) {
+        // Comments don't contain AST expressions to visit
+    }
 }

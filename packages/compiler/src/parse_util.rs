@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 use crate::chars;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParseSourceFile {
     pub content: String,
     pub url: String,
@@ -17,7 +17,7 @@ impl ParseSourceFile {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParseLocation {
     pub file: ParseSourceFile,
     pub offset: usize,
