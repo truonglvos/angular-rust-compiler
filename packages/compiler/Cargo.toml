@@ -157,6 +157,10 @@ path = "test/util_spec.rs"
        name = "render3_view_parse_template_options_tests"
        path = "test/render3/view/parse_template_options_tests.rs"
 
+       [[test]]
+       name = "render3_view_compiler_for_track_tests"
+       path = "test/render3/view/compiler_for_track_tests.rs"
+
 [profile.release]
 opt-level = 3
 lto = true

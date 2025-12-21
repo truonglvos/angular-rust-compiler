@@ -1,0 +1,23 @@
+{
+  "name": "@angular/rust-binding",
+  "version": "0.1.0",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "napi": {
+    "name": "angular-binding",
+    "triples": {
+      "defaults": true,
+      "additional": [
+        "x86_64-apple-darwin",
+        "aarch64-apple-darwin"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "napi build --platform --cargo-name angular_binding",
+    "build:debug": "napi build --platform --cargo-name angular_binding"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2.18.0"
+  }
+}

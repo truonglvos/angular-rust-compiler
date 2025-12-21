@@ -1,0 +1,17 @@
+[package]
+name = "angular_binding"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { workspace = true }
+napi-derive = { workspace = true }
+angular-compiler = { path = "../compiler" }
+angular-compiler-cli = { path = "../compiler-cli", features = ["napi-bindings"] }
+serde = { workspace = true }
+
+[build-dependencies]
+napi-build = { workspace = true }

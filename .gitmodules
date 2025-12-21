@@ -1,0 +1,9 @@
+[submodule "submodule/angular-cli"]
+	path = submodule/angular-cli
+	url = git@github.com:angular/angular-cli.git
+[submodule "submodule/angular"]
+	path = submodule/angular
+	url = https://github.com/angular/angular.git
+[submodule "submodule/oxc"]
+	path = submodule/oxc
+	url = git@github.com:oxc-project/oxc.git

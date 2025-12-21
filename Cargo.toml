@@ -2,6 +2,8 @@
 members = [
     "packages/compiler",
     "packages/compiler-cli",
+    "packages/ts",
+    "packages/binding",
 ]
 resolver = "2"
 
@@ -34,8 +36,6 @@ smallvec = "1.13"
 
 # Bitflags for enum flags
 bitflags = "2.5"
-
-[workspace.build-dependencies]
 napi-build = "2.1"
 
 [profile.release]
