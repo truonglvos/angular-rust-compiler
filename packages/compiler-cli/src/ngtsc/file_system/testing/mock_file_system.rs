@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::io;
-use std::path::{Path, PathBuf};
 use crate::ngtsc::file_system::src::types::{AbsoluteFsPath, FileStats, FileSystem, PathManipulation, PathSegment, ReadonlyFileSystem};
-use crate::ngtsc::file_system::src::util::clean_path;
 
 // Import strategies from sibling modules
 use super::mock_file_system_posix::PosixUtils;
@@ -306,7 +304,11 @@ impl PathManipulation for MockFileSystem {
          .to_string()
     }
     fn is_root(&self, path: &AbsoluteFsPath) -> bool { self.strategy.is_root(path.as_str()) }
-    fn is_rooted(&self, path: &str) -> bool { path.starts_with('/') } 
+    fn is_rooted(&self, path: &str) -> bool { 
+        // Unix-style: starts with /
+        // Windows-style: second char is : (e.g., C:/, D:\)
+        path.starts_with('/') || (path.len() >= 2 && path.chars().nth(1) == Some(':'))
+    }
     fn normalize(&self, path: &str) -> String { self.strategy.normalize(path) }
     fn relative(&self, from: &str, to: &str) -> String { self.strategy.relative(from, to) }
     fn pwd(&self) -> AbsoluteFsPath { self.cwd.lock().unwrap().clone() }

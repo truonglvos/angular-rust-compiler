@@ -1,7 +1,7 @@
 use crate::ngtsc::file_system::testing::test_helper::{run_in_each_file_system, init_mock_file_system};
 use crate::ngtsc::file_system::src::compiler_host::{NgtscCompilerHost, CompilerOptions};
 use crate::ngtsc::file_system::src::types::{FileSystem, ReadonlyFileSystem};
-use crate::ngtsc::file_system::src::helpers::absolute_from;
+use crate::ngtsc::file_system::src::helpers::{absolute_from, set_file_system};
 use std::sync::Arc;
 
 #[test]
@@ -10,12 +10,16 @@ fn test_compiler_host() {
         let fs = init_mock_file_system(os);
         let fs_arc = Arc::new(fs.clone());
         
+        // IMPORTANT: Set the FileSystem BEFORE calling absolute_from
+        set_file_system(fs_arc.clone());
+        
         let directory = absolute_from("/a/b/c");
         let _ = fs.ensure_dir(&directory); // Assuming MockFS has ensure_dir or via trait
          // MockFileSystem implements FileSystem trait which has ensure_dir
         
         let options = CompilerOptions::default();
         let host = NgtscCompilerHost::new(fs_arc.clone(), options);
+
         
         // fileExists()
         {

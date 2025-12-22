@@ -15,11 +15,29 @@ pub fn strip_extension(path: &str) -> String {
 }
 
 pub fn clean_path(path: &str) -> String {
-    let mut segments = Vec::new();
     let normalized = normalize_separators(path);
-    let is_absolute = normalized.starts_with('/');
     
-    for segment in normalized.split('/') {
+    // Check for Windows-style absolute path (e.g., C:/, D:\)
+    let is_windows_absolute = normalized.len() >= 2 && normalized.chars().nth(1) == Some(':');
+    let is_unix_absolute = normalized.starts_with('/');
+    
+    // Extract drive prefix for Windows paths
+    let drive_prefix = if is_windows_absolute {
+        normalized[0..2].to_string() // "C:" or "D:" etc.
+    } else {
+        String::new()
+    };
+    
+    // Get the path part after drive letter for Windows paths
+    let path_part = if is_windows_absolute {
+        &normalized[2..]
+    } else {
+        &normalized
+    };
+    
+    let mut segments = Vec::new();
+    
+    for segment in path_part.split('/') {
         if segment.is_empty() || segment == "." {
             continue;
         }
@@ -33,9 +51,13 @@ pub fn clean_path(path: &str) -> String {
     }
     
     let joined = segments.join("/");
-    if is_absolute {
+    
+    if is_windows_absolute {
+        format!("{}/{}", drive_prefix, joined)
+    } else if is_unix_absolute {
         format!("/{}", joined)
     } else {
         joined
     }
 }
+

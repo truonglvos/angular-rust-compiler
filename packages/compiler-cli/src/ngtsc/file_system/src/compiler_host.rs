@@ -1,5 +1,5 @@
 use crate::ngtsc::file_system::src::helpers::absolute_from;
-use crate::ngtsc::file_system::src::types::{AbsoluteFsPath, FileSystem, PathManipulation, ReadonlyFileSystem};
+use crate::ngtsc::file_system::src::types::{AbsoluteFsPath, FileSystem};
 use std::sync::Arc;
 
 #[derive(Clone, Default)]

@@ -4,7 +4,7 @@ use crate::ngtsc::file_system::src::helpers::{
 use crate::ngtsc::file_system::src::types::{AbsoluteFsPath, BrandedPath, PathSegment};
 use crate::ngtsc::file_system::src::util::strip_extension;
 use std::collections::HashMap;
-use std::marker::PhantomData;
+// use std::marker::PhantomData;
 
 /// A path that's relative to the logical root of a TypeScript project (one of the project's
 /// rootDirs).

@@ -5,6 +5,13 @@ use crate::ngtsc::file_system::src::types::AbsoluteFsPath;
 
 pub struct WindowsUtils;
 
+impl WindowsUtils {
+    /// Check if a path is Windows-style absolute (e.g., C:/, D:\)
+    fn is_windows_absolute(path: &str) -> bool {
+        path.len() >= 2 && path.chars().nth(1) == Some(':')
+    }
+}
+
 impl PathStrategy for WindowsUtils {
     fn split_path(&self, path: &str) -> Vec<String> {
         path.split('/').filter(|s| !s.is_empty()).map(|s| s.to_string()).collect() // Root logic (drive letter) needed
@@ -39,6 +46,11 @@ impl PathStrategy for WindowsUtils {
     fn join(&self, base_path: &str, paths: &[&str]) -> String {
         let mut full_path = base_path.to_string();
         for p in paths {
+            // If this path segment is already Windows-absolute, use it as the new base
+            if Self::is_windows_absolute(p) {
+                full_path = p.to_string();
+                continue;
+            }
             if !full_path.ends_with('/') {
                 full_path.push('/');
             }
@@ -82,11 +94,16 @@ impl PathStrategy for WindowsUtils {
     }
     fn is_case_sensitive(&self) -> bool { false }
     fn resolve(&self, cwd: &str, paths: &[&str]) -> AbsoluteFsPath {
+        // If the first path is already Windows-absolute, use it directly
+        if paths.len() > 0 && Self::is_windows_absolute(paths[0]) {
+            let joined = self.join(paths[0], &paths[1..]);
+            return AbsoluteFsPath::new(joined);
+        }
         let joined = self.join(cwd, paths);
         AbsoluteFsPath::new(joined)
     }
     fn is_root(&self, path: &str) -> bool {
-        // C:/ or C:
+        // C:/ or C:\
         path.len() == 3 && path.chars().nth(1) == Some(':') && path.ends_with('/')
     }
 }

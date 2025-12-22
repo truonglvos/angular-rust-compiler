@@ -1,6 +1,6 @@
 use crate::ngtsc::file_system::src::invalid_file_system::InvalidFileSystem;
 use crate::ngtsc::file_system::src::types::{
-    AbsoluteFsPath, FileSystem, PathManipulation, PathSegment,
+    AbsoluteFsPath, FileSystem, PathSegment,
 };
 use crate::ngtsc::file_system::src::util::normalize_separators;
 use std::sync::{Arc, RwLock};
