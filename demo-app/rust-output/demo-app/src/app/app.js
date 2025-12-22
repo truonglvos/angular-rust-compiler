@@ -3,6 +3,7 @@ import { NgFor } from "@angular/common";
 import { ChangeDetectionStrategy, Component, EventEmitter, inject, input, Input, output, Output, signal } from "@angular/core";
 import { FormBuilder, Validators } from "@angular/forms";
 import { RouterOutlet } from "@angular/router";
+import { FullNamePipe } from "./src/pipes/full-name-pipe";
 const _c0 = () => ({
 	title: "Explore the Docs",
 	link: "https://angular.dev"
@@ -36,7 +37,7 @@ const _c6 = (a0, a1, a2, a3, a4, a5) => [
 	a5
 ];
 const _forTrack0 = ($index, $item) => $item.title;
-function App_For_27_Template(rf, ctx) {
+function App_For_29_Template(rf, ctx) {
 	if (rf & 1) {
 		i0.ɵɵelementStart(0, "a", 21);
 		i0.ɵɵelementStart(1, "span");
@@ -58,7 +59,7 @@ function App_For_27_Template(rf, ctx) {
 		i0.ɵɵtextInterpolate3("", item_r1.title, " (", $index_r2 + 1, " of ", $count_r3, ")");
 	}
 }
-function App_div_43_Template(rf, ctx) {
+function App_div_45_Template(rf, ctx) {
 	if (rf & 1) {
 		i0.ɵɵelementStart(0, "div", 36);
 		i0.ɵɵtext(1);
@@ -71,11 +72,13 @@ function App_div_43_Template(rf, ctx) {
 	}
 }
 export class App {
-	name = "Le Van Trường";
+	fullName = "Le Van Trường";
 	header = input("header 1");
 	header2 = input.required();
 	nameChange = new EventEmitter();
 	haderChange = output();
+	surname = "Lê";
+	name = "Trường";
 	title = signal("demo-app 5");
 	items = signal([
 		{
@@ -102,8 +105,8 @@ export class App {
 	static ɵcmp = /* @__PURE__ */ i0.ɵɵdefineComponent({
 		type: App,
 		selectors: [["app-root"]],
-		decls: 44,
-		vars: 15,
+		decls: 47,
+		vars: 19,
 		consts: [
 			["class", "main"],
 			["class", "content"],
@@ -378,34 +381,37 @@ export class App {
 				i0.ɵɵelementStart(21, "p");
 				i0.ɵɵtext(22, "Congratulations! Your app is running. 🎉");
 				i0.ɵɵelementEnd();
+				i0.ɵɵelementStart(23, "p");
+				i0.ɵɵtext(24);
 				i0.ɵɵelementEnd();
-				i0.ɵɵelementStart(23, "div", 18);
 				i0.ɵɵelementEnd();
-				i0.ɵɵelementStart(24, "div", 19);
-				i0.ɵɵelementStart(25, "div", 20);
-				i0.ɵɵrepeaterCreate(26, App_For_27_Template, 5, 4, "a", 21, _forTrack0);
+				i0.ɵɵelementStart(25, "div", 18);
 				i0.ɵɵelementEnd();
-				i0.ɵɵelementStart(28, "div", 22);
-				i0.ɵɵelementStart(29, "a", 23);
+				i0.ɵɵelementStart(26, "div", 19);
+				i0.ɵɵelementStart(27, "div", 20);
+				i0.ɵɵrepeaterCreate(28, App_For_29_Template, 5, 4, "a", 21, _forTrack0);
+				i0.ɵɵelementEnd();
+				i0.ɵɵelementStart(30, "div", 22);
+				i0.ɵɵelementStart(31, "a", 23);
 				i0.ɵɵnamespaceSVG();
-				i0.ɵɵelementStart(30, "svg", 24);
-				i0.ɵɵelementStart(31, "path", 25);
+				i0.ɵɵelementStart(32, "svg", 24);
+				i0.ɵɵelementStart(33, "path", 25);
 				i0.ɵɵelementEnd();
 				i0.ɵɵelementEnd();
 				i0.ɵɵelementEnd();
 				i0.ɵɵnamespaceHTML();
-				i0.ɵɵelementStart(32, "a", 26);
+				i0.ɵɵelementStart(34, "a", 26);
 				i0.ɵɵnamespaceSVG();
-				i0.ɵɵelementStart(33, "svg", 27);
-				i0.ɵɵelementStart(34, "path", 28);
+				i0.ɵɵelementStart(35, "svg", 27);
+				i0.ɵɵelementStart(36, "path", 28);
 				i0.ɵɵelementEnd();
 				i0.ɵɵelementEnd();
 				i0.ɵɵelementEnd();
 				i0.ɵɵnamespaceHTML();
-				i0.ɵɵelementStart(35, "a", 29);
+				i0.ɵɵelementStart(37, "a", 29);
 				i0.ɵɵnamespaceSVG();
-				i0.ɵɵelementStart(36, "svg", 30);
-				i0.ɵɵelementStart(37, "path", 31);
+				i0.ɵɵelementStart(38, "svg", 30);
+				i0.ɵɵelementStart(39, "path", 31);
 				i0.ɵɵelementEnd();
 				i0.ɵɵelementEnd();
 				i0.ɵɵelementEnd();
@@ -414,21 +420,24 @@ export class App {
 				i0.ɵɵelementEnd();
 				i0.ɵɵelementEnd();
 				i0.ɵɵnamespaceHTML();
-				i0.ɵɵelementStart(38, "router-outlet");
+				i0.ɵɵelementStart(40, "router-outlet");
 				i0.ɵɵelementEnd();
-				i0.ɵɵelementStart(39, "h2");
-				i0.ɵɵtext(40, "Test Inline Style");
+				i0.ɵɵelementStart(41, "h2");
+				i0.ɵɵtext(42, "Test Inline Style");
 				i0.ɵɵelementEnd();
-				i0.ɵɵelementStart(41, "div", 32);
-				i0.ɵɵtext(42, "Test attributes");
+				i0.ɵɵelementStart(43, "div", 32);
+				i0.ɵɵtext(44, "Test attributes");
 				i0.ɵɵelementEnd();
-				i0.ɵɵtemplate(43, App_div_43_Template, 2, 1, "div", 33);
+				i0.ɵɵtemplate(45, App_div_45_Template, 2, 1, "div", 33);
+				i0.ɵɵpipe(46, "fullName");
 			}
 			if (rf & 2) {
 				i0.ɵɵadvance(20);
 				i0.ɵɵtextInterpolate1("Hello, ", ctx.title(), "");
-				i0.ɵɵadvance(6);
-				i0.ɵɵrepeater(i0.ɵɵpureFunction6(8, _c6, i0.ɵɵpureFunction0(2, _c0), i0.ɵɵpureFunction0(3, _c1), i0.ɵɵpureFunction0(4, _c2), i0.ɵɵpureFunction0(5, _c3), i0.ɵɵpureFunction0(6, _c4), i0.ɵɵpureFunction0(7, _c5)));
+				i0.ɵɵadvance(4);
+				i0.ɵɵtextInterpolate1("hello ", i0.ɵɵpipeBind2(46, 3, ctx.name, ctx.surname), "");
+				i0.ɵɵadvance(4);
+				i0.ɵɵrepeater(i0.ɵɵpureFunction6(12, _c6, i0.ɵɵpureFunction0(6, _c0), i0.ɵɵpureFunction0(7, _c1), i0.ɵɵpureFunction0(8, _c2), i0.ɵɵpureFunction0(9, _c3), i0.ɵɵpureFunction0(10, _c4), i0.ɵɵpureFunction0(11, _c5)));
 				i0.ɵɵadvance(17);
 				i0.ɵɵproperty("ngForOf", ctx.items());
 			}
@@ -441,7 +450,7 @@ export class App {
 		],
 		changeDetection: 0,
 		inputs: {
-			name: "name",
+			fullName: "fullName",
 			header: [1, "header"],
 			header2: [1, "header2"]
 		},
@@ -449,6 +458,10 @@ export class App {
 			nameChange: "nameChange",
 			haderChange: "haderChange"
 		},
-		dependencies: [RouterOutlet, NgFor]
+		dependencies: [
+			RouterOutlet,
+			NgFor,
+			FullNamePipe
+		]
 	});
 }

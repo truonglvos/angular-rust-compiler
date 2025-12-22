@@ -13,16 +13,17 @@ import {
 } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterOutlet } from '@angular/router';
+import { FullNamePipe } from './src/pipes/full-name-pipe';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, NgFor],
+  imports: [RouterOutlet, NgFor, FullNamePipe],
   templateUrl: './app.html',
   styleUrl: './app.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App implements OnInit {
-  @Input() name = 'Le Van Trường';
+  @Input() fullName = 'Le Van Trường';
 
   header = input<string>('header 1');
 
@@ -31,6 +32,9 @@ export class App implements OnInit {
   @Output() nameChange = new EventEmitter<string>();
 
   haderChange = output<string>();
+
+  surname = 'Lê';
+  name = 'Trường';
 
   protected readonly title = signal('demo-app 5');
   protected readonly items = signal([
