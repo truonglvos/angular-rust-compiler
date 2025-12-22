@@ -13,6 +13,7 @@ pub use src::util::*;
 pub use src::docs::*;
 pub use src::extended_template_diagnostic_name::*;
 pub use src::error_details_base_url::*;
+pub use ts::{Diagnostic, DiagnosticMessageChain, DiagnosticRelatedInformation, DiagnosticWithLocation, DiagnosticCategory, Node};
 
 #[cfg(test)]
 mod test;

@@ -284,7 +284,7 @@ pub enum ErrorCode {
 
     /// An `@defer` block with an implicit trigger does not have a placeholder, for example:
     ///
-    /// ```
+    /// ```ignore
     /// @defer(on viewport) {
     ///   Hello
     /// }
@@ -293,7 +293,7 @@ pub enum ErrorCode {
 
     /// The `@placeholder` for an implicit `@defer` trigger is not set up correctly, for example:
     ///
-    /// ```
+    /// ```ignore
     /// @defer(on viewport) {
     ///   Hello
     /// } @placeholder {
