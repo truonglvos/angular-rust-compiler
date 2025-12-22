@@ -10,19 +10,10 @@ use crate::template::pipeline::src::compilation::{
 };
 use crate::template::pipeline::src::instruction as ng;
 
-pub fn reify(job: &mut dyn CompilationJob) {
-    if let Some(component_job) = unsafe {
-        let job_ptr = job as *mut dyn CompilationJob;
-        if job.kind() == crate::template::pipeline::src::compilation::CompilationJobKind::Tmpl {
-             Some(&mut *(job_ptr as *mut ComponentCompilationJob))
-        } else {
-            None
-        }
-    } {
-        reify_unit(&mut component_job.root);
-        for unit in component_job.views.values_mut() {
-            reify_unit(unit);
-        }
+pub fn reify(job: &mut ComponentCompilationJob) {
+    reify_unit(&mut job.root);
+    for unit in job.views.values_mut() {
+        reify_unit(unit);
     }
 }
 
@@ -286,6 +277,26 @@ fn reify_ir_expression(expr: o::Expression, flags: ir::VisitorContextFlag) -> o:
             };
             *o::import_ref(crate::render3::r3_identifiers::Identifiers::next_context())
                 .call_fn(args, next_ctx.source_span.clone(), None)
+        }
+        o::Expression::PipeBinding(pipe) => {
+            // Reify PipeBindingExpr to ɵɵpipeBind call
+            let reified_args: Vec<o::Expression> = pipe.args.iter()
+                .map(|arg| reify_ir_expression(arg.clone(), flags))
+                .collect();
+            
+            let pipe_slot = pipe.target_slot.slot.unwrap_or(0) as i32;
+            let var_offset = pipe.var_offset.unwrap_or(0) as i32;
+            ng::pipe_bind(pipe_slot, var_offset, reified_args)
+        }
+        o::Expression::PipeBindingVariadic(pipe) => {
+            // Reify PipeBindingVariadicExpr to ɵɵpipeBindV call
+            let reified_args = reify_ir_expression(*pipe.args.clone(), flags);
+            let pipe_slot = pipe.target_slot.slot.unwrap_or(0) as i32;
+            let var_offset = pipe.var_offset.unwrap_or(0) as i32;
+            
+            // For variadic, wrap in array and call pipeBindV
+            let args_array = vec![reified_args];
+            ng::pipe_bind(pipe_slot, var_offset, args_array)
         }
         _ => expr
     }

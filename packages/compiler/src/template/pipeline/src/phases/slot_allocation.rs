@@ -192,6 +192,22 @@ fn propagate_slot_indexes_in_unit(
                             }
                         }
                     }
+                    Expression::PipeBinding(ref mut pipe_expr) => {
+                        // Propagate slot index from slot_map for pipe binding
+                        if pipe_expr.target_slot.slot.is_none() {
+                            if let Some(&slot) = slot_map.get(&pipe_expr.target) {
+                                pipe_expr.target_slot.slot = Some(slot);
+                            }
+                        }
+                    }
+                    Expression::PipeBindingVariadic(ref mut pipe_expr) => {
+                        // Propagate slot index from slot_map for variadic pipe binding
+                        if pipe_expr.target_slot.slot.is_none() {
+                            if let Some(&slot) = slot_map.get(&pipe_expr.target) {
+                                pipe_expr.target_slot.slot = Some(slot);
+                            }
+                        }
+                    }
                     _ => {}
                 }
                 expr
@@ -219,6 +235,22 @@ fn propagate_slot_indexes_in_unit(
                         if ctx_let_ref.target_slot.slot.is_none() {
                             if let Some(&slot) = slot_map.get(&ctx_let_ref.target) {
                                 ctx_let_ref.target_slot.slot = Some(slot);
+                            }
+                        }
+                    }
+                    Expression::PipeBinding(ref mut pipe_expr) => {
+                        // Propagate slot index from slot_map for pipe binding
+                        if pipe_expr.target_slot.slot.is_none() {
+                            if let Some(&slot) = slot_map.get(&pipe_expr.target) {
+                                pipe_expr.target_slot.slot = Some(slot);
+                            }
+                        }
+                    }
+                    Expression::PipeBindingVariadic(ref mut pipe_expr) => {
+                        // Propagate slot index from slot_map for variadic pipe binding
+                        if pipe_expr.target_slot.slot.is_none() {
+                            if let Some(&slot) = slot_map.get(&pipe_expr.target) {
+                                pipe_expr.target_slot.slot = Some(slot);
                             }
                         }
                     }

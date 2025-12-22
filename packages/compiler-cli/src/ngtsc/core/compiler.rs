@@ -141,6 +141,27 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
         for directive in &compilation_result.directives {
              let compiled_results = if directive.is_component {
                  component_handler.compile_ivy(directive)
+             } else if directive.is_pipe {
+                 // Compile pipe to ɵpipe definition
+                 let pipe_name = directive.pipe_name.as_deref().unwrap_or(&directive.name);
+                 let initializer = format!(
+                     "/*@__PURE__*/ i0.ɵɵdefinePipe({{ name: \"{}\", type: {}, pure: {}{} }})",
+                     pipe_name,
+                     directive.name,
+                     directive.pure,
+                     if directive.is_standalone { ", standalone: true" } else { "" }
+                 );
+                 vec![crate::ngtsc::transform::src::api::CompileResult {
+                     name: "ɵpipe".to_string(),
+                     initializer: Some(initializer),
+                     statements: vec![],
+                     type_desc: format!("i0.ɵɵPipeDeclaration<{}, \"{}\", {}>", 
+                         directive.name, 
+                         pipe_name,
+                         directive.is_standalone
+                     ),
+                     deferrable_imports: None,
+                 }]
              } else {
                  directive_handler.compile_ivy(directive)
              };

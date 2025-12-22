@@ -13,6 +13,9 @@ pub struct DirectiveMetadata {
     pub name: String,
     pub selector: Option<String>,
     pub is_component: bool,
+    pub is_pipe: bool,
+    pub pipe_name: Option<String>,
+    pub pure: bool,
     pub inputs: ClassPropertyMapping,
     pub outputs: ClassPropertyMapping,
     pub export_as: Option<Vec<String>>,
@@ -68,6 +71,15 @@ impl MetadataReader for OxcMetadataReader {
                              ) {
                                  directives.push(metadata);
                              }
+                        } else if decorator.name == "Pipe" {
+                            // Extract @Pipe metadata
+                            if let Some(metadata) = extract_pipe_metadata(
+                                class_decl,
+                                &decorator,
+                                path,
+                            ) {
+                                directives.push(metadata);
+                            }
                         }
                     }
                 }
@@ -452,6 +464,9 @@ pub fn extract_directive_metadata(
         name,
         selector,
         is_component,
+        is_pipe: false,
+        pipe_name: None,
+        pure: true,
         inputs,
         outputs,
         export_as,
@@ -461,10 +476,80 @@ pub fn extract_directive_metadata(
         template_url,
         styles,
         style_urls,
-        imports, // Add this
+        imports,
         template_ast: None,
         source_file: Some(source_file.to_path_buf()),
         change_detection,
+    })
+}
+
+/// Extract pipe metadata from a class declaration and its @Pipe decorator.
+pub fn extract_pipe_metadata(
+    class_decl: &ClassDeclaration,
+    decorator: &Decorator,
+    source_file: &std::path::Path,
+) -> Option<DirectiveMetadata> {
+    let name = class_decl.id.as_ref().map(|id| id.name.to_string()).unwrap_or_default();
+    
+    let mut pipe_name = name.clone();
+    let mut pure = true;
+    let mut is_standalone = true;
+
+    // Extract @Pipe({ name: '...', pure: ..., standalone: ... })
+    if let Some(args) = &decorator.args {
+        if let Some(first_arg) = args.first() {
+            if let Expression::ObjectExpression(obj) = first_arg {
+                for prop in &obj.properties {
+                    if let ObjectPropertyKind::ObjectProperty(obj_prop) = prop {
+                        let key = match &obj_prop.key {
+                            PropertyKey::StaticIdentifier(id) => Some(id.name.as_str()),
+                            _ => None,
+                        };
+                        
+                        match key {
+                            Some("name") => {
+                                if let Expression::StringLiteral(s) = &obj_prop.value {
+                                    pipe_name = s.value.to_string();
+                                }
+                            },
+                            Some("pure") => {
+                                if let Expression::BooleanLiteral(b) = &obj_prop.value {
+                                    pure = b.value;
+                                }
+                            },
+                            Some("standalone") => {
+                                if let Expression::BooleanLiteral(b) = &obj_prop.value {
+                                    is_standalone = b.value;
+                                }
+                            },
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Some(DirectiveMetadata {
+        name,
+        selector: None,
+        is_component: false,
+        is_pipe: true,
+        pipe_name: Some(pipe_name),
+        pure,
+        inputs: ClassPropertyMapping::new(),
+        outputs: ClassPropertyMapping::new(),
+        export_as: None,
+        is_standalone,
+        is_signal: false,
+        template: None,
+        template_url: None,
+        styles: None,
+        style_urls: None,
+        imports: None,
+        template_ast: None,
+        source_file: Some(source_file.to_path_buf()),
+        change_detection: None,
     })
 }
 

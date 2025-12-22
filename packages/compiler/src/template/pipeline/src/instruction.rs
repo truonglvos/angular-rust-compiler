@@ -227,3 +227,34 @@ pub fn conditional(
     call(Identifiers::conditional(), args, Some(source_span))
 }
 
+/// Creates a pipe binding expression.
+/// Generates ɵɵpipeBind1/2/3/4/V based on number of arguments.
+/// The signature is: ɵɵpipeBind(pipeSlot, varOffset, ...args)
+pub fn pipe_bind(pipe_slot: i32, var_offset: i32, args: Vec<o::Expression>) -> o::Expression {
+    let num_args = args.len();
+    let id = match num_args {
+        1 => Identifiers::pipe_bind1(),
+        2 => Identifiers::pipe_bind2(),
+        3 => Identifiers::pipe_bind3(),
+        4 => Identifiers::pipe_bind4(),
+        _ => Identifiers::pipe_bind_v(),
+    };
+    
+    let mut call_args = vec![
+        *o::literal(pipe_slot as f64),
+        *o::literal(var_offset as f64),
+    ];
+    if num_args > 4 {
+        // Box args into array for pipeBindV
+        call_args.push(o::Expression::LiteralArray(o::LiteralArrayExpr {
+            entries: args,
+            type_: None,
+            source_span: None,
+        }));
+    } else {
+        call_args.extend(args);
+    }
+    
+    *o::import_ref(id).call_fn(call_args, None, None)
+}
+

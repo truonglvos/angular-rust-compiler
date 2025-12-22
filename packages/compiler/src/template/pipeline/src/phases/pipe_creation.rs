@@ -5,34 +5,22 @@
 use crate::template::pipeline::ir;
 
 use crate::template::pipeline::src::compilation::{
-    CompilationJob, ComponentCompilationJob, CompilationUnit,
+    ComponentCompilationJob, CompilationUnit, ViewCompilationUnit,
 };
 
-pub fn create_pipes(job: &mut dyn CompilationJob) {
-    // Dispatch based on job kind or cast to ComponentCompilationJob
-    // Since we likely only run this on Component jobs (pipes in templates)
-    // Host bindings don't usually have pipes?
-    // TS doesn't check job kind.
+pub fn create_pipes(job: &mut ComponentCompilationJob) {
+    let compatibility = job.compatibility;
     
-    // We'll use the unsafe cast pattern for now as per other files
-     if let Some(component_job) = unsafe {
-        let job_ptr = job as *mut dyn CompilationJob;
-        // Check if it is actually a ComponentCompilationJob?
-        // job.kind() is available on trait.
-        if job.kind() == crate::template::pipeline::src::compilation::CompilationJobKind::Tmpl {
-            Some(&mut *(job_ptr as *mut ComponentCompilationJob))
-        } else {
-            None
-        }
-    } {
-        process_pipe_bindings_in_view(&mut component_job.root, job.compatibility());
-        for unit in component_job.views.values_mut() {
-            process_pipe_bindings_in_view(unit, job.compatibility());
-        }
+    // Process root view
+    process_pipe_bindings_in_view(&mut job.root, compatibility);
+    
+    // Process all embedded views
+    for unit in job.views.values_mut() {
+        process_pipe_bindings_in_view(unit, compatibility);
     }
 }
 
-fn process_pipe_bindings_in_view(unit: &mut dyn CompilationUnit, compatibility: ir::CompatibilityMode) {
+fn process_pipe_bindings_in_view(unit: &mut ViewCompilationUnit, compatibility: ir::CompatibilityMode) {
     // We need to collect pipe bindings first to avoid borrowing conflicts
     // iterating update ops while modifying create ops is allowed if lists are separate.
     // unit.update() returns &OpList. unit.create_mut() returns &mut OpList.
@@ -91,11 +79,14 @@ fn process_pipe_bindings_in_view(unit: &mut dyn CompilationUnit, compatibility: 
     
     // Process gathered pipes
     for pipe in pipes {
-        let create_op = ir::ops::create::create_pipe_op(pipe.target, pipe.target_slot, pipe.name);
+        let create_op = ir::ops::create::create_pipe_op(pipe.target, pipe.target_slot.clone(), pipe.name.clone());
         
         if compatibility == ir::CompatibilityMode::TemplateDefinitionBuilder {
             if let Some(target) = pipe.update_op_target {
                 add_pipe_to_creation_block(unit, target, create_op);
+            } else {
+                // Fallback: push to end of create list when no specific target
+                unit.create_mut().push(create_op);
             }
         } else {
             unit.create_mut().push(create_op);

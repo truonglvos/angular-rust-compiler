@@ -89,6 +89,9 @@ pub fn run(job: &mut ComponentCompilationJob) {
     // Resolve sanitizers for security-sensitive properties/attributes (e.g. href, src)
     resolve_sanitizers::resolve_sanitizers(job);
     
+    // Create pipe operations before slot allocation
+    pipe_creation::create_pipes(job);
+    
     slot_allocation::phase(job);
     pure_function_extraction::phase(job); // Extract pure functions to constants like _c0, _c1
     track_fn_optimization::optimize_track_fns(job); // Generate track functions for @for loops
