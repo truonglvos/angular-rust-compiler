@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use oxc_allocator::Allocator;
 use oxc_parser::Parser;
 use oxc_span::SourceType;
+use ts::SourceFile;
 
 pub struct ImportGraph<'a> {
     fs: &'a dyn FileSystem,
@@ -18,31 +19,30 @@ impl<'a> ImportGraph<'a> {
         }
     }
 
-    pub fn imports_of(&self, sf: &AbsoluteFsPath) -> HashSet<AbsoluteFsPath> {
+    pub fn imports_of(&self, sf: &dyn SourceFile) -> HashSet<AbsoluteFsPath> {
+        let path = AbsoluteFsPath::from(sf.file_name());
         let mut cache = self.imports.borrow_mut();
-        if let Some(imports) = cache.get(sf) {
+        if let Some(imports) = cache.get(&path) {
              return imports.clone();
         }
 
         let imports = self.scan_imports(sf);
-        cache.insert(sf.clone(), imports.clone());
+        cache.insert(path, imports.clone());
         imports
     }
     
-    fn scan_imports(&self, sf: &AbsoluteFsPath) -> HashSet<AbsoluteFsPath> {
+    fn scan_imports(&self, sf: &dyn SourceFile) -> HashSet<AbsoluteFsPath> {
         let mut imports = HashSet::new();
-        let content = match self.fs.read_file(sf) {
-             Ok(c) => c,
-             Err(_) => return imports, // Should probably log or error, but for now empty imports
-        };
+        let content = sf.text();
 
         let allocator = Allocator::default();
-        let source_type = SourceType::from_path(sf.as_path()).unwrap_or_default().with_typescript(true);
-        let ret = Parser::new(&allocator, &content, source_type).parse();
+        let path = AbsoluteFsPath::from(sf.file_name());
+        let source_type = SourceType::from_path(path.as_path()).unwrap_or_default().with_typescript(true);
+        let ret = Parser::new(&allocator, content, source_type).parse();
 
         // Very basic resolution logic: assumes .ts extension and relative paths
         // Use dirname from FileSystem/PathManipulation
-        let parent_str = self.fs.dirname(sf.as_str());
+        let parent_str = self.fs.dirname(path.as_str());
         let parent = AbsoluteFsPath::new(parent_str);
 
 
@@ -90,10 +90,83 @@ impl<'a> ImportGraph<'a> {
                      imports.insert(resolved);
                  }
             }
-
-
         }
         
+        imports
+    }
+    
+    pub fn imports_of_path(&self, path: &AbsoluteFsPath) -> HashSet<AbsoluteFsPath> {
+         let mut cache = self.imports.borrow_mut();
+         if let Some(imports) = cache.get(path) {
+              return imports.clone();
+         }
+         
+         // We have to read file content since we don't have SourceFile object here (internal recursion)
+          let imports = self.scan_imports_from_fs(path);
+          cache.insert(path.clone(), imports.clone());
+          imports
+    }
+
+    fn scan_imports_from_fs(&self, sf: &AbsoluteFsPath) -> HashSet<AbsoluteFsPath> {
+         let content = match self.fs.read_file(sf) {
+             Ok(c) => c,
+             Err(_) => return HashSet::new(),
+        };
+        
+        // Create a temporary mock source file to reuse logic? 
+        // Or refactor scan_imports to take text + path.
+        // Let's refactor.
+        self.scan_imports_internal(&content, sf)
+    }
+
+    fn scan_imports_internal(&self, content: &str, path: &AbsoluteFsPath) -> HashSet<AbsoluteFsPath> {
+        let mut imports = HashSet::new();
+        let allocator = Allocator::default();
+        let source_type = SourceType::from_path(path.as_path()).unwrap_or_default().with_typescript(true);
+        let ret = Parser::new(&allocator, content, source_type).parse();
+        
+        let parent_str = self.fs.dirname(path.as_str());
+        let parent = AbsoluteFsPath::new(parent_str);
+
+         for stmt in ret.program.body {
+            let module_specifier = match stmt {
+                oxc_ast::ast::Statement::ImportDeclaration(decl) => {
+                    if decl.import_kind.is_value() {
+                        Some(decl.source.value.to_string())
+                    } else {
+                        None
+                    }
+                },
+                oxc_ast::ast::Statement::ExportNamedDeclaration(decl) => {
+                    if decl.export_kind.is_value() {
+                        decl.source.as_ref().map(|s| s.value.to_string())
+                    } else {
+                        None
+                    }
+                },
+                oxc_ast::ast::Statement::ExportAllDeclaration(decl) => {
+                     if decl.export_kind.is_value() {
+                        Some(decl.source.value.to_string())
+                    } else {
+                        None
+                    }
+                }
+                _ => None
+            };
+
+            if let Some(specifier) = module_specifier {
+                 if specifier.starts_with(".") {
+                     let resolved_str = self.fs.join(parent.as_str(), &[&specifier]);
+                     let resolved_str = self.fs.normalize(&resolved_str);
+                     let resolved = if !resolved_str.ends_with(".ts") {
+                         AbsoluteFsPath::from(format!("{}.ts", resolved_str))
+                     } else {
+                         AbsoluteFsPath::from(resolved_str)
+                     };
+                     imports.insert(resolved);
+                 }
+            }
+        }
         imports
     }
 
@@ -102,9 +175,20 @@ impl<'a> ImportGraph<'a> {
     ///
     /// This function implements a breadth first search that results in finding the
     /// shortest path between the `start` and `end` points.
-    pub fn find_path(&self, start: &AbsoluteFsPath, end: &AbsoluteFsPath) -> Option<Vec<AbsoluteFsPath>> {
+    pub fn find_path(&self, start: &dyn SourceFile, end: &dyn SourceFile) -> Option<Vec<AbsoluteFsPath>> {
+        let start_path = AbsoluteFsPath::from(start.file_name());
+        let end_path = AbsoluteFsPath::from(end.file_name());
+        
+        if start_path == end_path {
+            return Some(vec![start_path]);
+        }
+        
+        self.find_path_by_path(&start_path, &end_path)
+    }
+    
+    pub fn find_path_by_path(&self, start: &AbsoluteFsPath, end: &AbsoluteFsPath) -> Option<Vec<AbsoluteFsPath>> {
         if start == end {
-            return Some(vec![start.clone()]);
+             return Some(vec![start.clone()]);
         }
 
         let mut found = HashSet::new();
@@ -117,7 +201,7 @@ impl<'a> ImportGraph<'a> {
         queue.push_back(start.clone());
 
         while let Some(current) = queue.pop_front() {
-            let imports = self.imports_of(&current);
+            let imports = self.imports_of_path(&current);
             for imported_file in imports {
                 if !found.contains(&imported_file) {
                     parents.insert(imported_file.clone(), current.clone());
@@ -144,9 +228,11 @@ impl<'a> ImportGraph<'a> {
 
     /// Add a record of an import from `sf` to `imported`, that's not present in the original
     /// `ts.Program` but will be remembered by the `ImportGraph`.
-    pub fn add_synthetic_import(&self, sf: &AbsoluteFsPath, imported: &AbsoluteFsPath) {
+    pub fn add_synthetic_import(&self, sf: &dyn SourceFile, imported: &dyn SourceFile) {
+        let sf_path = AbsoluteFsPath::from(sf.file_name());
+        let imported_path = AbsoluteFsPath::from(imported.file_name());
         let mut cache = self.imports.borrow_mut();
-        cache.entry(sf.clone()).or_default().insert(imported.clone());
+        cache.entry(sf_path).or_default().insert(imported_path);
     }
 }
 

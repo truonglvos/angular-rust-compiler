@@ -2,6 +2,7 @@ use crate::ngtsc::cycles::src::imports::ImportGraph;
 use crate::ngtsc::file_system::AbsoluteFsPath;
 use std::collections::HashMap;
 use std::cell::RefCell;
+use ts::SourceFile;
 
 pub struct CycleAnalyzer<'a> {
     import_graph: &'a ImportGraph<'a>,
@@ -16,28 +17,31 @@ impl<'a> CycleAnalyzer<'a> {
         }
     }
 
-    pub fn would_create_cycle(&self, from: &AbsoluteFsPath, to: &AbsoluteFsPath) -> Option<Cycle> {
+    pub fn would_create_cycle(&self, from: &dyn SourceFile, to: &dyn SourceFile) -> Option<Cycle> {
+        let from_path = AbsoluteFsPath::from(from.file_name());
+        let to_path = AbsoluteFsPath::from(to.file_name());
+
         // Try to reuse the cached results as long as the `from` source file is the same.
         let mut cache = self.cached_results.borrow_mut();
         
         // Check if we need to invalidate or create new cache
         let reset_cache = if let Some(results) = &*cache {
-            &results.from != from
+            &results.from != &from_path
         } else {
             true
         };
 
         if reset_cache {
-            *cache = Some(CycleResults::new(from.clone(), self.import_graph));
+            *cache = Some(CycleResults::new(from_path.clone(), self.import_graph));
         }
 
         // Import of 'from' -> 'to' is illegal if an edge 'to' -> 'from' already exists.
         if let Some(results) = &mut *cache {
-            if results.would_be_cyclic(to) {
+            if results.would_be_cyclic(&to_path) {
                 return Some(Cycle::new(
                     self.import_graph,
-                    from.clone(),
-                    to.clone(),
+                    from_path,
+                    to_path,
                 ));
             }
         }
@@ -45,7 +49,7 @@ impl<'a> CycleAnalyzer<'a> {
         None
     }
 
-    pub fn record_synthetic_import(&self, from: &AbsoluteFsPath, to: &AbsoluteFsPath) {
+    pub fn record_synthetic_import(&self, from: &dyn SourceFile, to: &dyn SourceFile) {
         self.cached_results.replace(None);
         self.import_graph.add_synthetic_import(from, to);
     }
@@ -61,7 +65,7 @@ impl Cycle {
     pub fn new<'a>(import_graph: &'a ImportGraph<'a>, from: AbsoluteFsPath, to: AbsoluteFsPath) -> Self {
         let path = vec![from.clone()]
             .into_iter()
-            .chain(import_graph.find_path(&to, &from).unwrap_or_default().into_iter())
+            .chain(import_graph.find_path_by_path(&to, &from).unwrap_or_default().into_iter())
             .collect();
             
         Self { from, to, path }
@@ -105,7 +109,7 @@ impl<'a> CycleResults<'a> {
         // Assume for now that the file will be acyclic; this prevents infinite recursion
         self.results.insert(sf.clone(), CycleState::Acyclic);
 
-        let imports = self.import_graph.imports_of(sf);
+        let imports = self.import_graph.imports_of_path(sf);
         for imported in imports {
             if self.would_be_cyclic(&imported) {
                 self.results.insert(sf.clone(), CycleState::Cyclic);

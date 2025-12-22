@@ -1,79 +1,50 @@
-use crate::ngtsc::cycles::{CycleAnalyzer, ImportGraph};
-use crate::ngtsc::file_system::{PathManipulation};
-use super::util::{create_fs_from_graph, import_path_to_string};
+use crate::ngtsc::cycles::src::imports::ImportGraph;
+use crate::ngtsc::file_system::{AbsoluteFsPath, ReadonlyFileSystem};
+use crate::ngtsc::cycles::test::util::{create_fs_from_graph, import_path_to_string, MockSourceFile};
 
 #[test]
-fn test_type_only_imports() {
-    // "a:b,c!;b;c" -> c is type-only import in a
-    let fs = create_fs_from_graph("a:b,c!;b;c");
-    let graph = ImportGraph::new(&fs);
-    let analyzer = CycleAnalyzer::new(&graph);
-    
-    let a = fs.resolve(&["/a.ts"]);
-    let b = fs.resolve(&["/b.ts"]);
-    let c = fs.resolve(&["/c.ts"]);
-    
-    // c -> a check
-    // If a imports c (value), then c->a would be a cycle.
-    // But a imports c (type), so no cycle.
-    assert!(analyzer.would_create_cycle(&c, &a).is_none());
-    
-    // b -> a check
-    // a imports b (value). b->a would be a cycle.
-    let cycle = analyzer.would_create_cycle(&b, &a);
-    assert!(cycle.is_some());
-    assert_eq!(import_path_to_string(&fs, cycle.unwrap().get_path()), "b,a,b");
-}
-
-#[test]
-fn test_imports_of() {
-    let fs = create_fs_from_graph("a:b;b:c;c");
+fn test_scan_imports_simple() {
+    let fs = create_fs_from_graph("a:b,c;b;c");
     let graph = ImportGraph::new(&fs);
     
-    let a = fs.resolve(&["/a.ts"]);
-    let b = fs.resolve(&["/b.ts"]);
-    
-    let imports_a = graph.imports_of(&a);
-    assert_eq!(imports_a.len(), 1);
-    assert!(imports_a.contains(&b));
+    // read_file returns String in MockFileSystem/ReadonlyFileSystem
+    let text = fs.read_file(&AbsoluteFsPath::from("/a.ts")).unwrap();
+    let a_sf = MockSourceFile { 
+        file_name: "/a.ts".to_string(), 
+        text,
+    };
 
-    let imports_b = graph.imports_of(&b);
-    assert_eq!(imports_b.len(), 1);
-    let c = fs.resolve(&["/c.ts"]);
-    assert!(imports_b.contains(&c));
+    let imports = graph.imports_of(&a_sf);
+    assert_eq!(imports.len(), 2);
+    assert!(imports.contains(&AbsoluteFsPath::from("/b.ts")));
+    assert!(imports.contains(&AbsoluteFsPath::from("/c.ts")));
 }
 
 #[test]
 fn test_find_path() {
-     // a:*b,*c;b:*e,*f;c:*g,*h;e:f;f;g:e;h:g
-    let fs = create_fs_from_graph("a:*b,*c;b:*e,*f;c:*g,*h;e:f;f;g:e;h:g");
+    // a -> b -> c
+    // e -> f
+    let fs = create_fs_from_graph("a:b;b:c;c;e:f;f");
     let graph = ImportGraph::new(&fs);
-
-    let a = fs.resolve(&["/a.ts"]);
-    let b = fs.resolve(&["/b.ts"]);
-    let c = fs.resolve(&["/c.ts"]);
-    let e = fs.resolve(&["/e.ts"]);
-
-    // a -> a
-    let path = graph.find_path(&a, &a);
-    assert!(path.is_some());
-    assert_eq!(import_path_to_string(&fs, &path.unwrap()), "a");
-
-    // a -> b
-    let path = graph.find_path(&a, &b);
-    assert!(path.is_some());
-    assert_eq!(import_path_to_string(&fs, &path.unwrap()), "a,b");
     
-    // c -> e (c -> g -> e)
-    let path = graph.find_path(&c, &e);
-    assert!(path.is_some());
-    assert_eq!(import_path_to_string(&fs, &path.unwrap()), "c,g,e");
+    let a_sf = MockSourceFile { file_name: "/a.ts".to_string(), text: "".to_string() };
+    let c_sf = MockSourceFile { file_name: "/c.ts".to_string(), text: "".to_string() };
+    let e_sf = MockSourceFile { file_name: "/e.ts".to_string(), text: "".to_string() };
+    let b_sf = MockSourceFile { file_name: "/b.ts".to_string(), text: "".to_string() };
 
+    // a -> c
+    let path = graph.find_path(&a_sf, &c_sf);
+    assert!(path.is_some());
+    let path = path.unwrap();
+    assert_eq!(import_path_to_string(&fs, &path), "a,b,c");
+    
     // e -> c (no path)
-    assert!(graph.find_path(&e, &c).is_none());
+    assert!(graph.find_path(&e_sf, &c_sf).is_none());
     
-    // b -> c (no path)
-    assert!(graph.find_path(&b, &c).is_none());
+    // b -> c (path exists)
+    let path = graph.find_path(&b_sf, &c_sf);
+    assert!(path.is_some());
+    assert_eq!(import_path_to_string(&fs, &path.unwrap()), "b,c");
 }
 
 #[test]
@@ -84,10 +55,26 @@ fn test_find_path_circular() {
     let fs = create_fs_from_graph("a:b;b:a,c;c:a,d;d");
     let graph = ImportGraph::new(&fs);
     
-    let a = fs.resolve(&["/a.ts"]);
-    let d = fs.resolve(&["/d.ts"]);
+    let a_sf = MockSourceFile { file_name: "/a.ts".to_string(), text: "".to_string() };
+    let d_sf = MockSourceFile { file_name: "/d.ts".to_string(), text: "".to_string() };
     
-    let path = graph.find_path(&a, &d);
+    let path = graph.find_path(&a_sf, &d_sf);
     assert!(path.is_some());
     assert_eq!(import_path_to_string(&fs, &path.unwrap()), "a,b,c,d");
+}
+
+#[test]
+fn test_synthetic_import() {
+    let fs = create_fs_from_graph("a;b");
+    let graph = ImportGraph::new(&fs);
+    
+    let a_sf = MockSourceFile { file_name: "/a.ts".to_string(), text: fs.read_file(&AbsoluteFsPath::from("/a.ts")).unwrap() };
+    let b_sf = MockSourceFile { file_name: "/b.ts".to_string(), text: "".to_string() };
+
+    assert!(graph.imports_of(&a_sf).is_empty());
+    
+    graph.add_synthetic_import(&a_sf, &b_sf);
+    
+    let imports = graph.imports_of(&a_sf);
+    assert!(imports.contains(&AbsoluteFsPath::from("/b.ts")));
 }

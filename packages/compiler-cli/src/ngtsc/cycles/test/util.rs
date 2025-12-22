@@ -1,5 +1,33 @@
-use crate::ngtsc::file_system::{AbsoluteFsPath, FileSystem, PathManipulation};
+use crate::ngtsc::file_system::{AbsoluteFsPath, FileSystem};
 use crate::ngtsc::file_system::testing::MockFileSystem;
+use ts::{SourceFile, SyntaxKind, NodeFlags, LanguageVariant, ScriptTarget, Node};
+use std::fmt::Debug;
+
+#[derive(Debug)]
+pub struct MockSourceFile {
+    pub file_name: String,
+    pub text: String,
+}
+
+impl Node for MockSourceFile {
+    fn kind(&self) -> SyntaxKind { SyntaxKind::SourceFile }
+    fn flags(&self) -> NodeFlags { NodeFlags::None }
+    fn pos(&self) -> usize { 0 }
+    fn end(&self) -> usize { self.text.len() }
+    fn get_start(&self, _source_file: Option<&dyn SourceFile>) -> usize { 0 }
+    fn get_width(&self, _source_file: Option<&dyn SourceFile>) -> usize { self.text.len() }
+    fn get_source_file(&self) -> Option<&dyn SourceFile> { Some(self) }
+    fn parent(&self) -> Option<&dyn Node> { None }
+}
+
+impl SourceFile for MockSourceFile {
+    fn text(&self) -> &str { &self.text }
+    fn file_name(&self) -> &str { &self.file_name }
+    fn language_variant(&self) -> LanguageVariant { LanguageVariant::Standard }
+    fn is_declaration_file(&self) -> bool { self.file_name.ends_with(".d.ts") }
+    fn has_no_default_lib(&self) -> bool { false }
+    fn language_version(&self) -> ScriptTarget { ScriptTarget::ES2015 }
+}
 
 pub fn create_fs_from_graph(graph: &str) -> MockFileSystem {
     let fs = MockFileSystem::new_native(); // Use native style paths for simplicity
