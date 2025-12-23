@@ -47,11 +47,12 @@ mod tests {
         
         // Pattern match to extract DirectiveMeta from DecoratorMetadata
         if let DecoratorMetadata::Directive(dir) = &result.directives[0] {
-            assert_eq!(dir.name, "AppComponent");
-            assert_eq!(dir.template, Some("<h1>Hello World</h1>".to_string()));
+            assert_eq!(dir.t2.name, "AppComponent");
+            assert_eq!(dir.component.as_ref().and_then(|c| c.template.as_ref()), Some(&"<h1>Hello World</h1>".to_string()));
             
-            assert!(dir.template_ast.is_some(), "Template AST should be present");
-            let ast = dir.template_ast.as_ref().unwrap();
+            let template_ast = dir.component.as_ref().and_then(|c| c.template_ast.as_ref());
+            assert!(template_ast.is_some(), "Template AST should be present");
+            let ast = template_ast.unwrap();
             assert_eq!(ast.len(), 1);
             
             if let Node::Element(el) = &ast[0] {
@@ -111,10 +112,11 @@ mod tests {
         assert_eq!(res.directives.len(), 1);
         
         if let DecoratorMetadata::Directive(dir) = &res.directives[0] {
-            assert_eq!(dir.name, "AppComponent");
-            assert!(dir.template_ast.is_some(), "Template AST should be populated from templateUrl");
+            assert_eq!(dir.t2.name, "AppComponent");
+            let template_ast = dir.component.as_ref().and_then(|c| c.template_ast.as_ref());
+            assert!(template_ast.is_some(), "Template AST should be populated from templateUrl");
             
-            let ast = dir.template_ast.as_ref().unwrap();
+            let ast = template_ast.unwrap();
             if let Node::Element(el) = &ast[0] {
                  assert_eq!(el.name, "h1");
                  if let Node::Text(text) = &el.children[0] {
@@ -168,10 +170,11 @@ mod tests {
         assert_eq!(res.directives.len(), 1);
         
         if let DecoratorMetadata::Directive(dir) = &res.directives[0] {
-            assert_eq!(dir.name, "AppComponent");
+            assert_eq!(dir.t2.name, "AppComponent");
             
-            assert!(dir.styles.is_some());
-            let styles = dir.styles.as_ref().unwrap();
+            let styles = dir.component.as_ref().and_then(|c| c.styles.as_ref());
+            assert!(styles.is_some());
+            let styles = styles.unwrap();
             assert_eq!(styles.len(), 1);
             assert_eq!(styles[0], "h1 { color: red; }");
         } else {

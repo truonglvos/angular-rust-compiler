@@ -1,7 +1,7 @@
 
 use crate::ngtsc::core::NgCompilerOptions;
 use crate::ngtsc::file_system::{FileSystem, AbsoluteFsPath};
-use crate::ngtsc::metadata::{MetadataReader, OxcMetadataReader, DirectiveMetadata, DecoratorMetadata, DirectiveMeta};
+use crate::ngtsc::metadata::{MetadataReader, OxcMetadataReader, DirectiveMetadata, DecoratorMetadata};
 use std::path::PathBuf;
 use oxc_allocator::Allocator;
 use oxc_parser::Parser;
@@ -78,19 +78,23 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                 for directive in &mut directives {
                     // Only components have templates and styles
                     if let DecoratorMetadata::Directive(ref mut dir) = directive {
-                        if !dir.is_component { continue; }
+                        if !dir.t2.is_component { continue; }
                         
-                        let template_str = if let Some(template) = &dir.template {
-                            Some(template.clone())
-                        } else if let Some(template_url) = &dir.template_url {
-                            let component_dir = self.fs.dirname(abs_path.as_str());
-                            let template_path = self.fs.resolve(&[&component_dir, template_url]);
-                            match self.fs.read_file(&template_path) {
-                                Ok(content) => Some(content),
-                                Err(e) => {
-                                    println!("Failed to read template file at {:?}: {}", template_path, e);
-                                    None
+                        let template_str = if let Some(comp) = &dir.component {
+                            if let Some(template) = &comp.template {
+                                Some(template.clone())
+                            } else if let Some(template_url) = &comp.template_url {
+                                let component_dir = self.fs.dirname(abs_path.as_str());
+                                let template_path = self.fs.resolve(&[&component_dir, template_url]);
+                                match self.fs.read_file(&template_path) {
+                                    Ok(content) => Some(content),
+                                    Err(e) => {
+                                        println!("Failed to read template file at {:?}: {}", template_path, e);
+                                        None
+                                    }
                                 }
+                            } else {
+                                None
                             }
                         } else {
                             None
@@ -101,18 +105,25 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                             let parse_result = parser.parse(&template, "template.html", None);
                             
                             if !parse_result.errors.is_empty() {
-                                println!("Errors parsing template for {}: {:?}", dir.name, parse_result.errors);
+                                println!("Errors parsing template for {}: {:?}", dir.t2.name, parse_result.errors);
                             } else {
-                                dir.template_ast = Some(parse_result.root_nodes);
+                                if let Some(comp) = &mut dir.component {
+                                    comp.template_ast = Some(parse_result.root_nodes);
+                                }
                             }
                         }
 
-                        if let Some(style_urls) = &dir.style_urls {
+                        let style_urls = dir.component.as_ref().and_then(|c| c.style_urls.clone());
+                        if let Some(style_urls) = style_urls {
                             let component_dir = self.fs.dirname(abs_path.as_str());
-                            let mut resolved_styles = dir.styles.take().unwrap_or_default();
+                            let mut resolved_styles = if let Some(comp) = &mut dir.component {
+                                comp.styles.take().unwrap_or_default()
+                            } else {
+                                Vec::new()
+                            };
                             
                             for url in style_urls {
-                                 let style_path = self.fs.resolve(&[&component_dir, url]);
+                                 let style_path = self.fs.resolve(&[&component_dir, &url]);
                                  match self.fs.read_file(&style_path) {
                                     Ok(content) => resolved_styles.push(content),
                                     Err(e) => {
@@ -120,7 +131,9 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                                     }
                                  }
                             }
-                            dir.styles = Some(resolved_styles);
+                            if let Some(comp) = &mut dir.component {
+                                comp.styles = Some(resolved_styles);
+                            }
                         }
                     }
                 }
@@ -147,12 +160,12 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
              let (compiled_results, directive_name, source_file) = match directive {
                  DecoratorMetadata::Directive(dir) => {
                      // Check is_component flag to route to correct handler
-                     let results = if dir.is_component {
+                     let results = if dir.t2.is_component {
                          component_handler.compile_ivy(directive)
                      } else {
                          directive_handler.compile_ivy(directive)
                      };
-                     (results, dir.name.clone(), dir.source_file.clone())
+                     (results, dir.t2.name.clone(), dir.source_file.clone())
                  },
                  DecoratorMetadata::Pipe(pipe) => {
                      // Compile pipe to ɵpipe definition

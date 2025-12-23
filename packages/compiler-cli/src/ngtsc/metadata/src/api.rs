@@ -7,6 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use super::property_mapping::ClassPropertyMapping;
 use angular_compiler::ml_parser::ast::Node as HtmlNode;
+pub use angular_compiler::render3::view::t2_api::{DirectiveMeta as T2DirectiveMeta, LegacyAnimationTriggerNames};
 use oxc_ast::ast as oxc_ast;
 pub use crate::ngtsc::imports::{Reference, OwningModule};
 
@@ -97,7 +98,7 @@ pub enum TemplateGuardType {
 
 /// Host directive metadata.
 /// Matches TypeScript's HostDirectiveMeta (L307-326)
-/// 
+///
 /// The lifetime `'a` is tied to the OXC AST allocator.
 #[derive(Debug)]
 pub struct HostDirectiveMeta<'a> {
@@ -122,22 +123,10 @@ impl<'a> Clone for HostDirectiveMeta<'a> {
     }
 }
 
-/// Metadata collected for a directive within an NgModule's scope.
-/// Matches TypeScript's DirectiveMeta interface (L198-305)
-/// Extends T2DirectiveMeta + DirectiveTypeCheckMeta
-/// 
-/// The lifetime `'a` is tied to the OXC AST allocator, allowing direct 
-/// access to the decorator AST node without cloning.
-#[derive(Debug)]
-pub struct DirectiveMeta<'a> {
-    // === MetaKind ===
-    pub kind: MetaKind,
-    
-    // === MatchSource ===
-    /// Way in which the directive was matched.
-    pub match_source: MatchSource,
-    
-    // === T2DirectiveMeta fields (from t2_api.ts) ===
+/// Metadata regarding a directive that's needed to match it against template elements.
+/// Part of T2DirectiveMeta trait implementation.
+#[derive(Debug, Clone, Default)]
+pub struct T2DirectiveMetadata {
     /// Name of the directive class (used for debugging).
     pub name: String,
     /// The selector for the directive or None if there isn't one.
@@ -153,13 +142,47 @@ pub struct DirectiveMeta<'a> {
     /// Whether the directive is a structural directive.
     pub is_structural: bool,
     /// The list of selectors from any NgModule `ng-content` in the component's template.
-    pub ng_content_selectors: Vec<String>,
+    pub ng_content_selectors: Option<Vec<String>>,
     /// Whether the directive/component has `preserveWhitespaces: true`.
     pub preserve_whitespaces: bool,
-    
-    // === DirectiveTypeCheckMeta ===
-    pub type_check_meta: DirectiveTypeCheckMeta,
-    
+    /// Animation trigger names.
+    pub animation_trigger_names: Option<LegacyAnimationTriggerNames>,
+}
+
+/// Metadata specifically for components.
+#[derive(Debug, Clone, Default)]
+pub struct ComponentMetadata {
+    pub template: Option<String>,
+    pub template_url: Option<String>,
+    pub template_ast: Option<Vec<HtmlNode>>,
+    pub styles: Option<Vec<String>>,
+    pub style_urls: Option<Vec<String>>,
+    pub change_detection: Option<angular_compiler::core::ChangeDetectionStrategy>,
+}
+
+/// Metadata collected for a directive within an NgModule's scope.
+/// Matches TypeScript's DirectiveMeta interface (L198-305)
+///
+/// The lifetime `'a` is tied to the OXC AST allocator, allowing direct
+/// access to the decorator AST node without cloning.
+#[derive(Debug)]
+pub struct DirectiveMeta<'a> {
+    // === MetaKind ===
+    pub kind: MetaKind,
+
+    // === MatchSource ===
+    /// Way in which the directive was matched.
+    pub match_source: MatchSource,
+
+    // === Compositional Metadata ===
+    /// Core directive metadata used for matching and T2 analysis.
+    pub t2: T2DirectiveMetadata,
+    /// Component-specific metadata, if this is a component.
+    pub component: Option<ComponentMetadata>,
+
+    // === Type checking metadata (Compositional) ===
+    pub type_check: DirectiveTypeCheckMeta,
+
     // === Additional DirectiveMeta fields ===
     /// The list of queries declared by the directive.
     pub queries: Vec<String>,
@@ -175,11 +198,9 @@ pub struct DirectiveMeta<'a> {
     /// Whether the directive is a signal entity.
     pub is_signal: bool,
     /// For standalone components, the list of imported types.
-    /// For standalone components, the list of imported types.
     pub imports: Option<Vec<Reference<'a>>>,
     /// Raw imports expression.
     pub raw_imports: Option<String>,
-    /// For standalone components, the list of imported types for `@defer` blocks.
     /// For standalone components, the list of imported types for `@defer` blocks.
     pub deferred_imports: Option<Vec<Reference<'a>>>,
     /// For standalone components, the list of schemas declared.
@@ -197,17 +218,50 @@ pub struct DirectiveMeta<'a> {
     pub selectorless_enabled: bool,
     /// Names of the symbols within the source file that are referenced directly inside the template.
     pub local_referenced_symbols: Option<HashSet<String>>,
-    
-    // === Component-specific fields (only valid when is_component=true) ===
-    pub template: Option<String>,
-    pub template_url: Option<String>,
-    pub template_ast: Option<Vec<HtmlNode>>,
-    pub styles: Option<Vec<String>>,
-    pub style_urls: Option<Vec<String>>,
-    pub change_detection: Option<angular_compiler::core::ChangeDetectionStrategy>,
-    
-    // === Source tracking ===
+    /// Source file path for source tracking.
     pub source_file: Option<PathBuf>,
+}
+
+impl<'a> T2DirectiveMeta for DirectiveMeta<'a> {
+    fn name(&self) -> &str {
+        &self.t2.name
+    }
+
+    fn selector(&self) -> Option<&str> {
+        self.t2.selector.as_deref()
+    }
+
+    fn is_component(&self) -> bool {
+        self.t2.is_component
+    }
+
+    fn inputs(&self) -> &dyn angular_compiler::render3::view::t2_api::InputOutputPropertySet {
+        &self.t2.inputs
+    }
+
+    fn outputs(&self) -> &dyn angular_compiler::render3::view::t2_api::InputOutputPropertySet {
+        &self.t2.outputs
+    }
+
+    fn export_as(&self) -> Option<&[String]> {
+        self.t2.export_as.as_deref()
+    }
+
+    fn is_structural(&self) -> bool {
+        self.t2.is_structural
+    }
+
+    fn ng_content_selectors(&self) -> Option<&[String]> {
+        self.t2.ng_content_selectors.as_deref()
+    }
+
+    fn preserve_whitespaces(&self) -> bool {
+        self.t2.preserve_whitespaces
+    }
+
+    fn animation_trigger_names(&self) -> Option<&LegacyAnimationTriggerNames> {
+        self.t2.animation_trigger_names.as_ref()
+    }
 }
 
 impl<'a> Default for DirectiveMeta<'a> {
@@ -215,16 +269,9 @@ impl<'a> Default for DirectiveMeta<'a> {
         Self {
             kind: MetaKind::Directive,
             match_source: MatchSource::default(),
-            name: String::new(),
-            selector: None,
-            is_component: false,
-            inputs: ClassPropertyMapping::new(),
-            outputs: ClassPropertyMapping::new(),
-            export_as: None,
-            is_structural: false,
-            ng_content_selectors: Vec::new(),
-            preserve_whitespaces: false,
-            type_check_meta: DirectiveTypeCheckMeta::default(),
+            t2: T2DirectiveMetadata::default(),
+            component: None,
+            type_check: DirectiveTypeCheckMeta::default(),
             queries: Vec::new(),
             input_field_names_from_metadata_array: None,
             base_class: None,
@@ -241,12 +288,6 @@ impl<'a> Default for DirectiveMeta<'a> {
             is_explicitly_deferred: false,
             selectorless_enabled: false,
             local_referenced_symbols: None,
-            template: None,
-            template_url: None,
-            template_ast: None,
-            styles: None,
-            style_urls: None,
-            change_detection: None,
             source_file: None,
         }
     }
@@ -258,16 +299,9 @@ impl<'a> Clone for DirectiveMeta<'a> {
         Self {
             kind: self.kind,
             match_source: self.match_source,
-            name: self.name.clone(),
-            selector: self.selector.clone(),
-            is_component: self.is_component,
-            inputs: self.inputs.clone(),
-            outputs: self.outputs.clone(),
-            export_as: self.export_as.clone(),
-            is_structural: self.is_structural,
-            ng_content_selectors: self.ng_content_selectors.clone(),
-            preserve_whitespaces: self.preserve_whitespaces,
-            type_check_meta: self.type_check_meta.clone(),
+            t2: self.t2.clone(),
+            component: self.component.clone(),
+            type_check: self.type_check.clone(),
             queries: self.queries.clone(),
             input_field_names_from_metadata_array: self.input_field_names_from_metadata_array.clone(),
             base_class: self.base_class.clone(),
@@ -284,12 +318,6 @@ impl<'a> Clone for DirectiveMeta<'a> {
             is_explicitly_deferred: self.is_explicitly_deferred,
             selectorless_enabled: self.selectorless_enabled,
             local_referenced_symbols: self.local_referenced_symbols.clone(),
-            template: self.template.clone(),
-            template_url: self.template_url.clone(),
-            template_ast: self.template_ast.clone(),
-            styles: self.styles.clone(),
-            style_urls: self.style_urls.clone(),
-            change_detection: self.change_detection.clone(),
             source_file: self.source_file.clone(),
         }
     }
@@ -410,7 +438,7 @@ impl<'a> DecoratorMetadata<'a> {
     /// Get the name of the decorated class.
     pub fn name(&self) -> &str {
         match self {
-            DecoratorMetadata::Directive(d) => &d.name,
+            DecoratorMetadata::Directive(d) => &d.t2.name,
             DecoratorMetadata::Pipe(p) => &p.name,
             DecoratorMetadata::Injectable(i) => &i.name,
             DecoratorMetadata::NgModule(n) => &n.name,
@@ -429,7 +457,7 @@ impl<'a> DecoratorMetadata<'a> {
     
     /// Check if this is a component.
     pub fn is_component(&self) -> bool {
-        matches!(self, DecoratorMetadata::Directive(d) if d.is_component)
+        matches!(self, DecoratorMetadata::Directive(d) if d.t2.is_component)
     }
     
     /// Check if this is a pipe.

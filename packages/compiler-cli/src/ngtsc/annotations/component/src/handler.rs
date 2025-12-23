@@ -1,25 +1,28 @@
 use crate::ngtsc::transform::src::api::{DecoratorHandler, HandlerPrecedence, DetectResult, AnalysisOutput, CompileResult, ConstantPool};
-use crate::ngtsc::reflection::{ClassDeclaration, Decorator, ReflectionHost, TypeScriptReflectionHost};
-use crate::ngtsc::metadata::{DirectiveMetadata, DecoratorMetadata, extract_directive_metadata};
+use crate::ngtsc::reflection::{ClassDeclaration, ReflectionHost, TypeScriptReflectionHost};
+use crate::ngtsc::metadata::{
+    DirectiveMetadata, DecoratorMetadata, extract_directive_metadata,
+    T2DirectiveMetadata, ComponentMetadata
+};
 use angular_compiler::render3::view::api::{
     R3ComponentMetadata, R3DirectiveMetadata, R3ComponentTemplate, R3ComponentDeferMetadata, DeclarationListEmitMode,
     R3LifecycleMetadata
 };
-use angular_compiler::render3::view::compiler::compile_component_from_metadata;
+// use angular_compiler::render3::view::compiler::compile_component_from_metadata;
 use angular_compiler::render3::view::template::{parse_template, ParseTemplateOptions};
 use angular_compiler::render3::r3_template_transform::{html_ast_to_render3_ast, Render3ParseOptions};
 use angular_compiler::core::{ViewEncapsulation};
-use angular_compiler::output::output_ast::{WrappedNodeExpr, ExpressionVisitor, ExpressionTrait};
+use angular_compiler::output::output_ast::{ExpressionTrait};
 use angular_compiler::output::abstract_js_emitter::AbstractJsEmitterVisitor;
 use angular_compiler::output::abstract_emitter::EmitterVisitorContext;
 use angular_compiler::ml_parser::html_whitespaces::{WhitespaceVisitor, visit_all_with_siblings_nodes};
-use std::collections::HashMap;
+// use std::collections::HashMap;
 use std::any::Any;
 use angular_compiler::template::pipeline::src::ingest::ingest_component;
 use angular_compiler::template::pipeline::src::phases;
 use angular_compiler::template::pipeline::src::emit::emit_component;
 use angular_compiler::template::pipeline::src::compilation::TemplateCompilationMode;
-use angular_compiler::constant_pool::ConstantPool as CompilerConstantPool; // Distinct from ngtsc ConstantPool if needed
+// use angular_compiler::constant_pool::ConstantPool as CompilerConstantPool; // Distinct from ngtsc ConstantPool if needed
 
 /// Get metadata for known Angular directives (NgFor, NgIf, etc.)
 /// This is a workaround until proper static analysis of imported modules is implemented.
@@ -206,13 +209,13 @@ impl ComponentDecoratorHandler {
     pub fn compile_ivy(&self, analysis: &DirectiveMetadata<'static>) -> Vec<CompileResult> {
         // Extract DirectiveMeta from DecoratorMetadata enum (must be a component)
         let dir = match analysis {
-            DecoratorMetadata::Directive(d) if d.is_component => d,
+            DecoratorMetadata::Directive(d) if d.t2.is_component => d,
             _ => return vec![], // Not a component, cannot compile
         };
         
         // Manually construct R3Reference since From isn't implemented
         let type_expr = angular_compiler::output::output_ast::Expression::ReadVar(angular_compiler::output::output_ast::ReadVarExpr {
-            name: dir.name.clone(),
+            name: dir.t2.name.clone(),
             type_: None,
             source_span: None,
         });
@@ -222,9 +225,11 @@ impl ComponentDecoratorHandler {
             type_expr: type_expr,
         };
 
+        let comp_meta = dir.component.as_ref().unwrap();
+
         // Parse Template
-        let template_str = dir.template.clone().unwrap_or_else(|| "".to_string());
-        let template_url = dir.template_url.clone().unwrap_or_else(|| "inline-template.html".to_string());
+        let template_str = comp_meta.template.clone().unwrap_or_else(|| "".to_string());
+        let template_url = comp_meta.template_url.clone().unwrap_or_else(|| "inline-template.html".to_string());
 
         let expression_parser = angular_compiler::expression_parser::parser::Parser::new();
         let schema_registry = angular_compiler::schema::dom_element_schema_registry::DomElementSchemaRegistry::new();
@@ -234,7 +239,7 @@ impl ComponentDecoratorHandler {
              vec![], 
         );
 
-        let (nodes, ng_content_selectors, preserve_whitespaces, styles) = if let Some(ast) = &dir.template_ast {
+        let (nodes, ng_content_selectors, preserve_whitespaces, styles) = if let Some(ast) = comp_meta.template_ast.as_ref() {
             let options = Render3ParseOptions {
                 collect_comment_nodes: false,
                 ..Default::default()
@@ -264,29 +269,29 @@ impl ComponentDecoratorHandler {
 
         let r3_metadata = R3ComponentMetadata {
             directive: R3DirectiveMetadata {
-                name: dir.name.clone(),
+                name: dir.t2.name.clone(),
                 type_: type_ref,
                 type_argument_count: 0,
                 type_source_span: angular_compiler::parse_util::ParseSourceSpan::new(
                     angular_compiler::parse_util::ParseLocation::new(angular_compiler::parse_util::ParseSourceFile::new("".to_string(), "".to_string()), 0, 0, 0),
                     angular_compiler::parse_util::ParseLocation::new(angular_compiler::parse_util::ParseSourceFile::new("".to_string(), "".to_string()), 0, 0, 0)
                 ), 
-                selector: dir.selector.clone(),
+                selector: dir.t2.selector.clone(),
                 queries: vec![],
                 view_queries: vec![],
                 host: angular_compiler::render3::view::api::R3HostMetadata::default(),
-                inputs: dir.inputs.iter().map(|(k, v)| (k.clone(), angular_compiler::render3::view::api::R3InputMetadata {
+                inputs: dir.t2.inputs.iter().map(|(k, v)| (k.clone(), angular_compiler::render3::view::api::R3InputMetadata {
                     class_property_name: v.class_property_name.clone(),
                     binding_property_name: v.binding_property_name.clone(),
                     is_signal: v.is_signal,
                     required: false,
                     transform_function: None,
                 })).collect(),
-                outputs: dir.outputs.iter().map(|(k, v)| (k.clone(), v.binding_property_name.clone())).collect(),
+                outputs: dir.t2.outputs.iter().map(|(k, v)| (k.clone(), v.binding_property_name.clone())).collect(),
                 lifecycle: R3LifecycleMetadata::default(),
                 providers: None,
                 uses_inheritance: false, 
-                export_as: dir.export_as.clone(),
+                export_as: dir.t2.export_as.clone(),
                 is_standalone: dir.is_standalone,
                 is_signal: dir.is_signal,
                 host_directives: None,
@@ -320,12 +325,12 @@ impl ComponentDecoratorHandler {
             }).collect(),
             declaration_list_emit_mode: DeclarationListEmitMode::Direct,
             styles: {
-                let mut combined = dir.styles.clone().unwrap_or_default();
+                let mut combined = comp_meta.styles.clone().unwrap_or_default();
                 combined.extend(styles);
                 combined
             },
             encapsulation: ViewEncapsulation::Emulated,
-            change_detection: dir.change_detection.map(|s| angular_compiler::render3::view::api::ChangeDetectionOrExpression::Strategy(s)),
+            change_detection: comp_meta.change_detection.map(|s| angular_compiler::render3::view::api::ChangeDetectionOrExpression::Strategy(s)),
             animations: None,
             view_providers: None,
             relative_context_file_path: "".to_string(),
@@ -342,7 +347,7 @@ impl ComponentDecoratorHandler {
         // Use template pipeline instead of placeholder compile_component_from_metadata
         // 1. Ingest template into compilation job
         let mut job = ingest_component(
-            dir.name.clone(),
+            dir.t2.name.clone(),
             nodes,  // Template AST nodes
             real_constant_pool,
             TemplateCompilationMode::Full,
@@ -406,22 +411,19 @@ mod tests {
     fn test_compile_full_basic() {
         // Mock a DirectiveMetadata using the new structure
         let metadata = DecoratorMetadata::Directive(DirectiveMeta {
-            name: "TestComponent".to_string(),
-            selector: Some("test-comp".to_string()),
-            is_component: true,
-            inputs: ClassPropertyMapping::new(),
-            outputs: ClassPropertyMapping::new(),
-            export_as: None,
+            t2: T2DirectiveMetadata {
+                name: "TestComponent".to_string(),
+                selector: Some("test-comp".to_string()),
+                is_component: true,
+                ..Default::default()
+            },
+            component: Some(ComponentMetadata {
+                template: Some("<div>Hello World</div>".to_string()),
+                ..Default::default()
+            }),
             is_standalone: true,
             is_signal: false,
-            template: Some("<div>Hello World</div>".to_string()),
-            template_url: None,
-            styles: None,
-            style_urls: None,
-            imports: None,
-            template_ast: None,
             source_file: None,
-            change_detection: None,
             ..Default::default()
         });
         
@@ -437,7 +439,7 @@ mod tests {
         println!("DEBUG: Initializer: {}", initializer);
         // Check for key Ivy definition parts
         assert!(initializer.contains("defineComponent"));
-        assert!(initializer.contains("selectors: [['', 'test-comp', '']]"));
+        assert!(initializer.contains("selectors: [['test-comp']]"));
         assert!(initializer.contains("decls: 2"));
         assert!(initializer.contains("vars: 0"));
     }

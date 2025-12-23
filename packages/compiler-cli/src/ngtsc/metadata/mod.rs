@@ -15,6 +15,8 @@ pub use src::api::{
     DirectiveMeta, PipeMeta, InjectableMeta, NgModuleMeta,
     DecoratorMetadata, DirectiveMetadata, OwnedDirectiveMeta,
     HostDirectiveMeta, DirectiveTypeCheckMeta, TemplateGuardMeta,
+    T2DirectiveMeta, LegacyAnimationTriggerNames,
+    T2DirectiveMetadata, ComponentMetadata,
     // Reference types
     Reference, OwningModule, BaseClass,
 };

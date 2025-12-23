@@ -37,28 +37,28 @@ fn test_extract_selector() {
     assert_eq!(directives.len(), 1);
     
     if let DecoratorMetadata::Directive(meta) = &directives[0] {
-        assert_eq!(meta.name, "AppComponent");
-        assert_eq!(meta.selector, Some("app-root".to_string()));
-        assert!(meta.is_component);
+        assert_eq!(meta.t2.name, "AppComponent");
+        assert_eq!(meta.t2.selector, Some("app-root".to_string()));
+        assert!(meta.t2.is_component);
         assert!(meta.is_standalone);
-        assert_eq!(meta.export_as, Some(vec!["myApp".to_string()]));
+        assert_eq!(meta.t2.export_as, Some(vec!["myApp".to_string()]));
         
         // Check inputs
-        let foo_input = meta.inputs.get_by_class_property_name("foo");
+        let foo_input = meta.t2.inputs.get_by_class_property_name("foo");
         assert!(foo_input.is_some());
         assert_eq!(foo_input.unwrap().binding_property_name, "foo");
 
-        let bar_input = meta.inputs.get_by_class_property_name("bar");
+        let bar_input = meta.t2.inputs.get_by_class_property_name("bar");
         assert!(bar_input.is_some());
         assert_eq!(bar_input.unwrap().binding_property_name, "baz");
 
         // Check outputs
-        let click_output = meta.outputs.get_by_class_property_name("click");
+        let click_output = meta.t2.outputs.get_by_class_property_name("click");
         assert!(click_output.is_some());
         assert_eq!(click_output.unwrap().binding_property_name, "click");
         
         // Check template
-        assert_eq!(meta.template, Some("<div></div>".to_string()));
+        assert_eq!(meta.component.as_ref().and_then(|c| c.template.as_ref()).map(|s| s.as_str()), Some("<div></div>"));
     } else {
         panic!("Expected Directive metadata");
     }
@@ -91,10 +91,10 @@ fn test_extract_component_assets() {
     assert_eq!(directives.len(), 1);
     
     if let DecoratorMetadata::Directive(meta) = &directives[0] {
-        assert_eq!(meta.name, "AssetsComponent");
-        assert_eq!(meta.template_url, Some("./assets.component.html".to_string()));
-        assert_eq!(meta.styles, Some(vec!["div { color: red; }".to_string()]));
-        assert_eq!(meta.style_urls, Some(vec!["./assets.component.css".to_string(), "./other.css".to_string()]));
+        assert_eq!(meta.t2.name, "AssetsComponent");
+        assert_eq!(meta.component.as_ref().and_then(|c| c.template_url.as_ref()), Some(&"./assets.component.html".to_string()));
+        assert_eq!(meta.component.as_ref().and_then(|c| c.styles.as_ref()), Some(&vec!["div { color: red; }".to_string()]));
+        assert_eq!(meta.component.as_ref().and_then(|c| c.style_urls.as_ref()), Some(&vec!["./assets.component.css".to_string(), "./other.css".to_string()]));
     } else {
         panic!("Expected Directive metadata");
     }
@@ -127,18 +127,18 @@ fn test_extract_directive_selector() {
     assert_eq!(directives.len(), 1);
     
     if let DecoratorMetadata::Directive(meta) = &directives[0] {
-        assert_eq!(meta.name, "TestDirective");
-        assert_eq!(meta.selector, Some("app-test".to_string()));
-        assert!(!meta.is_component);
+        assert_eq!(meta.t2.name, "TestDirective");
+        assert_eq!(meta.t2.selector, Some("app-test".to_string()));
+        assert!(!meta.t2.is_component);
         assert!(!meta.is_standalone);
 
         // Check inputs object syntax
-        let val_input = meta.inputs.get_by_class_property_name("val");
+        let val_input = meta.t2.inputs.get_by_class_property_name("val");
         assert!(val_input.is_some());
         assert_eq!(val_input.unwrap().binding_property_name, "value");
 
         // Check outputs object syntax
-        let change_output = meta.outputs.get_by_class_property_name("change");
+        let change_output = meta.t2.outputs.get_by_class_property_name("change");
         assert!(change_output.is_some());
         assert_eq!(change_output.unwrap().binding_property_name, "onChange");
     } else {

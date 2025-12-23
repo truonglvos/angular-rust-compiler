@@ -62,6 +62,12 @@ impl ClassPropertyMapping {
     }
 }
 
+impl angular_compiler::render3::view::t2_api::InputOutputPropertySet for ClassPropertyMapping {
+    fn has_binding_property_name(&self, property_name: &str) -> bool {
+        self.entries.values().any(|v| v.binding_property_name == property_name)
+    }
+}
+
 /// Type alias for class property names.
 pub type ClassPropertyName = String;
 

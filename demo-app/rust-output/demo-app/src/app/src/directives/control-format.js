@@ -22,7 +22,11 @@ export class ControlFormat {
 	};
 	static ɵdir = /* @__PURE__ */ i0.ɵɵdefineDirective({
 		type: ControlFormat,
-		selectors: [["[appControlFormat]"]],
+		selectors: [[
+			"",
+			"appControlFormat",
+			""
+		]],
 		inputs: { characterPrevention: "characterPrevention" }
 	});
 }

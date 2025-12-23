@@ -10,8 +10,9 @@ use crate::ngtsc::reflection::{ReflectionHost, TypeScriptReflectionHost, Decorat
 use super::api::{
     DecoratorMetadata, DirectiveMeta, PipeMeta, InjectableMeta,
     MetaKind, MatchSource, DirectiveTypeCheckMeta, Reference,
+    T2DirectiveMetadata, ComponentMetadata,
 };
-use super::property_mapping::{ClassPropertyMapping, InputOrOutput};
+use super::property_mapping::{InputOrOutput};
 
 /// Extract directive metadata from a class declaration and its decorator.
 /// The lifetime `'a` is tied to the OXC AST allocator.
@@ -26,11 +27,15 @@ pub fn extract_directive_metadata<'a>(
     let mut meta = DirectiveMeta {
         kind: MetaKind::Directive,
         match_source: MatchSource::Selector,
-        name,
-        is_component,
+        t2: T2DirectiveMetadata {
+            name,
+            is_component,
+            ..Default::default()
+        },
+        component: if is_component { Some(ComponentMetadata::default()) } else { None },
         is_standalone: true,
         source_file: Some(source_file.to_path_buf()),
-        type_check_meta: DirectiveTypeCheckMeta::default(),
+        type_check: DirectiveTypeCheckMeta::default(),
         // Store the OXC decorator reference directly
         decorator: Some(decorator.node),
         ..Default::default()
@@ -66,7 +71,7 @@ pub fn extract_directive_metadata<'a>(
                 }
 
                 if is_input {
-                    meta.inputs.insert(InputOrOutput {
+                    meta.t2.inputs.insert(InputOrOutput {
                         class_property_name: prop_name.to_string(),
                         binding_property_name: binding_name.clone(),
                         is_signal: false,
@@ -116,7 +121,7 @@ pub fn extract_directive_metadata<'a>(
                                 }
                             }
 
-                            meta.inputs.insert(InputOrOutput {
+                            meta.t2.inputs.insert(InputOrOutput {
                                 class_property_name: prop_name.to_string(),
                                 binding_property_name: signal_alias,
                                 is_signal: true,
@@ -149,7 +154,7 @@ pub fn extract_directive_metadata<'a>(
                 }
 
                 if is_output {
-                    meta.outputs.insert(InputOrOutput {
+                    meta.t2.outputs.insert(InputOrOutput {
                         class_property_name: prop_name.to_string(),
                         binding_property_name: output_binding_name.clone(),
                         is_signal: false,
@@ -185,7 +190,7 @@ pub fn extract_directive_metadata<'a>(
                                 }
                             }
 
-                            meta.outputs.insert(InputOrOutput {
+                            meta.t2.outputs.insert(InputOrOutput {
                                 class_property_name: prop_name.to_string(),
                                 binding_property_name: output_alias,
                                 is_signal: true, 
@@ -206,66 +211,116 @@ pub fn extract_directive_metadata<'a>(
                         match key.name.as_str() {
                             "selector" => {
                                 if let Expression::StringLiteral(val) = &prop.value {
-                                    meta.selector = Some(val.value.to_string());
+                                    meta.t2.selector = Some(val.value.to_string());
                                 }
                             },
                             "inputs" => {
-                                if let Expression::ArrayExpression(arr) = &prop.value {
-                                    for elem in &arr.elements {
-                                        if let Some(expr) = elem.as_expression() {
-                                            if let Expression::StringLiteral(s) = expr {
-                                                let parts: Vec<&str> = s.value.split(':').map(|p| p.trim()).collect();
-                                                let (class_prop, binding_prop) = if parts.len() == 2 {
-                                                    (parts[0], parts[1])
-                                                } else {
-                                                    (s.value.as_str(), s.value.as_str())
-                                                };
-                                                
-                                                meta.inputs.insert(InputOrOutput {
-                                                    class_property_name: class_prop.to_string(),
-                                                    binding_property_name: binding_prop.to_string(),
-                                                    is_signal: false,
-                                                });
+                                match &prop.value {
+                                    Expression::ArrayExpression(arr) => {
+                                        for elem in &arr.elements {
+                                            if let Some(expr) = elem.as_expression() {
+                                                if let Expression::StringLiteral(s) = expr {
+                                                    let parts: Vec<&str> = s.value.split(':').map(|p| p.trim()).collect();
+                                                    let (class_prop, binding_prop) = if parts.len() == 2 {
+                                                        (parts[0], parts[1])
+                                                    } else {
+                                                        (s.value.as_str(), s.value.as_str())
+                                                    };
+                                                    
+                                                    meta.t2.inputs.insert(InputOrOutput {
+                                                        class_property_name: class_prop.to_string(),
+                                                        binding_property_name: binding_prop.to_string(),
+                                                        is_signal: false,
+                                                    });
+                                                }
                                             }
                                         }
-                                    }
+                                    },
+                                    Expression::ObjectExpression(obj) => {
+                                        for p in &obj.properties {
+                                            if let ObjectPropertyKind::ObjectProperty(p) = p {
+                                                let class_prop = match &p.key {
+                                                    PropertyKey::StaticIdentifier(key) => Some(key.name.to_string()),
+                                                    PropertyKey::StringLiteral(key) => Some(key.value.to_string()),
+                                                    _ => None,
+                                                };
+                                                if let Some(cp) = class_prop {
+                                                    if let Expression::StringLiteral(val) = &p.value {
+                                                        meta.t2.inputs.insert(InputOrOutput {
+                                                            class_property_name: cp,
+                                                            binding_property_name: val.value.to_string(),
+                                                            is_signal: false,
+                                                        });
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    _ => {}
                                 }
                             },
                             "outputs" => {
-                                if let Expression::ArrayExpression(arr) = &prop.value {
-                                    for elem in &arr.elements {
-                                        if let Some(expr) = elem.as_expression() {
-                                            if let Expression::StringLiteral(s) = expr {
-                                                let parts: Vec<&str> = s.value.split(':').map(|p| p.trim()).collect();
-                                                let (class_prop, binding_prop) = if parts.len() == 2 {
-                                                    (parts[0], parts[1])
-                                                } else {
-                                                    (s.value.as_str(), s.value.as_str())
-                                                };
-                                                
-                                                meta.outputs.insert(InputOrOutput {
-                                                    class_property_name: class_prop.to_string(),
-                                                    binding_property_name: binding_prop.to_string(),
-                                                    is_signal: false,
-                                                });
+                                match &prop.value {
+                                    Expression::ArrayExpression(arr) => {
+                                        for elem in &arr.elements {
+                                            if let Some(expr) = elem.as_expression() {
+                                                if let Expression::StringLiteral(s) = expr {
+                                                    let parts: Vec<&str> = s.value.split(':').map(|p| p.trim()).collect();
+                                                    let (class_prop, binding_prop) = if parts.len() == 2 {
+                                                        (parts[0], parts[1])
+                                                    } else {
+                                                        (s.value.as_str(), s.value.as_str())
+                                                    };
+                                                    
+                                                    meta.t2.outputs.insert(InputOrOutput {
+                                                        class_property_name: class_prop.to_string(),
+                                                        binding_property_name: binding_prop.to_string(),
+                                                        is_signal: false,
+                                                    });
+                                                }
                                             }
                                         }
-                                    }
+                                    },
+                                    Expression::ObjectExpression(obj) => {
+                                        for p in &obj.properties {
+                                            if let ObjectPropertyKind::ObjectProperty(p) = p {
+                                                let class_prop = match &p.key {
+                                                    PropertyKey::StaticIdentifier(key) => Some(key.name.to_string()),
+                                                    PropertyKey::StringLiteral(key) => Some(key.value.to_string()),
+                                                    _ => None,
+                                                };
+                                                if let Some(cp) = class_prop {
+                                                    if let Expression::StringLiteral(val) = &p.value {
+                                                        meta.t2.outputs.insert(InputOrOutput {
+                                                            class_property_name: cp,
+                                                            binding_property_name: val.value.to_string(),
+                                                            is_signal: false,
+                                                        });
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    _ => {}
                                 }
                             },
                             "exportAs" => {
                                 if let Expression::StringLiteral(val) = &prop.value {
-                                    meta.export_as = Some(val.value.to_string().split(',').map(|s| s.trim().to_string()).collect());
+                                    meta.t2.export_as = Some(val.value.to_string().split(',').map(|s| s.trim().to_string()).collect());
                                 }
                             },
                             "templateUrl" => {
                                 if let Expression::StringLiteral(val) = &prop.value {
-                                    meta.template_url = Some(val.value.to_string());
+                                    if let Some(comp) = meta.component.as_mut() {
+                                        comp.template_url = Some(val.value.to_string());
+                                    }
                                 }
                             },
                             "template" => {
                                 if let Expression::StringLiteral(val) = &prop.value {
-                                    meta.template = Some(val.value.to_string());
+                                    if let Some(comp) = meta.component.as_mut() {
+                                        comp.template = Some(val.value.to_string());
+                                    }
                                 }
                             },
                             "styleUrls" => {
@@ -278,12 +333,16 @@ pub fn extract_directive_metadata<'a>(
                                         }
                                         None
                                     }).collect();
-                                    meta.style_urls = Some(collected);
+                                    if let Some(comp) = meta.component.as_mut() {
+                                        comp.style_urls = Some(collected);
+                                    }
                                 }
                             },
                             "styleUrl" => {
                                 if let Expression::StringLiteral(val) = &prop.value {
-                                    meta.style_urls = Some(vec![val.value.to_string()]);
+                                    if let Some(comp) = meta.component.as_mut() {
+                                        comp.style_urls = Some(vec![val.value.to_string()]);
+                                    }
                                 }
                             },
                             "styles" => {
@@ -296,7 +355,9 @@ pub fn extract_directive_metadata<'a>(
                                         }
                                         None
                                     }).collect();
-                                    meta.styles = Some(collected);
+                                    if let Some(comp) = meta.component.as_mut() {
+                                        comp.styles = Some(collected);
+                                    }
                                 }
                             },
                             "imports" => {
@@ -322,17 +383,19 @@ pub fn extract_directive_metadata<'a>(
                                 }
                             },
                             "changeDetection" => {
-                                if let Expression::StaticMemberExpression(member) = &prop.value {
-                                    if member.property.name == "OnPush" {
-                                        meta.change_detection = Some(angular_compiler::core::ChangeDetectionStrategy::OnPush);
-                                    } else if member.property.name == "Default" {
-                                        meta.change_detection = Some(angular_compiler::core::ChangeDetectionStrategy::Default);
-                                    }
-                                } else if let Expression::NumericLiteral(num) = &prop.value {
-                                    if num.value as i32 == 0 {
-                                        meta.change_detection = Some(angular_compiler::core::ChangeDetectionStrategy::OnPush);
-                                    } else {
-                                        meta.change_detection = Some(angular_compiler::core::ChangeDetectionStrategy::Default);
+                                if let Some(comp) = meta.component.as_mut() {
+                                    if let Expression::StaticMemberExpression(member) = &prop.value {
+                                        if member.property.name == "OnPush" {
+                                            comp.change_detection = Some(angular_compiler::core::ChangeDetectionStrategy::OnPush);
+                                        } else if member.property.name == "Default" {
+                                            comp.change_detection = Some(angular_compiler::core::ChangeDetectionStrategy::Default);
+                                        }
+                                    } else if let Expression::NumericLiteral(num) = &prop.value {
+                                        if num.value as i32 == 0 {
+                                            comp.change_detection = Some(angular_compiler::core::ChangeDetectionStrategy::OnPush);
+                                        } else {
+                                            comp.change_detection = Some(angular_compiler::core::ChangeDetectionStrategy::Default);
+                                        }
                                     }
                                 }
                             },

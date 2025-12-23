@@ -276,7 +276,7 @@ impl DirectiveDecoratorHandler {
         // ɵfac
         let fac_definition = format!(
             "(t) => new (t || {})()",
-            dir.name
+            dir.t2.name
         );
         let fac_result = CompileResult {
             name: "ɵfac".to_string(),
@@ -288,13 +288,19 @@ impl DirectiveDecoratorHandler {
 
         // ɵdir
         let definition = format!(
-            "i0.{}({{ type: {}, selectors: [[\"{}\"]]{}{}{}}})",
+            "i0.{}({{ type: {}, selectors: {}{}{}{}}})",
             define_directive_name,
-            dir.name,
-            dir.selector.as_deref().unwrap_or(""),
-            if !dir.inputs.is_empty() {
+            dir.t2.name,
+            dir.t2.selector.as_deref().map(|s| {
+                if s.starts_with('[') && s.ends_with(']') {
+                    format!("[[\"\", \"{}\", \"\"]]", &s[1..s.len()-1])
+                } else {
+                    format!("[[\"{}\"]]", s)
+                }
+            }).unwrap_or_else(|| String::from("[]")),
+            if !dir.t2.inputs.is_empty() {
                 let mut inputs_str = String::from(", inputs: {");
-                for (i, (prop, input)) in dir.inputs.iter().enumerate() {
+                for (i, (prop, input)) in dir.t2.inputs.iter().enumerate() {
                     if i > 0 { inputs_str.push_str(", "); }
                     if input.is_signal {
                         inputs_str.push_str(&format!("{}: [1, \"{}\"]", prop, input.binding_property_name));
@@ -307,9 +313,9 @@ impl DirectiveDecoratorHandler {
             } else {
                 String::new()
             },
-            if !dir.outputs.is_empty() {
+            if !dir.t2.outputs.is_empty() {
                 let mut outputs_str = String::from(", outputs: {");
-                for (i, (prop, binding)) in dir.outputs.iter().enumerate() {
+                for (i, (prop, binding)) in dir.t2.outputs.iter().enumerate() {
                     if i > 0 { outputs_str.push_str(", "); }
                     outputs_str.push_str(&format!("{}: \"{}\"", prop, binding.binding_property_name));
                 }
