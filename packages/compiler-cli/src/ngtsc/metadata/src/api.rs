@@ -5,8 +5,10 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::marker::PhantomData;
 use super::property_mapping::ClassPropertyMapping;
 use angular_compiler::ml_parser::ast::Node as HtmlNode;
+use oxc_ast::ast as oxc_ast;
 
 /// Discriminant for different kinds of compiler metadata objects.
 /// Matches TypeScript's MetaKind enum from api.ts (L128-133)
@@ -58,24 +60,21 @@ pub struct DirectiveTypeCheckMeta {
     pub restricted_input_fields: HashSet<String>,
     /// The set of input fields which are declared as string literal members.
     pub string_literal_input_fields: HashSet<String>,
-    /// The set of input fields which do not have corresponding members in the class.
+    /// The set of input fields which do not have corresponding members.
     pub undeclared_input_fields: HashSet<String>,
-    /// Names of the public methods of the class.
-    pub public_methods: HashSet<String>,
-    /// Whether the Directive's class is generic.
+    /// Whether the Directive is generic (has type parameters in its declaration).
     pub is_generic: bool,
 }
 
-/// Metadata that describes a template guard for one of the directive's inputs.
-/// Matches TypeScript's TemplateGuardMeta (L347-361)
+/// Template guard metadata.
+/// Matches TypeScript's TemplateGuardMeta interface (L64-69)
 #[derive(Debug, Clone)]
 pub struct TemplateGuardMeta {
-    /// The input name that this guard should be applied to.
     pub input_name: String,
-    /// Type of the template guard: 'invocation' or 'binding'.
     pub guard_type: TemplateGuardType,
 }
 
+/// Type of template guard.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TemplateGuardType {
     Invocation,
@@ -99,8 +98,11 @@ pub struct HostDirectiveMeta {
 /// Metadata collected for a directive within an NgModule's scope.
 /// Matches TypeScript's DirectiveMeta interface (L198-305)
 /// Extends T2DirectiveMeta + DirectiveTypeCheckMeta
-#[derive(Debug, Clone)]
-pub struct DirectiveMeta {
+/// 
+/// The lifetime `'a` is tied to the OXC AST allocator, allowing direct 
+/// access to the decorator AST node without cloning.
+#[derive(Debug)]
+pub struct DirectiveMeta<'a> {
     // === MetaKind ===
     pub kind: MetaKind,
     
@@ -123,18 +125,18 @@ pub struct DirectiveMeta {
     pub export_as: Option<Vec<String>>,
     /// Whether the directive is a structural directive.
     pub is_structural: bool,
-    /// If the directive is a component, includes the selectors of its `ng-content` elements.
+    /// The list of selectors from any NgModule `ng-content` in the component's template.
     pub ng_content_selectors: Vec<String>,
-    /// Whether the template of the component preserves whitespaces.
+    /// Whether the directive/component has `preserveWhitespaces: true`.
     pub preserve_whitespaces: bool,
     
-    // === DirectiveTypeCheckMeta fields ===
+    // === DirectiveTypeCheckMeta ===
     pub type_check_meta: DirectiveTypeCheckMeta,
     
-    // === DirectiveMeta-specific fields ===
-    /// Query field names.
+    // === Additional DirectiveMeta fields ===
+    /// The list of queries declared by the directive.
     pub queries: Vec<String>,
-    /// List of input fields that were defined in the class decorator metadata.
+    /// Class inputs which come from decorator array (not class members).
     pub input_field_names_from_metadata_array: Option<HashSet<String>>,
     /// A Reference to the base class for the directive, if one was detected.
     pub base_class: Option<String>,
@@ -153,7 +155,8 @@ pub struct DirectiveMeta {
     /// For standalone components, the list of schemas declared.
     pub schemas: Option<Vec<String>>,
     /// The primary decorator associated with this directive.
-    pub decorator: Option<String>,
+    /// This is a direct reference to the OXC AST decorator node.
+    pub decorator: Option<&'a oxc_ast::Decorator<'a>>,
     /// Additional directives applied to the directive host.
     pub host_directives: Option<Vec<HostDirectiveMeta>>,
     /// Whether the directive should be assumed to export providers if imported as a standalone type.
@@ -177,7 +180,7 @@ pub struct DirectiveMeta {
     pub source_file: Option<PathBuf>,
 }
 
-impl Default for DirectiveMeta {
+impl<'a> Default for DirectiveMeta<'a> {
     fn default() -> Self {
         Self {
             kind: MetaKind::Directive,
@@ -215,6 +218,49 @@ impl Default for DirectiveMeta {
             style_urls: None,
             change_detection: None,
             source_file: None,
+        }
+    }
+}
+
+// Implement Clone manually since we have a reference field
+impl<'a> Clone for DirectiveMeta<'a> {
+    fn clone(&self) -> Self {
+        Self {
+            kind: self.kind,
+            match_source: self.match_source,
+            name: self.name.clone(),
+            selector: self.selector.clone(),
+            is_component: self.is_component,
+            inputs: self.inputs.clone(),
+            outputs: self.outputs.clone(),
+            export_as: self.export_as.clone(),
+            is_structural: self.is_structural,
+            ng_content_selectors: self.ng_content_selectors.clone(),
+            preserve_whitespaces: self.preserve_whitespaces,
+            type_check_meta: self.type_check_meta.clone(),
+            queries: self.queries.clone(),
+            input_field_names_from_metadata_array: self.input_field_names_from_metadata_array.clone(),
+            base_class: self.base_class.clone(),
+            is_poisoned: self.is_poisoned,
+            is_standalone: self.is_standalone,
+            is_signal: self.is_signal,
+            imports: self.imports.clone(),
+            raw_imports: self.raw_imports.clone(),
+            deferred_imports: self.deferred_imports.clone(),
+            schemas: self.schemas.clone(),
+            decorator: self.decorator, // Copy the reference
+            host_directives: self.host_directives.clone(),
+            assumed_to_export_providers: self.assumed_to_export_providers,
+            is_explicitly_deferred: self.is_explicitly_deferred,
+            selectorless_enabled: self.selectorless_enabled,
+            local_referenced_symbols: self.local_referenced_symbols.clone(),
+            template: self.template.clone(),
+            template_url: self.template_url.clone(),
+            template_ast: self.template_ast.clone(),
+            styles: self.styles.clone(),
+            style_urls: self.style_urls.clone(),
+            change_detection: self.change_detection.clone(),
+            source_file: self.source_file.clone(),
         }
     }
 }
@@ -299,15 +345,28 @@ impl Default for NgModuleMeta {
 
 /// Unified enum for all Angular decorator metadata types.
 /// Note: Component is now part of DirectiveMeta with is_component=true
-#[derive(Debug, Clone)]
-pub enum DecoratorMetadata {
-    Directive(DirectiveMeta),  // is_component flag distinguishes component vs directive
+/// 
+/// The lifetime `'a` is tied to the OXC AST allocator.
+#[derive(Debug)]
+pub enum DecoratorMetadata<'a> {
+    Directive(DirectiveMeta<'a>),  // is_component flag distinguishes component vs directive
     Pipe(PipeMeta),
     Injectable(InjectableMeta),
     NgModule(NgModuleMeta),
 }
 
-impl DecoratorMetadata {
+impl<'a> Clone for DecoratorMetadata<'a> {
+    fn clone(&self) -> Self {
+        match self {
+            DecoratorMetadata::Directive(d) => DecoratorMetadata::Directive(d.clone()),
+            DecoratorMetadata::Pipe(p) => DecoratorMetadata::Pipe(p.clone()),
+            DecoratorMetadata::Injectable(i) => DecoratorMetadata::Injectable(i.clone()),
+            DecoratorMetadata::NgModule(n) => DecoratorMetadata::NgModule(n.clone()),
+        }
+    }
+}
+
+impl<'a> DecoratorMetadata<'a> {
     /// Get the MetaKind for this metadata.
     pub fn meta_kind(&self) -> MetaKind {
         match self {
@@ -355,4 +414,8 @@ impl DecoratorMetadata {
 }
 
 /// Type alias for backward compatibility during migration.
-pub type DirectiveMetadata = DecoratorMetadata;
+pub type DirectiveMetadata<'a> = DecoratorMetadata<'a>;
+
+/// Owned version of DirectiveMeta for cases where lifetime is inconvenient.
+/// This version does not hold a reference to the OXC decorator.
+pub type OwnedDirectiveMeta = DirectiveMeta<'static>;

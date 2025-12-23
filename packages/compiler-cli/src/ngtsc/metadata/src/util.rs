@@ -14,12 +14,13 @@ use super::api::{
 use super::property_mapping::{ClassPropertyMapping, InputOrOutput};
 
 /// Extract directive metadata from a class declaration and its decorator.
-pub fn extract_directive_metadata(
-    class_decl: &ClassDeclaration,
-    decorator: &Decorator,
+/// The lifetime `'a` is tied to the OXC AST allocator.
+pub fn extract_directive_metadata<'a>(
+    class_decl: &'a ClassDeclaration<'a>,
+    decorator: &Decorator<'a>,
     is_component: bool,
     source_file: &std::path::Path,
-) -> Option<DecoratorMetadata> {
+) -> Option<DecoratorMetadata<'a>> {
     let name = class_decl.id.as_ref().map(|id| id.name.to_string()).unwrap_or_default();
     
     let mut meta = DirectiveMeta {
@@ -30,6 +31,8 @@ pub fn extract_directive_metadata(
         is_standalone: true,
         source_file: Some(source_file.to_path_buf()),
         type_check_meta: DirectiveTypeCheckMeta::default(),
+        // Store the OXC decorator reference directly
+        decorator: Some(decorator.node),
         ..Default::default()
     };
 
@@ -355,11 +358,11 @@ pub fn extract_directive_metadata(
 }
 
 /// Extract pipe metadata from a class declaration and its @Pipe decorator.
-pub fn extract_pipe_metadata(
-    class_decl: &ClassDeclaration,
-    decorator: &Decorator,
+pub fn extract_pipe_metadata<'a>(
+    class_decl: &'a ClassDeclaration<'a>,
+    decorator: &Decorator<'a>,
     source_file: &std::path::Path,
-) -> Option<DecoratorMetadata> {
+) -> Option<DecoratorMetadata<'a>> {
     let name = class_decl.id.as_ref().map(|id| id.name.to_string()).unwrap_or_default();
     
     let mut meta = PipeMeta {
@@ -409,11 +412,11 @@ pub fn extract_pipe_metadata(
 }
 
 /// Extract injectable metadata from a class declaration and its @Injectable decorator.
-pub fn extract_injectable_metadata(
-    class_decl: &ClassDeclaration,
-    decorator: &Decorator,
+pub fn extract_injectable_metadata<'a>(
+    class_decl: &'a ClassDeclaration<'a>,
+    decorator: &Decorator<'a>,
     source_file: &std::path::Path,
-) -> Option<DecoratorMetadata> {
+) -> Option<DecoratorMetadata<'a>> {
     let name = class_decl.id.as_ref().map(|id| id.name.to_string()).unwrap_or_default();
     
     let mut provided_in: Option<String> = None;
@@ -448,7 +451,8 @@ pub fn extract_injectable_metadata(
 }
 
 /// Get all Angular decorator metadata from a program.
-pub fn get_all_metadata(program: &Program, path: &std::path::Path) -> Vec<DecoratorMetadata> {
+/// The lifetime `'a` is tied to the OXC AST allocator.
+pub fn get_all_metadata<'a>(program: &'a Program<'a>, path: &std::path::Path) -> Vec<DecoratorMetadata<'a>> {
     let mut directives = Vec::new();
     let host = TypeScriptReflectionHost::new();
     
@@ -503,3 +507,4 @@ pub fn get_all_metadata(program: &Program, path: &std::path::Path) -> Vec<Decora
     
     directives
 }
+

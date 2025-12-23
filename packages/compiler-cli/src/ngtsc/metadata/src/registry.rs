@@ -9,9 +9,13 @@ use super::api::DecoratorMetadata;
 
 /// Trait for reading Angular decorator metadata from source files.
 /// This is the primary interface for metadata extraction.
+/// 
+/// Note: The trait uses `'static` lifetime for backward compatibility.
+/// For lifetime-aware usage, use `OxcMetadataReader::get_directive_metadata_with_lifetime`.
 pub trait MetadataReader {
     /// Extract all Angular decorator metadata from a program AST.
-    fn get_directive_metadata(&self, program: &Program, path: &Path) -> Vec<DecoratorMetadata>;
+    /// Returns metadata with `'static` lifetime (decorator references are cleared).
+    fn get_directive_metadata(&self, program: &Program, path: &Path) -> Vec<DecoratorMetadata<'static>>;
 }
 
 /// OXC-based implementation of MetadataReader.

@@ -144,7 +144,7 @@ impl ComponentDecoratorHandler {
     }
 }
 
-impl DecoratorHandler<DirectiveMetadata, DirectiveMetadata, (), ()> for ComponentDecoratorHandler {
+impl DecoratorHandler<DirectiveMetadata<'static>, DirectiveMetadata<'static>, (), ()> for ComponentDecoratorHandler {
     fn name(&self) -> &str {
         "ComponentDecoratorHandler"
     }
@@ -153,7 +153,7 @@ impl DecoratorHandler<DirectiveMetadata, DirectiveMetadata, (), ()> for Componen
         HandlerPrecedence::Primary
     }
 
-    fn detect(&self, node: &ClassDeclaration, _decorators: &[String]) -> Option<DetectResult<DirectiveMetadata>> {
+    fn detect(&self, node: &ClassDeclaration, _decorators: &[String]) -> Option<DetectResult<DirectiveMetadata<'static>>> {
         let reflection_host = TypeScriptReflectionHost::new();
         // unsafe transmute because ClassDeclaration is same as Declaration for our purposes here
         let decl = oxc_ast::ast::Declaration::ClassDeclaration(unsafe { std::mem::transmute(node) });
@@ -162,10 +162,20 @@ impl DecoratorHandler<DirectiveMetadata, DirectiveMetadata, (), ()> for Componen
         for decorator in converted_decorators {
             if decorator.name == "Component" {
                  if let Some(metadata) = extract_directive_metadata(node, &decorator, true, std::path::Path::new("")) {
+                     // Clear the decorator reference to avoid lifetime issues
+                     let mut owned_metadata = match metadata {
+                         DecoratorMetadata::Directive(mut d) => {
+                             d.decorator = None; // Clear the lifetime-bound reference
+                             DecoratorMetadata::Directive(d)
+                         }
+                         other => other,
+                     };
+                     // Safety: We cleared the decorator reference, so there's no dangling pointer
+                     let static_metadata: DirectiveMetadata<'static> = unsafe { std::mem::transmute(owned_metadata) };
                      return Some(DetectResult {
                          trigger: Some("Component".to_string()),
                          decorator: Some("Component".to_string()),
-                         metadata,
+                         metadata: static_metadata,
                      });
                  }
             }
@@ -173,18 +183,18 @@ impl DecoratorHandler<DirectiveMetadata, DirectiveMetadata, (), ()> for Componen
         None
     }
 
-    fn analyze(&self, _node: &ClassDeclaration, metadata: &DirectiveMetadata) -> AnalysisOutput<DirectiveMetadata> {
+    fn analyze(&self, _node: &ClassDeclaration, metadata: &DirectiveMetadata<'static>) -> AnalysisOutput<DirectiveMetadata<'static>> {
         AnalysisOutput::of(metadata.clone())
     }
 
-    fn symbol(&self, _node: &ClassDeclaration, _analysis: &DirectiveMetadata) -> Option<()> {
+    fn symbol(&self, _node: &ClassDeclaration, _analysis: &DirectiveMetadata<'static>) -> Option<()> {
         None
     }
 
     fn compile_full(
         &self,
         _node: &ClassDeclaration,
-        analysis: &DirectiveMetadata,
+        analysis: &DirectiveMetadata<'static>,
         _resolution: Option<&()>,
         _constant_pool: &mut ConstantPool,
     ) -> Vec<CompileResult> {
@@ -193,7 +203,7 @@ impl DecoratorHandler<DirectiveMetadata, DirectiveMetadata, (), ()> for Componen
 }
 
 impl ComponentDecoratorHandler {
-    pub fn compile_ivy(&self, analysis: &DirectiveMetadata) -> Vec<CompileResult> {
+    pub fn compile_ivy(&self, analysis: &DirectiveMetadata<'static>) -> Vec<CompileResult> {
         // Extract DirectiveMeta from DecoratorMetadata enum (must be a component)
         let dir = match analysis {
             DecoratorMetadata::Directive(d) if d.is_component => d,

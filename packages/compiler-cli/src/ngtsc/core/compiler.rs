@@ -32,7 +32,7 @@ pub struct NgCompiler<'a, T: FileSystem> {
 #[derive(Default)]
 pub struct CompilationResult {
      pub files: Vec<PathBuf>,
-     pub directives: Vec<DirectiveMetadata>,
+     pub directives: Vec<DirectiveMetadata<'static>>,
 }
 
 impl<'a, T: FileSystem> NgCompiler<'a, T> {
