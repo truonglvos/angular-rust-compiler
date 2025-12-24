@@ -453,8 +453,18 @@ impl<'a> BindingParser<'a> {
                      let key = var_binding.key.source.clone();
                      let key_span = move_parse_source_span(source_span, &var_binding.key.span);
                      
-                     let value = if let Some(_) = &var_binding.value {
-                         "$implicit".to_string() 
+                     // For variable bindings like "let item" or "index as i":
+                     // - If no value is specified (let item), use $implicit
+                     // - If value is specified (index as i), extract the identifier name from the AST
+                     let value = if let Some(ref val_ast) = var_binding.value {
+                         // The value AST is typically a PropertyRead with the identifier name
+                         // e.g., for "index as i", val_ast is PropertyRead with name="index"
+                         match val_ast.as_ref() {
+                             ExprAST::PropertyRead(prop) if prop.receiver.is_implicit_receiver() => {
+                                 prop.name.clone()
+                             }
+                             _ => "$implicit".to_string()
+                         }
                      } else {
                          "$implicit".to_string()
                      };
@@ -462,6 +472,8 @@ impl<'a> BindingParser<'a> {
                      let value_span = var_binding.value.as_ref().map(|v| move_parse_source_span(source_span, &v.source_span()));
 
                      target_vars.push(ParsedVariable::new(key, value, binding_span, key_span, value_span));
+
+
                 },
                 TemplateBinding::Expression(expr_binding) => {
                      let mut binding_span = move_parse_source_span(source_span, &expr_binding.span);

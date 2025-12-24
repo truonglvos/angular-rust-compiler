@@ -1646,6 +1646,9 @@ impl ParseAST {
             let mut key_span: Option<AbsoluteSourceSpan> = None;
             let mut value: Option<Box<AST>> = None;
             let mut name: Option<String> = None;
+            // Track original key name for 'as' binding (before directive prefix transformation)
+            let mut original_key_for_as: Option<String> = None;
+
 
             if let Some(token) = self.current() {
                 if token.is_keyword_let() {
@@ -1729,9 +1732,12 @@ impl ParseAST {
                              if is_key {
                                  // The expr was actually a key.
                                  if let AST::PropertyRead(prop) = expr {
+                                      // Save original key for 'as' binding before any transformation
+                                      original_key_for_as = Some(prop.name.clone());
                                       key_name = Some(prop.name);
                                       key_span = Some(prop.source_span);
                                  }
+
                                  
                                  // Parse actual value
                                  if self.current().map_or(false, |t| !t.is_keyword_as() && t.str_value != ";" && t.str_value != ",") {
@@ -1749,6 +1755,7 @@ impl ParseAST {
                                  
                                  if let Some(ref dir) = directive_name {
                                      // Transform key: prefix + Capitalized
+                                     // (original_key_for_as already saved above)
                                      if let Some(ref k) = key_name {
                                          let mut result = dir.to_string();
                                          let mut chars = k.chars();
@@ -1759,6 +1766,8 @@ impl ParseAST {
                                          key_name = Some(result);
                                      }
                                  }
+
+
                              } else {
                                  // It was the value.
                                  value = Some(Box::new(expr));
@@ -1840,53 +1849,35 @@ impl ParseAST {
                          
                          // If there was an 'as' binding
                      if let Some(n) = name {
-                         // create variable binding for the 'as' part?
-                         // TS: "ngIf as foo" -> VariableBinding name="foo", value="ngIf" (key)
-                         // Wait, value is the directiveName?
-                         // In TS `humanize`: "foo", "ngIf", true.
-                         // If value is missing in VariableBinding, it's null.
-                         // But for "as", it assigns result of expression?
+                         // For "key as alias", create a VariableBinding:
+                         // - key = alias name (e.g., "i" for "index as i")  
+                         // - value = PropertyRead(original key) (e.g., "index" for "index as i")
+                         //
+                         // Use original_key_for_as which is the untransformed key name
+                         // (before directive prefix like "ngFor" is added)
+                         let value_name = original_key_for_as.unwrap_or_else(|| 
+                             directive_name.map(|d| d.to_string()).unwrap_or_default()
+                         );
+
+
                          
-                         // TS Parser creates a VariableBinding where value is... ?
-                         // Actually, for "as" binding:
-                         // "foo" (key=foo) value="ngIf" ?
-                         // Let's check parser_spec output for "ngIf as foo".
-                         // ['foo', 'ngIf', true].
-                         // Key='foo'. Value='ngIf'. and IsVar=true.
-                         
-                         // So we create a VariableBinding: key='foo', value=PropertyRead('ngIf')?
-                         // But 'ngIf' is just string here?
-                         // If directive_name is available, use it.
-                         
-                         if let Some(dir) = directive_name {
-                              // create PropertyRead for dir
-                              let v = AST::PropertyRead(PropertyRead {
-                                  span: ParseSpan::new(0,0), 
-                                  source_span: AbsoluteSourceSpan::new(0,0),
-                                  name_span: AbsoluteSourceSpan::new(0,0),
-                                  receiver: Box::new(AST::ImplicitReceiver(ImplicitReceiver{ span: ParseSpan::new(0,0), source_span: AbsoluteSourceSpan::new(0,0) })),
-                                  name: dir.to_string(),
-                              });
-                              bindings.push(TemplateBinding::Variable(VariableBinding {
-                                  key: TemplateBindingIdentifier {
-                                      source: n,
-                                      span: AbsoluteSourceSpan::new(0,0), // span of 'foo'
-                                  },
-                                  value: Some(Box::new(v)), // Synthetic value
-                                  span: AbsoluteSourceSpan::new(0,0),
-                              }));
-                         } else {
-                             // Fallback?
-                              bindings.push(TemplateBinding::Variable(VariableBinding {
-                                  key: TemplateBindingIdentifier {
-                                      source: n,
-                                      span: AbsoluteSourceSpan::new(0,0),
-                                  },
-                                  value: None, 
-                                  span: AbsoluteSourceSpan::new(0,0),
-                              }));
-                         }
+                         let v = AST::PropertyRead(PropertyRead {
+                             span: ParseSpan::new(0,0), 
+                             source_span: AbsoluteSourceSpan::new(0,0),
+                             name_span: AbsoluteSourceSpan::new(0,0),
+                             receiver: Box::new(AST::ImplicitReceiver(ImplicitReceiver{ span: ParseSpan::new(0,0), source_span: AbsoluteSourceSpan::new(0,0) })),
+                             name: value_name,
+                         });
+                         bindings.push(TemplateBinding::Variable(VariableBinding {
+                             key: TemplateBindingIdentifier {
+                                 source: n,
+                                 span: AbsoluteSourceSpan::new(0,0),
+                             },
+                             value: Some(Box::new(v)),
+                             span: AbsoluteSourceSpan::new(0,0),
+                         }));
                      }
+
                  } else if let Some(_v) = value {
                      // No key name? Should only happen if directive_name missing?
                      // Or logic error.

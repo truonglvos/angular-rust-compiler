@@ -393,13 +393,21 @@ fn ingest_template(
     // Ingest children into child view - use pre-extracted children
     // Extract variables before unsafe block to avoid issues
     let variables_to_add: Vec<_> = tmpl.variables.iter().map(|v| {
+        println!("DEBUG: Template variable - name: '{}', value: '{}'", v.name, v.value);
+        // For template variables, use the value as-is
+        // NgFor context exposes properties like 'index', 'first', 'last', etc. directly
+        // (The $implicit mapping is only for empty values, meaning "let item" syntax)
         let value = if v.value.is_empty() {
             "$implicit".to_string()
         } else {
             v.value.clone()
         };
+        println!("DEBUG: Mapped to: '{}' -> '{}'", v.name, value);
         (v.name.clone(), value)
     }).collect();
+
+
+
     
     // Use unsafe to work around borrow checker - safe because child_view is separate entry in HashMap
     let child_view_ptr = job.views.get_mut(&child_view_xref).unwrap() as *mut ViewCompilationUnit;
