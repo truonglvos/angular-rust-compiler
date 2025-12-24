@@ -53,7 +53,7 @@ function angularLinkerRolldownPlugin() {
     async transform(code, id) {
       // Debug: Log all processed files to understand what's being transformed
       if (id.includes('angular')) {
-        console.log(`[Linker Debug] Checking: ${id}`);
+        // console.log(`[Linker Debug] Checking: ${id}`);
       }
 
       // Only process @angular packages with .mjs or .js extensions
@@ -72,8 +72,6 @@ function angularLinkerRolldownPlugin() {
       if (!code.includes('ɵɵngDeclare')) {
         return null;
       }
-
-      console.log(`[Rust Linker] Linking: ${cleanId}`);
 
       try {
         const result = compiler.linkFile(cleanId, code);
@@ -100,7 +98,6 @@ function rustNgcPlugin() {
       if (id.includes('node_modules')) {
         // Only log if it's an Angular file that somehow wasn't pre-bundled
         if (id.includes('@angular') && id.includes('ɵɵngDeclare')) {
-          console.log(`[Vite Plugin] Fallback linking for: ${id}`);
           const cleanId = id.split('?')[0];
           if (cleanId.endsWith('.mjs') || cleanId.endsWith('.js')) {
             try {
