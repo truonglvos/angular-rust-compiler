@@ -240,6 +240,7 @@ impl ComponentDecoratorHandler {
         );
 
         let (nodes, ng_content_selectors, preserve_whitespaces, styles) = if let Some(ast) = comp_meta.template_ast.as_ref() {
+            println!("DEBUG: compile_ivy for {} - template_ast has {} nodes", dir.t2.name, ast.len());
             let options = Render3ParseOptions {
                 collect_comment_nodes: false,
                 ..Default::default()
@@ -248,9 +249,12 @@ impl ComponentDecoratorHandler {
             // Apply whitespace visitor
             let mut visitor = WhitespaceVisitor::new(false, None, false);
             let processed_nodes = visit_all_with_siblings_nodes(&mut visitor, ast);
+            println!("DEBUG: compile_ivy for {} - after whitespace visitor: {} nodes", dir.t2.name, processed_nodes.len());
             
             let result = html_ast_to_render3_ast(&processed_nodes, &mut binding_parser, &options);
+            println!("DEBUG: compile_ivy for {} - after R3 transform: {} nodes", dir.t2.name, result.nodes.len());
             (result.nodes, result.ng_content_selectors, false, result.styles)
+
         } else {
             let parsed_template = parse_template(
                 &template_str,

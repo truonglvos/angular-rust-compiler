@@ -166,25 +166,19 @@ pub fn collect_element_consts(job: &mut dyn CompilationJob) {
         let mut indices_to_remove: Vec<usize> = Vec::new();
         
         for (index, op) in unit.create().iter().enumerate() {
-            if op.kind() == OpKind::ExtractedAttribute {
-                unsafe {
-                    let op_ptr = op.as_ref() as *const dyn ir::CreateOp;
-                    let extracted_attr_ptr = op_ptr as *const ExtractedAttributeOp;
-                    let extracted_attr = &*extracted_attr_ptr;
-                    
-                    let attributes = all_element_attributes.entry(extracted_attr.target)
-                        .or_insert_with(|| ElementAttributes::new(compatibility));
-                    
-                    attributes.add(
-                        extracted_attr.binding_kind,
-                        extracted_attr.name.clone(),
-                        extracted_attr.expression.clone(),
-                        extracted_attr.namespace.clone(),
-                        extracted_attr.trusted_value_fn.clone(),
-                    );
-                    
-                    indices_to_remove.push(index);
-                }
+            if let Some(extracted_attr) = op.as_any().downcast_ref::<ExtractedAttributeOp>() {
+                let attributes = all_element_attributes.entry(extracted_attr.target)
+                    .or_insert_with(|| ElementAttributes::new(compatibility));
+                
+                attributes.add(
+                    extracted_attr.binding_kind,
+                    extracted_attr.name.clone(),
+                    extracted_attr.expression.clone(),
+                    extracted_attr.namespace.clone(),
+                    extracted_attr.trusted_value_fn.clone(),
+                );
+                
+                indices_to_remove.push(index);
             }
         }
         
@@ -225,44 +219,34 @@ pub fn collect_element_consts(job: &mut dyn CompilationJob) {
     }
 }
 
-/// Helper function to extract xref from different create op types
-unsafe fn get_xref_from_create_op(op_ptr: *const dyn ir::CreateOp, kind: OpKind) -> Option<ir::XrefId> {
-    match kind {
+fn get_xref_from_create_op(op: &dyn ir::CreateOp) -> Option<ir::XrefId> {
+    match op.kind() {
         OpKind::ElementStart => {
-            let el_op = &*(op_ptr as *const ir::ops::create::ElementStartOp);
-            Some(el_op.base.base.xref)
+            op.as_any().downcast_ref::<ir::ops::create::ElementStartOp>().map(|el| el.base.base.xref)
         }
         OpKind::Element => {
-            let el_op = &*(op_ptr as *const ir::ops::create::ElementOp);
-            Some(el_op.base.base.xref)
+            op.as_any().downcast_ref::<ir::ops::create::ElementOp>().map(|el| el.base.base.xref)
         }
         OpKind::Template => {
-            let tmpl_op = &*(op_ptr as *const ir::ops::create::TemplateOp);
-            Some(tmpl_op.base.base.xref)
+            op.as_any().downcast_ref::<ir::ops::create::TemplateOp>().map(|tmpl| tmpl.base.base.xref)
         }
         OpKind::ContainerStart => {
-            let c_op = &*(op_ptr as *const ir::ops::create::ContainerStartOp);
-            Some(c_op.base.xref)
+            op.as_any().downcast_ref::<ir::ops::create::ContainerStartOp>().map(|c| c.base.xref)
         }
         OpKind::Container => {
-            let c_op = &*(op_ptr as *const ir::ops::create::ContainerOp);
-            Some(c_op.base.xref)
+            op.as_any().downcast_ref::<ir::ops::create::ContainerOp>().map(|c| c.base.xref)
         }
         OpKind::RepeaterCreate => {
-            let r_op = &*(op_ptr as *const ir::ops::create::RepeaterCreateOp);
-            Some(r_op.base.base.xref)
+            op.as_any().downcast_ref::<ir::ops::create::RepeaterCreateOp>().map(|r| r.base.base.xref)
         }
         OpKind::ConditionalCreate => {
-            let c_op = &*(op_ptr as *const ir::ops::create::ConditionalCreateOp);
-            Some(c_op.base.base.xref)
+            op.as_any().downcast_ref::<ir::ops::create::ConditionalCreateOp>().map(|c| c.base.base.xref)
         }
         OpKind::ConditionalBranchCreate => {
-            let c_op = &*(op_ptr as *const ir::ops::create::ConditionalBranchCreateOp);
-            Some(c_op.base.base.xref)
+            op.as_any().downcast_ref::<ir::ops::create::ConditionalBranchCreateOp>().map(|c| c.base.base.xref)
         }
         OpKind::Projection => {
-            let p_op = &*(op_ptr as *const ir::ops::create::ProjectionOp);
-            Some(p_op.xref)
+            op.as_any().downcast_ref::<ir::ops::create::ProjectionOp>().map(|p| p.xref)
         }
         _ => None,
     }
@@ -283,11 +267,7 @@ fn process_component_job(
                kind == ir::OpKind::Template || kind == ir::OpKind::RepeaterCreate ||
                kind == ir::OpKind::ConditionalCreate || kind == ir::OpKind::Projection {
                 
-                let xref_opt = unsafe {
-                    let op_ptr = op.as_ref() as *const dyn ir::CreateOp;
-                    get_xref_from_create_op(op_ptr, kind)
-                };
-                if let Some(xref) = xref_opt {
+                if let Some(xref) = get_xref_from_create_op(op.as_ref()) {
                     ordered_elements.push((xref, kind));
                 }
             }
@@ -350,13 +330,8 @@ fn process_unit_for_component(
     projection_attributes: &HashMap<ir::XrefId, LiteralArrayExpr>,
 ) {
     for op in unit.create_mut().iter_mut() {
-        // Handle Projection ops
         if op.kind() == OpKind::Projection {
-            unsafe {
-                let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
-                let projection_ptr = op_ptr as *mut ProjectionOp;
-                let projection = &mut *projection_ptr;
-                
+            if let Some(projection) = op.as_any_mut().downcast_mut::<ProjectionOp>() {
                 if let Some(attr_array) = projection_attributes.get(&projection.xref) {
                     projection.attributes = Some(Box::new(Expression::LiteralArray(attr_array.clone())));
                 }

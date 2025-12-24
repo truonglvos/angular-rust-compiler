@@ -82,36 +82,6 @@ pub fn compile_component_from_metadata(
     let mut definition_map = base_directive_fields(&meta.directive, constant_pool, binding_parser);
     add_features(&mut definition_map, &meta.directive, Some(meta));
     
-    // Parse selector
-    if let Some(ref selector) = meta.directive.selector {
-        if let Ok(selectors) = CssSelector::parse(selector) {
-            if let Some(first_selector) = selectors.first() {
-                // CssSelector.attrs is Vec<String> with pairs [name, value, name, value, ...]
-                if !first_selector.attrs.is_empty() {
-                    let attr_exprs: Vec<Expression> = first_selector.attrs
-                        .chunks(2)
-                        .flat_map(|chunk| {
-                            vec![
-                                literal(LiteralValue::String(chunk[0].clone())),
-                                if chunk.len() > 1 && !chunk[1].is_empty() {
-                                    literal(LiteralValue::String(chunk[1].clone()))
-                                } else {
-                                    literal(LiteralValue::Null)
-                                }
-                            ]
-                        })
-                        .collect();
-                    // TODO: Fix constant_pool.get_const_literal() type conversion
-                    let attr_array = Expression::LiteralArray(LiteralArrayExpr {
-                        entries: attr_exprs,
-                        type_: None,
-                        source_span: None,
-                    });
-                    definition_map.set("attrs", Some(attr_array));
-                }
-            }
-        }
-    }
 
     // TODO: Implement full template compilation using pipeline
     // For now, set placeholder values
@@ -241,6 +211,35 @@ pub fn compile_component_from_metadata(
     R3CompiledExpression::new(expression, type_, vec![])
 }
 
+/// Helper to create R3 selector array from CssSelector
+fn create_selector_array(selector: &CssSelector) -> Expression {
+    let mut entries = vec![];
+
+    // Element
+    entries.push(literal(LiteralValue::String(selector.element.clone().unwrap_or_default())));
+
+    // Attributes (including IDs and classes stored as attributes if they are)
+    // Note: CssSelector stores IDs in attrs if parsed from #id, and classes in class_names.
+    // In R3 selector arrays, attributes are name/value pairs.
+    for i in (0..selector.attrs.len()).step_by(2) {
+        entries.push(literal(LiteralValue::String(selector.attrs[i].clone())));
+        entries.push(literal(LiteralValue::String(selector.attrs[i+1].clone())));
+    }
+
+    // Classes
+    for class_name in &selector.class_names {
+        // AttributeMarker::Classes = 1
+        entries.push(literal(LiteralValue::Number(1.0)));
+        entries.push(literal(LiteralValue::String(class_name.clone())));
+    }
+
+    Expression::LiteralArray(LiteralArrayExpr {
+        entries,
+        type_: None,
+        source_span: None,
+    })
+}
+
 fn base_directive_fields(
     meta: &R3DirectiveMetadata,
     constant_pool: &mut ConstantPool,
@@ -252,25 +251,16 @@ fn base_directive_fields(
     definition_map.set("type", Some(meta.type_.value.clone()));
 
     // selectors
-    if let Some(ref selector) = meta.selector {
-        // Parse selector into R3 format
-        // TODO: Implement parse_selector_to_r3_selector in core module
-        if !selector.is_empty() {
-            // For now, just store the raw selector string in a nested array format
-            let selector_arr = Expression::LiteralArray(LiteralArrayExpr {
-                entries: vec![Expression::LiteralArray(LiteralArrayExpr {
-                    entries: vec![
-                        literal(LiteralValue::String("".to_string())),
-                        literal(LiteralValue::String(selector.clone())),
-                        literal(LiteralValue::String("".to_string())),
-                    ],
+    if let Some(ref selector_str) = meta.selector {
+        if !selector_str.is_empty() {
+            if let Ok(selectors) = CssSelector::parse(selector_str) {
+                let selector_arr = Expression::LiteralArray(LiteralArrayExpr {
+                    entries: selectors.iter().map(|s| create_selector_array(s)).collect(),
                     type_: None,
                     source_span: None,
-                })],
-                type_: None,
-                source_span: None,
-            });
-            definition_map.set("selectors", Some(selector_arr));
+                });
+                definition_map.set("selectors", Some(selector_arr));
+            }
         }
     }
 

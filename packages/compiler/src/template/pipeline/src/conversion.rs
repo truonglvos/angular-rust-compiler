@@ -169,7 +169,8 @@ pub fn convert_ast(
     use crate::output::output_ast::{
         BinaryOperatorExpr, ConditionalExpr, InvokeFunctionExpr, LiteralArrayExpr,
         LiteralExpr, LiteralMapExpr, LiteralMapEntry, LiteralValue, NotExpr, ReadKeyExpr,
-        ReadPropExpr, ReadVarExpr, TypeofExpr, UnaryOperatorExpr, VoidExpr,
+        ReadPropExpr, ReadVarExpr, TypeofExpr, UnaryOperatorExpr, VoidExpr, WriteKeyExpr,
+        WritePropExpr,
     };
 
     match ast {
@@ -441,6 +442,39 @@ pub fn convert_ast(
             // So we just return the inner expression
             convert_ast(&paren.expression, job, base_source_span)
         }
+        AST::PropertyWrite(prop) => {
+            // Whether this is an implicit receiver, *excluding* explicit reads of `this`.
+            let is_implicit_receiver = matches!(*prop.receiver, AST::ImplicitReceiver(_))
+                && !matches!(*prop.receiver, AST::ThisReceiver(_));
+
+            if is_implicit_receiver {
+                // TODO: Implement LexicalWriteExpr in IR and use it here.
+                // For now, assume it's a property write on the component context.
+                let root_xref = job.root().xref();
+                Expression::WriteProp(WritePropExpr {
+                    receiver: Box::new(Expression::Context(ContextExpr::new(root_xref))),
+                    name: prop.name.clone(),
+                    value: Box::new(convert_ast(&prop.value, job, base_source_span)),
+                    type_: None,
+                    source_span: convert_source_span(&prop.span, base_source_span),
+                })
+            } else {
+                Expression::WriteProp(WritePropExpr {
+                    receiver: Box::new(convert_ast(&prop.receiver, job, base_source_span)),
+                    name: prop.name.clone(),
+                    value: Box::new(convert_ast(&prop.value, job, base_source_span)),
+                    type_: None,
+                    source_span: convert_source_span(&prop.span, base_source_span),
+                })
+            }
+        }
+        AST::KeyedWrite(keyed) => Expression::WriteKey(WriteKeyExpr {
+            receiver: Box::new(convert_ast(&keyed.receiver, job, base_source_span)),
+            index: Box::new(convert_ast(&keyed.key, job, base_source_span)),
+            value: Box::new(convert_ast(&keyed.value, job, base_source_span)),
+            type_: None,
+            source_span: convert_source_span(&keyed.span, base_source_span),
+        }),
         AST::RegularExpressionLiteral(regex) => {
             // RegularExpressionLiteralExpr doesn't exist in output_ast
             // In TypeScript, this returns RegularExpressionLiteralExpr(ast.body, ast.flags, baseSourceSpan)
