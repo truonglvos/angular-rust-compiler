@@ -17,10 +17,21 @@ import { FullNamePipe } from './src/pipes/full-name-pipe';
 import { NgForTest } from './src/components/ng-for/ng-for';
 import { NgIfTest } from './src/components/ng-if-test/ng-if-test';
 import { EventBindingTest } from './src/components/event-binding-test/event-binding-test';
+import { PropertyBindingTest } from './src/components/property-binding-test/property-binding-test';
+import { TwoWayBindingTest } from './src/components/two-way-binding-test/two-way-binding-test';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, NgFor, FullNamePipe, NgForTest, NgIfTest, EventBindingTest],
+  imports: [
+    RouterOutlet,
+    NgFor,
+    FullNamePipe,
+    NgForTest,
+    NgIfTest,
+    EventBindingTest,
+    PropertyBindingTest,
+    TwoWayBindingTest,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
