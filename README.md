@@ -47,18 +47,20 @@ Output files will be generated in `demo-app/rust-output/`.
 
 ### Angular Template Syntax
 
-| Syntax                  | Status | Example                               |
-| ----------------------- | ------ | ------------------------------------- |
-| **Text Interpolation**  | ✅     | `{{ expression }}`                    |
-| **Property Binding**    | ✅     | `[property]="value"`                  |
-| **Event Binding**       | ✅     | `(click)="handler()"`                 |
-| **Two-way Binding**     | ✅     | `[(ngModel)]="value"`                 |
-| **@for Loops**          | ✅     | `@for (item of items; track item.id)` |
-| **@if Conditionals**    | ✅     | `@if (condition) { ... }`             |
-| **@switch**             | ✅     | `@switch (value) { @case ... }`       |
-| **@let Declarations**   | ✅     | `@let name = expression`              |
-| **ng-content**          | ✅     | Content projection                    |
-| **Template References** | ✅     | `#ref`                                |
+| Syntax                  | Status | Example                                   |
+| ----------------------- | ------ | ----------------------------------------- |
+| **Text Interpolation**  | ✅     | `{{ expression }}`                        |
+| **Property Binding**    | ✅     | `[property]="value"`                      |
+| **Event Binding**       | ✅     | `(click)="handler()"` with `ɵɵlistener()` |
+| **Two-way Binding**     | ✅     | `[(ngModel)]="value"`                     |
+| **@for Loops**          | ✅     | `@for (item of items; track item.id)`     |
+| **@if Conditionals**    | ✅     | `@if (condition) { ... }`                 |
+| **@switch**             | ✅     | `@switch (value) { @case ... }`           |
+| **@let Declarations**   | ✅     | `@let name = expression`                  |
+| **\*ngFor Directive**   | ✅     | `*ngFor="let item of items; index as i"`  |
+| **\*ngIf Directive**    | ✅     | `*ngIf="condition"`                       |
+| **ng-content**          | ✅     | Content projection                        |
+| **Template References** | ✅     | `#ref`                                    |
 
 ### Metadata Extraction
 
@@ -222,8 +224,13 @@ cargo test -p angular-compiler expression_parser
 
 ## 🛠️ Recent Improvements
 
-### December 2024
+### December 2024 (Latest)
 
+- ✅ **Event Binding Emission**: Full support for `(click)="handler()"` with proper `ɵɵlistener()` emission and consts array extraction
+- ✅ **NgFor Index Variable**: Fixed `*ngFor="let item of items; index as i"` to correctly bind `i` to `ctx.index` instead of `ctx.$implicit`
+- ✅ **NgIf Directive**: Full support for `*ngIf` structural directive
+- ✅ **ConstsIndex for Elements**: Elements with event bindings now get proper constsIndex in `ɵɵelementStart()`
+- ✅ **Rolldown/Vite Integration**: Added Angular Linker plugin for Rolldown bundler compatibility
 - ✅ **Deterministic Build Output**: Fixed non-deterministic ordering of `inputs`, `outputs`, and template variables by replacing `HashMap` with `IndexMap`
 - ✅ **changeDetection Support**: Properly extract and emit `ChangeDetectionStrategy.OnPush` (as `changeDetection: 0`)
 - ✅ **$index/$count Ordering**: Fixed context variable ordering in `@for` loops to match official Angular compiler
