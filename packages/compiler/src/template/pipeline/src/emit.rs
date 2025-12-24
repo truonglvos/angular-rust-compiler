@@ -303,10 +303,20 @@ pub fn emit_ops(job: &ComponentCompilationJob, ops: Vec<&dyn ir::Op>) -> Vec<o::
                      let index = element_op.base.base.handle.slot.unwrap(); 
                      // Handle tag which might be Option<String>
                      let tag = element_op.base.tag.clone().unwrap_or("div".to_string());
+                     
+                     // Build args: slot, tag, [constsIndex]
+                     let mut args = vec![*o::literal(index as f64), *o::literal(tag)];
+                     
+                     // Add consts index if element has attributes (event bindings, etc.)
+                     if let Some(consts_index) = element_op.base.base.attributes {
+                         args.push(*o::literal(consts_index.0 as f64));
+                     }
+
+                     
                      stmts.push(o::Statement::Expression(o::ExpressionStatement {
                          expr: Box::new(o::Expression::InvokeFn(o::InvokeFunctionExpr {
                              fn_: o::import_ref(R3::element_start()),
-                             args: vec![*o::literal(index as f64), *o::literal(tag)], // Deref Box
+                             args,
                              type_: None,
                              source_span: None,
                              pure: false,
@@ -315,6 +325,7 @@ pub fn emit_ops(job: &ComponentCompilationJob, ops: Vec<&dyn ir::Op>) -> Vec<o::
                      }));
                 }
             },
+
             ir::OpKind::ElementEnd => {
                 stmts.push(o::Statement::Expression(o::ExpressionStatement {
                      expr: Box::new(o::Expression::InvokeFn(o::InvokeFunctionExpr {
@@ -600,9 +611,48 @@ pub fn emit_ops(job: &ComponentCompilationJob, ops: Vec<&dyn ir::Op>) -> Vec<o::
                     stmts.push(*stmt_op.statement.clone());
                 }
             },
+            ir::OpKind::Listener => {
+                if let Some(listener_op) = op.as_any().downcast_ref::<ir::ops::create::ListenerOp>() {
+                    // Emit ɵɵlistener('eventName', function handlerFn() { return handler; })
+                    let event_name = listener_op.name.clone();
+                    
+                    // Build handler function body from handler_ops
+                    let handler_stmts = emit_ops(job, listener_op.handler_ops.iter().map(|op| op.as_ref() as &dyn ir::Op).collect());
+                    
+                    // Create handler function
+                    let handler_fn_name = listener_op.handler_fn_name.clone();
+                    let handler_fn = o::Expression::Fn(o::FunctionExpr {
+                        name: handler_fn_name,
+                        params: vec![], // Event listeners typically don't expose params
+                        statements: handler_stmts,
+                        type_: None,
+                        source_span: None,
+                    });
+                    
+                    // Build args: eventName, handlerFn
+                    let mut args = vec![*o::literal(event_name), handler_fn];
+                    
+                    // Add event target if present (e.g., "document:click")
+                    if let Some(ref event_target) = listener_op.event_target {
+                        args.push(*o::literal(event_target.clone()));
+                    }
+                    
+                    stmts.push(o::Statement::Expression(o::ExpressionStatement {
+                        expr: Box::new(o::Expression::InvokeFn(o::InvokeFunctionExpr {
+                            fn_: o::import_ref(R3::listener()),
+                            args,
+                            type_: None,
+                            source_span: None,
+                            pure: false,
+                        })),
+                        source_span: None,
+                    }));
+                }
+            },
             _ => {
                 // Ignore other ops for now
             }
+
         }
     }
     stmts

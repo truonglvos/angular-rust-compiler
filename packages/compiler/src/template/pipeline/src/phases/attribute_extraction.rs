@@ -232,6 +232,23 @@ fn process_unit(
 
     // Now collect from create ops
     for op_ref in create_list.iter() {
+        // Extract regular event listeners (e.g., (click)="handler()")
+        if let Some(listener_op) = op_ref.as_any().downcast_ref::<ListenerOp>() {
+            if !listener_op.is_legacy_animation_listener {
+                let extracted_attr_op = create_extracted_attribute_op(
+                    listener_op.target,
+                    BindingKind::Property,
+                    None,
+                    listener_op.name.clone(),
+                    None,
+                    None,
+                    None,
+                    vec![SecurityContext::NONE],
+                );
+                extracted_attributes.entry(listener_op.target).or_default().push(extracted_attr_op);
+            }
+        }
+        // Extract two-way listener bindings
         if let Some(twoway_listener) = op_ref.as_any().downcast_ref::<TwoWayListenerOp>() {
             let extracted_attr_op = create_extracted_attribute_op(
                 twoway_listener.target,
@@ -246,6 +263,7 @@ fn process_unit(
             extracted_attributes.entry(twoway_listener.target).or_default().push(extracted_attr_op);
         }
     }
+
 
     // Remove processed update ops
     for index in (0..update_list.len()).rev() {
