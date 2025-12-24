@@ -30,12 +30,15 @@ export class NgIfTest {
 		selectors: [["app-ng-if-test"]],
 		decls: 4,
 		vars: 2,
-		consts: [[4, "ngIf"]],
+		consts: [[4, "ngIf"], [3, "click"]],
 		template: function NgIfTest_Template(rf, ctx) {
 			if (rf & 1) {
 				i0.ɵɵtemplate(0, NgIfTest_p_0_Template, 2, 1, "p", 0);
 				i0.ɵɵtemplate(1, NgIfTest_p_1_Template, 2, 0, "p", 0);
-				i0.ɵɵelementStart(2, "button");
+				i0.ɵɵelementStart(2, "button", 1);
+				i0.ɵɵlistener("click", function NgIfTest_buttonclick_0_listener() {
+					return ctx.isShow = !ctx.isShow;
+				});
 				i0.ɵɵtext(3, "Click me");
 				i0.ɵɵelementEnd();
 			}

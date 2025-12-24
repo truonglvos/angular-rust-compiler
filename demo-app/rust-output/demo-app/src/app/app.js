@@ -6,6 +6,7 @@ import { RouterOutlet } from "@angular/router";
 import { FullNamePipe } from "./src/pipes/full-name-pipe";
 import { NgForTest } from "./src/components/ng-for/ng-for";
 import { NgIfTest } from "./src/components/ng-if-test/ng-if-test";
+import { EventBindingTest } from "./src/components/event-binding-test/event-binding-test";
 const _c0 = () => ({
 	title: "Explore the Docs",
 	link: "https://angular.dev"
@@ -108,7 +109,7 @@ export class App {
 	static ɵcmp = /* @__PURE__ */ i0.ɵɵdefineComponent({
 		type: App,
 		selectors: [["app-root"]],
-		decls: 49,
+		decls: 50,
 		vars: 19,
 		consts: [
 			[1, "main"],
@@ -436,13 +437,15 @@ export class App {
 				i0.ɵɵtemplate(46, App_div_46_Template, 2, 2, "div", 33);
 				i0.ɵɵelementStart(47, "app-ng-if-test");
 				i0.ɵɵelementEnd();
-				i0.ɵɵpipe(48, "fullName");
+				i0.ɵɵelementStart(48, "app-event-binding-test");
+				i0.ɵɵelementEnd();
+				i0.ɵɵpipe(49, "fullName");
 			}
 			if (rf & 2) {
 				i0.ɵɵadvance(20);
 				i0.ɵɵtextInterpolate1("Hello, ", ctx.title(), "");
 				i0.ɵɵadvance(4);
-				i0.ɵɵtextInterpolate1("hello ", i0.ɵɵpipeBind2(48, 3, ctx.name, ctx.surname), "");
+				i0.ɵɵtextInterpolate1("hello ", i0.ɵɵpipeBind2(49, 3, ctx.name, ctx.surname), "");
 				i0.ɵɵadvance(4);
 				i0.ɵɵrepeater(i0.ɵɵpureFunction6(12, _c6, i0.ɵɵpureFunction0(6, _c0), i0.ɵɵpureFunction0(7, _c1), i0.ɵɵpureFunction0(8, _c2), i0.ɵɵpureFunction0(9, _c3), i0.ɵɵpureFunction0(10, _c4), i0.ɵɵpureFunction0(11, _c5)));
 				i0.ɵɵadvance(18);
@@ -470,7 +473,8 @@ export class App {
 			NgFor,
 			FullNamePipe,
 			NgForTest,
-			NgIfTest
+			NgIfTest,
+			EventBindingTest
 		]
 	});
 }

@@ -16,10 +16,11 @@ import { RouterOutlet } from '@angular/router';
 import { FullNamePipe } from './src/pipes/full-name-pipe';
 import { NgForTest } from './src/components/ng-for/ng-for';
 import { NgIfTest } from './src/components/ng-if-test/ng-if-test';
+import { EventBindingTest } from './src/components/event-binding-test/event-binding-test';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, NgFor, FullNamePipe, NgForTest, NgIfTest],
+  imports: [RouterOutlet, NgFor, FullNamePipe, NgForTest, NgIfTest, EventBindingTest],
   templateUrl: './app.html',
   styleUrl: './app.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
