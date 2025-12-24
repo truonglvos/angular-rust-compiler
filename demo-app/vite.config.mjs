@@ -20,8 +20,9 @@ function angularLinkerEsbuildPlugin() {
     name: 'angular-linker-esbuild',
     setup(build) {
       // Handle all .mjs and .js files in @angular packages
-      build.onLoad({ filter: /\/@angular\/.*\.(mjs|js)$/ }, async (args) => {
-        console.log(`[Pre-bundle] Processing: ${args.path}`);
+      // Broadened filter to handle absolute paths correctly across OSes
+      build.onLoad({ filter: /@angular\/.*\.(mjs|js)$/ }, async (args) => {
+        console.log(`[Linker] Attempting to process: ${args.path}`);
         const code = await fs.promises.readFile(args.path, 'utf8');
 
         // Check if file contains partial declarations

@@ -14,10 +14,12 @@ import {
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterOutlet } from '@angular/router';
 import { FullNamePipe } from './src/pipes/full-name-pipe';
+import { NgForTest } from './src/components/ng-for/ng-for';
+import { NgIfTest } from './src/components/ng-if-test/ng-if-test';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, NgFor, FullNamePipe],
+  imports: [RouterOutlet, NgFor, FullNamePipe, NgForTest, NgIfTest],
   templateUrl: './app.html',
   styleUrl: './app.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

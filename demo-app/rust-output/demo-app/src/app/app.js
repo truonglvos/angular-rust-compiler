@@ -4,6 +4,8 @@ import { ChangeDetectionStrategy, Component, EventEmitter, inject, input, Input,
 import { FormBuilder, Validators } from "@angular/forms";
 import { RouterOutlet } from "@angular/router";
 import { FullNamePipe } from "./src/pipes/full-name-pipe";
+import { NgForTest } from "./src/components/ng-for/ng-for";
+import { NgIfTest } from "./src/components/ng-if-test/ng-if-test";
 const _c0 = () => ({
 	title: "Explore the Docs",
 	link: "https://angular.dev"
@@ -59,7 +61,7 @@ function App_For_29_Template(rf, ctx) {
 		i0.ɵɵtextInterpolate3("", item_r1.title, " (", $index_r2 + 1, " of ", $count_r3, ")");
 	}
 }
-function App_div_45_Template(rf, ctx) {
+function App_div_46_Template(rf, ctx) {
 	if (rf & 1) {
 		i0.ɵɵelementStart(0, "div", 36);
 		i0.ɵɵtext(1);
@@ -105,12 +107,12 @@ export class App {
 	static ɵcmp = /* @__PURE__ */ i0.ɵɵdefineComponent({
 		type: App,
 		selectors: [["app-root"]],
-		decls: 47,
+		decls: 48,
 		vars: 19,
 		consts: [
-			["class", "main"],
-			["class", "content"],
-			["class", "left-side"],
+			[1, "main"],
+			[1, "content"],
+			[1, "left-side"],
 			[
 				"xmlns",
 				"http://www.w3.org/2000/svg",
@@ -118,7 +120,7 @@ export class App {
 				"0 0 982 239",
 				"fill",
 				"none",
-				"class",
+				1,
 				"angular-logo"
 			],
 			["clip-path", "url(#a)"],
@@ -206,26 +208,26 @@ export class App {
 				"M0 0h982v239H0z"
 			],
 			[
-				"class",
-				"divider",
 				"role",
 				"separator",
 				"aria-label",
-				"Divider"
+				"Divider",
+				1,
+				"divider"
 			],
-			["class", "right-side"],
-			["class", "pill-group"],
+			[1, "right-side"],
+			[1, "pill-group"],
 			[
-				"class",
-				"pill",
 				"target",
 				"_blank",
 				"rel",
 				"noopener",
+				1,
+				"pill",
 				3,
 				"href"
 			],
-			["class", "social-links"],
+			[1, "social-links"],
 			[
 				"href",
 				"https://github.com/angular/angular",
@@ -334,7 +336,7 @@ export class App {
 				"currentColor"
 			],
 			["d", "M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h560v-280h80v280q0 33-23.5 56.5T760-120H200Zm188-212-56-56 372-372H560v-80h280v280h-80v-144L388-332Z"],
-			["class", "ngfor-test"]
+			[1, "ngfor-test"]
 		],
 		template: function App_Template(rf, ctx) {
 			if (rf & 1) {
@@ -422,23 +424,25 @@ export class App {
 				i0.ɵɵnamespaceHTML();
 				i0.ɵɵelementStart(40, "router-outlet");
 				i0.ɵɵelementEnd();
-				i0.ɵɵelementStart(41, "h2");
-				i0.ɵɵtext(42, "Test Inline Style");
+				i0.ɵɵelementStart(41, "app-ng-for");
 				i0.ɵɵelementEnd();
-				i0.ɵɵelementStart(43, "div", 32);
-				i0.ɵɵtext(44, "Test attributes");
+				i0.ɵɵelementStart(42, "h2");
+				i0.ɵɵtext(43, "Test Inline Style");
 				i0.ɵɵelementEnd();
-				i0.ɵɵtemplate(45, App_div_45_Template, 2, 1, "div", 33);
-				i0.ɵɵpipe(46, "fullName");
+				i0.ɵɵelementStart(44, "div", 32);
+				i0.ɵɵtext(45, "Test attributes");
+				i0.ɵɵelementEnd();
+				i0.ɵɵtemplate(46, App_div_46_Template, 2, 1, "div", 33);
+				i0.ɵɵpipe(47, "fullName");
 			}
 			if (rf & 2) {
 				i0.ɵɵadvance(20);
 				i0.ɵɵtextInterpolate1("Hello, ", ctx.title(), "");
 				i0.ɵɵadvance(4);
-				i0.ɵɵtextInterpolate1("hello ", i0.ɵɵpipeBind2(46, 3, ctx.name, ctx.surname), "");
+				i0.ɵɵtextInterpolate1("hello ", i0.ɵɵpipeBind2(47, 3, ctx.name, ctx.surname), "");
 				i0.ɵɵadvance(4);
 				i0.ɵɵrepeater(i0.ɵɵpureFunction6(12, _c6, i0.ɵɵpureFunction0(6, _c0), i0.ɵɵpureFunction0(7, _c1), i0.ɵɵpureFunction0(8, _c2), i0.ɵɵpureFunction0(9, _c3), i0.ɵɵpureFunction0(10, _c4), i0.ɵɵpureFunction0(11, _c5)));
-				i0.ɵɵadvance(17);
+				i0.ɵɵadvance(18);
 				i0.ɵɵproperty("ngForOf", ctx.items());
 			}
 		},
@@ -461,7 +465,9 @@ export class App {
 		dependencies: [
 			RouterOutlet,
 			NgFor,
-			FullNamePipe
+			FullNamePipe,
+			NgForTest,
+			NgIfTest
 		]
 	});
 }
