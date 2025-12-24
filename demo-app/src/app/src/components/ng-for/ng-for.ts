@@ -9,5 +9,5 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NgForTest {
-  protected readonly items = ['item 1', 'item 2', 'item 3'];
+  protected readonly items = ['item 10', 'item 2', 'item 3'];
 }

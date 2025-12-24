@@ -1,10 +1,16 @@
 import * as i0 from "@angular/core";
+import { NgIf } from "@angular/common";
 import { Component } from "@angular/core";
 function NgIfTest_p_0_Template(rf, ctx) {
 	if (rf & 1) {
 		i0.ɵɵelementStart(0, "p");
-		i0.ɵɵtext(1, "ng-if-test works!");
+		i0.ɵɵtext(1);
 		i0.ɵɵelementEnd();
+	}
+	if (rf & 2) {
+		const ctx_r0 = i0.ɵɵnextContext();
+		i0.ɵɵadvance();
+		i0.ɵɵtextInterpolate1("show value: ", ctx_r0.isShow, "");
 	}
 }
 function NgIfTest_p_1_Template(rf, ctx) {
@@ -15,7 +21,7 @@ function NgIfTest_p_1_Template(rf, ctx) {
 	}
 }
 export class NgIfTest {
-	isShow = 1;
+	isShow = true;
 	static ɵfac = function NgIfTest_Factory(t) {
 		return new (t || NgIfTest)();
 	};
@@ -27,7 +33,7 @@ export class NgIfTest {
 		consts: [[4, "ngIf"]],
 		template: function NgIfTest_Template(rf, ctx) {
 			if (rf & 1) {
-				i0.ɵɵtemplate(0, NgIfTest_p_0_Template, 2, 0, "p", 0);
+				i0.ɵɵtemplate(0, NgIfTest_p_0_Template, 2, 1, "p", 0);
 				i0.ɵɵtemplate(1, NgIfTest_p_1_Template, 2, 0, "p", 0);
 				i0.ɵɵelementStart(2, "button");
 				i0.ɵɵtext(3, "Click me");
@@ -40,6 +46,7 @@ export class NgIfTest {
 			}
 		},
 		standalone: true,
-		styles: [""]
+		styles: [""],
+		dependencies: [NgIf]
 	});
 }

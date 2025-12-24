@@ -69,8 +69,9 @@ function App_div_46_Template(rf, ctx) {
 	}
 	if (rf & 2) {
 		const item_r4 = ctx.$implicit;
+		const i_r5 = ctx.index;
 		i0.ɵɵadvance();
-		i0.ɵɵtextInterpolate1("", item_r4.title, " 2");
+		i0.ɵɵtextInterpolate2("", item_r4.title, " ", i_r5, "");
 	}
 }
 export class App {
@@ -84,7 +85,7 @@ export class App {
 	title = signal("demo-app 5");
 	items = signal([
 		{
-			title: "Item 1",
+			title: "Item 9",
 			link: "https://example.com/item1"
 		},
 		{
@@ -107,7 +108,7 @@ export class App {
 	static ɵcmp = /* @__PURE__ */ i0.ɵɵdefineComponent({
 		type: App,
 		selectors: [["app-root"]],
-		decls: 48,
+		decls: 49,
 		vars: 19,
 		consts: [
 			[1, "main"],
@@ -432,14 +433,16 @@ export class App {
 				i0.ɵɵelementStart(44, "div", 32);
 				i0.ɵɵtext(45, "Test attributes");
 				i0.ɵɵelementEnd();
-				i0.ɵɵtemplate(46, App_div_46_Template, 2, 1, "div", 33);
-				i0.ɵɵpipe(47, "fullName");
+				i0.ɵɵtemplate(46, App_div_46_Template, 2, 2, "div", 33);
+				i0.ɵɵelementStart(47, "app-ng-if-test");
+				i0.ɵɵelementEnd();
+				i0.ɵɵpipe(48, "fullName");
 			}
 			if (rf & 2) {
 				i0.ɵɵadvance(20);
 				i0.ɵɵtextInterpolate1("Hello, ", ctx.title(), "");
 				i0.ɵɵadvance(4);
-				i0.ɵɵtextInterpolate1("hello ", i0.ɵɵpipeBind2(47, 3, ctx.name, ctx.surname), "");
+				i0.ɵɵtextInterpolate1("hello ", i0.ɵɵpipeBind2(48, 3, ctx.name, ctx.surname), "");
 				i0.ɵɵadvance(4);
 				i0.ɵɵrepeater(i0.ɵɵpureFunction6(12, _c6, i0.ɵɵpureFunction0(6, _c0), i0.ɵɵpureFunction0(7, _c1), i0.ɵɵpureFunction0(8, _c2), i0.ɵɵpureFunction0(9, _c3), i0.ɵɵpureFunction0(10, _c4), i0.ɵɵpureFunction0(11, _c5)));
 				i0.ɵɵadvance(18);

@@ -14,7 +14,7 @@ const { Compiler } = require(bindingPath);
 
 const compiler = new Compiler();
 
-// Esbuild plugin for Angular linker during pre-bundling
+// Esbuild plugin for Angular linker during pre-bundling (for regular Vite with esbuild)
 function angularLinkerEsbuildPlugin() {
   return {
     name: 'angular-linker-esbuild',
@@ -22,7 +22,7 @@ function angularLinkerEsbuildPlugin() {
       // Handle all .mjs and .js files in @angular packages
       // Broadened filter to handle absolute paths correctly across OSes
       build.onLoad({ filter: /@angular\/.*\.(mjs|js)$/ }, async (args) => {
-        console.log(`[Linker] Attempting to process: ${args.path}`);
+        // console.log(`[Linker] Attempting to process: ${args.path}`);
         const code = await fs.promises.readFile(args.path, 'utf8');
 
         // Check if file contains partial declarations
@@ -33,15 +33,60 @@ function angularLinkerEsbuildPlugin() {
         try {
           const result = compiler.linkFile(args.path, code);
           if (result.startsWith('/* Linker Error')) {
-            console.error(`[Pre-bundle Linker Error] ${args.path}:\n${result}`);
+            // console.error(`[Pre-bundle Linker Error] ${args.path}:\n${result}`);
             return { contents: code, loader: 'js' };
           }
           return { contents: result, loader: 'js' };
         } catch (e) {
-          console.error(`[Pre-bundle Linker Failed] ${args.path}:`, e);
+          // console.error(`[Pre-bundle Linker Failed] ${args.path}:`, e);
           return { contents: code, loader: 'js' };
         }
       });
+    },
+  };
+}
+
+// Rollup/Rolldown-compatible plugin for Angular linker during pre-bundling
+function angularLinkerRolldownPlugin() {
+  return {
+    name: 'angular-linker-rolldown',
+    async transform(code, id) {
+      // Debug: Log all processed files to understand what's being transformed
+      if (id.includes('angular')) {
+        console.log(`[Linker Debug] Checking: ${id}`);
+      }
+
+      // Only process @angular packages with .mjs or .js extensions
+      // Use more flexible matching for different path formats
+      const isAngularPackage = id.includes('@angular') || id.includes('/@angular/');
+      const isNodeModules = id.includes('node_modules');
+      // Strip query string before checking extension
+      const cleanId = id.split('?')[0];
+      const isJsFile = cleanId.endsWith('.mjs') || cleanId.endsWith('.js');
+
+      if (!isAngularPackage || !isNodeModules || !isJsFile) {
+        return null;
+      }
+
+      // Check if file contains partial declarations
+      if (!code.includes('ɵɵngDeclare')) {
+        return null;
+      }
+
+      console.log(`[Rust Linker] Linking: ${cleanId}`);
+
+      try {
+        const result = compiler.linkFile(cleanId, code);
+
+        if (result.startsWith('/* Linker Error')) {
+          console.error(`[Rolldown Linker Error] ${id}:\n${result}`);
+          return null;
+        }
+        return { code: result, map: null };
+      } catch (e) {
+        console.error(`[Rolldown Linker Failed] ${id}:`, e);
+        return null;
+      }
     },
   };
 }
@@ -126,7 +171,7 @@ function rustNgcPlugin() {
 }
 
 export default defineConfig({
-  plugins: [rustNgcPlugin()],
+  plugins: [angularLinkerRolldownPlugin(), rustNgcPlugin()],
   resolve: {
     extensions: ['.ts', '.js', '.json'],
   },
@@ -134,20 +179,15 @@ export default defineConfig({
     port: 4300,
   },
   optimizeDeps: {
-    // Include Angular packages in pre-bundling
-    include: [
+    // Exclude Angular packages from pre-bundling so linker plugin can process them
+    exclude: [
       '@angular/core',
       '@angular/common',
       '@angular/platform-browser',
       '@angular/router',
-      'zone.js',
-      'rxjs',
-      'rxjs/operators',
+      '@angular/forms',
     ],
-    // Use esbuild plugin to run linker during pre-bundling
-    esbuildOptions: {
-      plugins: [angularLinkerEsbuildPlugin()],
-    },
+    // Still include zone.js and rxjs which don't need linking
+    include: ['zone.js', 'rxjs', 'rxjs/operators'],
   },
-  esbuild: false, // We handle TS compilation
 });
