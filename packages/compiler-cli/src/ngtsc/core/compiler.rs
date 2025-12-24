@@ -481,8 +481,9 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                         
                         // Add signature line for main.ts
                         if file_path.ends_with("main.ts") {
-                            js_output.push_str("\nconsole.log('Angular Rust compiler powered by Truonglv4');\n");
+                            js_output.push_str("\nconsole.log('%cAngular Rust compiler powered by Truonglv4', 'color: #00ff00; font-weight: bold;');\n");
                         }
+
                         
                         let out_path_abs = AbsoluteFsPath::from(out_path.as_path());
 
