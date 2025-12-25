@@ -32,7 +32,7 @@ function testCase({
       fail('Expected babel to return a transform result.');
     } else {
       expect(await format(result.code, { parser: 'babel' })).toEqual(
-        await format(expected === NO_CHANGE ? input : expected, { parser: 'babel' }),
+        await format(expected === NO_CHANGE ? input : expected, { parser: 'babel' })
       );
     }
   };
@@ -47,7 +47,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         SomeClass.ctorParameters = function () { return []; };
       `,
       expected: 'export class SomeClass {}',
-    }),
+    })
   );
 
   it(
@@ -58,7 +58,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         SomeClass.ctorParameters = function () { return [{type: Injector}]; };
       `,
       expected: 'export class SomeClass {}',
-    }),
+    })
   );
 
   it(
@@ -69,7 +69,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         SomeClass.ctorParameters = () => [];
       `,
       expected: 'export class SomeClass {}',
-    }),
+    })
   );
 
   it(
@@ -80,7 +80,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         SomeClass.ctorParameters = () => [{type: Injector}];
       `,
       expected: 'export class SomeClass {}',
-    }),
+    })
   );
 
   it(
@@ -97,7 +97,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return SomeClass;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -108,7 +108,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         SomeClass.decorators = [];
       `,
       expected: 'export class SomeClass {}',
-    }),
+    })
   );
 
   it(
@@ -119,7 +119,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         SomeClass.decorators = [{ type: Injectable }];
       `,
       expected: 'export class SomeClass {}',
-    }),
+    })
   );
 
   it(
@@ -136,7 +136,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return SomeClass;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -147,7 +147,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         SomeClass.propDecorators = {};
       `,
       expected: 'export class SomeClass {}',
-    }),
+    })
   );
 
   it(
@@ -158,7 +158,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         SomeClass.propDecorators = { 'ngIf': [{ type: Input }] };
       `,
       expected: 'export class SomeClass {}',
-    }),
+    })
   );
 
   it(
@@ -175,7 +175,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return SomeClass;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -200,7 +200,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         }
         export { CustomComponentEffects as default };
       `,
-    }),
+    })
   );
 
   it(
@@ -216,7 +216,7 @@ describe('adjust-static-class-members Babel plugin', () => {
       CustomComponentEffects.someFieldWithSideEffects = console.log('foo');
     `,
       expected: NO_CHANGE,
-    }),
+    })
   );
 
   it(
@@ -232,7 +232,7 @@ describe('adjust-static-class-members Babel plugin', () => {
       CustomComponentEffects.someFieldWithSideEffects = console.log('foo');
     `,
       expected: NO_CHANGE,
-    }),
+    })
   );
 
   it(
@@ -248,7 +248,7 @@ describe('adjust-static-class-members Babel plugin', () => {
       }
     `,
       expected: NO_CHANGE,
-    }),
+    })
   );
 
   it(
@@ -264,7 +264,7 @@ describe('adjust-static-class-members Babel plugin', () => {
       }
     `,
       expected: NO_CHANGE,
-    }),
+    })
   );
 
   it(
@@ -291,7 +291,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return CustomComponentEffects;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -318,7 +318,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return CustomComponentEffects;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -345,7 +345,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return CustomComponentEffects;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -373,7 +373,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return CustomComponentEffects;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -401,7 +401,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return CustomComponentEffects;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -428,7 +428,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return CustomComponentEffects;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -455,7 +455,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return CustomComponentEffects;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -482,7 +482,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return CustomComponentEffects;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -503,7 +503,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return TemplateRef;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -526,7 +526,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return TemplateRef;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -543,7 +543,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         CustomComponentEffects.someFieldWithSideEffects = console.log('foo');
       `,
       expected: NO_CHANGE,
-    }),
+    })
   );
 
   it(
@@ -560,7 +560,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         CustomComponentEffects.someFieldWithSideEffects = console.log('foo');
       `,
       expected: NO_CHANGE,
-    }),
+    })
   );
 
   it(
@@ -577,7 +577,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         }
       `,
       expected: NO_CHANGE,
-    }),
+    })
   );
 
   it(
@@ -592,7 +592,7 @@ describe('adjust-static-class-members Babel plugin', () => {
       `,
       expected: NO_CHANGE,
       options: { wrapDecorators: false },
-    }),
+    })
   );
 
   it(
@@ -619,7 +619,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         return Comp2Component;
       })();
     `,
-    }),
+    })
   );
 
   it(
@@ -644,7 +644,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         })();
       `,
       options: { wrapDecorators: true },
-    }),
+    })
   );
 
   it(
@@ -668,7 +668,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         })();
       `,
       options: { wrapDecorators: true },
-    }),
+    })
   );
 
   it(
@@ -684,7 +684,7 @@ describe('adjust-static-class-members Babel plugin', () => {
       `,
       expected: NO_CHANGE,
       options: { wrapDecorators: false },
-    }),
+    })
   );
 
   it(
@@ -710,7 +710,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         })();
       `,
       options: { wrapDecorators: true },
-    }),
+    })
   );
 
   it(
@@ -728,7 +728,7 @@ describe('adjust-static-class-members Babel plugin', () => {
       `,
       expected: NO_CHANGE,
       options: { wrapDecorators: false },
-    }),
+    })
   );
 
   it(
@@ -758,7 +758,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         })();
       `,
       options: { wrapDecorators: true },
-    }),
+    })
   );
 
   it(
@@ -777,7 +777,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return CommonModule;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -806,7 +806,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return CommonModule;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -818,7 +818,7 @@ describe('adjust-static-class-members Babel plugin', () => {
         }
       `,
       expected: NO_CHANGE,
-    }),
+    })
   );
 
   it(
@@ -837,7 +837,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return CommonModule;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -863,7 +863,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return CommonModule;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -893,7 +893,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return CommonModule;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -929,7 +929,7 @@ describe('adjust-static-class-members Babel plugin', () => {
           return CommonModule;
         })();
       `,
-    }),
+    })
   );
 
   it(
@@ -957,6 +957,6 @@ describe('adjust-static-class-members Babel plugin', () => {
         })();
         export { CustomComponentEffects as default };
       `,
-    }),
+    })
   );
 });

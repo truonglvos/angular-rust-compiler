@@ -31,7 +31,7 @@ export const JIT_TEMPLATE_NAMESPACE = `${JIT_BASE_NAMESPACE}:template` as const;
  * The {@link parseJitUri} function can be used to parse and return an object representation of a JIT URI.
  */
 export const JIT_NAMESPACE_REGEXP = new RegExp(
-  `^${JIT_BASE_NAMESPACE}:(template|style):(file|inline);(.*)$`,
+  `^${JIT_BASE_NAMESPACE}:(template|style):(file|inline);(.*)$`
 );
 
 /**

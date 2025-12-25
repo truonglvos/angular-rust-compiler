@@ -29,11 +29,11 @@ interface ServerBundleExports {
 }
 
 export function loadEsmModuleFromMemory(
-  path: './main.server.mjs',
+  path: './main.server.mjs'
 ): Promise<MainServerBundleExports>;
 export function loadEsmModuleFromMemory(path: './server.mjs'): Promise<ServerBundleExports>;
 export function loadEsmModuleFromMemory(
-  path: './main.server.mjs' | './server.mjs',
+  path: './main.server.mjs' | './server.mjs'
 ): Promise<MainServerBundleExports | ServerBundleExports> {
   return loadEsmModule(new URL(path, 'memory://')).catch((e) => {
     assertIsError(e);

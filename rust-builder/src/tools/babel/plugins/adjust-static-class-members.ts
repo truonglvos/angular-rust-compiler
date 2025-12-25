@@ -36,13 +36,13 @@ const angularStaticsToWrap = new Set([
  * JIT related static fields.
  */
 const angularStaticsToElide: Record<string, (path: NodePath<types.Expression>) => boolean> = {
-  'ctorParameters'(path) {
+  ctorParameters(path) {
     return path.isFunctionExpression() || path.isArrowFunctionExpression();
   },
-  'decorators'(path) {
+  decorators(path) {
     return path.isArrayExpression();
   },
-  'propDecorators'(path) {
+  propDecorators(path) {
     return path.isObjectExpression();
   },
 };
@@ -78,7 +78,7 @@ function canWrapProperty(propertyName: string, assignmentValue: NodePath): boole
       ({ value }) =>
         value.includes('@__PURE__') ||
         value.includes('#__PURE__') ||
-        value.includes('@pureOrBreakMyCode'),
+        value.includes('@pureOrBreakMyCode')
     )
   ) {
     return true;
@@ -100,7 +100,7 @@ function canWrapProperty(propertyName: string, assignmentValue: NodePath): boole
 function analyzeClassSiblings(
   origin: NodePath,
   classIdentifier: types.Identifier,
-  allowWrappingDecorators: boolean,
+  allowWrappingDecorators: boolean
 ): { hasPotentialSideEffects: boolean; wrapStatementPaths: NodePath<types.Statement>[] } {
   const wrapStatementPaths: NodePath<types.Statement>[] = [];
   let hasPotentialSideEffects = false;
@@ -266,11 +266,11 @@ export default function (): PluginObj {
             classNode,
             ...wrapStatementNodes,
             types.returnStatement(types.cloneNode(classNode.id)),
-          ]),
+          ])
         );
         const replacementInitializer = types.callExpression(
           types.parenthesizedExpression(container),
-          [],
+          []
         );
         annotateAsPure(replacementInitializer);
 
@@ -300,7 +300,7 @@ export default function (): PluginObj {
         const { wrapStatementPaths, hasPotentialSideEffects } = analyzeClassSiblings(
           origin,
           parentPath.node.id,
-          wrapDecorators,
+          wrapDecorators
         );
 
         visitedClasses.add(classNode);
@@ -328,11 +328,11 @@ export default function (): PluginObj {
             ]),
             ...wrapStatementNodes,
             types.returnStatement(types.cloneNode(parentPath.node.id)),
-          ]),
+          ])
         );
         const replacementInitializer = types.callExpression(
           types.parenthesizedExpression(container),
-          [],
+          []
         );
 
         annotateAsPure(replacementInitializer);
@@ -352,7 +352,7 @@ export default function (): PluginObj {
  * wraps classes preemptively to allow for potential removal within the optimization stages.
  */
 function analyzeClassStaticProperties(
-  path: NodePath<types.ClassDeclaration | types.ClassExpression>,
+  path: NodePath<types.ClassDeclaration | types.ClassExpression>
 ): { shouldWrap: boolean } {
   let shouldWrap = false;
   for (const element of path.get('body').get('body')) {

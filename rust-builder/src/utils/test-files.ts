@@ -22,7 +22,7 @@ import { emitFilesToDisk } from '../tools/esbuild/utils';
  */
 export async function writeTestFiles(
   files: Record<string, ResultFile>,
-  testDir: string,
+  testDir: string
 ): Promise<void> {
   const directoryExists = new Set<string>();
   // Writes the test related output files to disk and ensures the containing directories are present

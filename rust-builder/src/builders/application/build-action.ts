@@ -59,7 +59,7 @@ export async function* runEsBuildBuildAction(
     colors?: boolean;
     jsonLogs?: boolean;
     incrementalResults?: boolean;
-  },
+  }
 ): AsyncIterable<Result> {
   const {
     watch,
@@ -132,7 +132,7 @@ export async function* runEsBuildBuildAction(
         watcher.add(
           packageWatchFiles
             .map((file) => path.join(workspaceRoot, file))
-            .filter((file) => existsSync(file)),
+            .filter((file) => existsSync(file))
         );
       }
 
@@ -206,7 +206,7 @@ export async function* runEsBuildBuildAction(
         result,
         outputOptions,
         changes,
-        incrementalResults && !hasInitialErrors ? rebuildState : undefined,
+        incrementalResults && !hasInitialErrors ? rebuildState : undefined
       )) {
         yield outputResult;
       }
@@ -235,7 +235,7 @@ function* emitOutputResults(
   }: ExecutionResult,
   outputOptions: NormalizedApplicationBuildOptions['outputOptions'],
   changes?: ChangedFiles,
-  rebuildState?: RebuildState,
+  rebuildState?: RebuildState
 ): Iterable<Result> {
   if (errors.length > 0) {
     yield {
@@ -383,7 +383,7 @@ function* emitOutputResults(
     ...Array.from(removedAssetFiles.values(), (file) => ({
       path: file,
       type: BuildOutputFileType.Browser,
-    })),
+    }))
   );
 
   yield incrementalResult;
@@ -399,7 +399,7 @@ function* emitOutputResults(
         removed: incrementalResult.removed.filter(({ path }) => isCssFilePath(path)),
         modified: incrementalResult.modified.filter(isCssFilePath),
         files: Object.fromEntries(
-          Object.entries(incrementalResult.files).filter(([path]) => isCssFilePath(path)),
+          Object.entries(incrementalResult.files).filter(([path]) => isCssFilePath(path))
         ),
       };
 

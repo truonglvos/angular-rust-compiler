@@ -62,7 +62,7 @@ export interface CompilerPluginOptions {
 export function createCompilerPlugin(
   pluginOptions: CompilerPluginOptions,
   compilationOrFactory: AngularCompilation | (() => Promise<AngularCompilation>),
-  stylesheetBundler: ComponentStylesheetBundler,
+  stylesheetBundler: ComponentStylesheetBundler
 ): Plugin {
   return {
     name: 'angular-compiler',
@@ -78,7 +78,7 @@ export function createCompilerPlugin(
         try {
           const { LmdbCacheStore } = await import('../lmdb-cache-store');
           cacheStore = new LmdbCacheStore(
-            path.join(pluginOptions.sourceFileCache.persistentCachePath, 'angular-compiler.db'),
+            path.join(pluginOptions.sourceFileCache.persistentCachePath, 'angular-compiler.db')
           );
         } catch (e) {
           setupWarnings.push({
@@ -102,7 +102,7 @@ export function createCompilerPlugin(
           jit: pluginOptions.jit || pluginOptions.includeTestMetadata,
         },
         maxWorkers,
-        cacheStore?.createCache('jstransformer'),
+        cacheStore?.createCache('jstransformer')
       );
 
       // Setup defines based on the values used by the Angular compiler-cli
@@ -207,7 +207,7 @@ export function createCompilerPlugin(
                       .update((order ?? 0).toString())
                       .update(className ?? '')
                       .digest('hex')
-                  : undefined,
+                  : undefined
               );
               // Adjust result source for inline styles.
               // There may be multiple inline styles with the same containing file and to ensure that the results
@@ -255,7 +255,7 @@ export function createCompilerPlugin(
                 workerResult.errors
                   .map((error) => error.location?.file)
                   .filter((file): file is string => !!file)
-                  .map((file) => path.join(build.initialOptions.absWorkingDir ?? '', file)),
+                  .map((file) => path.join(build.initialOptions.absWorkingDir ?? '', file))
               );
               additionalResults.set(fullWorkerPath, { errors: result.errors });
 
@@ -272,18 +272,18 @@ export function createCompilerPlugin(
             referencedFileTracker.add(
               containingFile,
               Object.keys(workerResult.metafile.inputs).map((input) =>
-                path.join(build.initialOptions.absWorkingDir ?? '', input),
-              ),
+                path.join(build.initialOptions.absWorkingDir ?? '', input)
+              )
             );
 
             // Return bundled worker file entry name to be used in the built output
             const workerCodeFile = workerResult.outputFiles.find((file) =>
-              /^worker-[A-Z0-9]{8}.[cm]?js$/.test(path.basename(file.path)),
+              /^worker-[A-Z0-9]{8}.[cm]?js$/.test(path.basename(file.path))
             );
             assert(workerCodeFile, 'Web Worker bundled code file should always be present.');
             const workerCodePath = path.relative(
               build.initialOptions.outdir ?? '',
-              workerCodeFile.path,
+              workerCodeFile.path
             );
 
             return workerCodePath.replaceAll('\\', '/');
@@ -302,8 +302,8 @@ export function createCompilerPlugin(
               setupWarnings,
               pluginOptions,
               preserveSymlinks,
-              build.initialOptions.conditions,
-            ),
+              build.initialOptions.conditions
+            )
           );
           shouldTsIgnoreJs = !initializationResult.compilerOptions.allowJs;
           // Isolated modules option ensures safe non-TypeScript transpilation.
@@ -317,7 +317,7 @@ export function createCompilerPlugin(
           if (initializationResult.templateUpdates) {
             // Propagate any template updates
             initializationResult.templateUpdates.forEach((value, key) =>
-              pluginOptions.templateUpdates?.set(key, value),
+              pluginOptions.templateUpdates?.set(key, value)
             );
           }
         } catch (error) {
@@ -352,7 +352,7 @@ export function createCompilerPlugin(
               stylesheetFile,
               externalId,
               result,
-              additionalResults,
+              additionalResults
             );
           }
         }
@@ -378,7 +378,7 @@ export function createCompilerPlugin(
         }
 
         const diagnostics = await compilation.diagnoseFiles(
-          useTypeChecking ? DiagnosticModes.All : DiagnosticModes.All & ~DiagnosticModes.Semantic,
+          useTypeChecking ? DiagnosticModes.All : DiagnosticModes.All & ~DiagnosticModes.Semantic
         );
         if (diagnostics.errors?.length) {
           (result.errors ??= []).push(...diagnostics.errors);
@@ -415,7 +415,7 @@ export function createCompilerPlugin(
 
       build.onLoad({ filter: /\.[cm]?[jt]sx?$/ }, async (args) => {
         const request = rewriteForBazel(
-          path.normalize(pluginOptions.fileReplacements?.[path.normalize(args.path)] ?? args.path),
+          path.normalize(pluginOptions.fileReplacements?.[path.normalize(args.path)] ?? args.path)
         );
         const isJS = /\.[cm]?js$/.test(request);
 
@@ -471,7 +471,7 @@ export function createCompilerPlugin(
             contents,
             true /* skipLinker */,
             sideEffects,
-            instrumentForCoverage,
+            instrumentForCoverage
           );
 
           // Store as the returned Uint8Array to allow caching the fully transformed code
@@ -515,7 +515,7 @@ export function createCompilerPlugin(
               const contents = await javascriptTransformer.transformFile(
                 request,
                 pluginOptions.jit,
-                sideEffects,
+                sideEffects
               );
 
               return {
@@ -525,9 +525,9 @@ export function createCompilerPlugin(
                 watchFiles: request !== args.path ? [request] : undefined,
               };
             },
-            true,
+            true
           );
-        }),
+        })
       );
 
       // Add a load handler if there are file replacement option entries for JSON files
@@ -542,7 +542,7 @@ export function createCompilerPlugin(
             if (replacement) {
               return {
                 contents: await import('node:fs/promises').then(({ readFile }) =>
-                  readFile(path.normalize(replacement)),
+                  readFile(path.normalize(replacement))
                 ),
                 loader: 'json' as const,
                 watchFiles: [replacement],
@@ -551,7 +551,7 @@ export function createCompilerPlugin(
 
             // If no replacement defined, let esbuild handle it directly
             return null;
-          }),
+          })
         );
       }
 
@@ -561,7 +561,7 @@ export function createCompilerPlugin(
           build,
           stylesheetBundler,
           additionalResults,
-          pluginOptions.loadResultCache,
+          pluginOptions.loadResultCache
         );
       }
 
@@ -622,7 +622,7 @@ async function bundleExternalStylesheet(
   additionalResults: Map<
     string,
     { outputFiles?: OutputFile[]; metafile?: Metafile; errors?: PartialMessage[] }
-  >,
+  >
 ) {
   const styleResult = await stylesheetBundler.bundleFile(stylesheetFile, externalId);
 
@@ -647,7 +647,7 @@ function createCompilerOptionsTransformer(
   setupWarnings: PartialMessage[] | undefined,
   pluginOptions: CompilerPluginOptions,
   preserveSymlinks: boolean | undefined,
-  customConditions: string[] | undefined,
+  customConditions: string[] | undefined
 ): Parameters<AngularCompilation['initialize']>[2] {
   return (compilerOptions) => {
     // target of 9 is ES2022 (using the number avoids an expensive import of typescript just for an enum)
@@ -692,7 +692,7 @@ function createCompilerOptionsTransformer(
       // Set the build info file location to the configured cache directory
       compilerOptions.tsBuildInfoFile = path.join(
         pluginOptions.sourceFileCache?.persistentCachePath,
-        '.tsbuildinfo',
+        '.tsbuildinfo'
       );
     } else {
       compilerOptions.incremental = false;
@@ -751,7 +751,7 @@ function createCompilerOptionsTransformer(
 function bundleWebWorker(
   build: PluginBuild,
   pluginOptions: CompilerPluginOptions,
-  workerFile: string,
+  workerFile: string
 ) {
   try {
     return build.esbuild.buildSync({
@@ -781,7 +781,7 @@ function createMissingFileDiagnostic(
   request: string,
   original: string,
   root: string,
-  angular: boolean,
+  angular: boolean
 ): PartialMessage {
   const relativeRequest = path.relative(root, request);
   const notes: PartialNote[] = [];

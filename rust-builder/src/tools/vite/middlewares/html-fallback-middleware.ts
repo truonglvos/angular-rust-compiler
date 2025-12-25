@@ -15,7 +15,7 @@ const ALLOWED_FALLBACK_METHODS = Object.freeze(['GET', 'HEAD']);
 export function angularHtmlFallbackMiddleware(
   req: Connect.IncomingMessage,
   _res: ServerResponse,
-  next: Connect.NextFunction,
+  next: Connect.NextFunction
 ): void {
   // Similar to how it is handled in vite
   // https://github.com/vitejs/vite/blob/main/packages/vite/src/node/server/middlewares/htmlFallback.ts#L15C19-L15C45
@@ -34,7 +34,7 @@ export function angularHtmlFallbackMiddleware(
     ) {
       // eslint-disable-next-line no-console
       console.warn(
-        `Request for HTML file "${req.url}" was received but no asset found. Asset may be missing from build.`,
+        `Request for HTML file "${req.url}" was received but no asset found. Asset may be missing from build.`
       );
     } else if (mimeType) {
       // No fallback for request of asset-like files

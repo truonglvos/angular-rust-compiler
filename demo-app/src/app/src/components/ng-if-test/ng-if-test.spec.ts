@@ -8,9 +8,8 @@ describe('NgIfTest', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [NgIfTest]
-    })
-    .compileComponents();
+      imports: [NgIfTest],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(NgIfTest);
     component = fixture.componentInstance;

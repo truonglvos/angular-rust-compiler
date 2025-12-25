@@ -105,7 +105,7 @@ export function getDepOptimizationConfig({
       loader,
       define: {
         ...define,
-        'ngServerMode': `${ssr}`,
+        ngServerMode: `${ssr}`,
       },
       resolveExtensions: ['.mjs', '.js', '.cjs'],
     },
@@ -133,7 +133,7 @@ export function updateExternalMetadata(
   result: { detail?: { externalMetadata?: ExternalResultMetadata } },
   externalMetadata: DevServerExternalResultMetadata,
   externalDependencies: string[] | undefined,
-  explicitPackagesOnly: boolean = false,
+  explicitPackagesOnly: boolean = false
 ): void {
   if (!result.detail?.['externalMetadata']) {
     return;
@@ -157,7 +157,7 @@ export function updateExternalMetadata(
   externalMetadata.explicitServer.push(
     ...explicitBrowserFiltered,
     ...externalDeps,
-    ...builtinModules,
+    ...builtinModules
   );
   externalMetadata.implicitServer.push(...implicitServerFiltered);
   externalMetadata.implicitBrowser.push(...implicitBrowserFiltered);

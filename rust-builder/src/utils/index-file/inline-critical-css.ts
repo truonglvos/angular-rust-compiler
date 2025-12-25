@@ -113,7 +113,7 @@ class BeastiesExtended extends BeastiesBase {
 
   constructor(
     private readonly optionsExtended: InlineCriticalCssProcessorOptions &
-      InlineCriticalCssProcessOptions,
+      InlineCriticalCssProcessOptions
   ) {
     super({
       logger: {
@@ -148,7 +148,7 @@ class BeastiesExtended extends BeastiesBase {
    */
   override async embedLinkedStylesheet(
     link: PartialHTMLElement,
-    document: PartialDocument,
+    document: PartialDocument
   ): Promise<unknown> {
     if (link.getAttribute('media') === 'print' && link.next?.name === 'noscript') {
       // Workaround for https://github.com/GoogleChromeLabs/critters/issues/64
@@ -219,7 +219,7 @@ class BeastiesExtended extends BeastiesBase {
   private conditionallyInsertCspLoadingScript(
     document: PartialDocument,
     nonce: string | null,
-    link: PartialHTMLElement,
+    link: PartialHTMLElement
   ): void {
     if (this.addedCspScriptsDocuments.has(document)) {
       return;
@@ -243,7 +243,7 @@ export class InlineCriticalCssProcessor {
 
   async process(
     html: string,
-    options: InlineCriticalCssProcessOptions,
+    options: InlineCriticalCssProcessOptions
   ): Promise<{ content: string; warnings: string[]; errors: string[] }> {
     const beasties = new BeastiesExtended({ ...this.options, ...options });
     const content = await beasties.process(html);

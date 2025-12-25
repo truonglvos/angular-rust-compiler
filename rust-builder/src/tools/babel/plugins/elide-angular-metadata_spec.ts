@@ -29,7 +29,7 @@ function testCase({
       fail('Expected babel to return a transform result.');
     } else {
       expect(await format(result.code, { parser: 'babel' })).toEqual(
-        await format(expected, { parser: 'babel' }),
+        await format(expected, { parser: 'babel' })
       );
     }
   };
@@ -56,7 +56,7 @@ describe('elide-angular-metadata Babel plugin', () => {
         export class SomeClass {}
         /*@__PURE__*/ (function () { void 0 })();
       `,
-    }),
+    })
   );
 
   it(
@@ -77,7 +77,7 @@ describe('elide-angular-metadata Babel plugin', () => {
         import { Component } from '@angular/core';
         export class SomeClass {}
         (function () { (typeof ngJitMode === "undefined" || ngJitMode) && void 0 })();`,
-    }),
+    })
   );
 
   it(
@@ -100,7 +100,7 @@ describe('elide-angular-metadata Babel plugin', () => {
         export class SomeClass {}
         /*@__PURE__*/ (() => { void 0 })();
       `,
-    }),
+    })
   );
 
   it(
@@ -128,7 +128,7 @@ describe('elide-angular-metadata Babel plugin', () => {
         export class SomeClass {}
         /*@__PURE__*/ (function () { void 0 })();
       `,
-    }),
+    })
   );
 
   it(
@@ -156,7 +156,7 @@ describe('elide-angular-metadata Babel plugin', () => {
         export class SomeClass {}
         (function () { (typeof ngJitMode === "undefined" || ngJitMode) && void 0 })();
       `,
-    }),
+    })
   );
 
   it(
@@ -184,7 +184,7 @@ describe('elide-angular-metadata Babel plugin', () => {
         export class SomeClass {}
         /*@__PURE__*/ (() => { void 0 })();
       `,
-    }),
+    })
   );
 
   it(
@@ -205,6 +205,6 @@ describe('elide-angular-metadata Babel plugin', () => {
           (typeof ngDevMode === "undefined" || ngDevMode) && void 0;
         })();
       `,
-    }),
+    })
   );
 });

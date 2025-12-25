@@ -62,14 +62,14 @@ export abstract class AngularCompilation {
         // Disable removing of comments as TS is quite aggressive with these and can
         // remove important annotations, such as /* @__PURE__ */ and comments like /* vite-ignore */.
         removeComments: false,
-      }),
+      })
     );
   }
 
   abstract initialize(
     tsconfig: string,
     hostOptions: AngularHostOptions,
-    compilerOptionsTransformer?: (compilerOptions: ng.CompilerOptions) => ng.CompilerOptions,
+    compilerOptionsTransformer?: (compilerOptions: ng.CompilerOptions) => ng.CompilerOptions
   ): Promise<{
     affectedFiles: ReadonlySet<ts.SourceFile>;
     compilerOptions: ng.CompilerOptions;
@@ -82,11 +82,11 @@ export abstract class AngularCompilation {
   abstract emitAffectedFiles(): Iterable<EmitFileResult> | Promise<Iterable<EmitFileResult>>;
 
   protected abstract collectDiagnostics(
-    modes: DiagnosticModes,
+    modes: DiagnosticModes
   ): Iterable<ts.Diagnostic> | Promise<Iterable<ts.Diagnostic>>;
 
   async diagnoseFiles(
-    modes = DiagnosticModes.All,
+    modes = DiagnosticModes.All
   ): Promise<{ errors?: PartialMessage[]; warnings?: PartialMessage[] }> {
     const result: { errors?: PartialMessage[]; warnings?: PartialMessage[] } = {};
 

@@ -6,8 +6,8 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import { getCompileCacheDir } from "node:module";
-import { Piscina } from "piscina";
+import { getCompileCacheDir } from 'node:module';
+import { Piscina } from 'piscina';
 
 export type WorkerPoolOptions = ConstructorParameters<typeof Piscina>[0];
 
@@ -19,7 +19,7 @@ export class WorkerPool extends Piscina {
       // Web containers do not support transferable objects with receiveOnMessagePort which
       // is used when the Atomics based wait loop is enable.
       // @ts-ignore - atomics option is available in Node.js 16+
-      atomics: process.versions.webcontainer ? "disabled" : "sync",
+      atomics: process.versions.webcontainer ? 'disabled' : 'sync',
       recordTiming: false,
       ...options,
     };
@@ -27,12 +27,10 @@ export class WorkerPool extends Piscina {
     // Enable compile code caching if enabled for the main process (only exists on Node.js v22.8+).
     // Skip if running inside Bazel via a RUNFILES environment variable check. The cache does not work
     // well with Bazel's hermeticity requirements.
-    const compileCacheDirectory = process.env["RUNFILES"]
-      ? undefined
-      : getCompileCacheDir?.();
+    const compileCacheDirectory = process.env['RUNFILES'] ? undefined : getCompileCacheDir?.();
     if (compileCacheDirectory) {
-      if (typeof piscinaOptions.env === "object") {
-        piscinaOptions.env["NODE_COMPILE_CACHE"] = compileCacheDirectory;
+      if (typeof piscinaOptions.env === 'object') {
+        piscinaOptions.env['NODE_COMPILE_CACHE'] = compileCacheDirectory;
       } else {
         // Default behavior of `env` option is to copy current process values
         piscinaOptions.env = {

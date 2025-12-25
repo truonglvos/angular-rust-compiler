@@ -6,10 +6,9 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import type {
-  Config,
-  Filesystem,
-} from '@angular/service-worker/config' with { 'resolution-mode': 'import' };
+import type { Config, Filesystem } from '@angular/service-worker/config' with {
+  'resolution-mode': 'import',
+};
 import * as crypto from 'node:crypto';
 import { existsSync, promises as fsPromises } from 'node:fs';
 import * as path from 'node:path';
@@ -21,7 +20,7 @@ import { toPosixPath } from './path';
 class CliFilesystem implements Filesystem {
   constructor(
     private fs: typeof fsPromises,
-    private base: string,
+    private base: string
   ) {}
 
   list(dir: string): Promise<string[]> {
@@ -74,7 +73,7 @@ class ResultFilesystem implements Filesystem {
 
   constructor(
     outputFiles: BuildOutputFile[],
-    assetFiles: { source: string; destination: string }[],
+    assetFiles: { source: string; destination: string }[]
   ) {
     for (const file of outputFiles) {
       if (file.type === BuildOutputFileType.Media || file.type === BuildOutputFileType.Browser) {
@@ -83,7 +82,7 @@ class ResultFilesystem implements Filesystem {
     }
     for (const file of assetFiles) {
       this.fileReaders.set('/' + toPosixPath(file.destination), () =>
-        fsPromises.readFile(file.source),
+        fsPromises.readFile(file.source)
       );
     }
   }
@@ -130,7 +129,7 @@ export async function augmentAppWithServiceWorker(
   baseHref: string,
   ngswConfigPath?: string,
   inputFileSystem = fsPromises,
-  outputFileSystem = fsPromises,
+  outputFileSystem = fsPromises
 ): Promise<void> {
   // Determine the configuration file path
   const configPath = ngswConfigPath
@@ -148,7 +147,7 @@ export async function augmentAppWithServiceWorker(
       throw new Error(
         'Error: Expected to find an ngsw-config.json configuration file' +
           ` in the ${appRoot} folder. Either provide one or` +
-          ' disable Service Worker in the angular.json configuration file.',
+          ' disable Service Worker in the angular.json configuration file.'
       );
     } else {
       throw error;
@@ -158,7 +157,7 @@ export async function augmentAppWithServiceWorker(
   const result = await augmentAppWithServiceWorkerCore(
     config,
     new CliFilesystem(outputFileSystem, outputPath),
-    baseHref,
+    baseHref
   );
 
   const copy = async (src: string, dest: string): Promise<void> => {
@@ -181,7 +180,7 @@ export async function augmentAppWithServiceWorkerEsbuild(
   baseHref: string,
   indexHtml: string | undefined,
   outputFiles: BuildOutputFile[],
-  assetFiles: BuildOutputAsset[],
+  assetFiles: BuildOutputAsset[]
 ): Promise<{ manifest: string; assetFiles: BuildOutputAsset[] }> {
   // Read the configuration file
   let config: Config | undefined;
@@ -198,7 +197,7 @@ export async function augmentAppWithServiceWorkerEsbuild(
       // TODO: Generate an error object that can be consumed by the esbuild-based builder
       const message = `Service worker configuration file "${path.relative(
         workspaceRoot,
-        configPath,
+        configPath
       )}" could not be found.`;
       throw new Error(message);
     } else {
@@ -209,14 +208,14 @@ export async function augmentAppWithServiceWorkerEsbuild(
   return augmentAppWithServiceWorkerCore(
     config,
     new ResultFilesystem(outputFiles, assetFiles),
-    baseHref,
+    baseHref
   );
 }
 
 export async function augmentAppWithServiceWorkerCore(
   config: Config,
   serviceWorkerFilesystem: Filesystem,
-  baseHref: string,
+  baseHref: string
 ): Promise<{ manifest: string; assetFiles: { source: string; destination: string }[] }> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { Generator } = (await import('@angular/service-worker/config' as any)) as typeof import(

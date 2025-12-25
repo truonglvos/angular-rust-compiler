@@ -22,7 +22,7 @@ class JitCompilationState {
     public readonly typeScriptProgram: ts.EmitAndSemanticDiagnosticsBuilderProgram,
     public readonly constructorParametersDownlevelTransform: ts.TransformerFactory<ts.SourceFile>,
     public readonly replaceResourcesTransform: ts.TransformerFactory<ts.SourceFile>,
-    public readonly webWorkerTransform: ts.TransformerFactory<ts.SourceFile>,
+    public readonly webWorkerTransform: ts.TransformerFactory<ts.SourceFile>
   ) {}
 }
 
@@ -36,16 +36,15 @@ export class JitCompilation extends AngularCompilation {
   async initialize(
     tsconfig: string,
     hostOptions: AngularHostOptions,
-    compilerOptionsTransformer?: (compilerOptions: ng.CompilerOptions) => ng.CompilerOptions,
+    compilerOptionsTransformer?: (compilerOptions: ng.CompilerOptions) => ng.CompilerOptions
   ): Promise<{
     affectedFiles: ReadonlySet<ts.SourceFile>;
     compilerOptions: ng.CompilerOptions;
     referencedFiles: readonly string[];
   }> {
     // Dynamically load the Angular compiler CLI package
-    const { constructorParametersDownlevelTransform } = await import(
-      '@angular/compiler-cli/private/tooling'
-    );
+    const { constructorParametersDownlevelTransform } =
+      await import('@angular/compiler-cli/private/tooling');
 
     // Load the compiler configuration and transform as needed
     const {
@@ -66,12 +65,12 @@ export class JitCompilation extends AngularCompilation {
         compilerOptions,
         host,
         this.#state?.typeScriptProgram ?? ts.readBuilderProgram(compilerOptions, host),
-        configurationDiagnostics,
-      ),
+        configurationDiagnostics
+      )
     );
 
     const affectedFiles = profileSync('TS_FIND_AFFECTED', () =>
-      findAffectedFiles(typeScriptProgram),
+      findAffectedFiles(typeScriptProgram)
     );
 
     this.#state = new JitCompilationState(
@@ -79,7 +78,7 @@ export class JitCompilation extends AngularCompilation {
       typeScriptProgram,
       constructorParametersDownlevelTransform(typeScriptProgram.getProgram()),
       createJitResourceTransformer(() => typeScriptProgram.getProgram().getTypeChecker()),
-      createWorkerTransformer(hostOptions.processWebWorker.bind(hostOptions)),
+      createWorkerTransformer(hostOptions.processWebWorker.bind(hostOptions))
     );
 
     const referencedFiles = typeScriptProgram
@@ -101,12 +100,12 @@ export class JitCompilation extends AngularCompilation {
     if (modes & DiagnosticModes.Syntactic) {
       yield* typeScriptProgram.getGlobalDiagnostics();
       yield* profileSync('NG_DIAGNOSTICS_SYNTACTIC', () =>
-        typeScriptProgram.getSyntacticDiagnostics(),
+        typeScriptProgram.getSyntacticDiagnostics()
       );
     }
     if (modes & DiagnosticModes.Semantic) {
       yield* profileSync('NG_DIAGNOSTICS_SEMANTIC', () =>
-        typeScriptProgram.getSemanticDiagnostics(),
+        typeScriptProgram.getSemanticDiagnostics()
       );
     }
   }
@@ -160,7 +159,7 @@ export class JitCompilation extends AngularCompilation {
 }
 
 function findAffectedFiles(
-  builder: ts.EmitAndSemanticDiagnosticsBuilderProgram,
+  builder: ts.EmitAndSemanticDiagnosticsBuilderProgram
 ): Set<ts.SourceFile> {
   const affectedFiles = new Set<ts.SourceFile>();
 

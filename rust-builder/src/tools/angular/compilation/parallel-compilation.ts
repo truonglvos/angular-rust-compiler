@@ -28,7 +28,7 @@ export class ParallelCompilation extends AngularCompilation {
 
   constructor(
     private readonly jit: boolean,
-    private readonly browserOnlyBuild: boolean,
+    private readonly browserOnlyBuild: boolean
   ) {
     super();
 
@@ -45,7 +45,7 @@ export class ParallelCompilation extends AngularCompilation {
   override initialize(
     tsconfig: string,
     hostOptions: AngularHostOptions,
-    compilerOptionsTransformer?: (compilerOptions: CompilerOptions) => CompilerOptions,
+    compilerOptionsTransformer?: (compilerOptions: CompilerOptions) => CompilerOptions
   ): Promise<{
     affectedFiles: ReadonlySet<SourceFile>;
     compilerOptions: CompilerOptions;
@@ -61,7 +61,7 @@ export class ParallelCompilation extends AngularCompilation {
           .transformStylesheet(data, containingFile, stylesheetFile, order, className)
           .then((value) => stylesheetChannel.port1.postMessage({ requestId, value }))
           .catch((error) => stylesheetChannel.port1.postMessage({ requestId, error }));
-      },
+      }
     );
 
     // The web worker processing is a synchronous operation and uses shared memory combined with
@@ -112,7 +112,7 @@ export class ParallelCompilation extends AngularCompilation {
       {
         name: 'initialize',
         transferList: [stylesheetChannel.port2, optionsChannel.port2, webWorkerChannel.port2],
-      },
+      }
     );
   }
 
@@ -125,7 +125,7 @@ export class ParallelCompilation extends AngularCompilation {
   }
 
   override diagnoseFiles(
-    modes = DiagnosticModes.All,
+    modes = DiagnosticModes.All
   ): Promise<{ errors?: PartialMessage[]; warnings?: PartialMessage[] }> {
     return this.#worker.run(modes, { name: 'diagnose' });
   }

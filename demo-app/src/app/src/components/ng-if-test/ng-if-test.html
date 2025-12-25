@@ -102,11 +102,7 @@
     <h3>8. Error handling pattern</h3>
     <button (click)="simulateError()">Trigger Error</button>
     <button (click)="clearError()" *ngIf="errorMessage">Clear Error</button>
-    <div *ngIf="errorMessage" class="error-message">
-      ⚠️ {{ errorMessage }}
-    </div>
-    <div *ngIf="!errorMessage && !isLoading">
-      ✅ No errors
-    </div>
+    <div *ngIf="errorMessage" class="error-message">⚠️ {{ errorMessage }}</div>
+    <div *ngIf="!errorMessage && !isLoading">✅ No errors</div>
   </section>
 </div>

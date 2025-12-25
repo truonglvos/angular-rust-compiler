@@ -131,7 +131,7 @@ export function createWasmPlugin(options: WasmPluginOptions): Plugin {
           // Create initialization function
           initContents += generateInitHelper(
             !inlineWasm && build.initialOptions.platform !== 'node',
-            wasmContents,
+            wasmContents
           );
 
           // Analyze WASM for imports and exports
@@ -139,7 +139,7 @@ export function createWasmPlugin(options: WasmPluginOptions): Plugin {
           try {
             const wasm = await WebAssembly.compile(wasmContents);
             importModuleNames = new Set(
-              WebAssembly.Module.imports(wasm).map((value) => value.module),
+              WebAssembly.Module.imports(wasm).map((value) => value.module)
             );
             exportNames = WebAssembly.Module.exports(wasm).map((value) => value.name);
           } catch (error) {
@@ -152,7 +152,7 @@ export function createWasmPlugin(options: WasmPluginOptions): Plugin {
 
           // Ensure export names are valid JavaScript identifiers
           const invalidExportNames = exportNames.filter(
-            (name) => !ecmaIdentifierNameRegExp.test(name),
+            (name) => !ecmaIdentifierNameRegExp.test(name)
           );
           if (invalidExportNames.length > 0) {
             return {
@@ -192,7 +192,7 @@ export function createWasmPlugin(options: WasmPluginOptions): Plugin {
             pluginData: { wasmContents },
             watchFiles: [args.path],
           };
-        }),
+        })
       );
 
       build.onLoad({ filter: /\.wasm$/, namespace: WASM_CONTENTS_NAMESPACE }, async (args) => {
@@ -202,7 +202,7 @@ export function createWasmPlugin(options: WasmPluginOptions): Plugin {
         if (args.with.loader) {
           assert(
             args.with.loader === 'binary' || args.with.loader === 'file',
-            'WASM loader type should only be binary or file.',
+            'WASM loader type should only be binary or file.'
           );
           loader = args.with.loader;
         }

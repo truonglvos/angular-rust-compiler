@@ -29,7 +29,7 @@ const MAIN_SERVER_OUTPUT_FILENAME = 'main.server.mjs';
  */
 const UNSAFE_CHAR_MAP: Record<string, string> = {
   '`': '\\`',
-  '$': '\\$',
+  $: '\\$',
   '\\': '\\\\',
 };
 
@@ -58,7 +58,7 @@ function escapeUnsafeChars(str: string): string {
  */
 export function generateAngularServerAppEngineManifest(
   i18nOptions: NormalizedApplicationBuildOptions['i18nOptions'],
-  baseHref: string | undefined,
+  baseHref: string | undefined
 ): string {
   const entryPoints: Record<string, string> = {};
   const supportedLocales: Record<string, string> = {};
@@ -133,7 +133,7 @@ export function generateAngularServerAppManifest(
   baseHref: string,
   initialFiles: Set<string>,
   metafile: Metafile,
-  publicPath: string | undefined,
+  publicPath: string | undefined
 ): {
   manifestContent: string;
   serverAssetsChunks: BuildOutputFile[];
@@ -151,8 +151,8 @@ export function generateAngularServerAppManifest(
         createOutputFile(
           jsChunkFilePath,
           `export default \`${escapedContent}\`;`,
-          BuildOutputFileType.ServerApplication,
-        ),
+          BuildOutputFileType.ServerApplication
+        )
       );
 
       // This is needed because JavaScript engines script parser convert `\r\n` to `\n` in template literals,
@@ -200,7 +200,7 @@ export default {
 function generateLazyLoadedFilesMappings(
   metafile: Metafile,
   initialFiles: Set<string>,
-  publicPath = '',
+  publicPath = ''
 ): Record<string, string[]> {
   const entryPointToBundles: Record<string, string[]> = {};
   for (const [fileName, { entryPoint, exports, imports }] of Object.entries(metafile.outputs)) {

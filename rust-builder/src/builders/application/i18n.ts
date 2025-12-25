@@ -33,7 +33,7 @@ export async function inlineI18n(
   metafile: Metafile,
   options: NormalizedApplicationBuildOptions,
   executionResult: ExecutionResult,
-  initialFiles: Map<string, InitialFileRecord>,
+  initialFiles: Map<string, InitialFileRecord>
 ): Promise<{
   errors: string[];
   warnings: string[];
@@ -49,7 +49,7 @@ export async function inlineI18n(
       shouldOptimize: optimizationOptions.scripts,
       persistentCachePath: cacheOptions.enabled ? cacheOptions.path : undefined,
     },
-    maxWorkers,
+    maxWorkers
   );
 
   const inlineResult: {
@@ -67,7 +67,7 @@ export async function inlineI18n(
   const updatedAssetFiles = [];
   // Root and SSR entry files are not modified.
   const unModifiedOutputFiles = executionResult.outputFiles.filter(
-    ({ type }) => type === BuildOutputFileType.Root || type === BuildOutputFileType.ServerRoot,
+    ({ type }) => type === BuildOutputFileType.Root || type === BuildOutputFileType.ServerRoot
   );
 
   try {
@@ -75,7 +75,7 @@ export async function inlineI18n(
       // A locale specific set of files is returned from the inliner.
       const localeInlineResult = await inliner.inlineForLocale(
         locale,
-        i18nOptions.locales[locale].translation,
+        i18nOptions.locales[locale].translation
       );
       const localeOutputFiles = localeInlineResult.outputFiles;
       inlineResult.errors.push(...localeInlineResult.errors);
@@ -96,7 +96,7 @@ export async function inlineI18n(
         [...unModifiedOutputFiles, ...localeOutputFiles],
         executionResult.assetFiles,
         initialFiles,
-        locale,
+        locale
       );
 
       localeOutputFiles.push(...additionalOutputFiles);
@@ -146,7 +146,7 @@ export async function inlineI18n(
     // with multiple locales and template HMR.
     if (i18nOptions.inlineLocales.size > 1) {
       inlineResult.warnings.push(
-        `Component HMR updates can only be inlined with a single locale. The first locale will be used.`,
+        `Component HMR updates can only be inlined with a single locale. The first locale will be used.`
       );
     }
     const firstLocale = [...i18nOptions.inlineLocales][0];
@@ -156,7 +156,7 @@ export async function inlineI18n(
         firstLocale,
         i18nOptions.locales[firstLocale].translation,
         content,
-        id,
+        id
       );
       executionResult.templateUpdates.set(id, templateUpdateResult.code);
       inlineResult.errors.push(...templateUpdateResult.errors);
@@ -174,7 +174,7 @@ export async function inlineI18n(
  */
 export async function loadActiveTranslations(
   context: BuilderContext,
-  i18n: NormalizedApplicationBuildOptions['i18nOptions'],
+  i18n: NormalizedApplicationBuildOptions['i18nOptions']
 ) {
   // Load locale data and translations (if present)
   let loader;
@@ -203,7 +203,7 @@ export async function loadActiveTranslations(
         },
       },
       undefined,
-      i18n.duplicateTranslationBehavior,
+      i18n.duplicateTranslationBehavior
     );
   }
 }

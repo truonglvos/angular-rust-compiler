@@ -11,12 +11,12 @@
     <h3>1. Text Input</h3>
     <div class="field">
       <label>Name:</label>
-      <input type="text" [(ngModel)]="name" placeholder="Enter name">
+      <input type="text" [(ngModel)]="name" placeholder="Enter name" />
       <p>Current value: {{ name }} ({{ nameLength }} characters)</p>
     </div>
     <div class="field">
       <label>Email:</label>
-      <input type="email" [(ngModel)]="email" placeholder="Enter email">
+      <input type="email" [(ngModel)]="email" placeholder="Enter email" />
       <p>Current value: {{ email }}</p>
     </div>
   </section>
@@ -26,7 +26,7 @@
     <h3>2. Number Input</h3>
     <div class="field">
       <label>Age:</label>
-      <input type="number" [(ngModel)]="age" min="0" max="120">
+      <input type="number" [(ngModel)]="age" min="0" max="120" />
       <p>Current value: {{ age }}</p>
     </div>
   </section>
@@ -60,14 +60,14 @@
     <h3>5. Checkboxes</h3>
     <div class="field">
       <label>
-        <input type="checkbox" [(ngModel)]="agreeTerms">
+        <input type="checkbox" [(ngModel)]="agreeTerms" />
         I agree to the terms and conditions
       </label>
       <p>Agreed: {{ agreeTerms }}</p>
     </div>
     <div class="field">
       <label>
-        <input type="checkbox" [(ngModel)]="receiveNewsletter">
+        <input type="checkbox" [(ngModel)]="receiveNewsletter" />
         Receive newsletter
       </label>
       <p>Subscribed: {{ receiveNewsletter }}</p>
@@ -78,15 +78,9 @@
   <section>
     <h3>6. Radio Buttons</h3>
     <div class="field">
-      <label>
-        <input type="radio" [(ngModel)]="gender" value="male"> Male
-      </label>
-      <label>
-        <input type="radio" [(ngModel)]="gender" value="female"> Female
-      </label>
-      <label>
-        <input type="radio" [(ngModel)]="gender" value="other"> Other
-      </label>
+      <label> <input type="radio" [(ngModel)]="gender" value="male" /> Male </label>
+      <label> <input type="radio" [(ngModel)]="gender" value="female" /> Female </label>
+      <label> <input type="radio" [(ngModel)]="gender" value="other" /> Other </label>
       <p>Selected: {{ gender }}</p>
     </div>
   </section>
@@ -96,12 +90,12 @@
     <h3>7. Range Slider</h3>
     <div class="field">
       <label>Volume: {{ volume }}% ({{ volumeLabel }})</label>
-      <input type="range" [(ngModel)]="volume" min="0" max="100">
+      <input type="range" [(ngModel)]="volume" min="0" max="100" />
       <div class="slider-preview" [style.width.%]="volume"></div>
     </div>
     <div class="field">
       <label>Brightness: {{ brightness }}%</label>
-      <input type="range" [(ngModel)]="brightness" min="0" max="100">
+      <input type="range" [(ngModel)]="brightness" min="0" max="100" />
       <div class="slider-preview brightness" [style.width.%]="brightness"></div>
     </div>
   </section>
@@ -111,12 +105,12 @@
     <h3>8. Date and Time</h3>
     <div class="field">
       <label>Date:</label>
-      <input type="date" [(ngModel)]="selectedDate">
+      <input type="date" [(ngModel)]="selectedDate" />
       <p>Selected: {{ selectedDate }}</p>
     </div>
     <div class="field">
       <label>Time:</label>
-      <input type="time" [(ngModel)]="selectedTime">
+      <input type="time" [(ngModel)]="selectedTime" />
       <p>Selected: {{ selectedTime }}</p>
     </div>
   </section>
@@ -126,7 +120,7 @@
     <h3>9. Color Picker</h3>
     <div class="field">
       <label>Favorite Color:</label>
-      <input type="color" [(ngModel)]="favoriteColor">
+      <input type="color" [(ngModel)]="favoriteColor" />
       <span [style.background-color]="favoriteColor" class="color-preview"></span>
       <p>Selected: {{ favoriteColor }}</p>
     </div>
@@ -135,20 +129,22 @@
   <!-- Form Summary -->
   <section class="summary">
     <h3>Form Summary</h3>
-    <pre>{{ {
-      name: name,
-      email: email,
-      age: age,
-      message: message,
-      country: selectedCountry,
-      agreeTerms: agreeTerms,
-      newsletter: receiveNewsletter,
-      gender: gender,
-      volume: volume,
-      brightness: brightness,
-      date: selectedDate,
-      time: selectedTime,
-      color: favoriteColor
-    } | json }}</pre>
+    <pre>{{
+      {
+        name: name,
+        email: email,
+        age: age,
+        message: message,
+        country: selectedCountry,
+        agreeTerms: agreeTerms,
+        newsletter: receiveNewsletter,
+        gender: gender,
+        volume: volume,
+        brightness: brightness,
+        date: selectedDate,
+        time: selectedTime,
+        color: favoriteColor,
+      } | json
+    }}</pre>
   </section>
 </div>

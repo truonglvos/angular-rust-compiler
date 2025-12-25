@@ -39,11 +39,11 @@ export interface BundleStylesheetOptions {
 export function createStylesheetBundleOptions(
   options: BundleStylesheetOptions,
   cache?: LoadResultCache,
-  inlineComponentData?: Record<string, string>,
+  inlineComponentData?: Record<string, string>
 ): BuildOptions & { plugins: NonNullable<BuildOptions['plugins']> } {
   // Ensure preprocessor include paths are absolute based on the workspace root
   const includePaths = options.includePaths?.map((includePath) =>
-    path.resolve(options.workspaceRoot, includePath),
+    path.resolve(options.workspaceRoot, includePath)
   );
 
   const pluginFactory = new StylesheetPluginFactory(
@@ -55,7 +55,7 @@ export function createStylesheetBundleOptions(
       postcssConfiguration: options.postcssConfiguration,
       sass: options.sass,
     },
-    cache,
+    cache
   );
 
   const plugins: Plugin[] = [

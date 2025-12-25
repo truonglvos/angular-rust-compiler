@@ -61,7 +61,7 @@ export function createAngularServerSideSSLPlugin(): Plugin {
           connect: {
             ca,
           },
-        }),
+        })
       );
 
       httpServer?.on('close', () => {

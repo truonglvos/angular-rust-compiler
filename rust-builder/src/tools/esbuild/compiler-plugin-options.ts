@@ -6,10 +6,10 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import { NormalizedApplicationBuildOptions } from "../../builders/application/options";
-import type { createCompilerPlugin } from "./angular/compiler-plugin";
-import type { SourceFileCache } from "./angular/source-file-cache";
-import type { LoadResultCache } from "./load-result-cache";
+import { NormalizedApplicationBuildOptions } from '../../builders/application/options';
+import type { createCompilerPlugin } from './angular/compiler-plugin';
+import type { SourceFileCache } from './angular/source-file-cache';
+import type { LoadResultCache } from './load-result-cache';
 
 type CreateCompilerPluginParameters = Parameters<typeof createCompilerPlugin>;
 
@@ -33,8 +33,7 @@ export function createCompilerPluginOptions(
 
   return {
     // @ts-ignore: sourcemap type mismatch
-    sourcemap:
-      sourcemapOptions.scripts && (sourcemapOptions.hidden ? "external" : true),
+    sourcemap: sourcemapOptions.scripts && (sourcemapOptions.hidden ? 'external' : true),
     thirdPartySourcemaps: sourcemapOptions.vendor,
     tsconfig,
     jit,

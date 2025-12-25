@@ -18,7 +18,7 @@ import { generateJitFileUri, generateJitInlineUri } from '../uri';
  * @returns A TypeScript transformer factory.
  */
 export function createJitResourceTransformer(
-  getTypeChecker: () => ts.TypeChecker,
+  getTypeChecker: () => ts.TypeChecker
 ): ts.TransformerFactory<ts.SourceFile> {
   return (context: ts.TransformationContext) => {
     const typeChecker = getTypeChecker();
@@ -37,14 +37,14 @@ export function createJitResourceTransformer(
           node,
           [
             ...decorators.map((current) =>
-              visitDecorator(nodeFactory, current, typeChecker, resourceImportDeclarations),
+              visitDecorator(nodeFactory, current, typeChecker, resourceImportDeclarations)
             ),
             ...(ts.getModifiers(node) ?? []),
           ],
           node.name,
           node.typeParameters,
           node.heritageClauses,
-          node.members,
+          node.members
         );
       }
 
@@ -60,15 +60,15 @@ export function createJitResourceTransformer(
           ts.setTextRange(
             nodeFactory.createNodeArray(
               [...resourceImportDeclarations, ...updatedSourceFile.statements],
-              updatedSourceFile.statements.hasTrailingComma,
+              updatedSourceFile.statements.hasTrailingComma
             ),
-            updatedSourceFile.statements,
+            updatedSourceFile.statements
           ),
           updatedSourceFile.isDeclarationFile,
           updatedSourceFile.referencedFiles,
           updatedSourceFile.typeReferenceDirectives,
           updatedSourceFile.hasNoDefaultLib,
-          updatedSourceFile.libReferenceDirectives,
+          updatedSourceFile.libReferenceDirectives
         );
       } else {
         return updatedSourceFile;
@@ -81,7 +81,7 @@ function visitDecorator(
   nodeFactory: ts.NodeFactory,
   node: ts.Decorator,
   typeChecker: ts.TypeChecker,
-  resourceImportDeclarations: ts.ImportDeclaration[],
+  resourceImportDeclarations: ts.ImportDeclaration[]
 ): ts.Decorator {
   const origin = getDecoratorOrigin(node, typeChecker);
   if (!origin || origin.module !== '@angular/core' || origin.name !== 'Component') {
@@ -106,14 +106,14 @@ function visitDecorator(
   let properties = ts.visitNodes(objectExpression.properties, (node) =>
     ts.isObjectLiteralElementLike(node)
       ? visitComponentMetadata(nodeFactory, node, styleReplacements, resourceImportDeclarations)
-      : node,
+      : node
   ) as ts.NodeArray<ts.ObjectLiteralElementLike>;
 
   // replace properties with updated properties
   if (styleReplacements.length > 0) {
     const styleProperty = nodeFactory.createPropertyAssignment(
       nodeFactory.createIdentifier('styles'),
-      nodeFactory.createArrayLiteralExpression(styleReplacements),
+      nodeFactory.createArrayLiteralExpression(styleReplacements)
     );
 
     properties = nodeFactory.createNodeArray([...properties, styleProperty]);
@@ -125,8 +125,8 @@ function visitDecorator(
       decoratorFactory,
       decoratorFactory.expression,
       decoratorFactory.typeArguments,
-      [nodeFactory.updateObjectLiteralExpression(objectExpression, properties)],
-    ),
+      [nodeFactory.updateObjectLiteralExpression(objectExpression, properties)]
+    )
   );
 }
 
@@ -134,7 +134,7 @@ function visitComponentMetadata(
   nodeFactory: ts.NodeFactory,
   node: ts.ObjectLiteralElementLike,
   styleReplacements: ts.Expression[],
-  resourceImportDeclarations: ts.ImportDeclaration[],
+  resourceImportDeclarations: ts.ImportDeclaration[]
 ): ts.ObjectLiteralElementLike | undefined {
   if (!ts.isPropertyAssignment(node) || ts.isComputedPropertyName(node.name)) {
     return node;
@@ -155,8 +155,8 @@ function visitComponentMetadata(
             createResourceImport(
               nodeFactory,
               generateJitFileUri(node.initializer.text, 'template'),
-              resourceImportDeclarations,
-            ),
+              resourceImportDeclarations
+            )
           );
     case 'styles':
       if (ts.isStringLiteralLike(node.initializer)) {
@@ -164,8 +164,8 @@ function visitComponentMetadata(
           createResourceImport(
             nodeFactory,
             generateJitInlineUri(node.initializer.text, 'style'),
-            resourceImportDeclarations,
-          ),
+            resourceImportDeclarations
+          )
         );
 
         return undefined;
@@ -182,7 +182,7 @@ function visitComponentMetadata(
             : createResourceImport(
                 nodeFactory,
                 generateJitInlineUri(node.text, 'style'),
-                resourceImportDeclarations,
+                resourceImportDeclarations
               );
         }) as ts.NodeArray<ts.Expression>;
 
@@ -201,8 +201,8 @@ function visitComponentMetadata(
           createResourceImport(
             nodeFactory,
             generateJitFileUri(node.initializer.text, 'style'),
-            resourceImportDeclarations,
-          ),
+            resourceImportDeclarations
+          )
         );
 
         return undefined;
@@ -224,7 +224,7 @@ function visitComponentMetadata(
           ? createResourceImport(
               nodeFactory,
               generateJitFileUri(node.text, 'style'),
-              resourceImportDeclarations,
+              resourceImportDeclarations
             )
           : undefined;
       }) as ts.NodeArray<ts.Expression>;
@@ -244,19 +244,19 @@ function visitComponentMetadata(
 function createResourceImport(
   nodeFactory: ts.NodeFactory,
   url: string,
-  resourceImportDeclarations: ts.ImportDeclaration[],
+  resourceImportDeclarations: ts.ImportDeclaration[]
 ): ts.Identifier {
   const urlLiteral = nodeFactory.createStringLiteral(url);
 
   const importName = nodeFactory.createIdentifier(
-    `__NG_CLI_RESOURCE__${resourceImportDeclarations.length}`,
+    `__NG_CLI_RESOURCE__${resourceImportDeclarations.length}`
   );
   resourceImportDeclarations.push(
     nodeFactory.createImportDeclaration(
       undefined,
       nodeFactory.createImportClause(undefined, importName, undefined),
-      urlLiteral,
-    ),
+      urlLiteral
+    )
   );
 
   return importName;
@@ -264,7 +264,7 @@ function createResourceImport(
 
 function getDecoratorOrigin(
   decorator: ts.Decorator,
-  typeChecker: ts.TypeChecker,
+  typeChecker: ts.TypeChecker
 ): { name: string; module: string } | null {
   if (!ts.isCallExpression(decorator.expression)) {
     return null;

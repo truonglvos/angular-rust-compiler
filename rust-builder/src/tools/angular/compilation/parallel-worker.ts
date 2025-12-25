@@ -60,7 +60,7 @@ export async function initialize(request: InitRequest) {
       transformStylesheet(data, containingFile, stylesheetFile, order, className) {
         const requestId = randomUUID();
         const resultPromise = new Promise<string>((resolve, reject) =>
-          stylesheetRequests.set(requestId, [resolve, reject]),
+          stylesheetRequests.set(requestId, [resolve, reject])
         );
 
         request.stylesheetPort.postMessage({
@@ -100,7 +100,7 @@ export async function initialize(request: InitRequest) {
       }
 
       return result?.transformedOptions ?? compilerOptions;
-    },
+    }
   );
 
   return {

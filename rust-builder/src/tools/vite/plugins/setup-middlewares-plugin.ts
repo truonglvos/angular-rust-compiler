@@ -70,7 +70,7 @@ async function createEncapsulateStyle(): Promise<
 }
 
 export function createAngularSetupMiddlewaresPlugin(
-  options: AngularSetupMiddlewaresPluginOptions,
+  options: AngularSetupMiddlewaresPluginOptions
 ): Plugin {
   return {
     name: 'vite:angular-setup-middlewares',
@@ -96,12 +96,12 @@ export function createAngularSetupMiddlewaresPlugin(
           assets,
           outputFiles,
           componentStyles,
-          await createEncapsulateStyle(),
-        ),
+          await createEncapsulateStyle()
+        )
       );
 
       server.middlewares.use(
-        createChromeDevtoolsMiddleware(server.config.cacheDir, options.projectRoot),
+        createChromeDevtoolsMiddleware(server.config.cacheDir, options.projectRoot)
       );
 
       extensionMiddleware?.forEach((middleware) => server.middlewares.use(middleware));
@@ -114,7 +114,7 @@ export function createAngularSetupMiddlewaresPlugin(
 
         if (ssrMode === ServerSsrMode.ExternalSsrMiddleware) {
           server.middlewares.use(
-            await createAngularSsrExternalMiddleware(server, indexHtmlTransformer),
+            await createAngularSsrExternalMiddleware(server, indexHtmlTransformer)
           );
 
           return;
@@ -130,8 +130,8 @@ export function createAngularSetupMiddlewaresPlugin(
             server,
             outputFiles,
             resetComponentUpdates,
-            indexHtmlTransformer,
-          ),
+            indexHtmlTransformer
+          )
         );
       };
     },

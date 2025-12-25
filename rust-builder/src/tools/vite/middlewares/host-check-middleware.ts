@@ -12,7 +12,7 @@ import type { Connect } from 'vite';
 export function patchHostValidationMiddleware(middlewares: Connect.Server): void {
   const entry = middlewares.stack.find(
     ({ handle }) =>
-      typeof handle === 'function' && handle.name.startsWith('hostValidationMiddleware'),
+      typeof handle === 'function' && handle.name.startsWith('hostValidationMiddleware')
   );
 
   if (typeof entry?.handle !== 'function') {
@@ -24,7 +24,7 @@ export function patchHostValidationMiddleware(middlewares: Connect.Server): void
   entry.handle = function angularHostValidationMiddleware(
     req: IncomingMessage,
     res: ServerResponse,
-    next: (err?: unknown) => void,
+    next: (err?: unknown) => void
   ) {
     originalHandle(
       req,
@@ -37,7 +37,7 @@ export function patchHostValidationMiddleware(middlewares: Connect.Server): void
           res.end(html403(hostname));
         },
       } as ServerResponse,
-      next,
+      next
     );
   };
 }

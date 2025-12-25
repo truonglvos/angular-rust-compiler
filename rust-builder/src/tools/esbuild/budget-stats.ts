@@ -26,7 +26,7 @@ import { getChunkNameFromMetafile } from './utils';
 export function generateBudgetStats(
   metafile: Metafile,
   outputFiles: BuildOutputFile[],
-  initialFiles: Map<string, InitialFileRecord>,
+  initialFiles: Map<string, InitialFileRecord>
 ): BudgetStats {
   const stats: Required<BudgetStats> = {
     chunks: [],

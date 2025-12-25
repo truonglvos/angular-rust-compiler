@@ -6,12 +6,12 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import assert from "node:assert";
-import { NormalizedApplicationBuildOptions } from "../../builders/application/options";
-import { toPosixPath } from "../../utils/path";
-import { BundlerOptionsFactory } from "./bundler-context";
-import { createStylesheetBundleOptions } from "./stylesheets/bundle-options";
-import { createVirtualModulePlugin } from "./virtual-module-plugin";
+import assert from 'node:assert';
+import { NormalizedApplicationBuildOptions } from '../../builders/application/options';
+import { toPosixPath } from '../../utils/path';
+import { BundlerOptionsFactory } from './bundler-context';
+import { createStylesheetBundleOptions } from './stylesheets/bundle-options';
+import { createVirtualModulePlugin } from './virtual-module-plugin';
 
 export function createGlobalStylesBundleOptions(
   options: NormalizedApplicationBuildOptions,
@@ -32,7 +32,7 @@ export function createGlobalStylesBundleOptions(
     cacheOptions,
   } = options;
 
-  const namespace = "angular:styles/global";
+  const namespace = 'angular:styles/global';
   const entryPoints: Record<string, string> = {};
   let found = false;
   for (const style of globalStyles) {
@@ -54,9 +54,7 @@ export function createGlobalStylesBundleOptions(
         optimization: !!optimizationOptions.styles.minify,
         inlineFonts: !!optimizationOptions.fonts.inline,
         // @ts-ignore: sourcemap type mismatch
-        sourcemap:
-          !!sourcemapOptions.styles &&
-          (sourcemapOptions.hidden ? "external" : true),
+        sourcemap: !!sourcemapOptions.styles && (sourcemapOptions.hidden ? 'external' : true),
         sourcesContent: sourcemapOptions.sourcesContent,
         preserveSymlinks,
         target,
@@ -65,7 +63,7 @@ export function createGlobalStylesBundleOptions(
           ? outputNames
           : {
               ...outputNames,
-              bundles: "[name]",
+              bundles: '[name]',
             },
         includePaths: stylePreprocessorOptions?.includePaths,
         // string[] | undefined' is not assignable to type '(Version | DeprecationOrId)[] | undefined'.
@@ -80,31 +78,23 @@ export function createGlobalStylesBundleOptions(
 
     // Keep special CSS comments `/*! comment */` in place when `removeSpecialComments` is disabled.
     // These comments are special for a number of CSS tools such as Beasties and PurgeCSS.
-    buildOptions.legalComments = optimizationOptions.styles
-      ?.removeSpecialComments
-      ? "none"
-      : "inline";
+    buildOptions.legalComments = optimizationOptions.styles?.removeSpecialComments
+      ? 'none'
+      : 'inline';
 
     buildOptions.entryPoints = entryPoints;
 
     buildOptions.plugins.unshift(
       createVirtualModulePlugin({
         namespace,
-        transformPath: (path) => path.split(";", 2)[1],
+        transformPath: (path) => path.split(';', 2)[1],
         loadContent: (args) => {
-          const files = globalStyles.find(
-            ({ name }) => name === args.path
-          )?.files;
-          assert(
-            files,
-            `global style name should always be found [${args.path}]`
-          );
+          const files = globalStyles.find(({ name }) => name === args.path)?.files;
+          assert(files, `global style name should always be found [${args.path}]`);
 
           return {
-            contents: files
-              .map((file) => `@import '${toPosixPath(file)}';`)
-              .join("\n"),
-            loader: "css",
+            contents: files.map((file) => `@import '${toPosixPath(file)}';`).join('\n'),
+            loader: 'css',
             resolveDir: workspaceRoot,
           };
         },

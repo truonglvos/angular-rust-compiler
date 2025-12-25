@@ -37,7 +37,7 @@ import { assertIsError } from '../../utils/error';
  */
 function rolldownToEsbuildMetafile(
   rolldownOutput: (OutputChunk | OutputAsset)[],
-  originalMetafile: Metafile,
+  originalMetafile: Metafile
 ): Metafile {
   const newMetafile: Metafile = {
     inputs: originalMetafile.inputs,
@@ -48,7 +48,7 @@ function rolldownToEsbuildMetafile(
   for (const [path, output] of Object.entries(originalMetafile.outputs)) {
     intermediateChunkSizes[path] = Object.values(output.inputs).reduce(
       (s, i) => s + i.bytesInOutput,
-      0,
+      0
     );
   }
 
@@ -80,7 +80,7 @@ function rolldownToEsbuildMetafile(
         }
 
         for (const [originalInputPath, originalInputInfo] of Object.entries(
-          originalOutputEntry.inputs,
+          originalOutputEntry.inputs
         )) {
           const proportion = originalInputInfo.bytesInOutput / totalOriginalBytesInModule;
           const newBytesInOutput = Math.floor(renderedModule.renderedLength * proportion);
@@ -170,7 +170,7 @@ function createChunkOptimizationFailureMessage(message: string): Message {
  */
 export async function optimizeChunks(
   original: BundleContextResult,
-  sourcemap: boolean | 'hidden',
+  sourcemap: boolean | 'hidden'
 ): Promise<BundleContextResult> {
   // Failed builds cannot be optimized
   if (original.errors) {
@@ -235,7 +235,7 @@ export async function optimizeChunks(
           load(id) {
             assert(
               chunks[id],
-              `Angular chunk content should always be present in chunk optimizer [${id}].`,
+              `Angular chunk content should always be present in chunk optimizer [${id}].`
             );
 
             usedChunks.add(id);
@@ -289,7 +289,7 @@ export async function optimizeChunks(
   original.outputFiles = original.outputFiles.filter(
     (file) =>
       !usedChunks.has(file.path) &&
-      !(file.path.endsWith('.map') && usedChunks.has(file.path.slice(0, -4))),
+      !(file.path.endsWith('.map') && usedChunks.has(file.path.slice(0, -4)))
   );
 
   // Add new optimized chunks
@@ -302,15 +302,15 @@ export async function optimizeChunks(
     importsPerFile[optimizedFile.fileName] = optimizedFile.imports;
 
     original.outputFiles.push(
-      createOutputFile(optimizedFile.fileName, optimizedFile.code, BuildOutputFileType.Browser),
+      createOutputFile(optimizedFile.fileName, optimizedFile.code, BuildOutputFileType.Browser)
     );
     if (optimizedFile.map && optimizedFile.sourcemapFileName) {
       original.outputFiles.push(
         createOutputFile(
           optimizedFile.sourcemapFileName,
           optimizedFile.map.toString(),
-          BuildOutputFileType.Browser,
-        ),
+          BuildOutputFileType.Browser
+        )
       );
     }
   }

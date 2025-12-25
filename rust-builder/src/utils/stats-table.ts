@@ -28,7 +28,7 @@ export function generateEsbuildBuildStatsTable(
   showTotalSize: boolean,
   showEstimatedTransferSize: boolean,
   budgetFailures?: BudgetCalculatorResult[],
-  verbose?: boolean,
+  verbose?: boolean
 ): string {
   const bundleInfo = generateBuildStatsData(
     browserStats,
@@ -36,7 +36,7 @@ export function generateEsbuildBuildStatsTable(
     showTotalSize,
     showEstimatedTransferSize,
     budgetFailures,
-    verbose,
+    verbose
   );
 
   if (serverStats.length) {
@@ -49,7 +49,7 @@ export function generateEsbuildBuildStatsTable(
 
     bundleInfo.push(
       [m('Server bundles')],
-      ...generateBuildStatsData(serverStats, colors, false, false, undefined, verbose),
+      ...generateBuildStatsData(serverStats, colors, false, false, undefined, verbose)
     );
   }
 
@@ -61,7 +61,7 @@ export function generateBuildStatsTable(
   colors: boolean,
   showTotalSize: boolean,
   showEstimatedTransferSize: boolean,
-  budgetFailures?: BudgetCalculatorResult[],
+  budgetFailures?: BudgetCalculatorResult[]
 ): string {
   const bundleInfo = generateBuildStatsData(
     data,
@@ -69,7 +69,7 @@ export function generateBuildStatsTable(
     showTotalSize,
     showEstimatedTransferSize,
     budgetFailures,
-    true,
+    true
   );
 
   return generateTableText(bundleInfo, colors);
@@ -81,7 +81,7 @@ function generateBuildStatsData(
   showTotalSize: boolean,
   showEstimatedTransferSize: boolean,
   budgetFailures?: BudgetCalculatorResult[],
-  verbose?: boolean,
+  verbose?: boolean
 ): (string | number)[][] {
   if (data.length === 0) {
     return [];
@@ -162,7 +162,7 @@ function generateBuildStatsData(
         c(
           typeof estimatedTransferSize === 'number'
             ? formatSize(estimatedTransferSize)
-            : estimatedTransferSize,
+            : estimatedTransferSize
         ),
       ];
     } else {
@@ -213,7 +213,7 @@ function generateBuildStatsData(
         totalSizeElements.push(
           typeof initialTotalEstimatedTransferSize === 'number'
             ? formatSize(initialTotalEstimatedTransferSize)
-            : '-',
+            : '-'
         );
       }
       bundleInfo.push([], totalSizeElements.map(bold));
@@ -233,7 +233,7 @@ function generateBuildStatsData(
       bundleInfo.push([
         dim(
           `...and ${changedLazyChunksCount - changedLazyChunksStats.length} more lazy chunks files. ` +
-            'Use "--verbose" to show all the files.',
+            'Use "--verbose" to show all the files.'
         ),
       ]);
     }

@@ -75,13 +75,13 @@ async function compileString(
   filePath: string,
   syntax: Syntax,
   options: StylesheetPluginOptions,
-  resolveUrl: (url: string, options: CanonicalizeContext) => Promise<ResolveResult>,
+  resolveUrl: (url: string, options: CanonicalizeContext) => Promise<ResolveResult>
 ): Promise<OnLoadResult> {
   // Lazily load Sass when a Sass file is found
   if (sassWorkerPool === undefined) {
     if (sassWorkerPoolPromise === undefined) {
       sassWorkerPoolPromise = import('../../sass/sass-service').then(
-        (sassService) => new sassService.SassWorkerImplementation(true),
+        (sassService) => new sassService.SassWorkerImplementation(true)
       );
     }
     sassWorkerPool = await sassWorkerPoolPromise;

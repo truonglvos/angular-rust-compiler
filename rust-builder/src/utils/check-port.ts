@@ -44,11 +44,11 @@ export async function checkPort(port: number, host: string): Promise<number> {
               message: `Port ${port} is already in use.\nWould you like to use a different port?`,
               default: true,
               theme: { prefix: '' },
-            }),
+            })
           )
           .then(
             (answer) => (answer ? resolve(checkPort(0, host)) : reject(createInUseError(port))),
-            () => reject(createInUseError(port)),
+            () => reject(createInUseError(port))
           );
       })
       .once('listening', () => {
@@ -56,7 +56,7 @@ export async function checkPort(port: number, host: string): Promise<number> {
         const address = server.address();
         assert(
           address && typeof address !== 'string',
-          'Port check server address should always be an object.',
+          'Port check server address should always be an object.'
         );
 
         server.close();

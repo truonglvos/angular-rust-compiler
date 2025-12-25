@@ -15,7 +15,7 @@ import { join, resolve } from 'node:path';
 export async function deleteOutputDir(
   root: string,
   outputPath: string,
-  emptyOnlyDirectories?: string[],
+  emptyOnlyDirectories?: string[]
 ): Promise<void> {
   const resolvedOutputPath = resolve(root, outputPath);
   if (resolvedOutputPath === root) {

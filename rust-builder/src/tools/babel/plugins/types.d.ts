@@ -15,6 +15,6 @@ declare module 'istanbul-lib-instrument' {
   export function programVisitor(
     types: typeof import('@babel/core').types,
     filePath?: string,
-    options?: { inputSourceMap?: object | null },
+    options?: { inputSourceMap?: object | null }
   ): Visitor;
 }

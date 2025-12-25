@@ -18,7 +18,7 @@ export async function resolveAssets(
     flatten?: boolean;
     followSymlinks?: boolean;
   }[],
-  root: string,
+  root: string
 ): Promise<{ source: string; destination: string }[]> {
   const defaultIgnore = ['.gitkeep', '**/.DS_Store', '**/Thumbs.db'];
 

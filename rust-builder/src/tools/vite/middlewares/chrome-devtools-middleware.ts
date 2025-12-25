@@ -23,7 +23,7 @@ const CHROME_DEVTOOLS_ROUTE = '/.well-known/appspecific/com.chrome.devtools.json
 
 export function createChromeDevtoolsMiddleware(
   cacheDir: string,
-  projectRoot: string,
+  projectRoot: string
 ): Connect.NextHandleFunction {
   let devtoolsConfig: string | undefined;
   const devtoolsConfigPath = join(cacheDir, 'com.chrome.devtools.json');

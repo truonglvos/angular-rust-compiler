@@ -155,7 +155,7 @@ abstract class Calculator {
   constructor(
     protected budget: BudgetEntry,
     protected chunks: BudgetChunk[],
-    protected assets: BudgetAsset[],
+    protected assets: BudgetAsset[]
   ) {}
 
   abstract calculate(): Size[];
@@ -328,7 +328,7 @@ function calculateBytes(input: string, baseline?: string, factor: 1 | -1 = 1): n
 export function* checkBudgets(
   budgets: BudgetEntry[],
   stats: BudgetStats,
-  checkComponentStyles?: boolean,
+  checkComponentStyles?: boolean
 ): IterableIterator<BudgetCalculatorResult> {
   // Ignore AnyComponentStyle budgets as these are handled in `AnyComponentStyleBudgetChecker` unless requested
   const computableBudgets = checkComponentStyles
@@ -346,7 +346,7 @@ export function* checkBudgets(
 export function* checkThresholds(
   thresholds: Iterable<Threshold>,
   size: number,
-  label?: string,
+  label?: string
 ): IterableIterator<BudgetCalculatorResult> {
   for (const threshold of thresholds) {
     switch (threshold.type) {
@@ -360,7 +360,7 @@ export function* checkThresholds(
           severity: threshold.severity,
           label,
           message: `${label} exceeded maximum budget. Budget ${formatSize(
-            threshold.limit,
+            threshold.limit
           )} was not met by ${sizeDifference} with a total of ${formatSize(size)}.`,
         };
         break;
@@ -375,7 +375,7 @@ export function* checkThresholds(
           severity: threshold.severity,
           label,
           message: `${label} failed to meet minimum budget. Budget ${formatSize(
-            threshold.limit,
+            threshold.limit
           )} was not met by ${sizeDifference} with a total of ${formatSize(size)}.`,
         };
         break;

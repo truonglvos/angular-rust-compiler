@@ -46,7 +46,7 @@ async function renderPage({ url }: RenderOptions): Promise<string | null> {
   });
 
   const response = await angularServerApp.handle(
-    new Request(new URL(url, serverURL), { signal: AbortSignal.timeout(30_000) }),
+    new Request(new URL(url, serverURL), { signal: AbortSignal.timeout(30_000) })
   );
 
   if (!response) {

@@ -35,7 +35,7 @@ const textEncoder = new TextEncoder();
 const LINKER_DECLARATION_PREFIX = 'ɵɵngDeclare';
 
 export default async function transformJavaScript(
-  request: JavaScriptTransformRequest,
+  request: JavaScriptTransformRequest
 ): Promise<unknown> {
   const { filename, data, ...options } = request;
   const textData = typeof data === 'string' ? data : textDecoder.decode(data);
@@ -56,7 +56,7 @@ let linkerPluginCreator:
 async function transformWithBabel(
   filename: string,
   data: string,
-  options: Omit<JavaScriptTransformRequest, 'filename' | 'data'>,
+  options: Omit<JavaScriptTransformRequest, 'filename' | 'data'>
 ): Promise<string> {
   const shouldLink = !options.skipLinker && (await requiresLinking(filename, data));
   const useInputSourcemap =
@@ -88,7 +88,7 @@ async function transformWithBabel(
       [markTopLevelPure, { topLevelSafeMode: !safeAngularPackage }],
       elideAngularMetadata,
       adjustTypeScriptEnums,
-      [adjustStaticMembers, { wrapDecorators: sideEffectFree }],
+      [adjustStaticMembers, { wrapDecorators: sideEffectFree }]
     );
   }
 

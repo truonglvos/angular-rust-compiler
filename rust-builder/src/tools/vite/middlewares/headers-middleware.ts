@@ -23,7 +23,7 @@ export function createAngularHeadersMiddleware(server: ViteDevServer): Connect.N
   return function angularHeadersMiddleware(
     _req: Connect.IncomingMessage,
     res: ServerResponse,
-    next: Connect.NextFunction,
+    next: Connect.NextFunction
   ) {
     const headers = server.config.server.headers;
     if (!headers) {

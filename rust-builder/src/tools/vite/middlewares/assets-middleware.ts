@@ -29,7 +29,7 @@ export function createAngularAssetsMiddleware(
   assets: AngularOutputAssets,
   outputFiles: AngularMemoryOutputFiles,
   componentStyles: Map<string, ComponentStyleRecord>,
-  encapsulateStyle: (style: Uint8Array, componentId: string) => string,
+  encapsulateStyle: (style: Uint8Array, componentId: string) => string
 ): Connect.NextHandleFunction {
   return function angularAssetsMiddleware(req, res, next) {
     if (req.url === undefined || res.writableEnded) {
@@ -204,7 +204,7 @@ export function createAngularAssetsMiddleware(
 function checkAndHandleEtag(
   req: Connect.IncomingMessage,
   res: ServerResponse,
-  etag: string,
+  etag: string
 ): boolean {
   if (req.headers['if-none-match'] === etag) {
     res.statusCode = 304;
@@ -219,7 +219,7 @@ function checkAndHandleEtag(
 export function createBuildAssetsMiddleware(
   basePath: string,
   buildResultFiles: ReadonlyMap<string, ResultFile>,
-  readHandler: (path: string) => Buffer = readFileSync,
+  readHandler: (path: string) => Buffer = readFileSync
 ): Connect.NextHandleFunction {
   return function buildAssetsMiddleware(req, res, next) {
     if (req.url === undefined || res.writableEnded) {

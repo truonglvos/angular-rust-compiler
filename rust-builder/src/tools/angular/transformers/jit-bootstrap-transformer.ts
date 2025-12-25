@@ -15,7 +15,7 @@ import ts from 'typescript';
 const PLATFORM_BROWSER_DYNAMIC_NAME = 'platformBrowserDynamic';
 
 export function replaceBootstrap(
-  getTypeChecker: () => ts.TypeChecker,
+  getTypeChecker: () => ts.TypeChecker
 ): ts.TransformerFactory<ts.SourceFile> {
   return (context: ts.TransformationContext) => {
     let bootstrapImport: ts.ImportDeclaration | undefined;
@@ -34,9 +34,9 @@ export function replaceBootstrap(
               nodeFactory.createImportClause(
                 undefined,
                 undefined,
-                nodeFactory.createNamespaceImport(bootstrapNamespace),
+                nodeFactory.createNamespaceImport(bootstrapNamespace)
               ),
-              nodeFactory.createStringLiteral('@angular/platform-browser'),
+              nodeFactory.createStringLiteral('@angular/platform-browser')
             );
           }
           replacedNodes.push(target);
@@ -45,7 +45,7 @@ export function replaceBootstrap(
             node,
             nodeFactory.createPropertyAccessExpression(bootstrapNamespace, 'platformBrowser'),
             node.typeArguments,
-            node.arguments,
+            node.arguments
           );
         }
       }
@@ -66,13 +66,13 @@ export function replaceBootstrap(
           updatedSourceFile,
           replacedNodes,
           getTypeChecker,
-          context.getCompilerOptions(),
+          context.getCompilerOptions()
         );
         if (removals.size > 0) {
           updatedSourceFile = ts.visitEachChild(
             updatedSourceFile,
             (node) => (removals.has(node) ? undefined : node),
-            context,
+            context
           );
         }
 
@@ -81,8 +81,8 @@ export function replaceBootstrap(
           updatedSourceFile,
           ts.setTextRange(
             nodeFactory.createNodeArray([bootstrapImport, ...updatedSourceFile.statements]),
-            sourceFile.statements,
-          ),
+            sourceFile.statements
+          )
         );
       } else {
         return updatedSourceFile;
@@ -101,7 +101,7 @@ export function elideImports(
   sourceFile: ts.SourceFile,
   removedNodes: ts.Node[],
   getTypeChecker: () => ts.TypeChecker,
-  compilerOptions: ts.CompilerOptions,
+  compilerOptions: ts.CompilerOptions
 ): Set<ts.Node> {
   const importNodeRemovals = new Set<ts.Node>();
 

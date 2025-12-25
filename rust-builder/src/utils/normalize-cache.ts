@@ -41,7 +41,7 @@ function hasCacheMetadata(value: unknown): value is { cli: { cache: CacheMetadat
 
 export function normalizeCacheOptions(
   projectMetadata: unknown,
-  worspaceRoot: string,
+  worspaceRoot: string
 ): NormalizedCachedOptions {
   const cacheMetadata = hasCacheMetadata(projectMetadata) ? projectMetadata.cli.cache : {};
 

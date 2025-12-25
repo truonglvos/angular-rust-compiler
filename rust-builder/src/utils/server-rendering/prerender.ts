@@ -56,7 +56,7 @@ export async function prerenderPages(
   assets: Readonly<BuildOutputAsset[]>,
   outputMode: OutputMode | undefined,
   sourcemap = false,
-  maxThreads = 1,
+  maxThreads = 1
 ): Promise<{
   output: PrerenderOutput;
   warnings: string[];
@@ -112,7 +112,7 @@ export async function prerenderPages(
     appShellOptions,
     prerenderOptions,
     sourcemap,
-    outputMode,
+    outputMode
   ).catch((err) => {
     return {
       errors: [`An error occurred while extracting routes.\n\n${err.message ?? err.stack ?? err}`],
@@ -143,7 +143,7 @@ export async function prerenderPages(
       case RouteRenderMode.Server:
         if (outputMode === OutputMode.Static) {
           errors.push(
-            `Route '${metadata.route}' is configured with server render mode, but the build 'outputMode' is set to 'static'.`,
+            `Route '${metadata.route}' is configured with server render mode, but the build 'outputMode' is set to 'static'.`
           );
         }
         break;
@@ -165,7 +165,7 @@ export async function prerenderPages(
   if (manifest) {
     outputFilesForWorker[SERVER_APP_MANIFEST_FILENAME] = manifest.replace(
       'routes: undefined,',
-      `routes: ${JSON.stringify(serializableRouteTreeNodeForPrerender, undefined, 2)},`,
+      `routes: ${JSON.stringify(serializableRouteTreeNodeForPrerender, undefined, 2)},`
     );
   }
 
@@ -179,7 +179,7 @@ export async function prerenderPages(
     outputFilesForWorker,
     assetsReversed,
     outputMode,
-    appShellRoute ?? appShellOptions?.route,
+    appShellRoute ?? appShellOptions?.route
   );
 
   errors.push(...renderingErrors);
@@ -201,7 +201,7 @@ async function renderPages(
   outputFilesForWorker: Record<string, string>,
   assetFilesForWorker: Record<string, string>,
   outputMode: OutputMode | undefined,
-  appShellRoute: string | undefined,
+  appShellRoute: string | undefined
 ): Promise<{
   output: PrerenderOutput;
   errors: string[];
@@ -235,7 +235,7 @@ async function renderPages(
     for (const { route, redirectTo } of serializableRouteTreeNode) {
       // Remove the base href from the file output path.
       const routeWithoutBaseHref = addTrailingSlash(route).startsWith(
-        baseHrefPathnameWithLeadingSlash,
+        baseHrefPathnameWithLeadingSlash
       )
         ? addLeadingSlash(route.slice(baseHrefPathnameWithLeadingSlash.length))
         : route;
@@ -260,7 +260,7 @@ async function renderPages(
         })
         .catch((err) => {
           errors.push(
-            `An error occurred while prerendering route '${route}'.\n\n${err.message ?? err.stack ?? err.code ?? err}`,
+            `An error occurred while prerendering route '${route}'.\n\n${err.message ?? err.stack ?? err.code ?? err}`
           );
           void renderWorker.destroy();
         });
@@ -287,7 +287,7 @@ async function getAllRoutes(
   appShellOptions: AppShellOptions | undefined,
   prerenderOptions: PrerenderOptions | undefined,
   sourcemap: boolean,
-  outputMode: OutputMode | undefined,
+  outputMode: OutputMode | undefined
 ): Promise<{
   serializedRouteTree: SerializableRouteTreeNode;
   appShellRoute?: string;

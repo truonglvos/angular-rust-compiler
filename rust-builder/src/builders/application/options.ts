@@ -6,40 +6,26 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import type { BuilderContext } from "@angular-devkit/architect";
-import type { Plugin } from "esbuild";
-import { realpathSync } from "node:fs";
-import { access, constants, readFile } from "node:fs/promises";
-import { createRequire } from "node:module";
-import path from "node:path";
-import {
-  normalizeAssetPatterns,
-  normalizeOptimization,
-  normalizeSourceMaps,
-} from "../../utils";
-import { supportColor } from "../../utils/color";
-import {
-  useJSONBuildLogs,
-  usePartialSsrBuild,
-} from "../../utils/environment-options";
-import { I18nOptions, createI18nOptions } from "../../utils/i18n-options";
-import { IndexHtmlTransform } from "../../utils/index-file/index-html-generator";
-import { normalizeCacheOptions } from "../../utils/normalize-cache";
+import type { BuilderContext } from '@angular-devkit/architect';
+import type { Plugin } from 'esbuild';
+import { realpathSync } from 'node:fs';
+import { access, constants, readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import { normalizeAssetPatterns, normalizeOptimization, normalizeSourceMaps } from '../../utils';
+import { supportColor } from '../../utils/color';
+import { useJSONBuildLogs, usePartialSsrBuild } from '../../utils/environment-options';
+import { I18nOptions, createI18nOptions } from '../../utils/i18n-options';
+import { IndexHtmlTransform } from '../../utils/index-file/index-html-generator';
+import { normalizeCacheOptions } from '../../utils/normalize-cache';
 import {
   SearchDirectory,
   findTailwindConfiguration,
   generateSearchDirectories,
   loadPostcssConfiguration,
-} from "../../utils/postcss-configuration";
-import {
-  getProjectRootPaths,
-  normalizeDirectoryPath,
-} from "../../utils/project-metadata";
-import {
-  addTrailingSlash,
-  joinUrlParts,
-  stripLeadingSlash,
-} from "../../utils/url";
+} from '../../utils/postcss-configuration';
+import { getProjectRootPaths, normalizeDirectoryPath } from '../../utils/project-metadata';
+import { addTrailingSlash, joinUrlParts, stripLeadingSlash } from '../../utils/url';
 import {
   Schema as ApplicationBuilderOptions,
   ExperimentalPlatform,
@@ -47,27 +33,25 @@ import {
   OutputHashing,
   OutputMode,
   OutputPathClass,
-} from "./schema";
+} from './schema';
 
 /**
  * The filename for the client-side rendered HTML template.
  * This template is used for client-side rendering (CSR) in a web application.
  */
-export const INDEX_HTML_CSR = "index.csr.html";
+export const INDEX_HTML_CSR = 'index.csr.html';
 
 /**
  * The filename for the server-side rendered HTML template.
  * This template is used for server-side rendering (SSR) in a web application.
  */
-export const INDEX_HTML_SERVER = "index.server.html";
+export const INDEX_HTML_SERVER = 'index.server.html';
 
 export type NormalizedOutputOptions = Required<OutputPathClass> & {
   clean: boolean;
   ignoreServer: boolean;
 };
-export type NormalizedApplicationBuildOptions = Awaited<
-  ReturnType<typeof normalizeOptions>
->;
+export type NormalizedApplicationBuildOptions = Awaited<ReturnType<typeof normalizeOptions>>;
 
 export interface ApplicationBuilderExtensions {
   codePlugins?: Plugin[];
@@ -87,7 +71,7 @@ interface InternalOptions {
   entryPoints?: Set<string> | Map<string, string>;
 
   /** File extension to use for the generated output files. */
-  outExtension?: "js" | "mjs";
+  outExtension?: 'js' | 'mjs';
 
   /**
    * Indicates whether all node packages should be marked as external.
@@ -141,7 +125,7 @@ interface InternalOptions {
 /** Full set of options for `application` builder. */
 export type ApplicationBuilderInternalOptions = Omit<
   ApplicationBuilderOptions & InternalOptions,
-  "browser"
+  'browser'
 > & {
   // `browser` can be `undefined` if `entryPoints` is used.
   browser?: string;
@@ -167,8 +151,7 @@ export async function normalizeOptions(
 ) {
   // If not explicitly set, default to the Node.js process argument
   const preserveSymlinks =
-    options.preserveSymlinks ??
-    process.execArgv.includes("--preserve-symlinks");
+    options.preserveSymlinks ?? process.execArgv.includes('--preserve-symlinks');
 
   // Setup base paths based on workspace root and project information
   const workspaceRoot = preserveSymlinks
@@ -178,10 +161,7 @@ export async function normalizeOptions(
       // ref: https://github.com/nodejs/node/issues/7726
       realpathSync(context.workspaceRoot);
   const projectMetadata = await context.getProjectMetadata(projectName);
-  const { projectRoot, projectSourceRoot } = getProjectRootPaths(
-    workspaceRoot,
-    projectMetadata
-  );
+  const { projectRoot, projectSourceRoot } = getProjectRootPaths(workspaceRoot, projectMetadata);
 
   // Gather persistent caching option and provide a project specific cache location
   const cacheOptions = normalizeCacheOptions(projectMetadata, workspaceRoot);
@@ -190,12 +170,7 @@ export async function normalizeOptions(
   const i18nOptions: I18nOptions & {
     duplicateTranslationBehavior?: I18NTranslation;
     missingTranslationBehavior?: I18NTranslation;
-  } = createI18nOptions(
-    projectMetadata,
-    options.localize,
-    context.logger,
-    !!options.ssr
-  );
+  } = createI18nOptions(projectMetadata, options.localize, context.logger, !!options.ssr);
   i18nOptions.duplicateTranslationBehavior = options.i18nDuplicateTranslation;
   i18nOptions.missingTranslationBehavior = options.i18nMissingTranslation;
   if (options.forceI18nFlatOutput) {
@@ -212,12 +187,7 @@ export async function normalizeOptions(
   const optimizationOptions = normalizeOptimization(options.optimization);
   const sourcemapOptions = normalizeSourceMaps(options.sourceMap ?? false);
   const assets = options.assets?.length
-    ? normalizeAssetPatterns(
-        options.assets,
-        workspaceRoot,
-        projectRoot,
-        projectSourceRoot
-      )
+    ? normalizeAssetPatterns(options.assets, workspaceRoot, projectRoot, projectSourceRoot)
     : undefined;
 
   let fileReplacements: Record<string, string> | undefined;
@@ -228,32 +198,29 @@ export async function normalizeOptions(
       try {
         await access(fileReplaceWith, constants.F_OK);
       } catch {
-        throw new Error(
-          `The ${fileReplaceWith} path in file replacements does not exist.`
-        );
+        throw new Error(`The ${fileReplaceWith} path in file replacements does not exist.`);
       }
 
       fileReplacements ??= {};
-      fileReplacements[path.join(workspaceRoot, replacement.replace)] =
-        fileReplaceWith;
+      fileReplacements[path.join(workspaceRoot, replacement.replace)] = fileReplaceWith;
     }
   }
 
   let loaderExtensions:
-    | Record<string, "text" | "binary" | "file" | "dataurl" | "base64">
+    | Record<string, 'text' | 'binary' | 'file' | 'dataurl' | 'base64'>
     | undefined;
   if (options.loader) {
     for (const [extension, value] of Object.entries(options.loader)) {
-      if (extension[0] !== "." || /\.[cm]?[jt]sx?$/.test(extension)) {
+      if (extension[0] !== '.' || /\.[cm]?[jt]sx?$/.test(extension)) {
         continue;
       }
       if (
-        value !== "text" &&
-        value !== "binary" &&
-        value !== "file" &&
-        value !== "dataurl" &&
-        value !== "base64" &&
-        value !== "empty"
+        value !== 'text' &&
+        value !== 'binary' &&
+        value !== 'file' &&
+        value !== 'dataurl' &&
+        value !== 'base64' &&
+        value !== 'empty'
       ) {
         continue;
       }
@@ -265,15 +232,11 @@ export async function normalizeOptions(
   // Validate prerender and ssr options when using the outputMode
   if (options.outputMode === OutputMode.Server) {
     if (!options.server) {
-      throw new Error(
-        'The "server" option is required when "outputMode" is set to "server".'
-      );
+      throw new Error('The "server" option is required when "outputMode" is set to "server".');
     }
 
-    if (typeof options.ssr === "boolean" || !options.ssr?.entry) {
-      throw new Error(
-        'The "ssr.entry" option is required when "outputMode" is set to "server".'
-      );
+    if (typeof options.ssr === 'boolean' || !options.ssr?.entry) {
+      throw new Error('The "ssr.entry" option is required when "outputMode" is set to "server".');
     }
   }
 
@@ -298,21 +261,16 @@ export async function normalizeOptions(
   }
 
   // A configuration file can exist in the project or workspace root
-  const searchDirectories = await generateSearchDirectories([
-    projectRoot,
-    workspaceRoot,
-  ]);
-  const postcssConfiguration = await loadPostcssConfiguration(
-    searchDirectories
-  );
+  const searchDirectories = await generateSearchDirectories([projectRoot, workspaceRoot]);
+  const postcssConfiguration = await loadPostcssConfiguration(searchDirectories);
   // Skip tailwind configuration if postcss is customized
   const tailwindConfiguration = postcssConfiguration
     ? undefined
     : await getTailwindConfig(searchDirectories, workspaceRoot, context);
 
   let serverEntryPoint: string | undefined;
-  if (typeof options.server === "string") {
-    if (options.server === "") {
+  if (typeof options.server === 'string') {
+    if (options.server === '') {
       throw new Error('The "server" option cannot be an empty string.');
     }
 
@@ -333,9 +291,8 @@ export async function normalizeOptions(
   let ssrOptions;
   if (options.ssr === true) {
     ssrOptions = {};
-  } else if (typeof options.ssr === "object") {
-    const { entry, experimentalPlatform = ExperimentalPlatform.Node } =
-      options.ssr;
+  } else if (typeof options.ssr === 'object') {
+    const { entry, experimentalPlatform = ExperimentalPlatform.Node } = options.ssr;
 
     ssrOptions = {
       entry: entry && path.join(workspaceRoot, entry),
@@ -346,22 +303,18 @@ export async function normalizeOptions(
   let appShellOptions;
   if (options.appShell) {
     appShellOptions = {
-      route: "shell",
+      route: 'shell',
     };
   }
 
-  const outputPath =
-    options.outputPath ?? path.join(workspaceRoot, "dist", projectName);
+  const outputPath = options.outputPath ?? path.join(workspaceRoot, 'dist', projectName);
   const outputOptions: NormalizedOutputOptions = {
-    browser: "browser",
-    server: "server",
-    media: "media",
-    ...(typeof outputPath === "string" ? undefined : outputPath),
+    browser: 'browser',
+    server: 'server',
+    media: 'media',
+    ...(typeof outputPath === 'string' ? undefined : outputPath),
     base: normalizeDirectoryPath(
-      path.resolve(
-        workspaceRoot,
-        typeof outputPath === "string" ? outputPath : outputPath.base
-      )
+      path.resolve(workspaceRoot, typeof outputPath === 'string' ? outputPath : outputPath.base)
     ),
     clean: options.deleteOutputPath ?? true,
     // For app-shell and SSG server files are not required by users.
@@ -374,34 +327,32 @@ export async function normalizeOptions(
 
   const outputNames = {
     bundles:
-      options.outputHashing === OutputHashing.All ||
-      options.outputHashing === OutputHashing.Bundles
-        ? "[name]-[hash]"
-        : "[name]",
+      options.outputHashing === OutputHashing.All || options.outputHashing === OutputHashing.Bundles
+        ? '[name]-[hash]'
+        : '[name]',
     media:
       outputOptions.media +
-      (options.outputHashing === OutputHashing.All ||
-      options.outputHashing === OutputHashing.Media
-        ? "/[name]-[hash]"
-        : "/[name]"),
+      (options.outputHashing === OutputHashing.All || options.outputHashing === OutputHashing.Media
+        ? '/[name]-[hash]'
+        : '/[name]'),
   };
 
-  const globalStyles = normalizeGlobalEntries(options.styles, "styles");
-  const globalScripts = normalizeGlobalEntries(options.scripts, "scripts");
+  const globalStyles = normalizeGlobalEntries(options.styles, 'styles');
+  const globalScripts = normalizeGlobalEntries(options.scripts, 'scripts');
   let indexHtmlOptions;
   // index can never have a value of `true` but in the schema it's of type `boolean`.
-  if (typeof options.index !== "boolean") {
+  if (typeof options.index !== 'boolean') {
     let indexInput: string;
     let indexOutput: string;
     // The output file will be created within the configured output path
-    if (typeof options.index === "string") {
+    if (typeof options.index === 'string') {
       indexInput = indexOutput = path.join(workspaceRoot, options.index);
-    } else if (typeof options.index === "undefined") {
-      indexInput = path.join(projectSourceRoot, "index.html");
-      indexOutput = "index.html";
+    } else if (typeof options.index === 'undefined') {
+      indexInput = path.join(projectSourceRoot, 'index.html');
+      indexOutput = 'index.html';
     } else {
       indexInput = path.join(workspaceRoot, options.index.input);
-      indexOutput = options.index.output || "index.html";
+      indexOutput = options.index.output || 'index.html';
     }
 
     /**
@@ -415,7 +366,7 @@ export async function normalizeOptions(
      */
     const indexBaseName = path.basename(indexOutput);
     indexOutput =
-      (ssrOptions || prerenderOptions) && indexBaseName === "index.html"
+      (ssrOptions || prerenderOptions) && indexBaseName === 'index.html'
         ? INDEX_HTML_CSR
         : indexBaseName;
 
@@ -423,17 +374,15 @@ export async function normalizeOptions(
       input: indexInput,
       output: indexOutput,
       insertionOrder: [
-        ["polyfills", true],
+        ['polyfills', true],
         ...globalStyles.filter((s) => s.initial).map((s) => [s.name, false]),
         ...globalScripts.filter((s) => s.initial).map((s) => [s.name, false]),
-        ["main", true],
+        ['main', true],
         // [name, esm]
       ] as [string, boolean][],
       transformer: extensions?.indexHtmlTransformer,
       // Preload initial defaults to true
-      preloadInitial:
-        typeof options.index !== "object" ||
-        (options.index.preloadInitial ?? true),
+      preloadInitial: typeof options.index !== 'object' || (options.index.preloadInitial ?? true),
     };
   }
 
@@ -468,7 +417,7 @@ export async function normalizeOptions(
     crossOrigin,
     externalDependencies,
     extractLicenses,
-    inlineStyleLanguage = "css",
+    inlineStyleLanguage = 'css',
     outExtension,
     serviceWorker,
     poll,
@@ -500,7 +449,7 @@ export async function normalizeOptions(
     crossOrigin,
     externalDependencies: normalizeExternals(externalDependencies),
     externalPackages:
-      typeof externalPackages === "object"
+      typeof externalPackages === 'object'
         ? {
             ...externalPackages,
             exclude: normalizeExternals(externalPackages.exclude),
@@ -510,10 +459,7 @@ export async function normalizeOptions(
     inlineStyleLanguage,
     jit: !aot,
     stats: !!statsJson,
-    polyfills:
-      polyfills === undefined || Array.isArray(polyfills)
-        ? polyfills
-        : [polyfills],
+    polyfills: polyfills === undefined || Array.isArray(polyfills) ? polyfills : [polyfills],
     poll,
     progress,
     preserveSymlinks,
@@ -542,9 +488,7 @@ export async function normalizeOptions(
     serviceWorker: serviceWorker
       ? path.join(
           workspaceRoot,
-          typeof serviceWorker === "string"
-            ? serviceWorker
-            : "src/ngsw-config.json"
+          typeof serviceWorker === 'string' ? serviceWorker : 'src/ngsw-config.json'
         )
       : undefined,
     indexHtmlOptions,
@@ -554,9 +498,7 @@ export async function normalizeOptions(
     namedChunks,
     budgets: budgets?.length ? budgets : undefined,
     publicPath: deployUrl,
-    plugins: extensions?.codePlugins?.length
-      ? extensions?.codePlugins
-      : undefined,
+    plugins: extensions?.codePlugins?.length ? extensions?.codePlugins : undefined,
     loaderExtensions,
     jsonLogs: useJSONBuildLogs,
     colors: supportColor(),
@@ -578,8 +520,7 @@ async function getTailwindConfig(
   workspaceRoot: string,
   context: BuilderContext
 ): Promise<{ file: string; package: string } | undefined> {
-  const tailwindConfigurationPath =
-    findTailwindConfiguration(searchDirectories);
+  const tailwindConfigurationPath = findTailwindConfiguration(searchDirectories);
 
   if (!tailwindConfigurationPath) {
     return undefined;
@@ -590,13 +531,10 @@ async function getTailwindConfig(
   try {
     return {
       file: tailwindConfigurationPath,
-      package: resolver.resolve("tailwindcss"),
+      package: resolver.resolve('tailwindcss'),
     };
   } catch {
-    const relativeTailwindConfigPath = path.relative(
-      workspaceRoot,
-      tailwindConfigurationPath
-    );
+    const relativeTailwindConfigPath = path.relative(workspaceRoot, tailwindConfigurationPath);
     context.logger.warn(
       `Tailwind CSS configuration file found (${relativeTailwindConfigPath})` +
         ` but the 'tailwindcss' package is not installed.` +
@@ -625,13 +563,13 @@ function normalizeEntryPoints(
   browser: string | undefined,
   entryPoints: Set<string> | Map<string, string> | undefined
 ): Record<string, string> {
-  if (browser === "") {
-    throw new Error("`browser` option cannot be an empty string.");
+  if (browser === '') {
+    throw new Error('`browser` option cannot be an empty string.');
   }
 
   // `browser` and `entryPoints` are mutually exclusive.
   if (browser && entryPoints) {
-    throw new Error("Only one of `browser` or `entryPoints` may be provided.");
+    throw new Error('Only one of `browser` or `entryPoints` may be provided.');
   }
 
   if (browser) {
@@ -639,15 +577,13 @@ function normalizeEntryPoints(
     return { main: path.join(workspaceRoot, browser) };
   } else if (!entryPoints) {
     // Default browser entry if no explicit entry points
-    return { main: path.join(projectSourceRoot, "main.ts") };
+    return { main: path.join(projectSourceRoot, 'main.ts') };
   } else if (entryPoints instanceof Map) {
     return Object.fromEntries(
       Array.from(entryPoints.entries(), ([name, entryPoint]) => {
         // Get the full file path to a relative entry point input. Leave bare specifiers alone so they are resolved as modules.
-        const isRelativePath = entryPoint.startsWith(".");
-        const entryPointPath = isRelativePath
-          ? path.join(workspaceRoot, entryPoint)
-          : entryPoint;
+        const isRelativePath = entryPoint.startsWith('.');
+        const entryPointPath = isRelativePath ? path.join(workspaceRoot, entryPoint) : entryPoint;
 
         return [name, entryPointPath];
       })
@@ -667,17 +603,15 @@ function normalizeEntryPoints(
         : path.join(parsedEntryPoint.dir, parsedEntryPoint.name);
 
       // Get the full file path to a relative entry point input. Leave bare specifiers alone so they are resolved as modules.
-      const isRelativePath = entryPoint.startsWith(".");
-      const entryPointPath = isRelativePath
-        ? path.join(workspaceRoot, entryPoint)
-        : entryPoint;
+      const isRelativePath = entryPoint.startsWith('.');
+      const entryPointPath = isRelativePath ? path.join(workspaceRoot, entryPoint) : entryPoint;
 
       // Check for conflicts with previous entry points.
       const existingEntryPointPath = entryPointPaths[entryPointName];
       if (existingEntryPointPath) {
         throw new Error(
           `\`${existingEntryPointPath}\` and \`${entryPointPath}\` both output to the same location \`${entryPointName}\`.` +
-            " Rename or move one of the files to fix the conflict."
+            ' Rename or move one of the files to fix the conflict.'
         );
       }
 
@@ -689,23 +623,18 @@ function normalizeEntryPoints(
 }
 
 function normalizeGlobalEntries(
-  rawEntries:
-    | ({ bundleName?: string; input: string; inject?: boolean } | string)[]
-    | undefined,
+  rawEntries: ({ bundleName?: string; input: string; inject?: boolean } | string)[] | undefined,
   defaultName: string
 ): { name: string; files: string[]; initial: boolean }[] {
   if (!rawEntries?.length) {
     return [];
   }
 
-  const bundles = new Map<
-    string,
-    { name: string; files: string[]; initial: boolean }
-  >();
+  const bundles = new Map<string, { name: string; files: string[]; initial: boolean }>();
 
   for (const rawEntry of rawEntries) {
     let entry;
-    if (typeof rawEntry === "string") {
+    if (typeof rawEntry === 'string') {
       // string entries use default bundle name and inject values
       entry = { input: rawEntry };
     } else {
@@ -715,9 +644,7 @@ function normalizeGlobalEntries(
     const { bundleName, input, inject = true } = entry;
 
     // Non-injected entries default to the file name
-    const name =
-      bundleName ||
-      (inject ? defaultName : path.basename(input, path.extname(input)));
+    const name = bundleName || (inject ? defaultName : path.basename(input, path.extname(input)));
 
     const existing = bundles.get(name);
     if (!existing) {
@@ -728,7 +655,7 @@ function normalizeGlobalEntries(
     if (existing.initial !== inject) {
       throw new Error(
         `The "${name}" bundle is mixing injected and non-injected entries. ` +
-          "Verify that the project options are correct."
+          'Verify that the project options are correct.'
       );
     }
 
@@ -739,8 +666,8 @@ function normalizeGlobalEntries(
 }
 
 export function getLocaleBaseHref(
-  baseHref: string | undefined = "",
-  i18n: NormalizedApplicationBuildOptions["i18nOptions"],
+  baseHref: string | undefined = '',
+  i18n: NormalizedApplicationBuildOptions['i18nOptions'],
   locale: string
 ): string | undefined {
   if (i18n.flatOutput) {
@@ -752,13 +679,13 @@ export function getLocaleBaseHref(
     return undefined;
   }
 
-  const baseHrefSuffix = localeData.baseHref ?? localeData.subPath + "/";
+  const baseHrefSuffix = localeData.baseHref ?? localeData.subPath + '/';
 
   let joinedBaseHref: string | undefined;
-  if (baseHrefSuffix !== "") {
+  if (baseHrefSuffix !== '') {
     joinedBaseHref = addTrailingSlash(joinUrlParts(baseHref, baseHrefSuffix));
 
-    if (baseHref && baseHref[0] !== "/") {
+    if (baseHref && baseHref[0] !== '/') {
       joinedBaseHref = stripLeadingSlash(joinedBaseHref);
     }
   }
@@ -787,7 +714,7 @@ function normalizeExternals(value: string[] | undefined): string[] | undefined {
     ...new Set(
       value.map((d) =>
         // remove "/*" wildcard in the end if provided string is not path-like
-        d.endsWith("/*") && !/^\.{0,2}\//.test(d) ? d.slice(0, -2) : d
+        d.endsWith('/*') && !/^\.{0,2}\//.test(d) ? d.slice(0, -2) : d
       )
     ),
   ];
@@ -796,11 +723,11 @@ function normalizeExternals(value: string[] | undefined): string[] | undefined {
 async function findFrameworkVersion(projectRoot: string): Promise<string> {
   // Create a custom require function for ESM compliance.
   // NOTE: The trailing slash is significant.
-  const projectResolve = createRequire(projectRoot + "/").resolve;
+  const projectResolve = createRequire(projectRoot + '/').resolve;
 
   try {
-    const manifestPath = projectResolve("@angular/core/package.json");
-    const manifestData = await readFile(manifestPath, "utf-8");
+    const manifestPath = projectResolve('@angular/core/package.json');
+    const manifestData = await readFile(manifestPath, 'utf-8');
     const manifestObject = JSON.parse(manifestData) as { version: string };
     const version = manifestObject.version;
 

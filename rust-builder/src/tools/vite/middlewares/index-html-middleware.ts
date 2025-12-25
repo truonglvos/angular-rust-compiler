@@ -14,7 +14,7 @@ export function createAngularIndexHtmlMiddleware(
   server: ViteDevServer,
   outputFiles: AngularMemoryOutputFiles,
   resetComponentUpdates: () => void,
-  indexHtmlTransformer: ((content: string) => Promise<string>) | undefined,
+  indexHtmlTransformer: ((content: string) => Promise<string>) | undefined
 ): Connect.NextHandleFunction {
   return function angularIndexHtmlMiddleware(req, res, next) {
     if (!req.url) {

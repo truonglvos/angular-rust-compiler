@@ -32,7 +32,7 @@ import { ComponentStylesheetBundler } from './component-stylesheets';
 async function loadEntry(
   entry: string,
   root: string,
-  skipRead?: boolean,
+  skipRead?: boolean
 ): Promise<{ path: string; contents?: string }> {
   if (entry.startsWith('inline:')) {
     const [importer, data] = entry.slice(7).split(';', 2);
@@ -64,7 +64,7 @@ export function setupJitPluginCallbacks(
   build: PluginBuild,
   stylesheetBundler: ComponentStylesheetBundler,
   additionalResultFiles: Map<string, { outputFiles?: OutputFile[]; metafile?: Metafile }>,
-  loadCache?: LoadResultCache,
+  loadCache?: LoadResultCache
 ): void {
   const root = build.initialOptions.absWorkingDir ?? '';
 
@@ -134,7 +134,7 @@ export function setupJitPluginCallbacks(
         loader: 'text',
         watchFiles: referencedFiles && [...referencedFiles],
       };
-    }),
+    })
   );
 
   // Add a load callback to handle Component templates
@@ -150,6 +150,6 @@ export function setupJitPluginCallbacks(
         loader: 'text',
         watchFiles: [path],
       };
-    }),
+    })
   );
 }

@@ -102,7 +102,7 @@ export interface StylesheetLanguage {
     file: string,
     format: string,
     options: StylesheetPluginOptions,
-    build: PluginBuild,
+    build: PluginBuild
   ): OnLoadResult | Promise<OnLoadResult>;
 }
 
@@ -114,7 +114,7 @@ const postcssProcessors = new Map<string, WeakRef<PostcssProcessor>>();
 export class StylesheetPluginFactory {
   constructor(
     private readonly options: StylesheetPluginOptions,
-    private readonly cache?: LoadResultCache,
+    private readonly cache?: LoadResultCache
   ) {}
 
   create(language: Readonly<StylesheetLanguage>): Plugin {
@@ -162,7 +162,7 @@ export class StylesheetPluginFactory {
             const data = options.inlineComponentData?.[args.path];
             assert(
               typeof data === 'string',
-              `component style name should always be found [${args.path}]`,
+              `component style name should always be found [${args.path}]`
             );
 
             const [format, , filename] = args.path.split(';', 3);
@@ -174,9 +174,9 @@ export class StylesheetPluginFactory {
               format,
               options,
               build,
-              postcssProcessor,
+              postcssProcessor
             );
-          }),
+          })
         );
 
         // Add a load callback to support files from disk
@@ -192,9 +192,9 @@ export class StylesheetPluginFactory {
               extname(args.path).toLowerCase().slice(1),
               options,
               build,
-              postcssProcessor,
+              postcssProcessor
             );
-          }),
+          })
         );
       },
     };
@@ -263,7 +263,7 @@ async function processStylesheet(
   format: string,
   options: StylesheetPluginOptions,
   build: PluginBuild,
-  postcssProcessor: PostcssProcessor | undefined,
+  postcssProcessor: PostcssProcessor | undefined
 ) {
   let result: OnLoadResult;
 
@@ -291,7 +291,7 @@ async function processStylesheet(
         : Buffer.from(result.contents).toString('utf-8'),
       filename,
       postcssProcessor,
-      options,
+      options
     );
 
     // Merge results
@@ -347,7 +347,7 @@ async function compileString(
   data: string,
   filename: string,
   postcssProcessor: import('postcss').Processor,
-  options: StylesheetPluginOptions,
+  options: StylesheetPluginOptions
 ): Promise<OnLoadResult> {
   try {
     const postcssResult = await postcssProcessor.process(data, {

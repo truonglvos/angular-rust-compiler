@@ -25,12 +25,12 @@ export function normalizeDirectoryPath(path: string): string {
 
 export function getProjectRootPaths(
   workspaceRoot: string,
-  projectMetadata: { root?: string; sourceRoot?: string },
+  projectMetadata: { root?: string; sourceRoot?: string }
 ) {
   const projectRoot = normalizeDirectoryPath(join(workspaceRoot, projectMetadata.root ?? ''));
   const rawSourceRoot = projectMetadata.sourceRoot;
   const projectSourceRoot = normalizeDirectoryPath(
-    rawSourceRoot === undefined ? join(projectRoot, 'src') : join(workspaceRoot, rawSourceRoot),
+    rawSourceRoot === undefined ? join(projectRoot, 'src') : join(workspaceRoot, rawSourceRoot)
   );
 
   return { projectRoot, projectSourceRoot };

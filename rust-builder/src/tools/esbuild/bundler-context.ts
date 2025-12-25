@@ -16,12 +16,12 @@ import {
   OutputFile,
   build,
   context,
-} from "esbuild";
-import assert from "node:assert";
-import { builtinModules } from "node:module";
-import { basename, extname, join, relative } from "node:path";
-import { LoadResultCache, MemoryLoadResultCache } from "./load-result-cache";
-import { SERVER_GENERATED_EXTERNALS, convertOutputFile } from "./utils";
+} from 'esbuild';
+import assert from 'node:assert';
+import { builtinModules } from 'node:module';
+import { basename, extname, join, relative } from 'node:path';
+import { LoadResultCache, MemoryLoadResultCache } from './load-result-cache';
+import { SERVER_GENERATED_EXTERNALS, convertOutputFile } from './utils';
 
 export interface BundleContextResult {
   errors?: Message[];
@@ -39,7 +39,7 @@ export interface BundleContextResult {
 export interface InitialFileRecord {
   entrypoint: boolean;
   name?: string;
-  type: "script" | "style";
+  type: 'script' | 'style';
   external?: boolean;
   serverFile: boolean;
   depth: number;
@@ -69,21 +69,14 @@ export type BundlerOptionsFactory<T extends BuildOptions = BuildOptions> = (
  * @returns `true` if the object is determined to be a BuildFailure object; otherwise, `false`.
  */
 function isEsBuildFailure(value: unknown): value is BuildFailure {
-  return (
-    !!value &&
-    typeof value === "object" &&
-    "errors" in value &&
-    "warnings" in value
-  );
+  return !!value && typeof value === 'object' && 'errors' in value && 'warnings' in value;
 }
 
 export class BundlerContext {
   #esbuildContext?: BuildContext<{ metafile: true; write: false }>;
   #esbuildOptions?: BuildOptions & { metafile: true; write: false };
   #esbuildResult?: BundleContextResult;
-  #optionsFactory: BundlerOptionsFactory<
-    BuildOptions & { metafile: true; write: false }
-  >;
+  #optionsFactory: BundlerOptionsFactory<BuildOptions & { metafile: true; write: false }>;
   #shouldCacheResult: boolean;
   #loadCache?: MemoryLoadResultCache;
   readonly watchFiles = new Set<string>();
@@ -95,10 +88,9 @@ export class BundlerContext {
     private initialFilter?: (initial: Readonly<InitialFileRecord>) => boolean
   ) {
     // To cache the results an option factory is needed to capture the full set of dependencies
-    this.#shouldCacheResult = incremental && typeof options === "function";
+    this.#shouldCacheResult = incremental && typeof options === 'function';
     this.#optionsFactory = (...args) => {
-      const baseOptions =
-        typeof options === "function" ? options(...args) : options;
+      const baseOptions = typeof options === 'function' ? options(...args) : options;
 
       return {
         ...baseOptions,
@@ -157,12 +149,8 @@ export class BundlerContext {
       result.initialFiles.forEach((value, key) => initialFiles.set(key, value));
 
       outputFiles.push(...result.outputFiles);
-      result.externalImports.browser?.forEach((value) =>
-        externalImportsBrowser.add(value)
-      );
-      result.externalImports.server?.forEach((value) =>
-        externalImportsServer.add(value)
-      );
+      result.externalImports.browser?.forEach((value) => externalImportsBrowser.add(value));
+      result.externalImports.server?.forEach((value) => externalImportsServer.add(value));
 
       if (result.externalConfiguration) {
         externalConfiguration ??= new Set<string>();
@@ -186,9 +174,7 @@ export class BundlerContext {
         browser: externalImportsBrowser,
         server: externalImportsServer,
       },
-      externalConfiguration: externalConfiguration
-        ? [...externalConfiguration]
-        : undefined,
+      externalConfiguration: externalConfiguration ? [...externalConfiguration] : undefined,
     };
   }
 
@@ -293,11 +279,11 @@ export class BundlerContext {
     }
 
     const {
-      "ng-platform-server": isPlatformServer = false,
-      "ng-ssr-entry-bundle": isSsrEntryBundle = false,
+      'ng-platform-server': isPlatformServer = false,
+      'ng-ssr-entry-bundle': isSsrEntryBundle = false,
     } = result.metafile as Metafile & {
-      "ng-platform-server"?: boolean;
-      "ng-ssr-entry-bundle"?: boolean;
+      'ng-platform-server'?: boolean;
+      'ng-ssr-entry-bundle'?: boolean;
     };
 
     // Find all initial files
@@ -311,18 +297,13 @@ export class BundlerContext {
 
       if (entryPoint) {
         // The first part of the filename is the name of file (e.g., "polyfills" for "polyfills-7S5G3MDY.js")
-        const name = basename(relativeFilePath).replace(
-          /(?:-[\dA-Z]{8})?\.[a-z]{2,3}$/,
-          ""
-        );
+        const name = basename(relativeFilePath).replace(/(?:-[\dA-Z]{8})?\.[a-z]{2,3}$/, '');
         // Entry points are only styles or scripts
-        const type = extname(relativeFilePath) === ".css" ? "style" : "script";
+        const type = extname(relativeFilePath) === '.css' ? 'style' : 'script';
 
         // Only entrypoints with an entry in the options are initial files.
         // Dynamic imports also have an entryPoint value in the meta file.
-        if (
-          (this.#esbuildOptions.entryPoints as Record<string, string>)?.[name]
-        ) {
+        if ((this.#esbuildOptions.entryPoints as Record<string, string>)?.[name]) {
           // An entryPoint value indicates an initial file
           const record: InitialFileRecord = {
             name,
@@ -356,12 +337,9 @@ export class BundlerContext {
           continue;
         }
 
-        if (
-          initialImport.kind === "import-statement" ||
-          initialImport.kind === "import-rule"
-        ) {
+        if (initialImport.kind === 'import-statement' || initialImport.kind === 'import-rule') {
           const record: InitialFileRecord = {
-            type: initialImport.kind === "import-rule" ? "style" : "script",
+            type: initialImport.kind === 'import-rule' ? 'style' : 'script',
             entrypoint: false,
             external: initialImport.external,
             serverFile: isPlatformServer,
@@ -387,9 +365,7 @@ export class BundlerContext {
           !external ||
           SERVER_GENERATED_EXTERNALS.has(path) ||
           isInternalAngularFile(path) ||
-          (kind !== "import-statement" &&
-            kind !== "dynamic-import" &&
-            kind !== "require-call")
+          (kind !== 'import-statement' && kind !== 'dynamic-import' && kind !== 'require-call')
         ) {
           continue;
         }
@@ -398,7 +374,7 @@ export class BundlerContext {
       }
     }
 
-    assert(this.#esbuildOptions, "esbuild options cannot be undefined.");
+    assert(this.#esbuildOptions, 'esbuild options cannot be undefined.');
 
     const outputFiles = result.outputFiles.map((file) => {
       let fileType: BuildOutputFileType;
@@ -433,7 +409,7 @@ export class BundlerContext {
       outputFiles,
       initialFiles,
       externalImports: {
-        [isPlatformServer ? "server" : "browser"]: externalImports,
+        [isPlatformServer ? 'server' : 'browser']: externalImports,
       },
       externalConfiguration,
       errors: undefined,
@@ -502,23 +478,21 @@ export class BundlerContext {
 }
 
 function isInternalAngularFile(file: string) {
-  return file.startsWith("angular:");
+  return file.startsWith('angular:');
 }
 
 function isInternalBundlerFile(file: string) {
   // Bundler virtual files such as "<define:???>" or "<runtime>"
-  if (file[0] === "<" && file.at(-1) === ">") {
+  if (file[0] === '<' && file.at(-1) === '>') {
     return true;
   }
 
-  const DISABLED_BUILTIN = "(disabled):";
+  const DISABLED_BUILTIN = '(disabled):';
 
   // Disabled node builtins such as "/some/path/(disabled):fs"
   const disabledIndex = file.indexOf(DISABLED_BUILTIN);
   if (disabledIndex >= 0) {
-    return builtinModules.includes(
-      file.slice(disabledIndex + DISABLED_BUILTIN.length)
-    );
+    return builtinModules.includes(file.slice(disabledIndex + DISABLED_BUILTIN.length));
   }
 
   return false;

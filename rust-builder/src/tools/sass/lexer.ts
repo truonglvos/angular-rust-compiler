@@ -34,7 +34,7 @@ function isWhitespace(code: number): boolean {
  * @returns An iterable that yields each CSS url function value found.
  */
 export function* findUrls(
-  contents: string,
+  contents: string
 ): Iterable<{ start: number; end: number; value: string }> {
   let pos = 0;
   let width = 1;

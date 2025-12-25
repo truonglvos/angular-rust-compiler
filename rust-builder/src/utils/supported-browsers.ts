@@ -13,7 +13,7 @@ const BASELINE_DATE = 'BASELINE-DATE-PLACEHOLDER';
 
 export function getSupportedBrowsers(
   projectRoot: string,
-  logger: { warn(message: string): void },
+  logger: { warn(message: string): void }
 ): string[] {
   // Read the browserslist configuration containing Angular's browser support policy.
   const angularBrowserslist = browserslist(`baseline widely available on ${getBaselineDate()}`);
@@ -47,7 +47,7 @@ export function getSupportedBrowsers(
     logger.warn(
       `One or more browsers which are configured in the project's Browserslist configuration ` +
         'will be ignored as ES5 output is not supported by the Angular CLI.\n' +
-        `Ignored browsers:\n${nonEs6Browsers.join(', ')}`,
+        `Ignored browsers:\n${nonEs6Browsers.join(', ')}`
     );
   }
 
@@ -55,7 +55,7 @@ export function getSupportedBrowsers(
     logger.warn(
       `One or more browsers which are configured in the project's Browserslist configuration ` +
         "fall outside Angular's browser support for this version.\n" +
-        `Unsupported browsers:\n${unsupportedBrowsers.join(', ')}`,
+        `Unsupported browsers:\n${unsupportedBrowsers.join(', ')}`
     );
   }
 

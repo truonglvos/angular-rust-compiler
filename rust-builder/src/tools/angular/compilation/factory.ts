@@ -6,8 +6,8 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import { useParallelTs } from "../../../utils/environment-options";
-import type { AngularCompilation } from "./angular-compilation";
+import { useParallelTs } from '../../../utils/environment-options';
+import type { AngularCompilation } from './angular-compilation';
 
 /**
  * Creates an Angular compilation object that can be used to perform Angular application
@@ -23,17 +23,17 @@ export async function createAngularCompilation(
   parallel: boolean = useParallelTs
 ): Promise<AngularCompilation> {
   if (parallel) {
-    const { ParallelCompilation } = await import("./parallel-compilation");
+    const { ParallelCompilation } = await import('./parallel-compilation');
 
     return new ParallelCompilation(jit, browserOnlyBuild);
   }
 
   if (jit) {
-    const { JitCompilation } = await import("./jit-compilation");
+    const { JitCompilation } = await import('./jit-compilation');
 
     return new JitCompilation(browserOnlyBuild);
   } else {
-    const { RustAngularCompilation } = await import("./rust-compilation");
+    const { RustAngularCompilation } = await import('./rust-compilation');
 
     return new RustAngularCompilation();
   }

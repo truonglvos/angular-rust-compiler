@@ -21,7 +21,7 @@ export type NormalizedOptimizationOptions = Required<
 };
 
 export function normalizeOptimization(
-  optimization: OptimizationUnion = true,
+  optimization: OptimizationUnion = true
 ): NormalizedOptimizationOptions {
   if (typeof optimization === 'object') {
     const styleOptimization = !!optimization.styles;

@@ -17,7 +17,7 @@ export interface LoadResultCache {
 
 export function createCachedLoad(
   cache: LoadResultCache | undefined,
-  callback: Parameters<PluginBuild['onLoad']>[1],
+  callback: Parameters<PluginBuild['onLoad']>[1]
 ): Parameters<PluginBuild['onLoad']>[1] {
   if (cache === undefined) {
     return callback;

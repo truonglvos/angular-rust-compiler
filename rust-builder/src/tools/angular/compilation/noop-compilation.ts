@@ -15,7 +15,7 @@ export class NoopCompilation extends AngularCompilation {
   async initialize(
     tsconfig: string,
     hostOptions: AngularHostOptions,
-    compilerOptionsTransformer?: (compilerOptions: ng.CompilerOptions) => ng.CompilerOptions,
+    compilerOptionsTransformer?: (compilerOptions: ng.CompilerOptions) => ng.CompilerOptions
   ): Promise<{
     affectedFiles: ReadonlySet<ts.SourceFile>;
     compilerOptions: ng.CompilerOptions;

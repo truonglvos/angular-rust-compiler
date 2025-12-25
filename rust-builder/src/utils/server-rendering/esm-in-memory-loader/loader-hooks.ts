@@ -39,7 +39,7 @@ export function initialize(data: ESMInMemoryFileLoaderWorkerData) {
   // the in-memory files may use `import.meta.url` in ways that assume a file URL.
   // `createRequire` is one example of this usage.
   memoryVirtualRootUrl = pathToFileURL(
-    join(data.workspaceRoot, `.angular/prerender-root/${randomUUID()}/`),
+    join(data.workspaceRoot, `.angular/prerender-root/${randomUUID()}/`)
   ).href;
   outputFiles = data.outputFiles;
 }
@@ -47,7 +47,7 @@ export function initialize(data: ESMInMemoryFileLoaderWorkerData) {
 export function resolve(
   specifier: string,
   context: { parentURL: undefined | string },
-  nextResolve: Function,
+  nextResolve: Function
 ) {
   // In-memory files loaded from external code will contain a memory scheme
   if (specifier.startsWith(MEMORY_URL_SCHEME)) {
@@ -95,7 +95,7 @@ export function resolve(
     }
 
     assert.fail(
-      `In-memory ESM relative file should always exist: '${context.parentURL}' --> '${specifier}'`,
+      `In-memory ESM relative file should always exist: '${context.parentURL}' --> '${specifier}'`
     );
   }
 

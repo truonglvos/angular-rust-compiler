@@ -36,7 +36,7 @@ export function setupBundlerContexts(
   codeBundleCache: SourceFileCache,
   stylesheetBundler: ComponentStylesheetBundler,
   angularCompilation: AngularCompilation,
-  templateUpdates: Map<string, string> | undefined,
+  templateUpdates: Map<string, string> | undefined
 ): {
   typescriptContexts: BundlerContext[];
   otherContexts: BundlerContext[];
@@ -64,9 +64,9 @@ export function setupBundlerContexts(
         codeBundleCache,
         stylesheetBundler,
         angularCompilation,
-        templateUpdates,
-      ),
-    ),
+        templateUpdates
+      )
+    )
   );
 
   // Browser polyfills code
@@ -74,13 +74,13 @@ export function setupBundlerContexts(
     options,
     target,
     codeBundleCache,
-    stylesheetBundler,
+    stylesheetBundler
   );
   if (browserPolyfillBundleOptions) {
     const browserPolyfillContext = new BundlerContext(
       workspaceRoot,
       watch,
-      browserPolyfillBundleOptions,
+      browserPolyfillBundleOptions
     );
     if (typeof browserPolyfillBundleOptions === 'function') {
       otherContexts.push(browserPolyfillContext);
@@ -117,8 +117,8 @@ export function setupBundlerContexts(
       new BundlerContext(
         workspaceRoot,
         watch,
-        createServerMainCodeBundleOptions(options, nodeTargets, codeBundleCache, stylesheetBundler),
-      ),
+        createServerMainCodeBundleOptions(options, nodeTargets, codeBundleCache, stylesheetBundler)
+      )
     );
 
     if (outputMode && ssrOptions?.entry) {
@@ -127,8 +127,8 @@ export function setupBundlerContexts(
         new BundlerContext(
           workspaceRoot,
           watch,
-          createSsrEntryCodeBundleOptions(options, nodeTargets, codeBundleCache, stylesheetBundler),
-        ),
+          createSsrEntryCodeBundleOptions(options, nodeTargets, codeBundleCache, stylesheetBundler)
+        )
       );
     }
 
@@ -136,7 +136,7 @@ export function setupBundlerContexts(
     const serverPolyfillBundleOptions = createServerPolyfillBundleOptions(
       options,
       nodeTargets,
-      codeBundleCache.loadResultCache,
+      codeBundleCache.loadResultCache
     );
 
     if (serverPolyfillBundleOptions) {
@@ -149,7 +149,7 @@ export function setupBundlerContexts(
 
 export function createComponentStyleBundler(
   options: NormalizedApplicationBuildOptions,
-  target: string[],
+  target: string[]
 ): ComponentStylesheetBundler {
   const {
     workspaceRoot,
@@ -192,6 +192,6 @@ export function createComponentStyleBundler(
       publicPath,
     },
     inlineStyleLanguage,
-    incremental,
+    incremental
   );
 }

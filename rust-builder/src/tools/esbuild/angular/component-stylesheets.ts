@@ -43,7 +43,7 @@ export class ComponentStylesheetBundler {
   constructor(
     private readonly options: BundleStylesheetOptions,
     private readonly defaultInlineLanguage: string,
-    private readonly incremental: boolean,
+    private readonly incremental: boolean
   ) {}
 
   /**
@@ -56,7 +56,7 @@ export class ComponentStylesheetBundler {
   async bundleFile(
     entry: string,
     externalId?: string | boolean,
-    direct?: boolean,
+    direct?: boolean
   ): Promise<ComponentStylesheetResult> {
     const bundlerContext = await this.#fileContexts.getOrCreate(entry, () => {
       return new BundlerContext(this.options.workspaceRoot, this.incremental, (loadCache) => {
@@ -64,7 +64,7 @@ export class ComponentStylesheetBundler {
         if (externalId) {
           assert(
             typeof externalId === 'string',
-            'Initial external component stylesheets must have a string identifier',
+            'Initial external component stylesheets must have a string identifier'
           );
 
           buildOptions.entryPoints = { [externalId]: entry };
@@ -87,15 +87,15 @@ export class ComponentStylesheetBundler {
       await bundlerContext.bundle(),
       bundlerContext.watchFiles,
       !!externalId,
-      !!direct,
+      !!direct
     );
   }
 
   bundleAllFiles(external: boolean, direct: boolean) {
     return Promise.all(
       Array.from(this.#fileContexts.entries()).map(([entry]) =>
-        this.bundleFile(entry, external, direct),
-      ),
+        this.bundleFile(entry, external, direct)
+      )
     );
   }
 
@@ -103,7 +103,7 @@ export class ComponentStylesheetBundler {
     data: string,
     filename: string,
     language = this.defaultInlineLanguage,
-    externalId?: string,
+    externalId?: string
   ): Promise<ComponentStylesheetResult> {
     // Use a hash of the inline stylesheet content to ensure a consistent identifier. External stylesheets will resolve
     // to the actual stylesheet file path.
@@ -166,7 +166,7 @@ export class ComponentStylesheetBundler {
       await bundlerContext.bundle(),
       bundlerContext.watchFiles,
       !!externalId,
-      false,
+      false
     );
   }
 
@@ -217,7 +217,7 @@ export class ComponentStylesheetBundler {
     result: BundleContextResult,
     referencedFiles: Set<string> | undefined,
     external: boolean,
-    direct: boolean,
+    direct: boolean
   ): ComponentStylesheetResult {
     let contents = '';
     const outputFiles: BuildOutputFile[] = [];
@@ -258,7 +258,7 @@ export class ComponentStylesheetBundler {
         }
       } else {
         throw new Error(
-          `Unexpected non CSS/Media file "${filename}" outputted during component stylesheet processing.`,
+          `Unexpected non CSS/Media file "${filename}" outputted during component stylesheet processing.`
         );
       }
     }

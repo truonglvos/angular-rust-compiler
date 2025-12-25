@@ -17,7 +17,7 @@ import { loadEsmModule } from './load-esm';
 
 export async function loadProxyConfiguration(
   root: string,
-  proxyConfig: string | undefined,
+  proxyConfig: string | undefined
 ): Promise<Record<string, object> | undefined> {
   if (!proxyConfig) {
     return undefined;
@@ -79,7 +79,7 @@ export async function loadProxyConfiguration(
  * @param proxy A proxy configuration object.
  */
 function normalizeProxyConfiguration(
-  proxy: Record<string, object> | object[],
+  proxy: Record<string, object> | object[]
 ): Record<string, object> {
   let normalizedProxy: Record<string, object> | undefined;
 
@@ -130,14 +130,14 @@ function normalizeProxyConfiguration(
       // Preprocess path rewrite entries
       const pathRewriteEntries: [RegExp, string][] = [];
       for (const [pattern, value] of Object.entries(
-        proxyEntry.pathRewrite as Record<string, string>,
+        proxyEntry.pathRewrite as Record<string, string>
       )) {
         pathRewriteEntries.push([new RegExp(pattern), value]);
       }
 
       (proxyEntry as Record<string, unknown>).rewrite = pathRewriter.bind(
         undefined,
-        pathRewriteEntries,
+        pathRewriteEntries
       );
 
       delete proxyEntry.pathRewrite;

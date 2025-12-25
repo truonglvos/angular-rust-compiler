@@ -30,7 +30,7 @@ export function createRemoveIdPrefixPlugin(externals: string[]): Plugin {
       const escapedExternals = externals.map((e) => escapeRegexSpecialChars(e) + '(?:/.+)?');
       const prefixedExternalRegex = new RegExp(
         `${resolvedConfig.base}${VITE_ID_PREFIX}(${escapedExternals.join('|')})`,
-        'g',
+        'g'
       );
 
       // @ts-expect-error: Property 'push' does not exist on type 'readonly Plugin<any>[]'

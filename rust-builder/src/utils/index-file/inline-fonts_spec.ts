@@ -43,7 +43,7 @@ describe('InlineFontsProcessor', () => {
     </html>`);
 
       expect(html).not.toContain(
-        'href="https://fonts.googleapis.com/css?family=Roboto:300,400,500"',
+        'href="https://fonts.googleapis.com/css?family=Roboto:300,400,500"'
       );
       expect(html).not.toContain('href="https://fonts.googleapis.com/icon?family=Material+Icons"');
       expect(html).toContain('href="theme.css"');
@@ -97,7 +97,7 @@ describe('InlineFontsProcessor', () => {
 
       const html = await inlineFontsProcessor.process(content);
       expect(html).toContain(
-        `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>`,
+        `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>`
       );
     });
   });

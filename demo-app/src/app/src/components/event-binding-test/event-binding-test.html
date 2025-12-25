@@ -16,14 +16,15 @@
   <!-- Test 2: Mouse Events -->
   <section>
     <h3>2. Mouse Events</h3>
-    <div 
+    <div
       class="mouse-area"
       [class.hovering]="isHovering"
       (mouseenter)="onMouseEnter()"
       (mouseleave)="onMouseLeave()"
       (mousemove)="onMouseMove($event)"
       (mousedown)="onMouseDown($event)"
-      (mouseup)="onMouseUp($event)">
+      (mouseup)="onMouseUp($event)"
+    >
       <p>Mouse over this area</p>
       <p>Position: X={{ mousePosition.x }}, Y={{ mousePosition.y }}</p>
       <p>Hovering: {{ isHovering ? 'Yes' : 'No' }}</p>
@@ -33,7 +34,7 @@
   <!-- Test 3: Keyboard Events -->
   <section>
     <h3>3. Keyboard Events</h3>
-    <input 
+    <input
       type="text"
       placeholder="Type something..."
       [value]="inputValue"
@@ -41,7 +42,8 @@
       (keydown)="onKeyDown($event)"
       (keyup)="onKeyUp($event)"
       (keydown.enter)="onEnterKey()"
-      (keydown.escape)="onEscapeKey()">
+      (keydown.escape)="onEscapeKey()"
+    />
     <p>Input value: {{ inputValue }}</p>
     <p>Last key: {{ lastKeyPressed }}</p>
     <p>Total key presses: {{ keyPressCount }}</p>
@@ -51,12 +53,13 @@
   <!-- Test 4: Focus Events -->
   <section>
     <h3>4. Focus Events</h3>
-    <input 
+    <input
       type="text"
       placeholder="Focus on me..."
       (focus)="onFocus()"
       (blur)="onBlur()"
-      [class.focused]="isFocused">
+      [class.focused]="isFocused"
+    />
     <p>Input is {{ isFocused ? 'focused' : 'not focused' }}</p>
   </section>
 
@@ -64,14 +67,10 @@
   <section>
     <h3>5. Form Events</h3>
     <form (submit)="onSubmit($event)">
-      <input 
-        type="text" 
-        placeholder="Form input..."
-        [(ngModel)]="formValue"
-        name="formInput">
+      <input type="text" placeholder="Form input..." [(ngModel)]="formValue" name="formInput" />
       <button type="submit">Submit</button>
     </form>
-    
+
     <div>
       <label>Select option:</label>
       <select (change)="onSelectChange($event)">
@@ -85,10 +84,7 @@
 
     <div>
       <label>
-        <input 
-          type="checkbox" 
-          [checked]="checkboxValue"
-          (change)="onCheckboxChange($event)">
+        <input type="checkbox" [checked]="checkboxValue" (change)="onCheckboxChange($event)" />
         Check me
       </label>
       <p>Checkbox is: {{ checkboxValue ? 'checked' : 'unchecked' }}</p>
@@ -98,9 +94,10 @@
   <!-- Test 6: Event with $event object -->
   <section>
     <h3>6. Using $event object</h3>
-    <button 
+    <button
       (click)="logEvent('click', 'Button at position: ' + $event.clientX + ',' + $event.clientY)"
-      #logBtn>
+      #logBtn
+    >
       Click to log position
     </button>
   </section>

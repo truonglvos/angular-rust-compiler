@@ -62,7 +62,7 @@ export interface FileInfo {
  */
 // eslint-disable-next-line max-lines-per-function
 export async function augmentIndexHtml(
-  params: AugmentIndexHtmlOptions,
+  params: AugmentIndexHtmlOptions
 ): Promise<{ content: string; warnings: string[]; errors: string[] }> {
   const { loadOutputFile, files, entrypoints, sri, deployUrl, lang, baseHref, html, imageDomains } =
     params;
@@ -309,7 +309,7 @@ function generateUrl(value: string, deployUrl: string | undefined): string {
 function updateAttribute(
   tag: { attrs: { name: string; value: string }[] },
   name: string,
-  value: string,
+  value: string
 ): void {
   const index = tag.attrs.findIndex((a) => a.name === name);
   const newValue = { name, value };
@@ -323,7 +323,7 @@ function updateAttribute(
 
 function readAttribute(
   tag: { attrs: { name: string; value: string }[] },
-  name: string,
+  name: string
 ): string | undefined {
   const targetAttr = tag.attrs.find((attr) => attr.name === name);
 
@@ -336,13 +336,13 @@ function isString(value: unknown): value is string {
 
 async function getLanguageDirection(
   locale: string,
-  warnings: string[],
+  warnings: string[]
 ): Promise<string | undefined> {
   const dir = await getLanguageDirectionFromLocales(locale);
 
   if (!dir) {
     warnings.push(
-      `Locale data for '${locale}' cannot be found. 'dir' attribute will not be set for this locale.`,
+      `Locale data for '${locale}' cannot be found. 'dir' attribute will not be set for this locale.`
     );
   }
 

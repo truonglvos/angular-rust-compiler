@@ -11,7 +11,7 @@ import { autoCsp, hashTextContent } from './auto-csp';
 // Utility function to grab the meta tag CSPs from the HTML response.
 const getCsps = (html: string) => {
   return Array.from(
-    html.matchAll(/<meta http-equiv="Content-Security-Policy" content="([^"]*)">/g),
+    html.matchAll(/<meta http-equiv="Content-Security-Policy" content="([^"]*)">/g)
   ).map((m) => m[1]); // Only capture group.
 };
 
@@ -78,7 +78,7 @@ describe('auto-csp', () => {
     expect(csps[0]).toMatch(ONE_HASH_CSP);
     // Our loader script appears after the HTML text content.
     expect(result).toMatch(
-      /Some text<\/div>\s*<script>\s*var scripts = \[\['.\/main.js', '', false, false\]\];/,
+      /Some text<\/div>\s*<script>\s*var scripts = \[\['.\/main.js', '', false, false\]\];/
     );
   });
 
@@ -103,7 +103,7 @@ describe('auto-csp', () => {
     expect(csps[0]).toMatch(TWO_HASH_CSP);
     expect(result).toContain(
       // eslint-disable-next-line max-len
-      `var scripts = [['./main1.js', '', false, false],['./main2.js', '', true, false],['./main3.js', 'module', true, true]];`,
+      `var scripts = [['./main1.js', '', false, false],['./main2.js', '', true, false],['./main3.js', 'module', true, true]];`
     );
     // Head loader script is in the head.
     expect(result).toContain(`</script></head>`);
@@ -166,12 +166,12 @@ describe('auto-csp', () => {
     // Loader script for main.js and main2.js appear after 'foo' and before 'bar'.
     expect(result).toMatch(
       // eslint-disable-next-line max-len
-      /console.log\('foo'\);<\/script>\s*<script>\s*var scripts = \[\['.\/main.js', '', false, false\],\['.\/main2.js', '', false, false\]\];[\s\S]*console.log\('bar'\);/,
+      /console.log\('foo'\);<\/script>\s*<script>\s*var scripts = \[\['.\/main.js', '', false, false\],\['.\/main2.js', '', false, false\]\];[\s\S]*console.log\('bar'\);/
     );
     // Loader script for main3.js and main4.js appear after 'bar'.
     expect(result).toMatch(
       // eslint-disable-next-line max-len
-      /console.log\('bar'\);<\/script>\s*<script>\s*var scripts = \[\['.\/main3.js', '', false, false\],\['.\/main4.js', '', false, false\]\];/,
+      /console.log\('bar'\);<\/script>\s*<script>\s*var scripts = \[\['.\/main3.js', '', false, false\],\['.\/main4.js', '', false, false\]\];/
     );
     // Exactly 4 scripts should be left.
     expect(Array.from(result.matchAll(/<script>/g)).length).toEqual(4);
@@ -195,7 +195,7 @@ describe('auto-csp', () => {
 
     expect(result).toContain(
       // eslint-disable-next-line max-len
-      `document.lastElementChild.appendChild`,
+      `document.lastElementChild.appendChild`
     );
     // Head loader script is in the head.
     expect(result).toContain(`</script></head>`);

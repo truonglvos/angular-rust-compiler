@@ -44,7 +44,7 @@ export async function createTranslationLoader(): Promise<TranslationLoader> {
     }
     throw new Error(
       `Unsupported translation file format in ${path}. The following parsers were tried:\n` +
-        messages.join('\n'),
+        messages.join('\n')
     );
   };
 }
@@ -76,7 +76,7 @@ async function importParsers() {
     return { parsers, diagnostics };
   } catch {
     throw new Error(
-      `Unable to load translation file parsers. Please ensure '@angular/localize' is installed.`,
+      `Unable to load translation file parsers. Please ensure '@angular/localize' is installed.`
     );
   }
 }

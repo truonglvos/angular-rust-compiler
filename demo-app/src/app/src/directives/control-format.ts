@@ -7,7 +7,11 @@ import { NgControl } from '@angular/forms';
 export class ControlFormat {
   @Input() characterPrevention: RegExp | null = null;
 
-  constructor(private el: ElementRef, private control: NgControl, private renderer2: Renderer2) {}
+  constructor(
+    private el: ElementRef,
+    private control: NgControl,
+    private renderer2: Renderer2,
+  ) {}
 
   @HostListener('input', ['$event.target']) onInput(target: unknown) {
     /* set value on HTML */

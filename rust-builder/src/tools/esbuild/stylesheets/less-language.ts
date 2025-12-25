@@ -40,7 +40,7 @@ async function compileString(
   data: string,
   filename: string,
   options: StylesheetPluginOptions,
-  resolver: PluginBuild['resolve'],
+  resolver: PluginBuild['resolve']
 ): Promise<OnLoadResult> {
   try {
     lessPreprocessor ??= (await import('less')).default;
@@ -78,7 +78,7 @@ async function compileString(
           filename: string,
           currentDirectory: string,
           options: Less.LoadFileOptions,
-          environment: Less.Environment,
+          environment: Less.Environment
         ): Promise<Less.FileLoadResult> {
           // Attempt direct loading as a relative path to avoid resolution overhead
           try {

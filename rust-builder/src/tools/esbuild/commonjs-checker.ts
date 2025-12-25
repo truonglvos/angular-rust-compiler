@@ -29,7 +29,7 @@ import type { Metafile, PartialMessage } from 'esbuild';
  */
 export function checkCommonJSModules(
   metafile: Metafile,
-  allowedCommonJsDependencies?: string[],
+  allowedCommonJsDependencies?: string[]
 ): PartialMessage[] {
   const messages: PartialMessage[] = [];
   const allowedRequests = new Set(allowedCommonJsDependencies);

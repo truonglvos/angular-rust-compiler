@@ -22,7 +22,7 @@ export async function generateIndexHtml(
   initialFiles: Map<string, InitialFileRecord>,
   outputFiles: BuildOutputFile[],
   buildOptions: NormalizedApplicationBuildOptions,
-  lang?: string,
+  lang?: string
 ): Promise<{
   csrContent: string;
   ssrContent?: string;

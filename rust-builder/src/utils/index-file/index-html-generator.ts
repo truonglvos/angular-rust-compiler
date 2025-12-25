@@ -20,7 +20,7 @@ import { addNonce } from './nonce';
 
 type IndexHtmlGeneratorPlugin = (
   html: string,
-  options: IndexHtmlGeneratorProcessOptions,
+  options: IndexHtmlGeneratorProcessOptions
 ) => Promise<string | IndexHtmlPluginTransformResult> | string;
 
 export type HintMode = 'prefetch' | 'preload' | 'modulepreload' | 'preconnect' | 'dns-prefetch';
@@ -128,7 +128,7 @@ export class IndexHtmlGenerator {
     plugins: IndexHtmlGeneratorPlugin[],
     options: IndexHtmlGeneratorProcessOptions,
     warnings: string[],
-    errors: string[],
+    errors: string[]
   ): Promise<string> {
     for (const plugin of plugins) {
       const result = await plugin(content, options);
@@ -199,7 +199,7 @@ function inlineFontsPlugin({ options }: IndexHtmlGenerator): IndexHtmlGeneratorP
 
 function inlineCriticalCssPlugin(
   generator: IndexHtmlGenerator,
-  autoCsp: boolean,
+  autoCsp: boolean
 ): IndexHtmlGeneratorPlugin {
   const inlineCriticalCssProcessor = new InlineCriticalCssProcessor({
     minify: generator.options.optimization?.styles.minify,

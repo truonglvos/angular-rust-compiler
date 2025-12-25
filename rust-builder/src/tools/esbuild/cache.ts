@@ -46,7 +46,7 @@ export interface CacheStore<V> {
 export class Cache<V, S extends CacheStore<V> = CacheStore<V>> {
   constructor(
     protected readonly store: S,
-    readonly namespace?: string,
+    readonly namespace?: string
   ) {}
 
   /**

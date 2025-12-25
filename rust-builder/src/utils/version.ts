@@ -22,7 +22,7 @@ export function assertCompatibleAngularVersion(projectRoot: string): void | neve
     angularPkgJson = projectRequire('@angular/core/package.json');
   } catch {
     console.error(
-      'Error: It appears that "@angular/core" is missing as a dependency. Please ensure it is included in your project.',
+      'Error: It appears that "@angular/core" is missing as a dependency. Please ensure it is included in your project.'
     );
 
     process.exit(2);
@@ -31,7 +31,7 @@ export function assertCompatibleAngularVersion(projectRoot: string): void | neve
   if (!angularPkgJson?.['version']) {
     console.error(
       'Error: Unable to determine the versions of "@angular/core".\n' +
-        'This likely indicates a corrupted local installation. Please try reinstalling your packages.',
+        'This likely indicates a corrupted local installation. Please try reinstalling your packages.'
     );
 
     process.exit(2);
@@ -49,7 +49,7 @@ export function assertCompatibleAngularVersion(projectRoot: string): void | neve
     console.error(
       `Error: The current version of "@angular/build" supports Angular versions ${supportedAngularSemver},\n` +
         `but detected Angular version ${angularVersion} instead.\n` +
-        'Please visit the link below to find instructions on how to update Angular.\nhttps://update.angular.dev/',
+        'Please visit the link below to find instructions on how to update Angular.\nhttps://update.angular.dev/'
     );
 
     process.exit(3);

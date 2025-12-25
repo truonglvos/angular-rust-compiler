@@ -8,9 +8,8 @@ describe('NgFor', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [NgFor]
-    })
-    .compileComponents();
+      imports: [NgFor],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(NgFor);
     component = fixture.componentInstance;

@@ -21,7 +21,7 @@ export function normalizeAssetPatterns(
   assetPatterns: AssetPattern[],
   workspaceRoot: string,
   projectRoot: string,
-  projectSourceRoot: string | undefined,
+  projectSourceRoot: string | undefined
 ): (AssetPatternClass & { output: string })[] {
   if (assetPatterns.length === 0) {
     return [];

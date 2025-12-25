@@ -19,14 +19,14 @@ import {
 
 export function createAngularSsrInternalMiddleware(
   server: ViteDevServer,
-  indexHtmlTransformer?: (content: string) => Promise<string>,
+  indexHtmlTransformer?: (content: string) => Promise<string>
 ): Connect.NextHandleFunction {
   let cachedAngularServerApp: ReturnType<typeof getOrCreateAngularServerApp> | undefined;
 
   return function angularSsrMiddleware(
     req: Connect.IncomingMessage,
     res: ServerResponse,
-    next: Connect.NextFunction,
+    next: Connect.NextFunction
   ) {
     if (req.url === undefined) {
       return next();
@@ -74,7 +74,7 @@ export function createAngularSsrInternalMiddleware(
 
 export async function createAngularSsrExternalMiddleware(
   server: ViteDevServer,
-  indexHtmlTransformer?: (content: string) => Promise<string>,
+  indexHtmlTransformer?: (content: string) => Promise<string>
 ): Promise<Connect.NextHandleFunction> {
   let fallbackWarningShown = false;
   let cachedAngularAppEngine: typeof SSRAngularAppEngine | undefined;
@@ -93,7 +93,7 @@ export async function createAngularSsrExternalMiddleware(
   return function angularSsrExternalMiddleware(
     req: Connect.IncomingMessage,
     res: ServerResponse,
-    next: Connect.NextFunction,
+    next: Connect.NextFunction
   ) {
     (async () => {
       const { reqHandler, AngularAppEngine } = (await server.ssrLoadModule('./server.mjs')) as {
@@ -106,7 +106,7 @@ export async function createAngularSsrExternalMiddleware(
           // eslint-disable-next-line no-console
           console.warn(
             `The 'reqHandler' export in 'server.ts' is either undefined or does not provide a recognized request handler. ` +
-              'Using the internal SSR middleware instead.',
+              'Using the internal SSR middleware instead.'
           );
 
           fallbackWarningShown = true;
@@ -114,7 +114,7 @@ export async function createAngularSsrExternalMiddleware(
 
         angularSsrInternalMiddleware ??= createAngularSsrInternalMiddleware(
           server,
-          indexHtmlTransformer,
+          indexHtmlTransformer
         );
 
         angularSsrInternalMiddleware(req, res, next);

@@ -71,7 +71,7 @@ export function createCssInlineFontsPlugin({
               ],
             };
           }
-        }),
+        })
       );
     },
   };

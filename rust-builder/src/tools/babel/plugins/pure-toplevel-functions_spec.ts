@@ -30,7 +30,7 @@ function testCase({
       fail('Expected babel to return a transform result.');
     } else {
       expect(await format(result.code, { parser: 'babel' })).toEqual(
-        await format(expected, { parser: 'babel' }),
+        await format(expected, { parser: 'babel' })
       );
     }
   };
@@ -46,7 +46,7 @@ describe('pure-toplevel-functions Babel plugin', () => {
     testCase({
       input: 'var result = new SomeClass();',
       expected: 'var result = /*#__PURE__*/ new SomeClass();',
-    }),
+    })
   );
 
   it(
@@ -54,7 +54,7 @@ describe('pure-toplevel-functions Babel plugin', () => {
     testCase({
       input: 'var result = someCall();',
       expected: 'var result = /*#__PURE__*/ someCall();',
-    }),
+    })
   );
 
   it(
@@ -63,7 +63,7 @@ describe('pure-toplevel-functions Babel plugin', () => {
       input: 'var SomeClass = (function () { function SomeClass() { } return SomeClass; })();',
       expected:
         'var SomeClass = /*#__PURE__*/(function () { function SomeClass() { } return SomeClass; })();',
-    }),
+    })
   );
 
   it(
@@ -72,51 +72,49 @@ describe('pure-toplevel-functions Babel plugin', () => {
       input: 'var SomeClass = (() => { function SomeClass() { } return SomeClass; })();',
       expected:
         'var SomeClass = /*#__PURE__*/(() => { function SomeClass() { } return SomeClass; })();',
-    }),
+    })
   );
 
   it(
     'does not annotate top-level IIFE assignments with arguments',
     testCaseNoChange(
-      'var SomeClass = (function () { function SomeClass() { } return SomeClass; })(abc);',
-    ),
+      'var SomeClass = (function () { function SomeClass() { } return SomeClass; })(abc);'
+    )
   );
 
   it(
     'does not annotate top-level arrow-function-based IIFE assignments with arguments',
-    testCaseNoChange(
-      'var SomeClass = (() => { function SomeClass() { } return SomeClass; })(abc);',
-    ),
+    testCaseNoChange('var SomeClass = (() => { function SomeClass() { } return SomeClass; })(abc);')
   );
 
   it(
     'does not annotate call expressions inside function declarations',
-    testCaseNoChange('function funcDecl() { const result = someFunction(); }'),
+    testCaseNoChange('function funcDecl() { const result = someFunction(); }')
   );
 
   it(
     'does not annotate call expressions inside function expressions',
-    testCaseNoChange('const foo = function funcDecl() { const result = someFunction(); }'),
+    testCaseNoChange('const foo = function funcDecl() { const result = someFunction(); }')
   );
 
   it(
     'does not annotate call expressions inside function expressions',
-    testCaseNoChange('const foo = () => { const result = someFunction(); }'),
+    testCaseNoChange('const foo = () => { const result = someFunction(); }')
   );
 
   it(
     'does not annotate new expressions inside function declarations',
-    testCaseNoChange('function funcDecl() { const result = new SomeClass(); }'),
+    testCaseNoChange('function funcDecl() { const result = new SomeClass(); }')
   );
 
   it(
     'does not annotate new expressions inside function expressions',
-    testCaseNoChange('const foo = function funcDecl() { const result = new SomeClass(); }'),
+    testCaseNoChange('const foo = function funcDecl() { const result = new SomeClass(); }')
   );
 
   it(
     'does not annotate new expressions inside function expressions',
-    testCaseNoChange('const foo = () => { const result = new SomeClass(); }'),
+    testCaseNoChange('const foo = () => { const result = new SomeClass(); }')
   );
 
   it(
@@ -128,7 +126,7 @@ describe('pure-toplevel-functions Babel plugin', () => {
           __metadata("design:paramtypes", [Object]),
           __metadata("design:returntype", void 0)
       ], LanguageState.prototype, "checkLanguage", null);
-    `),
+    `)
   );
 
   it(
@@ -140,7 +138,7 @@ describe('pure-toplevel-functions Babel plugin', () => {
         'property',
         'value'
       );
-    `),
+    `)
   );
 
   it(
@@ -151,7 +149,7 @@ describe('pure-toplevel-functions Babel plugin', () => {
           var newClazz = new Clazz();
         }
       };
-    `),
+    `)
   );
 
   describe('topLevelSafeMode: true', () => {
@@ -161,7 +159,7 @@ describe('pure-toplevel-functions Babel plugin', () => {
         input: `const result = new InjectionToken('abc');`,
         expected: `const result = /*#__PURE__*/ new InjectionToken('abc');`,
         options: { topLevelSafeMode: true },
-      }),
+      })
     );
 
     it(
@@ -170,7 +168,7 @@ describe('pure-toplevel-functions Babel plugin', () => {
         input: 'const result = new SomeClass();',
         expected: 'const result = new SomeClass();',
         options: { topLevelSafeMode: true },
-      }),
+      })
     );
 
     it(
@@ -179,7 +177,7 @@ describe('pure-toplevel-functions Babel plugin', () => {
         input: 'const result = someCall();',
         expected: 'const result = someCall();',
         options: { topLevelSafeMode: true },
-      }),
+      })
     );
   });
 });

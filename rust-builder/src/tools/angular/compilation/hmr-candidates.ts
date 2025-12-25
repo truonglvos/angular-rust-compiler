@@ -25,7 +25,7 @@ import ts from 'typescript';
 export function collectHmrCandidates(
   modifiedFiles: Set<string>,
   { compiler }: ng.NgtscProgram,
-  staleSourceFiles: Map<string, ts.SourceFile> | undefined,
+  staleSourceFiles: Map<string, ts.SourceFile> | undefined
 ): Set<ts.ClassDeclaration> {
   const candidates = new Set<ts.ClassDeclaration>();
 
@@ -85,7 +85,7 @@ export function collectHmrCandidates(
 function analyzeFileUpdates(
   stale: ts.SourceFile,
   updated: ts.SourceFile,
-  compiler: ng.NgtscProgram['compiler'],
+  compiler: ng.NgtscProgram['compiler']
 ): ts.ClassDeclaration[] | null {
   if (stale.statements.length !== updated.statements.length) {
     return null;
@@ -114,7 +114,7 @@ function analyzeFileUpdates(
       if (
         updatedModifiers?.length !== staleModifiers?.length ||
         !updatedModifiers?.every((updatedModifier) =>
-          staleModifiers?.some((staleModifier) => updatedModifier.kind === staleModifier.kind),
+          staleModifiers?.some((staleModifier) => updatedModifier.kind === staleModifier.kind)
         )
       ) {
         return null;
@@ -138,13 +138,13 @@ function analyzeFileUpdates(
         const metaDecoratorIndex = updatedDecorators?.indexOf(meta.decorator);
         assert(
           metaDecoratorIndex !== undefined,
-          'Component metadata decorator should always be present on component class.',
+          'Component metadata decorator should always be present on component class.'
         );
         const updatedDecoratorExpression = meta.decorator.expression;
         assert(
           ts.isCallExpression(updatedDecoratorExpression) &&
             updatedDecoratorExpression.arguments.length === 1,
-          'Component metadata decorator should contain a call expression with a single argument.',
+          'Component metadata decorator should contain a call expression with a single argument.'
         );
 
         // Check the matching stale index for the component decorator
@@ -169,7 +169,7 @@ function analyzeFileUpdates(
             updatedDecoratorExpression.expression,
             updated,
             staleDecoratorExpression.expression,
-            stale,
+            stale
           )
         ) {
           return null;
@@ -180,7 +180,7 @@ function analyzeFileUpdates(
           staleDecoratorExpression,
           stale,
           updatedDecoratorExpression,
-          updated,
+          updated
         );
         if (analysis === MetaUpdateAnalysis.Unsupported) {
           return null;
@@ -241,7 +241,7 @@ function analyzeMetaUpdates(
   staleCall: ts.CallExpression,
   staleSource: ts.SourceFile,
   updatedCall: ts.CallExpression,
-  updatedSource: ts.SourceFile,
+  updatedSource: ts.SourceFile
 ): MetaUpdateAnalysis {
   const staleObject = staleCall.arguments[0];
   const updatedObject = updatedCall.arguments[0];
@@ -320,7 +320,7 @@ function equalRangeText(
   firstRange: ts.ReadonlyTextRange | undefined,
   firstSource: ts.SourceFile,
   secondRange: ts.ReadonlyTextRange | undefined,
-  secondSource: ts.SourceFile,
+  secondSource: ts.SourceFile
 ): boolean {
   // Check matching undefined values
   if (!firstRange || !secondRange) {

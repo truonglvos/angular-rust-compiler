@@ -13,7 +13,7 @@ const ANGULAR_COMPONENT_PREFIX = '/@ng/component';
 
 export function createAngularComponentMiddleware(
   server: ViteDevServer,
-  templateUpdates: ReadonlyMap<string, string>,
+  templateUpdates: ReadonlyMap<string, string>
 ): Connect.NextHandleFunction {
   return function angularComponentMiddleware(req, res, next) {
     if (req.url === undefined || res.writableEnded) {

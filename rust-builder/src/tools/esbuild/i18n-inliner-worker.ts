@@ -83,7 +83,7 @@ export default async function inlineFile(request: InlineFileRequest) {
   const result = await transformWithBabel(
     code,
     map && (JSON.parse(map) as SourceMapInput),
-    request,
+    request
   );
 
   return {
@@ -151,7 +151,7 @@ async function createI18nPlugins(locale: string, translation: Record<string, unk
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     makeEs2015TranslatePlugin(diagnostics, (translation || {}) as any, {
       missingTranslation: translation === undefined ? 'ignore' : missingTranslation,
-    }),
+    })
   );
 
   // Create a plugin to replace the locale specifier constant inject by the build system with the actual specifier
@@ -178,7 +178,7 @@ async function createI18nPlugins(locale: string, translation: Record<string, unk
 async function transformWithBabel(
   code: string,
   map: SourceMapInput | undefined,
-  options: InlineFileRequest,
+  options: InlineFileRequest
 ) {
   let ast;
   try {

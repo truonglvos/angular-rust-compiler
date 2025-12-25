@@ -36,8 +36,8 @@ export function logCumulativeDurations(): void {
     // eslint-disable-next-line no-console
     console.log(
       `DURATION[${name}]: ${total.toFixed(9)}s [count: ${durations.length}; avg: ${average.toFixed(
-        9,
-      )}s; min: ${min?.toFixed(9)}s; max: ${max?.toFixed(9)}s]`,
+        9
+      )}s; min: ${min?.toFixed(9)}s; max: ${max?.toFixed(9)}s]`
     );
   }
 }
@@ -58,7 +58,7 @@ function recordDuration(name: string, startTime: bigint, cumulative?: boolean): 
 export async function profileAsync<T>(
   name: string,
   action: () => Promise<T>,
-  cumulative?: boolean,
+  cumulative?: boolean
 ): Promise<T> {
   if (!debugPerformance) {
     return action();

@@ -69,7 +69,7 @@ export default function (): PluginObj {
           !leftCallArgument.isIdentifier() ||
           !nextExpression.scope.bindingIdentifierEquals(
             leftCallArgument.node.name,
-            declarationId,
+            declarationId
           ) ||
           !rightCallArgument.isAssignmentExpression()
         ) {

@@ -20,7 +20,7 @@ import type ts from 'typescript';
 function convertTypeScriptDiagnosticInfo(
   typescript: typeof ts,
   info: ts.DiagnosticRelatedInformation,
-  textPrefix?: string,
+  textPrefix?: string
 ): PartialNote {
   const newLine = platform() === 'win32' ? '\r\n' : '\n';
   let text = typescript.flattenDiagnosticMessageText(info.messageText, newLine);
@@ -50,7 +50,7 @@ function convertTypeScriptDiagnosticInfo(
       // will error if a nonexistent line is passed).
       const { line: lastLineOfFile } = typescript.getLineAndCharacterOfPosition(
         info.file,
-        info.file.text.length - 1,
+        info.file.text.length - 1
       );
       const lineEndPosition =
         line < lastLineOfFile
@@ -71,7 +71,7 @@ function convertTypeScriptDiagnosticInfo(
  */
 export function convertTypeScriptDiagnostic(
   typescript: typeof ts,
-  diagnostic: ts.Diagnostic,
+  diagnostic: ts.Diagnostic
 ): PartialMessage {
   let codePrefix = 'TS';
   let code = `${diagnostic.code}`;
@@ -88,12 +88,12 @@ export function convertTypeScriptDiagnostic(
   const message: PartialMessage = convertTypeScriptDiagnosticInfo(
     typescript,
     diagnostic,
-    `${codePrefix}${code}: `,
+    `${codePrefix}${code}: `
   );
 
   if (diagnostic.relatedInformation?.length) {
     message.notes = diagnostic.relatedInformation.map((info) =>
-      convertTypeScriptDiagnosticInfo(typescript, info),
+      convertTypeScriptDiagnosticInfo(typescript, info)
     );
   }
 

@@ -62,7 +62,7 @@ export class ExecutionResult {
     },
     private componentStyleBundler: ComponentStylesheetBundler,
     private codeBundleCache?: SourceFileCache,
-    readonly templateUpdates?: Map<string, string>,
+    readonly templateUpdates?: Map<string, string>
   ) {}
 
   addOutputFile(path: string, content: string | Uint8Array, type: BuildOutputFileType): void {
@@ -127,7 +127,7 @@ export class ExecutionResult {
   setExternalMetadata(
     implicitBrowser: string[],
     implicitServer: string[],
-    explicit: string[],
+    explicit: string[]
   ): void {
     this.externalMetadata = { implicitBrowser, implicitServer, explicit };
   }
@@ -171,17 +171,17 @@ export class ExecutionResult {
       componentStyleBundler: this.componentStyleBundler,
       fileChanges,
       previousOutputInfo: new Map(
-        this.outputFiles.map(({ path, hash, type }) => [path, { hash, type }]),
+        this.outputFiles.map(({ path, hash, type }) => [path, { hash, type }])
       ),
       previousAssetsInfo: new Map(
-        this.assetFiles.map(({ source, destination }) => [source, destination]),
+        this.assetFiles.map(({ source, destination }) => [source, destination])
       ),
       templateUpdates: this.templateUpdates,
     };
   }
 
   findChangedFiles(
-    previousOutputHashes: ReadonlyMap<string, { hash: string; type: BuildOutputFileType }>,
+    previousOutputHashes: ReadonlyMap<string, { hash: string; type: BuildOutputFileType }>
   ): Set<string> {
     const changed = new Set<string>();
     for (const file of this.outputFiles) {

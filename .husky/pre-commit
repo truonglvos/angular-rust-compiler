@@ -1,3 +1,4 @@
 . "$HOME/.cargo/env"
 
-cargo fmt --all -- --check
+npm run format:rust:check
+npm run format:check

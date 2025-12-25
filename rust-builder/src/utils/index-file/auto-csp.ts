@@ -174,7 +174,7 @@ export async function autoCsp(html: string, unsafeEval = false): Promise<string>
           enableBrowserFallbacks: true,
           enableTrustedTypes: false,
           enableUnsafeEval: unsafeEval,
-        })}">`,
+        })}">`
       );
     }
   });
@@ -208,7 +208,7 @@ function getStrictCsp(
     enableBrowserFallbacks: true,
     enableTrustedTypes: false,
     enableUnsafeEval: false,
-  },
+  }
 ): string {
   hashes = hashes || [];
   const strictCspTemplate: Record<string, string[]> = {

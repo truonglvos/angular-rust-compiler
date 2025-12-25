@@ -8,9 +8,8 @@ describe('EventBindingTest', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [EventBindingTest]
-    })
-    .compileComponents();
+      imports: [EventBindingTest],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(EventBindingTest);
     component = fixture.componentInstance;

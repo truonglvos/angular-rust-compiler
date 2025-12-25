@@ -33,7 +33,7 @@ export interface I18nOptions {
 function normalizeTranslationFileOption(
   option: unknown,
   locale: string,
-  expectObjectInError: boolean,
+  expectObjectInError: boolean
 ): string[] {
   if (typeof option === 'string') {
     return [option];
@@ -70,7 +70,7 @@ function ensureValidSubPath(value: unknown, name: string): asserts value is stri
 
   if (!/^[\w-]*$/.test(value)) {
     throw new Error(
-      `Project field '${name}' is invalid. It can only contain letters, numbers, hyphens, and underscores.`,
+      `Project field '${name}' is invalid. It can only contain letters, numbers, hyphens, and underscores.`
     );
   }
 }
@@ -80,7 +80,7 @@ export function createI18nOptions(
   logger?: {
     warn(message: string): void;
   },
-  ssrEnabled?: boolean,
+  ssrEnabled?: boolean
 ): I18nOptions {
   const { i18n: metadata = {} } = projectMetadata;
 
@@ -116,7 +116,7 @@ export function createI18nOptions(
           `'baseHref' in 'i18n.sourceLocale' may lead to undefined behavior when used with SSR. ` +
             `Consider using 'subPath' instead.\n\n` +
             `Note: 'subPath' specifies the URL segment for the locale, serving as both the HTML base HREF ` +
-            `and the output directory name.\nBy default, if not explicitly set, 'subPath' defaults to the locale code.`,
+            `and the output directory name.\nBy default, if not explicitly set, 'subPath' defaults to the locale code.`
         );
       }
 
@@ -130,7 +130,7 @@ export function createI18nOptions(
 
     if (rawsubPath !== undefined && rawSourceLocaleBaseHref !== undefined) {
       throw new Error(
-        `'i18n.sourceLocale.subPath' and 'i18n.sourceLocale.baseHref' cannot be used together.`,
+        `'i18n.sourceLocale.subPath' and 'i18n.sourceLocale.baseHref' cannot be used together.`
       );
     }
   }
@@ -165,7 +165,7 @@ export function createI18nOptions(
               `'baseHref' in 'i18n.locales.${locale}' may lead to undefined behavior when used with SSR. ` +
                 `Consider using 'subPath' instead.\n\n` +
                 `Note: 'subPath' specifies the URL segment for the locale, serving as both the HTML base HREF ` +
-                `and the output directory name.\nBy default, if not explicitly set, 'subPath' defaults to the locale code.`,
+                `and the output directory name.\nBy default, if not explicitly set, 'subPath' defaults to the locale code.`
             );
           }
           baseHref = options.baseHref;
@@ -178,7 +178,7 @@ export function createI18nOptions(
 
         if (subPath !== undefined && baseHref !== undefined) {
           throw new Error(
-            `'i18n.locales.${locale}.subPath' and 'i18n.locales.${locale}.baseHref' cannot be used together.`,
+            `'i18n.locales.${locale}.subPath' and 'i18n.locales.${locale}.baseHref' cannot be used together.`
           );
         }
       } else {
@@ -187,7 +187,7 @@ export function createI18nOptions(
 
       if (locale === i18n.sourceLocale) {
         throw new Error(
-          `An i18n locale ('${locale}') cannot both be a source locale and provide a translation.`,
+          `An i18n locale ('${locale}') cannot both be a source locale and provide a translation.`
         );
       }
 
@@ -214,7 +214,7 @@ export function createI18nOptions(
 
   // Check that subPaths are unique only the locales that we are inlining.
   const localesData = Object.entries(i18n.locales).filter(([locale]) =>
-    i18n.inlineLocales.has(locale),
+    i18n.inlineLocales.has(locale)
   );
 
   for (let i = 0; i < localesData.length; i++) {
@@ -225,7 +225,7 @@ export function createI18nOptions(
 
       if (subPathA === subPathB) {
         throw new Error(
-          `Invalid i18n configuration: Locales '${localeA}' and '${localeB}' cannot have the same subPath: '${subPathB}'.`,
+          `Invalid i18n configuration: Locales '${localeA}' and '${localeB}' cannot have the same subPath: '${subPathB}'.`
         );
       }
     }
@@ -241,7 +241,7 @@ export function loadTranslations(
   loader: TranslationLoader,
   logger: { warn: (message: string) => void; error: (message: string) => void },
   usedFormats?: Set<string>,
-  duplicateTranslation?: 'ignore' | 'error' | 'warning',
+  duplicateTranslation?: 'ignore' | 'error' | 'warning'
 ) {
   let translations: Record<string, unknown> | undefined = undefined;
   for (const file of desc.files) {
@@ -257,7 +257,7 @@ export function loadTranslations(
 
     if (loadResult.locale !== undefined && loadResult.locale !== locale) {
       logger.warn(
-        `WARNING [${file.path}]: File target locale ('${loadResult.locale}') does not match configured locale ('${locale}')`,
+        `WARNING [${file.path}]: File target locale ('${loadResult.locale}') does not match configured locale ('${locale}')`
       );
     }
 

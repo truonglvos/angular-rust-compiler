@@ -218,23 +218,21 @@ export class InlineFontsProcessor {
         (res) => {
           if (res.statusCode !== 200) {
             reject(
-              new Error(
-                `Inlining of fonts failed. ${url} returned status code: ${res.statusCode}.`,
-              ),
+              new Error(`Inlining of fonts failed. ${url} returned status code: ${res.statusCode}.`)
             );
 
             return;
           }
 
           res.on('data', (chunk) => (rawResponse += chunk)).on('end', () => resolve(rawResponse));
-        },
+        }
       ).on('error', (e) =>
         reject(
           new Error(
             `Inlining of fonts failed. An error has occurred while retrieving ${url} over the internet.\n` +
-              e.message,
-          ),
-        ),
+              e.message
+          )
+        )
       );
     });
 

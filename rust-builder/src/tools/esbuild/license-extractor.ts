@@ -141,7 +141,7 @@ export async function extractLicenses(metafile: Metafile, rootDirectory: string)
         // Attempt to load the package's custom license
         let customLicensePath;
         const customLicenseFile = path.normalize(
-          packageJson.license.slice(CUSTOM_LICENSE_TEXT.length + 1).trim(),
+          packageJson.license.slice(CUSTOM_LICENSE_TEXT.length + 1).trim()
         );
         if (customLicenseFile.startsWith('..') || path.isAbsolute(customLicenseFile)) {
           // Path is attempting to access files outside of the package

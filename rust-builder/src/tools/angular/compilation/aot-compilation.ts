@@ -37,7 +37,7 @@ class AngularCompilationState {
     public readonly affectedFiles: ReadonlySet<ts.SourceFile>,
     public readonly templateDiagnosticsOptimization: ng.OptimizeFor,
     public readonly webWorkerTransform: ts.TransformerFactory<ts.SourceFile>,
-    public readonly diagnosticCache = new WeakMap<ts.SourceFile, ts.Diagnostic[]>(),
+    public readonly diagnosticCache = new WeakMap<ts.SourceFile, ts.Diagnostic[]>()
   ) {}
 
   get angularCompiler() {
@@ -55,7 +55,7 @@ export class AotCompilation extends AngularCompilation {
   async initialize(
     tsconfig: string,
     hostOptions: AngularHostOptions,
-    compilerOptionsTransformer?: (compilerOptions: ng.CompilerOptions) => ng.CompilerOptions,
+    compilerOptionsTransformer?: (compilerOptions: ng.CompilerOptions) => ng.CompilerOptions
   ): Promise<{
     affectedFiles: ReadonlySet<ts.SourceFile>;
     compilerOptions: ng.CompilerOptions;
@@ -117,7 +117,7 @@ export class AotCompilation extends AngularCompilation {
     // Create the Angular specific program that contains the Angular compiler
     const angularProgram = profileSync(
       'NG_CREATE_PROGRAM',
-      () => new NgtscProgram(rootNames, compilerOptions, host, this.#state?.angularProgram),
+      () => new NgtscProgram(rootNames, compilerOptions, host, this.#state?.angularProgram)
     );
     const angularCompiler = angularProgram.compiler;
     const angularTypeScriptProgram = angularProgram.getTsProgram();
@@ -134,7 +134,7 @@ export class AotCompilation extends AngularCompilation {
       angularTypeScriptProgram,
       host,
       oldProgram,
-      configurationDiagnostics,
+      configurationDiagnostics
     );
 
     await profileAsync('NG_ANALYZE_PROGRAM', () => angularCompiler.analyzeAsync());
@@ -144,7 +144,7 @@ export class AotCompilation extends AngularCompilation {
       const componentNodes = collectHmrCandidates(
         hostOptions.modifiedFiles,
         angularProgram,
-        staleSourceFiles,
+        staleSourceFiles
       );
 
       for (const node of componentNodes) {
@@ -158,7 +158,7 @@ export class AotCompilation extends AngularCompilation {
         }
         relativePath = relativePath.replaceAll('\\', '/');
         const updateId = encodeURIComponent(
-          `${host.getCanonicalFileName(relativePath)}@${node.name?.text}`,
+          `${host.getCanonicalFileName(relativePath)}@${node.name?.text}`
         );
         const updateText = angularCompiler.emitHmrUpdateModule(node);
         // If compiler cannot generate an update for the component, prevent template updates.
@@ -173,7 +173,7 @@ export class AotCompilation extends AngularCompilation {
     }
 
     const affectedFiles = profileSync('NG_FIND_AFFECTED', () =>
-      findAffectedFiles(typeScriptProgram, angularCompiler, usingBuildInfo),
+      findAffectedFiles(typeScriptProgram, angularCompiler, usingBuildInfo)
     );
 
     const componentResourcesDependencies = new Map<string, string[]>();
@@ -206,7 +206,7 @@ export class AotCompilation extends AngularCompilation {
       affectedFiles,
       affectedFiles.size === 1 ? OptimizeFor.SingleFile : OptimizeFor.WholeProgram,
       createWorkerTransformer(hostOptions.processWebWorker.bind(hostOptions)),
-      this.#state?.diagnosticCache,
+      this.#state?.diagnosticCache
     );
 
     return {
@@ -254,7 +254,7 @@ export class AotCompilation extends AngularCompilation {
         yield* profileSync(
           'NG_DIAGNOSTICS_SYNTACTIC',
           () => typeScriptProgram.getSyntacticDiagnostics(sourceFile),
-          true,
+          true
         );
       }
 
@@ -265,7 +265,7 @@ export class AotCompilation extends AngularCompilation {
       yield* profileSync(
         'NG_DIAGNOSTICS_SEMANTIC',
         () => typeScriptProgram.getSemanticDiagnostics(sourceFile),
-        true,
+        true
       );
 
       // Declaration files cannot have template diagnostics
@@ -279,7 +279,7 @@ export class AotCompilation extends AngularCompilation {
         const angularDiagnostics = profileSync(
           'NG_DIAGNOSTICS_TEMPLATE',
           () => angularCompiler.getDiagnosticsForFile(sourceFile, templateDiagnosticsOptimization),
-          true,
+          true
         );
         diagnosticCache.set(sourceFile, angularDiagnostics);
         yield* angularDiagnostics;
@@ -325,7 +325,7 @@ export class AotCompilation extends AngularCompilation {
     transformers.before ??= [];
     transformers.before.push(
       replaceBootstrap(() => typeScriptProgram.getProgram().getTypeChecker()),
-      webWorkerTransform,
+      webWorkerTransform
     );
 
     if (!this.browserOnlyBuild) {
@@ -340,7 +340,7 @@ export class AotCompilation extends AngularCompilation {
           writeFileCallback,
           undefined,
           undefined,
-          transformers,
+          transformers
         )
       ) {
         /* empty */
@@ -355,7 +355,7 @@ export class AotCompilation extends AngularCompilation {
 
       assert(
         typeof programWithGetState.emitBuildInfo === 'function',
-        'TypeScript program emitBuildInfo is missing.',
+        'TypeScript program emitBuildInfo is missing.'
       );
 
       programWithGetState.emitBuildInfo();
@@ -390,12 +390,12 @@ export class AotCompilation extends AngularCompilation {
           ...(transformers.before ?? []),
           ...(transformers.after ?? []),
         ] as ts.TransformerFactory<ts.SourceFile>[],
-        compilerOptions,
+        compilerOptions
       );
 
       assert(
         transformResult.transformed.length === 1,
-        'TypeScript transforms should not produce multiple outputs for ' + sourceFile.fileName,
+        'TypeScript transforms should not produce multiple outputs for ' + sourceFile.fileName
       );
 
       let contents;
@@ -419,7 +419,7 @@ export class AotCompilation extends AngularCompilation {
 function findAffectedFiles(
   builder: ts.EmitAndSemanticDiagnosticsBuilderProgram,
   { ignoreForDiagnostics }: ng.NgtscProgram['compiler'],
-  includeTTC: boolean,
+  includeTTC: boolean
 ): Set<ts.SourceFile> {
   const affectedFiles = new Set<ts.SourceFile>();
 

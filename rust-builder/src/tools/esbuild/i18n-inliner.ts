@@ -45,7 +45,7 @@ export class I18nInliner {
 
   constructor(
     private readonly options: I18nInlinerOptions,
-    maxThreads?: number,
+    maxThreads?: number
   ) {
     this.#unmodifiedFiles = [];
     const { outputFiles, shouldOptimize, missingTranslation } = options;
@@ -105,7 +105,7 @@ export class I18nInliner {
         // since each file may not actually be processed in each Worker and the Blob avoids
         // unneeded repeat copying of potentially large JavaScript files.
         files: new Map<string, Blob>(
-          Array.from(files, ([name, file]) => [name, new Blob([file.contents])]),
+          Array.from(files, ([name, file]) => [name, new Blob([file.contents])])
         ),
       },
     });
@@ -121,7 +121,7 @@ export class I18nInliner {
    */
   async inlineForLocale(
     locale: string,
-    translation: Record<string, unknown> | undefined,
+    translation: Record<string, unknown> | undefined
   ): Promise<{ outputFiles: BuildOutputFile[]; errors: string[]; warnings: string[] }> {
     await this.initCache();
 
@@ -141,7 +141,7 @@ export class I18nInliner {
       if (this.#cache) {
         fileCacheKeyBase ??= Buffer.from(
           JSON.stringify({ locale, translation, missingTranslation, shouldOptimize }),
-          'utf-8',
+          'utf-8'
         );
 
         // NOTE: If additional options are added, this may need to be updated.
@@ -213,7 +213,7 @@ export class I18nInliner {
     locale: string,
     translation: Record<string, unknown> | undefined,
     templateCode: string,
-    templateId: string,
+    templateId: string
   ): Promise<{ code: string; errors: string[]; warnings: string[] }> {
     const hasLocalize = templateCode.includes(LOCALIZE_KEYWORD);
 
@@ -227,7 +227,7 @@ export class I18nInliner {
 
     const { output, messages } = await this.#workerPool.run(
       { code: templateCode, filename: templateId, locale, translation },
-      { name: 'inlineCode' },
+      { name: 'inlineCode' }
     );
 
     const errors: string[] = [];
@@ -283,7 +283,7 @@ export class I18nInliner {
       // eslint-disable-next-line no-console
       console.warn(
         'Unable to initialize JavaScript cache storage.\n' +
-          'This will not affect the build output content but may result in slower builds.',
+          'This will not affect the build output content but may result in slower builds.'
       );
     }
   }

@@ -30,7 +30,7 @@ function testCase({
       fail('Expected babel to return a transform result.');
     } else {
       expect(await format(result.code, { parser: 'babel' })).toEqual(
-        await format(expected === NO_CHANGE ? input : expected, { parser: 'babel' }),
+        await format(expected === NO_CHANGE ? input : expected, { parser: 'babel' })
       );
     }
   };
@@ -63,7 +63,7 @@ describe('adjust-typescript-enums Babel plugin', () => {
           return ChangeDetectionStrategy;
         })(ChangeDetectionStrategy || {});
       `,
-    }),
+    })
   );
 
   it(
@@ -83,7 +83,7 @@ describe('adjust-typescript-enums Babel plugin', () => {
           return ChangeDetectionStrategy;
         })(ChangeDetectionStrategy || {});
       `,
-    }),
+    })
   );
 
   // Even with recent improvements this case is and was never wrapped. However, it also was not broken
@@ -101,7 +101,7 @@ describe('adjust-typescript-enums Babel plugin', () => {
         })(ChangeDetectionStrategy = exports.ChangeDetectionStrategy || (exports.ChangeDetectionStrategy = {}));
       `,
       expected: NO_CHANGE,
-    }),
+    })
   );
 
   it(
@@ -121,7 +121,7 @@ describe('adjust-typescript-enums Babel plugin', () => {
           return ChangeDetectionStrategy;
         })(ChangeDetectionStrategy || (exports.ChangeDetectionStrategy = ChangeDetectionStrategy = {}));
       `,
-    }),
+    })
   );
 
   it(
@@ -141,7 +141,7 @@ describe('adjust-typescript-enums Babel plugin', () => {
           return ChangeDetectionStrategy;
         })(ChangeDetectionStrategy || {});
       `,
-    }),
+    })
   );
 
   it(
@@ -163,7 +163,7 @@ describe('adjust-typescript-enums Babel plugin', () => {
           return NotificationKind;
         })(NotificationKind || {});
       `,
-    }),
+    })
   );
 
   it(
@@ -185,7 +185,7 @@ describe('adjust-typescript-enums Babel plugin', () => {
           return NotificationKind;
         })(NotificationKind$1 || {});
       `,
-    }),
+    })
   );
 
   it(
@@ -223,7 +223,7 @@ describe('adjust-typescript-enums Babel plugin', () => {
           return RequestMethod;
         })(RequestMethod || {});
       `,
-    }),
+    })
   );
 
   it(
@@ -237,7 +237,7 @@ describe('adjust-typescript-enums Babel plugin', () => {
         })(ChangeDetectionStrategy || (ChangeDetectionStrategy = {}));
       `,
       expected: NO_CHANGE,
-    }),
+    })
   );
 
   it(
@@ -254,7 +254,7 @@ describe('adjust-typescript-enums Babel plugin', () => {
         RendererStyleFlags3[RendererStyleFlags3.Important] = 'Important';
       `,
       expected: NO_CHANGE,
-    }),
+    })
   );
 
   it(
@@ -274,7 +274,7 @@ describe('adjust-typescript-enums Babel plugin', () => {
           return ChangeDetectionStrategy;
         })(ChangeDetectionStrategy || {});
       `,
-    }),
+    })
   );
 
   it(
@@ -294,6 +294,6 @@ describe('adjust-typescript-enums Babel plugin', () => {
           return ChangeDetectionStrategy;
         })(ChangeDetectionStrategy$1 || {});
       `,
-    }),
+    })
   );
 });

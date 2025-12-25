@@ -60,7 +60,7 @@ export function createSourcemapIgnorelistPlugin(): Plugin {
           const contents = Buffer.from(
             file.contents.buffer,
             file.contents.byteOffset,
-            file.contents.byteLength,
+            file.contents.byteLength
           );
 
           // Avoid parsing sourcemaps that have no node modules references

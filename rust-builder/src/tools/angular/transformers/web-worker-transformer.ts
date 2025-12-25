@@ -17,7 +17,7 @@ import ts from 'typescript';
  * @returns A TypeScript transformer factory.
  */
 export function createWorkerTransformer(
-  fileProcessor: (file: string, importer: string) => string,
+  fileProcessor: (file: string, importer: string) => string
 ): ts.TransformerFactory<ts.SourceFile> {
   return (context: ts.TransformationContext) => {
     const nodeFactory = context.factory;
@@ -92,10 +92,10 @@ export function createWorkerTransformer(
                         nodeFactory.createStringLiteral(replacementPath),
                         workerUrlNode.arguments[1],
                       ],
-                      workerUrlNode.arguments.hasTrailingComma,
+                      workerUrlNode.arguments.hasTrailingComma
                     ),
-                    workerUrlNode.arguments,
-                  ),
+                    workerUrlNode.arguments
+                  )
                 ),
                 // Use the second Worker argument (options) if present.
                 // Otherwise create a default options object for module Workers.
@@ -103,14 +103,14 @@ export function createWorkerTransformer(
                   nodeFactory.createObjectLiteralExpression([
                     nodeFactory.createPropertyAssignment(
                       'type',
-                      nodeFactory.createStringLiteral('module'),
+                      nodeFactory.createStringLiteral('module')
                     ),
                   ]),
               ],
-              node.arguments.hasTrailingComma,
+              node.arguments.hasTrailingComma
             ),
-            node.arguments,
-          ),
+            node.arguments
+          )
         );
       } else {
         return node;

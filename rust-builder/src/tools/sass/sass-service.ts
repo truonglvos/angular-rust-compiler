@@ -88,7 +88,7 @@ export class SassWorkerImplementation {
 
   constructor(
     private readonly rebase = false,
-    readonly maxThreads = MAX_RENDER_WORKERS,
+    readonly maxThreads = MAX_RENDER_WORKERS
   ) {}
 
   #ensureWorkerPool(): WorkerPool {
@@ -123,7 +123,7 @@ export class SassWorkerImplementation {
    */
   async compileStringAsync(
     source: string,
-    options: StringOptions<'async'>,
+    options: StringOptions<'async'>
   ): Promise<CompileResult> {
     // The `functions`, `logger` and `importer` options are JavaScript functions that cannot be transferred.
     // If any additional function options are added in the future, they must be excluded as well.
@@ -150,7 +150,7 @@ export class SassWorkerImplementation {
       },
       {
         transferList: importerChannel ? [importerChannel.port] : undefined,
-      },
+      }
     )) as RenderResponseMessage;
 
     const { result, error, warnings } = response;
@@ -225,7 +225,7 @@ export class SassWorkerImplementation {
             Atomics.store(importerSignal, 0, 1);
             Atomics.notify(importerSignal, 0);
           });
-      },
+      }
     );
 
     mainImporterPort.unref();
@@ -242,7 +242,7 @@ export class SassWorkerImplementation {
   private async processImporters(
     importers: Iterable<Importers>,
     url: string,
-    options: CanonicalizeContext,
+    options: CanonicalizeContext
   ): Promise<string | null> {
     for (const importer of importers) {
       if (!this.isFileImporter(importer)) {

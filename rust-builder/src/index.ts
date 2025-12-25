@@ -6,39 +6,29 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import {
-  BuilderContext,
-  BuilderOutput,
-  createBuilder,
-} from "@angular-devkit/architect";
-import assert from "node:assert";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { BuildOutputFileType } from "./tools/esbuild/bundler-context";
-import {
-  createJsonBuildManifest,
-  emitFilesToDisk,
-} from "./tools/esbuild/utils";
-import { colors as ansiColors } from "./utils/color";
-import { deleteOutputDir } from "./utils/delete-output-dir";
-import {
-  bazelEsbuildPluginPath,
-  useJSONBuildLogs,
-} from "./utils/environment-options";
-import { purgeStaleBuildCache } from "./utils/purge-cache";
-import { assertCompatibleAngularVersion } from "./utils/version";
-import { runEsBuildBuildAction } from "./builders/application/build-action";
-import { executeBuild } from "./builders/application/execute-build";
+import { BuilderContext, BuilderOutput, createBuilder } from '@angular-devkit/architect';
+import assert from 'node:assert';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { BuildOutputFileType } from './tools/esbuild/bundler-context';
+import { createJsonBuildManifest, emitFilesToDisk } from './tools/esbuild/utils';
+import { colors as ansiColors } from './utils/color';
+import { deleteOutputDir } from './utils/delete-output-dir';
+import { bazelEsbuildPluginPath, useJSONBuildLogs } from './utils/environment-options';
+import { purgeStaleBuildCache } from './utils/purge-cache';
+import { assertCompatibleAngularVersion } from './utils/version';
+import { runEsBuildBuildAction } from './builders/application/build-action';
+import { executeBuild } from './builders/application/execute-build';
 import {
   ApplicationBuilderExtensions,
   ApplicationBuilderInternalOptions,
   NormalizedOutputOptions,
   normalizeOptions,
-} from "./builders/application/options";
-import { Result, ResultKind } from "./builders/application/results";
-import { Schema as ApplicationBuilderOptions } from "./builders/application/schema";
+} from './builders/application/options';
+import { Result, ResultKind } from './builders/application/results';
+import { Schema as ApplicationBuilderOptions } from './builders/application/schema';
 
-const isNodeV22orHigher = Number(process.versions.node.split(".", 1)[0]) >= 22;
+const isNodeV22orHigher = Number(process.versions.node.split('.', 1)[0]) >= 22;
 
 export type { ApplicationBuilderOptions };
 
@@ -59,9 +49,7 @@ export async function* buildApplicationInternal(
   // Determine project name from builder context target
   const projectName = target?.project;
   if (!projectName) {
-    context.logger.error(
-      `The 'application' builder requires a target to be specified.`
-    );
+    context.logger.error(`The 'application' builder requires a target to be specified.`);
     // Only the vite-based dev server current uses the errors value
     yield { kind: ResultKind.Failure, errors: [] };
 
@@ -72,22 +60,15 @@ export async function* buildApplicationInternal(
     extensions ??= {};
     extensions.codePlugins ??= [];
 
-    const { default: bazelEsbuildPlugin } = await import(
-      bazelEsbuildPluginPath
-    );
+    const { default: bazelEsbuildPlugin } = await import(bazelEsbuildPluginPath);
     extensions.codePlugins.push(bazelEsbuildPlugin);
   }
 
-  const normalizedOptions = await normalizeOptions(
-    context,
-    projectName,
-    options,
-    extensions
-  );
+  const normalizedOptions = await normalizeOptions(context, projectName, options, extensions);
 
   if (!normalizedOptions.outputOptions.ignoreServer) {
     const { browser, server } = normalizedOptions.outputOptions;
-    if (browser === "") {
+    if (browser === '') {
       context.logger.error(
         `'outputPath.browser' cannot be configured to an empty string when SSR is enabled.`
       );
@@ -111,7 +92,7 @@ export async function* buildApplicationInternal(
   if (!signal) {
     const controller = new AbortController();
     signal = controller.signal;
-    context.addTeardown(() => controller.abort("builder-teardown"));
+    context.addTeardown(() => controller.abort('builder-teardown'));
   }
 
   yield* runEsBuildBuildAction(
@@ -119,21 +100,15 @@ export async function* buildApplicationInternal(
       const { serverEntryPoint, jsonLogs, partialSSRBuild } = normalizedOptions;
 
       const startTime = process.hrtime.bigint();
-      const result = await executeBuild(
-        normalizedOptions,
-        context,
-        rebuildState
-      );
+      const result = await executeBuild(normalizedOptions, context, rebuildState);
 
       if (jsonLogs) {
         result.addLog(await createJsonBuildManifest(result, normalizedOptions));
       } else {
         if (serverEntryPoint && !partialSSRBuild) {
-          const prerenderedRoutesLength = Object.keys(
-            result.prerenderedRoutes
-          ).length;
+          const prerenderedRoutesLength = Object.keys(result.prerenderedRoutes).length;
           let prerenderMsg = `Prerendered ${prerenderedRoutesLength} static route`;
-          prerenderMsg += prerenderedRoutesLength !== 1 ? "s." : ".";
+          prerenderMsg += prerenderedRoutesLength !== 1 ? 's.' : '.';
 
           result.addLog(ansiColors.magenta(prerenderMsg));
         }
@@ -142,7 +117,7 @@ export async function* buildApplicationInternal(
         const hasError = result.errors.length > 0;
 
         result.addLog(
-          `Application bundle generation ${hasError ? "failed" : "complete"}.` +
+          `Application bundle generation ${hasError ? 'failed' : 'complete'}.` +
             ` [${buildTime.toFixed(3)} seconds] - ${new Date().toISOString()}\n`
         );
       }
@@ -190,14 +165,8 @@ export async function* buildApplication(
 ): AsyncIterable<BuilderOutput> {
   let initial = true;
   const internalOptions = { ...options, incrementalResults: true };
-  for await (const result of buildApplicationInternal(
-    internalOptions,
-    context,
-    extensions
-  )) {
-    const outputOptions = result.detail?.["outputOptions"] as
-      | NormalizedOutputOptions
-      | undefined;
+  for await (const result of buildApplicationInternal(internalOptions, context, extensions)) {
+    const outputOptions = result.detail?.['outputOptions'] as NormalizedOutputOptions | undefined;
 
     if (initial) {
       initial = false;
@@ -217,13 +186,10 @@ export async function* buildApplication(
       continue;
     }
 
-    assert(
-      outputOptions,
-      "Application output options are required for builder usage."
-    );
+    assert(outputOptions, 'Application output options are required for builder usage.');
     assert(
       result.kind === ResultKind.Full || result.kind === ResultKind.Incremental,
-      "Application build did not provide a file result output."
+      'Application build did not provide a file result output.'
     );
 
     // TODO: Restructure output logging to better handle stdout JSON piping
@@ -233,63 +199,48 @@ export async function* buildApplication(
 
     // Writes the output files to disk and ensures the containing directories are present
     const directoryExists = new Set<string>();
-    await emitFilesToDisk(
-      Object.entries(result.files),
-      async ([filePath, file]) => {
-        if (
-          outputOptions.ignoreServer &&
-          (file.type === BuildOutputFileType.ServerApplication ||
-            file.type === BuildOutputFileType.ServerRoot)
-        ) {
-          return;
-        }
+    await emitFilesToDisk(Object.entries(result.files), async ([filePath, file]) => {
+      if (
+        outputOptions.ignoreServer &&
+        (file.type === BuildOutputFileType.ServerApplication ||
+          file.type === BuildOutputFileType.ServerRoot)
+      ) {
+        return;
+      }
 
-        const fullFilePath = generateFullPath(
-          filePath,
-          file.type,
-          outputOptions
-        );
+      const fullFilePath = generateFullPath(filePath, file.type, outputOptions);
 
-        // Ensure output subdirectories exist
-        const fileBasePath = path.dirname(fullFilePath);
-        if (fileBasePath && !directoryExists.has(fileBasePath)) {
-          await fs.mkdir(fileBasePath, { recursive: true });
-          directoryExists.add(fileBasePath);
-        }
+      // Ensure output subdirectories exist
+      const fileBasePath = path.dirname(fullFilePath);
+      if (fileBasePath && !directoryExists.has(fileBasePath)) {
+        await fs.mkdir(fileBasePath, { recursive: true });
+        directoryExists.add(fileBasePath);
+      }
 
-        if (file.origin === "memory") {
-          // Write file contents
-          await fs.writeFile(fullFilePath, file.contents);
+      if (file.origin === 'memory') {
+        // Write file contents
+        await fs.writeFile(fullFilePath, file.contents);
+      } else {
+        // Copy file contents
+        if (isNodeV22orHigher) {
+          // Use newer `cp` API on Node.js 22+ (minimum v22 for CLI is 22.11)
+          await fs.cp(file.inputPath, fullFilePath, {
+            mode: fs.constants.COPYFILE_FICLONE,
+            preserveTimestamps: true,
+          });
         } else {
-          // Copy file contents
-          if (isNodeV22orHigher) {
-            // Use newer `cp` API on Node.js 22+ (minimum v22 for CLI is 22.11)
-            await fs.cp(file.inputPath, fullFilePath, {
-              mode: fs.constants.COPYFILE_FICLONE,
-              preserveTimestamps: true,
-            });
-          } else {
-            // For Node.js 20 use `copyFile` (`cp` is not stable for v20)
-            // TODO: Remove when Node.js 20 is no longer supported
-            await fs.copyFile(
-              file.inputPath,
-              fullFilePath,
-              fs.constants.COPYFILE_FICLONE
-            );
-          }
+          // For Node.js 20 use `copyFile` (`cp` is not stable for v20)
+          // TODO: Remove when Node.js 20 is no longer supported
+          await fs.copyFile(file.inputPath, fullFilePath, fs.constants.COPYFILE_FICLONE);
         }
       }
-    );
+    });
 
     // Delete any removed files if incremental
     if (result.kind === ResultKind.Incremental && result.removed?.length) {
       await Promise.all(
         result.removed.map((file) => {
-          const fullFilePath = generateFullPath(
-            file.path,
-            file.type,
-            outputOptions
-          );
+          const fullFilePath = generateFullPath(file.path, file.type, outputOptions);
 
           return fs.rm(fullFilePath, { force: true, maxRetries: 3 });
         })
@@ -316,7 +267,7 @@ function generateFullPath(
       typeDirectory = outputOptions.server;
       break;
     case BuildOutputFileType.Root:
-      typeDirectory = "";
+      typeDirectory = '';
       break;
     default:
       throw new Error(

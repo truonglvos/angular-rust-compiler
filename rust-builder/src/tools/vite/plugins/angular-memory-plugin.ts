@@ -26,7 +26,7 @@ const VITE_FS_PREFIX = '/@fs/';
 const FILE_PROTOCOL = 'file:';
 
 export async function createAngularMemoryPlugin(
-  options: AngularMemoryPluginOptions,
+  options: AngularMemoryPluginOptions
 ): Promise<Plugin> {
   const { virtualProjectRoot, outputFiles, external } = options;
   const { normalizePath } = await import('vite');
@@ -127,7 +127,7 @@ async function loadViteClientCode(file: string, disableViteTransport = false): P
       '" in ", ' +
       'h("code", { part: "config-file-name" }, hmrConfigName), ' +
       '"."',
-    '',
+    ''
   );
 
   assert(originalContents !== updatedContents, 'Failed to update Vite client error overlay text.');
@@ -137,11 +137,11 @@ async function loadViteClientCode(file: string, disableViteTransport = false): P
 
     updatedContents = updatedContents.replace(
       'transport.connect(createHMRHandler(handleMessage));',
-      '',
+      ''
     );
     assert(
       previousUpdatedContents !== updatedContents,
-      'Failed to update Vite client WebSocket disable.',
+      'Failed to update Vite client WebSocket disable.'
     );
 
     updatedContents = updatedContents.replace('console.debug("[vite] connecting...")', '');

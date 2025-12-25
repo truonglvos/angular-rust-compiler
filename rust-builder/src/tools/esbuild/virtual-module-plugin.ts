@@ -26,7 +26,7 @@ export interface VirtualModulePluginOptions {
   /** Method to provide the module content. */
   loadContent: (
     args: OnLoadArgs,
-    build: PluginBuild,
+    build: PluginBuild
   ) => ReturnType<Parameters<PluginBuild['onLoad']>[1]>;
 
   /** Restrict to only entry points. Defaults to `true`. */
@@ -76,7 +76,7 @@ export function createVirtualModulePlugin(options: VirtualModulePluginOptions): 
 
       build.onLoad(
         { filter: /./, namespace },
-        createCachedLoad(cache, (args) => loadContent(args, build)),
+        createCachedLoad(cache, (args) => loadContent(args, build))
       );
     },
   };

@@ -42,12 +42,12 @@ import ts from 'typescript';
  */
 export function lazyRoutesTransformer(
   compilerOptions: ts.CompilerOptions,
-  compilerHost: ts.CompilerHost,
+  compilerHost: ts.CompilerHost
 ): ts.TransformerFactory<ts.SourceFile> {
   const moduleResolutionCache = compilerHost.getModuleResolutionCache?.();
   assert(
     typeof compilerOptions.basePath === 'string',
-    'compilerOptions.basePath should be a string.',
+    'compilerOptions.basePath should be a string.'
   );
   const basePath = compilerOptions.basePath;
 
@@ -94,7 +94,7 @@ export function lazyRoutesTransformer(
       } else if (ts.isFunctionExpression(loadFunction)) {
         // Handle function expressions: check for a return statement with a call expression
         const returnExpression = loadFunction.body.statements.find(
-          ts.isReturnStatement,
+          ts.isReturnStatement
         )?.expression;
 
         if (returnExpression && ts.isCallExpression(returnExpression)) {
@@ -140,7 +140,7 @@ export function lazyRoutesTransformer(
         node.getSourceFile().fileName,
         compilerOptions,
         compilerHost,
-        moduleResolutionCache,
+        moduleResolutionCache
       )?.resolvedModule?.resolvedFileName;
 
       if (!resolvedPath) {
@@ -159,22 +159,22 @@ export function lazyRoutesTransformer(
               factory.createBinaryExpression(
                 factory.createTypeOfExpression(factory.createIdentifier('ngServerMode')),
                 factory.createToken(ts.SyntaxKind.ExclamationEqualsEqualsToken),
-                factory.createStringLiteral('undefined'),
+                factory.createStringLiteral('undefined')
               ),
               factory.createToken(ts.SyntaxKind.AmpersandAmpersandToken),
-              factory.createIdentifier('ngServerMode'),
+              factory.createIdentifier('ngServerMode')
             ),
             factory.createToken(ts.SyntaxKind.QuestionToken),
             factory.createObjectLiteralExpression([
               factory.createPropertyAssignment(
                 factory.createIdentifier('ɵentryName'),
-                factory.createStringLiteral(resolvedRelativePath),
+                factory.createStringLiteral(resolvedRelativePath)
               ),
             ]),
             factory.createToken(ts.SyntaxKind.ColonToken),
-            factory.createObjectLiteralExpression([]),
-          ),
-        ),
+            factory.createObjectLiteralExpression([])
+          )
+        )
       );
 
       // Add the new property to the object literal.
@@ -200,7 +200,7 @@ export function lazyRoutesTransformer(
  * @returns The property assignment if found, otherwise `undefined`.
  */
 function getLoadComponentOrChildrenProperty(
-  node: ts.ObjectLiteralExpression,
+  node: ts.ObjectLiteralExpression
 ): ts.PropertyAssignment | undefined {
   let hasPathProperty = false;
   let loadComponentOrChildrenProperty: ts.PropertyAssignment | undefined;

@@ -1,10 +1,26 @@
-node_modules/
-*/node_modules/
-target/
-dist/
-out-tsc/
-rust-output/
-submodule/
+# Ignore everything
+*
+
+# Include specific folders
+!demo-app/
+!demo-app/**/*
+!packages/
+!packages/binding/
+!packages/binding/**/*
+!rust-builder/
+!rust-builder/**/*
+
+# Ignore build outputs and dependencies everywhere
+node_modules
+**/node_modules
+dist
+**/dist
+.angular
+**/.angular
+out-tsc
+**/out-tsc
+rust-output
+**/rust-output
+target
+**/target
 *.lock
-Cargo.lock
-package-lock.json

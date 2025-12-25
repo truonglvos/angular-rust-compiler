@@ -81,7 +81,7 @@ interface RenderError {
 }
 
 export default async function renderSassStylesheet(
-  request: RenderRequestMessage,
+  request: RenderRequestMessage
 ): Promise<RenderResult | RenderError> {
   const { importerChannel, hasLogger, source, options, rebase } = request;
 
@@ -139,8 +139,8 @@ export default async function renderSassStylesheet(
                 entryDirectory,
                 directoryCache,
                 rebaseSourceMaps,
-                proxyImporter.findFileUrl,
-              ),
+                proxyImporter.findFileUrl
+              )
             )
           : proxyImporter,
       ];
@@ -154,9 +154,9 @@ export default async function renderSassStylesheet(
             entryDirectory,
             directoryCache,
             rebaseSourceMaps,
-            options.loadPaths,
-          ),
-        ),
+            options.loadPaths
+          )
+        )
       );
       options.loadPaths = undefined;
     }
@@ -164,7 +164,7 @@ export default async function renderSassStylesheet(
     let relativeImporter;
     if (rebase) {
       relativeImporter = sassBindWorkaround(
-        new RelativeUrlRebasingImporter(entryDirectory, directoryCache, rebaseSourceMaps),
+        new RelativeUrlRebasingImporter(entryDirectory, directoryCache, rebaseSourceMaps)
       );
     }
 
@@ -186,7 +186,7 @@ export default async function renderSassStylesheet(
                 ...convertDeprecation(
                   warnOptions.deprecation,
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  (warnOptions as any).deprecationType,
+                  (warnOptions as any).deprecationType
                 ),
               });
             },
@@ -201,7 +201,7 @@ export default async function renderSassStylesheet(
         result.sourceMap as unknown as RawSourceMap,
         // To prevent an infinite lookup loop, skip getting the source when the rebasing source map
         // is referencing its original self.
-        (file, context) => (file !== context.importer ? rebaseSourceMaps.get(file) : null),
+        (file, context) => (file !== context.importer ? rebaseSourceMaps.get(file) : null)
       ) as unknown as typeof result.sourceMap;
     }
 
@@ -271,7 +271,7 @@ function convertSourceSpan(span: SourceSpan): Omit<SourceSpan, 'url'> & { url?: 
 
 function convertDeprecation(
   deprecation: boolean,
-  deprecationType: Deprecation | undefined,
+  deprecationType: Deprecation | undefined
 ): { deprecation: false } | { deprecation: true; deprecationType: SerializableDeprecation } {
   if (!deprecation || !deprecationType) {
     return { deprecation: false };

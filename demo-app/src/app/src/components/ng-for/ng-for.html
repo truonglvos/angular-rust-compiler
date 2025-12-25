@@ -5,27 +5,29 @@
   <section>
     <h3>1. Basic *ngFor with index</h3>
     <ul>
-      <li *ngFor="let item of items; index as i">
-        {{ i + 1 }}. {{ item }}
-      </li>
+      <li *ngFor="let item of items; index as i">{{ i + 1 }}. {{ item }}</li>
     </ul>
   </section>
 
   <!-- Test 2: *ngFor with first, last, even, odd -->
   <section>
     <h3>2. Loop variables (first, last, even, odd)</h3>
-    <div *ngFor="let num of numbers; 
-                 index as i; 
-                 first as isFirst; 
-                 last as isLast; 
-                 even as isEven; 
-                 odd as isOdd"
-         [class.first]="isFirst"
-         [class.last]="isLast"
-         [class.even]="isEven"
-         [class.odd]="isOdd"
-         class="number-item">
-      {{ num }} 
+    <div
+      *ngFor="
+        let num of numbers;
+        index as i;
+        first as isFirst;
+        last as isLast;
+        even as isEven;
+        odd as isOdd
+      "
+      [class.first]="isFirst"
+      [class.last]="isLast"
+      [class.even]="isEven"
+      [class.odd]="isOdd"
+      class="number-item"
+    >
+      {{ num }}
       <span *ngIf="isFirst">(First)</span>
       <span *ngIf="isLast">(Last)</span>
       <span *ngIf="isEven">[Even]</span>
@@ -48,9 +50,11 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let user of users; trackBy: trackByUserId"
-            [class.active]="user.active"
-            [class.inactive]="!user.active">
+        <tr
+          *ngFor="let user of users; trackBy: trackByUserId"
+          [class.active]="user.active"
+          [class.inactive]="!user.active"
+        >
           <td>{{ user.id }}</td>
           <td>{{ user.name }}</td>
           <td>{{ user.email }}</td>
@@ -84,9 +88,7 @@
   <!-- Test 5: *ngFor with count -->
   <section>
     <h3>5. Count variable</h3>
-    <div *ngFor="let item of items; count as total">
-      {{ item }} (Total items: {{ total }})
-    </div>
+    <div *ngFor="let item of items; count as total">{{ item }} (Total items: {{ total }})</div>
   </section>
 
   <!-- Test 6: Empty state with *ngFor -->

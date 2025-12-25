@@ -49,7 +49,7 @@ export async function executePostBundleSteps(
   outputFiles: BuildOutputFile[],
   assetFiles: BuildOutputAsset[],
   initialFiles: Map<string, InitialFileRecord>,
-  locale: string | undefined,
+  locale: string | undefined
 ): Promise<{
   errors: string[];
   warnings: string[];
@@ -92,7 +92,7 @@ export async function executePostBundleSteps(
       initialFiles,
       outputFiles,
       options,
-      locale,
+      locale
     );
 
     allErrors.push(...errors);
@@ -100,13 +100,13 @@ export async function executePostBundleSteps(
 
     additionalHtmlOutputFiles.set(
       indexHtmlOptions.output,
-      createOutputFile(indexHtmlOptions.output, csrContent, BuildOutputFileType.Browser),
+      createOutputFile(indexHtmlOptions.output, csrContent, BuildOutputFileType.Browser)
     );
 
     if (ssrContent) {
       additionalHtmlOutputFiles.set(
         INDEX_HTML_SERVER,
-        createOutputFile(INDEX_HTML_SERVER, ssrContent, BuildOutputFileType.ServerApplication),
+        createOutputFile(INDEX_HTML_SERVER, ssrContent, BuildOutputFileType.ServerApplication)
       );
     }
   }
@@ -123,7 +123,7 @@ export async function executePostBundleSteps(
       baseHref,
       initialFilesPaths,
       metafile,
-      publicPath,
+      publicPath
     );
 
     additionalOutputFiles.push(
@@ -131,8 +131,8 @@ export async function executePostBundleSteps(
       createOutputFile(
         SERVER_APP_MANIFEST_FILENAME,
         manifestContent,
-        BuildOutputFileType.ServerApplication,
-      ),
+        BuildOutputFileType.ServerApplication
+      )
     );
   }
 
@@ -145,7 +145,7 @@ export async function executePostBundleSteps(
   ) {
     assert(
       indexHtmlOptions,
-      'The "index" option is required when using the "ssg" or "appShell" options.',
+      'The "index" option is required when using the "ssg" or "appShell" options.'
     );
 
     const { output, warnings, errors, serializableRouteTreeNode } = await prerenderPages(
@@ -157,7 +157,7 @@ export async function executePostBundleSteps(
       assetFiles,
       outputMode,
       sourcemapOptions.scripts,
-      maxWorkers,
+      maxWorkers
     );
 
     allErrors.push(...errors);
@@ -179,7 +179,7 @@ export async function executePostBundleSteps(
 
       additionalHtmlOutputFiles.set(
         filePath,
-        createOutputFile(filePath, content, BuildOutputFileType.Browser),
+        createOutputFile(filePath, content, BuildOutputFileType.Browser)
       );
     }
 
@@ -206,7 +206,7 @@ export async function executePostBundleSteps(
         baseHref,
         initialFilesPaths,
         metafile,
-        publicPath,
+        publicPath
       );
 
       for (const chunk of serverAssetsChunks) {
@@ -235,11 +235,11 @@ export async function executePostBundleSteps(
         options.indexHtmlOptions?.output,
         // Ensure additional files recently added are used
         [...outputFiles, ...additionalOutputFiles],
-        assetFiles,
+        assetFiles
       );
 
       additionalOutputFiles.push(
-        createOutputFile('ngsw.json', serviceWorkerResult.manifest, BuildOutputFileType.Browser),
+        createOutputFile('ngsw.json', serviceWorkerResult.manifest, BuildOutputFileType.Browser)
       );
       additionalAssets.push(...serviceWorkerResult.assetFiles);
     } catch (error) {

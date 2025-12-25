@@ -25,9 +25,12 @@
     "test": "cargo test",
     "version": "napi version",
     "prepare": "husky",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "lint": "eslint ."
+    "format": "prettier --write \"demo-app/src/**/*.{js,ts,html,css,json}\" \"packages/binding/**/*.{js,ts,json}\" \"rust-builder/src/**/*.{js,ts,json}\"",
+    "format:check": "prettier --check \"demo-app/src/**/*.{js,ts,html,css,json}\" \"packages/binding/**/*.{js,ts,json}\" \"rust-builder/src/**/*.{js,ts,json}\"",
+    "format:rust": "cargo fmt --all",
+    "format:rust:check": "cargo fmt --all -- --check",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "devDependencies": {
     "@napi-rs/cli": "^2.18.0",

@@ -25,7 +25,7 @@ export interface AngularHostOptions {
     containingFile: string,
     stylesheetFile?: string,
     order?: number,
-    className?: string,
+    className?: string
   ): Promise<string | null>;
   processWebWorker(workerFile: string, containingFile: string): string;
 }
@@ -41,7 +41,7 @@ export function ensureSourceFileVersions(program: ts.Program): void {
   // TODO: Update Angular compiler to add versions to all internal files and remove this
   program.getSourceFiles = function (...parameters) {
     const files: readonly (ts.SourceFile & { version?: string })[] = baseGetSourceFiles(
-      ...parameters,
+      ...parameters
     );
 
     for (const file of files) {
@@ -73,7 +73,7 @@ function augmentHostWithCaching(host: ts.CompilerHost, cache: Map<string, ts.Sou
       languageVersion,
       onError,
       true,
-      ...parameters,
+      ...parameters
     );
 
     if (file) {
@@ -89,9 +89,9 @@ function augmentResolveModuleNames(
   host: ts.CompilerHost,
   resolvedModuleModifier: (
     resolvedModule: ts.ResolvedModule | undefined,
-    moduleName: string,
+    moduleName: string
   ) => ts.ResolvedModule | undefined,
-  moduleResolutionCache?: ts.ModuleResolutionCache,
+  moduleResolutionCache?: ts.ModuleResolutionCache
 ): void {
   if (host.resolveModuleNames) {
     const baseResolveModuleNames = host.resolveModuleNames;
@@ -108,7 +108,7 @@ function augmentResolveModuleNames(
       containingFile: string,
       _reusedNames: string[] | undefined,
       redirectedReference: ts.ResolvedProjectReference | undefined,
-      options: ts.CompilerOptions,
+      options: ts.CompilerOptions
     ) {
       return moduleNames.map((name) => {
         const result = typescript.resolveModuleName(
@@ -117,7 +117,7 @@ function augmentResolveModuleNames(
           options,
           host,
           moduleResolutionCache,
-          redirectedReference,
+          redirectedReference
         ).resolvedModule;
 
         return resolvedModuleModifier(result, name);
@@ -134,7 +134,7 @@ function augmentHostWithReplacements(
   typescript: typeof ts,
   host: ts.CompilerHost,
   replacements: Record<string, string>,
-  moduleResolutionCache?: ts.ModuleResolutionCache,
+  moduleResolutionCache?: ts.ModuleResolutionCache
 ): void {
   if (Object.keys(replacements).length === 0) {
     return;
@@ -164,7 +164,7 @@ export function createAngularCompilerHost(
   typescript: typeof ts,
   compilerOptions: AngularCompilerOptions,
   hostOptions: AngularHostOptions,
-  packageJsonCache: ts.PackageJsonInfoCache | undefined,
+  packageJsonCache: ts.PackageJsonInfoCache | undefined
 ): AngularCompilerHost {
   // Create TypeScript compiler host
   const host: AngularCompilerHost = typescript.createIncrementalCompilerHost(compilerOptions);
@@ -187,7 +187,7 @@ export function createAngularCompilerHost(
 
     assert(
       !context.resourceFile || !hostOptions.externalStylesheets?.has(context.resourceFile),
-      'External runtime stylesheets should not be transformed: ' + context.resourceFile,
+      'External runtime stylesheets should not be transformed: ' + context.resourceFile
     );
 
     // No transformation required if the resource is empty
@@ -200,7 +200,7 @@ export function createAngularCompilerHost(
       context.containingFile,
       context.resourceFile ?? undefined,
       context.order,
-      context.className,
+      context.className
     );
 
     return typeof result === 'string' ? { content: result } : null;
@@ -238,7 +238,7 @@ export function createAngularCompilerHost(
     host.getCurrentDirectory(),
     host.getCanonicalFileName.bind(host),
     compilerOptions,
-    packageJsonCache,
+    packageJsonCache
   );
   host.getModuleResolutionCache = () => resolutionCache;
 

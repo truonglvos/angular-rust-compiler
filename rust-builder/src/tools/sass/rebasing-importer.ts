@@ -44,7 +44,7 @@ abstract class UrlRebasingImporter implements Importer<'sync'> {
    */
   constructor(
     private entryDirectory: string,
-    private rebaseSourceMaps?: Map<string, RawSourceMap>,
+    private rebaseSourceMaps?: Map<string, RawSourceMap>
   ) {}
 
   abstract canonicalize(url: string, options: { fromImport: boolean }): URL | null;
@@ -134,7 +134,7 @@ export class RelativeUrlRebasingImporter extends UrlRebasingImporter {
   constructor(
     entryDirectory: string,
     private directoryCache = new Map<string, DirectoryEntry>(),
-    rebaseSourceMaps?: Map<string, RawSourceMap>,
+    rebaseSourceMaps?: Map<string, RawSourceMap>
   ) {
     super(entryDirectory, rebaseSourceMaps);
   }
@@ -323,7 +323,7 @@ export class ModuleUrlRebasingImporter extends RelativeUrlRebasingImporter {
     entryDirectory: string,
     directoryCache: Map<string, DirectoryEntry>,
     rebaseSourceMaps: Map<string, RawSourceMap> | undefined,
-    private finder: (specifier: string, options: CanonicalizeContext) => URL | null,
+    private finder: (specifier: string, options: CanonicalizeContext) => URL | null
   ) {
     super(entryDirectory, directoryCache, rebaseSourceMaps);
   }
@@ -350,7 +350,7 @@ export class LoadPathsUrlRebasingImporter extends RelativeUrlRebasingImporter {
     entryDirectory: string,
     directoryCache: Map<string, DirectoryEntry>,
     rebaseSourceMaps: Map<string, RawSourceMap> | undefined,
-    private loadPaths: Iterable<string>,
+    private loadPaths: Iterable<string>
   ) {
     super(entryDirectory, directoryCache, rebaseSourceMaps);
   }

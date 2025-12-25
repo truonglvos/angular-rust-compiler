@@ -1,28 +1,18 @@
 export interface Schema {
   browser: string;
   server?: string;
-  outputPath:
-    | string
-    | { browser: string; server: string; media?: string; base?: string };
+  outputPath: string | { browser: string; server: string; media?: string; base?: string };
   index: string | { input: string; output?: string };
   tsConfig: string;
   inlineStyleLanguage?: string;
   assets?: (string | { glob: string; input: string; output: string })[];
-  styles?: (
-    | string
-    | { input: string; inject?: boolean; bundleName?: string }
-  )[];
-  scripts?: (
-    | string
-    | { input: string; inject?: boolean; bundleName?: string }
-  )[];
+  styles?: (string | { input: string; inject?: boolean; bundleName?: string })[];
+  scripts?: (string | { input: string; inject?: boolean; bundleName?: string })[];
   polyfills?: string[];
   watch?: boolean;
   poll?: number;
   preserveSymlinks?: boolean;
-  optimization?:
-    | boolean
-    | { scripts?: boolean; styles?: boolean; fonts?: boolean };
+  optimization?: boolean | { scripts?: boolean; styles?: boolean; fonts?: boolean };
   sourceMap?:
     | boolean
     | {
@@ -37,24 +27,22 @@ export interface Schema {
   deployUrl?: string;
   verbose?: boolean;
   progress?: boolean;
-  i18nMissingTranslation?: "warning" | "error" | "ignore";
+  i18nMissingTranslation?: 'warning' | 'error' | 'ignore';
   localize?: boolean | string[];
   aot?: boolean;
   jit?: boolean;
   serverEntryPoint?: string;
-  prerender?:
-    | boolean
-    | { routes?: string[]; discoverRoutes?: boolean; routesFile?: string };
+  prerender?: boolean | { routes?: string[]; discoverRoutes?: boolean; routesFile?: string };
   appShell?: boolean;
   ssr?: boolean | { entry?: string };
-  outputHashing?: "none" | "all" | "media" | "bundles";
+  outputHashing?: 'none' | 'all' | 'media' | 'bundles';
   deleteOutputPath?: boolean;
   namedChunks?: boolean;
   subresourceIntegrity?: boolean;
   serviceWorker?: string;
   statsJson?: boolean;
   webWorkerTsConfig?: string;
-  crossOrigin?: "none" | "anonymous" | "use-credentials";
+  crossOrigin?: 'none' | 'anonymous' | 'use-credentials';
   [key: string]: any;
 }
 
@@ -97,8 +85,8 @@ export interface AssetPatternClass {
 }
 
 export enum OutputMode {
-  Static = "static",
-  Server = "server",
+  Static = 'static',
+  Server = 'server',
 }
 
 export interface Budget {
@@ -112,27 +100,27 @@ export interface Budget {
 }
 
 export enum Type {
-  All = "all",
-  AllScript = "allScript",
-  Any = "any",
-  AnyComponentStyle = "anyComponentStyle",
-  AnyScript = "anyScript",
-  Bundle = "bundle",
-  Initial = "initial",
+  All = 'all',
+  AllScript = 'allScript',
+  Any = 'any',
+  AnyComponentStyle = 'anyComponentStyle',
+  AnyScript = 'anyScript',
+  Bundle = 'bundle',
+  Initial = 'initial',
 }
 
 export enum ExperimentalPlatform {
-  Neutral = "neutral",
-  Node = "node",
-  Strict = "strict",
+  Neutral = 'neutral',
+  Node = 'node',
+  Strict = 'strict',
 }
 
-export type I18NTranslation = "warning" | "error" | "ignore";
+export type I18NTranslation = 'warning' | 'error' | 'ignore';
 export enum OutputHashing {
-  None = "none",
-  All = "all",
-  Media = "media",
-  Bundles = "bundles",
+  None = 'none',
+  All = 'all',
+  Media = 'media',
+  Bundles = 'bundles',
 }
 export type OutputPathClass = {
   browser: string;

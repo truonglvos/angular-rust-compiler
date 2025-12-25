@@ -31,7 +31,7 @@ describe('lazyRoutesTransformer', () => {
           (name) =>
             ({
               resolvedFileName: `/project/src/${name}.ts`,
-            }) as ts.ResolvedModule,
+            }) as ts.ResolvedModule
         ),
     };
   });
@@ -42,7 +42,7 @@ describe('lazyRoutesTransformer', () => {
       sourceCode,
       ts.ScriptTarget.ESNext,
       true,
-      ts.ScriptKind.TS,
+      ts.ScriptKind.TS
     );
 
     const transformer = lazyRoutesTransformer(program.getCompilerOptions(), compilerHost);
@@ -76,7 +76,7 @@ describe('lazyRoutesTransformer', () => {
     const transformedCode = ts.createPrinter().printFile(transformedSourceFile);
 
     expect(transformedCode).toContain(
-      `...(typeof ngServerMode !== "undefined" && ngServerMode ? { ɵentryName: "src/home.ts" } : {})`,
+      `...(typeof ngServerMode !== "undefined" && ngServerMode ? { ɵentryName: "src/home.ts" } : {})`
     );
   });
 
@@ -96,7 +96,7 @@ describe('lazyRoutesTransformer', () => {
     const transformedCode = ts.createPrinter().printFile(transformedSourceFile);
 
     expect(transformedCode).toContain(
-      `...(typeof ngServerMode !== "undefined" && ngServerMode ? { ɵentryName: "src/home.ts" } : {})`,
+      `...(typeof ngServerMode !== "undefined" && ngServerMode ? { ɵentryName: "src/home.ts" } : {})`
     );
   });
 
@@ -114,7 +114,7 @@ describe('lazyRoutesTransformer', () => {
     const transformedCode = ts.createPrinter().printFile(transformedSourceFile);
 
     expect(transformedCode).toContain(
-      `...(typeof ngServerMode !== "undefined" && ngServerMode ? { ɵentryName: "src/about.ts" } : {})`,
+      `...(typeof ngServerMode !== "undefined" && ngServerMode ? { ɵentryName: "src/about.ts" } : {})`
     );
   });
 
@@ -134,7 +134,7 @@ describe('lazyRoutesTransformer', () => {
     const transformedCode = ts.createPrinter().printFile(transformedSourceFile);
 
     expect(transformedCode).toContain(
-      `...(typeof ngServerMode !== "undefined" && ngServerMode ? { ɵentryName: "src/home.ts" } : {})`,
+      `...(typeof ngServerMode !== "undefined" && ngServerMode ? { ɵentryName: "src/home.ts" } : {})`
     );
   });
 
@@ -152,7 +152,7 @@ describe('lazyRoutesTransformer', () => {
     const transformedCode = ts.createPrinter().printFile(transformedSourceFile);
 
     expect(transformedCode).toContain(
-      `...(typeof ngServerMode !== "undefined" && ngServerMode ? { ɵentryName: "src/home.ts" } : {})`,
+      `...(typeof ngServerMode !== "undefined" && ngServerMode ? { ɵentryName: "src/home.ts" } : {})`
     );
   });
 
@@ -202,7 +202,7 @@ describe('lazyRoutesTransformer', () => {
     const transformedCode = ts.createPrinter().printFile(transformedSourceFile);
 
     expect(transformedCode).toContain(
-      `...(typeof ngServerMode !== "undefined" && ngServerMode ? { ɵentryName: "src/features/about.ts" } : {})`,
+      `...(typeof ngServerMode !== "undefined" && ngServerMode ? { ɵentryName: "src/features/about.ts" } : {})`
     );
   });
 });

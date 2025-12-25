@@ -36,14 +36,14 @@ export async function generateSearchDirectories(roots: string[]): Promise<Search
       readdir(root, { withFileTypes: true }).then((entries) => ({
         root,
         files: new Set(entries.filter((entry) => entry.isFile()).map((entry) => entry.name)),
-      })),
-    ),
+      }))
+    )
   );
 }
 
 function findFile(
   searchDirectories: SearchDirectory[],
-  potentialFiles: string[],
+  potentialFiles: string[]
 ): string | undefined {
   for (const { root, files } of searchDirectories) {
     for (const potential of potentialFiles) {
@@ -57,13 +57,13 @@ function findFile(
 }
 
 export function findTailwindConfiguration(
-  searchDirectories: SearchDirectory[],
+  searchDirectories: SearchDirectory[]
 ): string | undefined {
   return findFile(searchDirectories, tailwindConfigFiles);
 }
 
 async function readPostcssConfiguration(
-  configurationFile: string,
+  configurationFile: string
 ): Promise<RawPostcssConfiguration> {
   const data = await readFile(configurationFile, 'utf-8');
   const config = JSON.parse(data) as RawPostcssConfiguration;

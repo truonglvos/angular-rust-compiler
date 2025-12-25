@@ -38,12 +38,12 @@ export function logBuildStats(
   changedFiles?: Set<string>,
   estimatedTransferSizes?: Map<string, number>,
   ssrOutputEnabled?: boolean,
-  verbose?: boolean,
+  verbose?: boolean
 ): string {
   // Remove the i18n subpath in case the build is using i18n.
   // en-US/main.js -> main.js
   const normalizedChangedFiles: Set<string> = new Set(
-    [...(changedFiles ?? [])].map((f) => basename(f)),
+    [...(changedFiles ?? [])].map((f) => basename(f))
   );
   const browserStats: BundleStats[] = [];
   const serverStats: BundleStats[] = [];
@@ -95,7 +95,7 @@ export function logBuildStats(
       unchangedCount === 0,
       !!estimatedTransferSizes,
       budgetFailures,
-      verbose,
+      verbose
     );
 
     return tableText + '\n';
@@ -120,7 +120,7 @@ export function getChunkNameFromMetafile(metafile: Metafile, file: string): stri
 }
 
 export async function calculateEstimatedTransferSizes(
-  outputFiles: OutputFile[],
+  outputFiles: OutputFile[]
 ): Promise<Map<string, number>> {
   const sizes = new Map<string, number>();
   if (outputFiles.length <= 0) {
@@ -177,7 +177,7 @@ export async function withSpinner<T>(text: string, action: () => T | Promise<T>)
         },
       },
     ],
-    { rendererOptions: { clearOutput: true } },
+    { rendererOptions: { clearOutput: true } }
   );
 
   await taskList.run();
@@ -198,7 +198,7 @@ export async function withNoProgress<T>(text: string, action: () => T | Promise<
  */
 export function getFeatureSupport(
   target: string[],
-  nativeAsyncAwait: boolean,
+  nativeAsyncAwait: boolean
 ): BuildOptions['supported'] {
   return {
     // Native async/await is not supported with Zone.js. Disabling support here will cause
@@ -215,7 +215,7 @@ export function getFeatureSupport(
 const MAX_CONCURRENT_WRITES = 64;
 export async function emitFilesToDisk<T = BuildOutputAsset | BuildOutputFile>(
   files: T[],
-  writeFileCallback: (file: T) => Promise<void>,
+  writeFileCallback: (file: T) => Promise<void>
 ): Promise<void> {
   // Write files in groups of MAX_CONCURRENT_WRITES to avoid too many open files
   for (let fileIndex = 0; fileIndex < files.length; ) {
@@ -233,7 +233,7 @@ export async function emitFilesToDisk<T = BuildOutputAsset | BuildOutputFile>(
 export function createOutputFile(
   path: string,
   data: string | Uint8Array,
-  type: BuildOutputFileType,
+  type: BuildOutputFileType
 ): BuildOutputFile {
   if (typeof data === 'string') {
     let cachedContents: Uint8Array | null = null;
@@ -413,7 +413,7 @@ interface BuildManifest {
 
 export async function createJsonBuildManifest(
   result: ExecutionResult,
-  normalizedOptions: NormalizedApplicationBuildOptions,
+  normalizedOptions: NormalizedApplicationBuildOptions
 ): Promise<string> {
   const {
     colors: color,
@@ -445,7 +445,7 @@ export async function logMessages(
   logger: BuilderContext['logger'],
   executionResult: ExecutionResult,
   color?: boolean,
-  jsonLogs?: boolean,
+  jsonLogs?: boolean
 ): Promise<void> {
   const { warnings, errors, logs } = executionResult;
 

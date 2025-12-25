@@ -37,7 +37,7 @@ export class JavaScriptTransformer {
   constructor(
     options: JavaScriptTransformerOptions,
     readonly maxThreads: number,
-    private readonly cache?: Cache<Uint8Array>,
+    private readonly cache?: Cache<Uint8Array>
   ) {
     // Extract options to ensure only the named options are serialized and sent to the worker
     const {
@@ -88,7 +88,7 @@ export class JavaScriptTransformer {
     filename: string,
     skipLinker?: boolean,
     sideEffects?: boolean,
-    instrumentForCoverage?: boolean,
+    instrumentForCoverage?: boolean
   ): Promise<Uint8Array> {
     const data = await readFile(filename);
 
@@ -126,7 +126,7 @@ export class JavaScriptTransformer {
           // The below is disable as with Yarn PNP this causes build failures with the below message
           // `Unable to deserialize cloned data`.
           transferList: process.versions.pnp ? undefined : [data.buffer],
-        },
+        }
       )) as Uint8Array;
 
       // If there is a cache then store the result
@@ -156,7 +156,7 @@ export class JavaScriptTransformer {
     data: string,
     skipLinker: boolean,
     sideEffects?: boolean,
-    instrumentForCoverage?: boolean,
+    instrumentForCoverage?: boolean
   ): Promise<Uint8Array> {
     // Perform a quick test to determine if the data needs any transformations.
     // This allows directly returning the data without the worker communication overhead.
@@ -167,7 +167,7 @@ export class JavaScriptTransformer {
 
       return Buffer.from(
         keepSourcemap ? data : data.replace(/^\/\/# sourceMappingURL=[^\r\n]*/gm, ''),
-        'utf-8',
+        'utf-8'
       );
     }
 

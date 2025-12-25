@@ -6,45 +6,36 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import { BuilderContext } from "@angular-devkit/architect";
-import { SourceFileCache } from "../../tools/esbuild/angular/source-file-cache";
-import { generateBudgetStats } from "../../tools/esbuild/budget-stats";
+import { BuilderContext } from '@angular-devkit/architect';
+import { SourceFileCache } from '../../tools/esbuild/angular/source-file-cache';
+import { generateBudgetStats } from '../../tools/esbuild/budget-stats';
 import {
   BuildOutputFileType,
   BundleContextResult,
   BundlerContext,
-} from "../../tools/esbuild/bundler-context";
-import { RustAngularCompilation } from "../../tools/angular/compilation/rust-compilation";
-import {
-  ExecutionResult,
-  RebuildState,
-} from "../../tools/esbuild/bundler-execution-result";
-import { checkCommonJSModules } from "../../tools/esbuild/commonjs-checker";
-import { extractLicenses } from "../../tools/esbuild/license-extractor";
-import { profileAsync } from "../../tools/esbuild/profiling";
+} from '../../tools/esbuild/bundler-context';
+import { RustAngularCompilation } from '../../tools/angular/compilation/rust-compilation';
+import { ExecutionResult, RebuildState } from '../../tools/esbuild/bundler-execution-result';
+import { checkCommonJSModules } from '../../tools/esbuild/commonjs-checker';
+import { extractLicenses } from '../../tools/esbuild/license-extractor';
+import { profileAsync } from '../../tools/esbuild/profiling';
 import {
   calculateEstimatedTransferSizes,
   logBuildStats,
   transformSupportedBrowsersToTargets,
-} from "../../tools/esbuild/utils";
-import {
-  BudgetCalculatorResult,
-  checkBudgets,
-} from "../../utils/bundle-calculator";
-import { shouldOptimizeChunks } from "../../utils/environment-options";
-import { resolveAssets } from "../../utils/resolve-assets";
+} from '../../tools/esbuild/utils';
+import { BudgetCalculatorResult, checkBudgets } from '../../utils/bundle-calculator';
+import { shouldOptimizeChunks } from '../../utils/environment-options';
+import { resolveAssets } from '../../utils/resolve-assets';
 import {
   SERVER_APP_ENGINE_MANIFEST_FILENAME,
   generateAngularServerAppEngineManifest,
-} from "../../utils/server-rendering/manifest";
-import { getSupportedBrowsers } from "../../utils/supported-browsers";
-import { executePostBundleSteps } from "./execute-post-bundle";
-import { inlineI18n, loadActiveTranslations } from "./i18n";
-import { NormalizedApplicationBuildOptions } from "./options";
-import {
-  createComponentStyleBundler,
-  setupBundlerContexts,
-} from "./setup-bundling";
+} from '../../utils/server-rendering/manifest';
+import { getSupportedBrowsers } from '../../utils/supported-browsers';
+import { executePostBundleSteps } from './execute-post-bundle';
+import { inlineI18n, loadActiveTranslations } from './i18n';
+import { NormalizedApplicationBuildOptions } from './options';
+import { createComponentStyleBundler, setupBundlerContexts } from './setup-bundling';
 
 // eslint-disable-next-line max-lines-per-function
 export async function executeBuild(
@@ -94,10 +85,7 @@ export async function executeBuild(
 
     // Bundle all contexts that do not require TypeScript changed file checks.
     // These will automatically use cached results based on the changed files.
-    bundlingResult = await BundlerContext.bundleAll(
-      bundlerContexts.otherContexts,
-      allFileChanges
-    );
+    bundlingResult = await BundlerContext.bundleAll(bundlerContexts.otherContexts, allFileChanges);
 
     // Check the TypeScript code bundling cache for changes. If invalid, force a rebundle of
     // all TypeScript related contexts.
@@ -108,15 +96,10 @@ export async function executeBuild(
       const result = await typescriptContext.bundle(forceTypeScriptRebuild);
       typescriptResults.push(result);
     }
-    bundlingResult = BundlerContext.mergeResults([
-      bundlingResult,
-      ...typescriptResults,
-    ]);
+    bundlingResult = BundlerContext.mergeResults([bundlingResult, ...typescriptResults]);
   } else {
     const target = transformSupportedBrowsersToTargets(browsers);
-    codeBundleCache = new SourceFileCache(
-      cacheOptions.enabled ? cacheOptions.path : undefined
-    );
+    codeBundleCache = new SourceFileCache(cacheOptions.enabled ? cacheOptions.path : undefined);
     componentStyleBundler = createComponentStyleBundler(options, target);
     if (options.templateUpdates) {
       templateUpdates = new Map<string, string>();
@@ -143,24 +126,16 @@ export async function executeBuild(
   if (rebuildState && options.externalRuntimeStyles) {
     componentStyleBundler.invalidate(rebuildState.fileChanges.all);
 
-    const componentResults = await componentStyleBundler.bundleAllFiles(
-      true,
-      true
-    );
-    bundlingResult = BundlerContext.mergeResults([
-      bundlingResult,
-      ...componentResults,
-    ]);
+    const componentResults = await componentStyleBundler.bundleAllFiles(true, true);
+    bundlingResult = BundlerContext.mergeResults([bundlingResult, ...componentResults]);
   }
 
   if (options.optimizationOptions.scripts && shouldOptimizeChunks) {
-    const { optimizeChunks } = await import("./chunk-optimizer");
-    bundlingResult = await profileAsync("OPTIMIZE_CHUNKS", () =>
+    const { optimizeChunks } = await import('./chunk-optimizer');
+    bundlingResult = await profileAsync('OPTIMIZE_CHUNKS', () =>
       optimizeChunks(
         bundlingResult,
-        options.sourcemapOptions.scripts
-          ? !options.sourcemapOptions.hidden || "hidden"
-          : false
+        options.sourcemapOptions.scripts ? !options.sourcemapOptions.hidden || 'hidden' : false
       )
     );
   }
@@ -175,9 +150,7 @@ export async function executeBuild(
 
   // Add used external component style referenced files to be watched
   if (options.externalRuntimeStyles) {
-    executionResult.extraWatchFiles.push(
-      ...componentStyleBundler.collectReferencedFiles()
-    );
+    executionResult.extraWatchFiles.push(...componentStyleBundler.collectReferencedFiles());
   }
 
   // Return if the bundling has errors
@@ -196,9 +169,7 @@ export async function executeBuild(
     // Similar to esbuild, --external:@foo/bar automatically implies --external:@foo/bar/*,
     // which matches import paths like @foo/bar/baz.
     // This means all paths within the @foo/bar package are also marked as external.
-    const exclusionsPrefixes = externalConfiguration.map(
-      (exclusion) => exclusion + "/"
-    );
+    const exclusionsPrefixes = externalConfiguration.map((exclusion) => exclusion + '/');
     const exclusions = new Set(externalConfiguration);
     const explicitExternal = new Set<string>();
 
@@ -234,9 +205,7 @@ export async function executeBuild(
       }
     }
 
-    executionResult.setExternalMetadata(implicitBrowser, implicitServer, [
-      ...explicitExternal,
-    ]);
+    executionResult.setExternalMetadata(implicitBrowser, implicitServer, [...explicitExternal]);
   }
 
   const { metafile, initialFiles, outputFiles } = bundlingResult;
@@ -246,14 +215,10 @@ export async function executeBuild(
   // Analyze files for bundle budget failures if present
   let budgetFailures: BudgetCalculatorResult[] | undefined;
   if (options.budgets) {
-    const compatStats = generateBudgetStats(
-      metafile,
-      outputFiles,
-      initialFiles
-    );
+    const compatStats = generateBudgetStats(metafile, outputFiles, initialFiles);
     budgetFailures = [...checkBudgets(options.budgets, compatStats, true)];
     for (const { message, severity } of budgetFailures) {
-      if (severity === "error") {
+      if (severity === 'error') {
         executionResult.addError(message);
       } else {
         executionResult.addWarning(message);
@@ -264,17 +229,12 @@ export async function executeBuild(
   // Calculate estimated transfer size if scripts are optimized
   let estimatedTransferSizes;
   if (optimizationOptions.scripts || optimizationOptions.styles.minify) {
-    estimatedTransferSizes = await calculateEstimatedTransferSizes(
-      executionResult.outputFiles
-    );
+    estimatedTransferSizes = await calculateEstimatedTransferSizes(executionResult.outputFiles);
   }
 
   // Check metafile for CommonJS module usage if optimizing scripts
   if (optimizationOptions.scripts) {
-    const messages = checkCommonJSModules(
-      metafile,
-      options.allowedCommonJsDependencies
-    );
+    const messages = checkCommonJSModules(metafile, options.allowedCommonJsDependencies);
     executionResult.addWarnings(messages);
   }
 
@@ -286,7 +246,7 @@ export async function executeBuild(
   // Extract and write licenses for used packages
   if (options.extractLicenses) {
     executionResult.addOutputFile(
-      "3rdpartylicenses.txt",
+      '3rdpartylicenses.txt',
       await extractLicenses(metafile, workspaceRoot),
       BuildOutputFileType.Root
     );
@@ -310,12 +270,7 @@ export async function executeBuild(
 
   // Perform i18n translation inlining if enabled
   if (i18nOptions.shouldInline) {
-    const result = await inlineI18n(
-      metafile,
-      options,
-      executionResult,
-      initialFiles
-    );
+    const result = await inlineI18n(metafile, options, executionResult, initialFiles);
     executionResult.addErrors(result.errors);
     executionResult.addWarnings(result.warnings);
     executionResult.addPrerenderedRoutes(result.prerenderedRoutes);
@@ -340,7 +295,7 @@ export async function executeBuild(
   }
 
   executionResult.addOutputFile(
-    "prerendered-routes.json",
+    'prerendered-routes.json',
     JSON.stringify({ routes: executionResult.prerenderedRoutes }, null, 2),
     BuildOutputFileType.Root
   );
@@ -348,7 +303,7 @@ export async function executeBuild(
   // Write metafile if stats option is enabled
   if (options.stats) {
     executionResult.addOutputFile(
-      "stats.json",
+      'stats.json',
       JSON.stringify(metafile, null, 2),
       BuildOutputFileType.Root
     );
@@ -356,8 +311,7 @@ export async function executeBuild(
 
   if (!jsonLogs) {
     const changedFiles =
-      rebuildState &&
-      executionResult.findChangedFiles(rebuildState.previousOutputInfo);
+      rebuildState && executionResult.findChangedFiles(rebuildState.previousOutputInfo);
     executionResult.addLog(
       logBuildStats(
         metafile,

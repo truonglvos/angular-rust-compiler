@@ -51,10 +51,10 @@ describe('InlineCriticalCssProcessor', () => {
     });
 
     expect(content).toContain(
-      `<link href="styles.css" rel="stylesheet" media="print" onload="this.media='all'">`,
+      `<link href="styles.css" rel="stylesheet" media="print" onload="this.media='all'">`
     );
     expect(content).toContain(
-      `<link href="theme.css" rel="stylesheet" media="print" onload="this.media='all'">`,
+      `<link href="theme.css" rel="stylesheet" media="print" onload="this.media='all'">`
     );
     expect(content).not.toContain('color: blue');
     expect(tags.stripIndents`${content}`).toContain(tags.stripIndents`
@@ -75,10 +75,10 @@ describe('InlineCriticalCssProcessor', () => {
     });
 
     expect(content).toContain(
-      `<link href="http://cdn.com/styles.css" rel="stylesheet" media="print" onload="this.media='all'">`,
+      `<link href="http://cdn.com/styles.css" rel="stylesheet" media="print" onload="this.media='all'">`
     );
     expect(content).toContain(
-      `<link href="http://cdn.com/theme.css" rel="stylesheet" media="print" onload="this.media='all'">`,
+      `<link href="http://cdn.com/theme.css" rel="stylesheet" media="print" onload="this.media='all'">`
     );
     expect(tags.stripIndents`${content}`).toContain(tags.stripIndents`
     <style>
@@ -98,10 +98,10 @@ describe('InlineCriticalCssProcessor', () => {
     });
 
     expect(content).toContain(
-      `<link href="styles.css" rel="stylesheet" media="print" onload="this.media='all'">`,
+      `<link href="styles.css" rel="stylesheet" media="print" onload="this.media='all'">`
     );
     expect(content).toContain(
-      `<link href="theme.css" rel="stylesheet" media="print" onload="this.media='all'">`,
+      `<link href="theme.css" rel="stylesheet" media="print" onload="this.media='all'">`
     );
     expect(content).toContain('<style>body{margin:0}html{color:white}</style>');
   });
@@ -117,7 +117,7 @@ describe('InlineCriticalCssProcessor', () => {
     });
 
     expect(content).toContain(
-      '<link href="styles.css" rel="stylesheet" media="print" ngCspMedia="all">',
+      '<link href="styles.css" rel="stylesheet" media="print" ngCspMedia="all">'
     );
     expect(tags.stripIndents`${content}`).toContain(tags.stripIndents`
     <style>
@@ -135,14 +135,14 @@ describe('InlineCriticalCssProcessor', () => {
       getContent('', '<app ngCspNonce="{% nonce %}"></app>'),
       {
         outputPath: '/dist/',
-      },
+      }
     );
 
     expect(content).toContain(
-      '<link href="styles.css" rel="stylesheet" media="print" ngCspMedia="all">',
+      '<link href="styles.css" rel="stylesheet" media="print" ngCspMedia="all">'
     );
     expect(content).toContain(
-      '<link href="theme.css" rel="stylesheet" media="print" ngCspMedia="all">',
+      '<link href="theme.css" rel="stylesheet" media="print" ngCspMedia="all">'
     );
     // Nonces shouldn't be added inside the `noscript` tags.
     expect(content).toContain('<noscript><link href="theme.css" rel="stylesheet"></noscript>');

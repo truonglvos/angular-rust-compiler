@@ -122,7 +122,7 @@ export function createCssResourcePlugin(cache?: LoadResultCache): Plugin {
             loader: 'file',
             watchFiles: [resourcePath],
           };
-        }),
+        })
       );
     },
   };

@@ -455,7 +455,7 @@ describe('augment-index-html', () => {
     };
 
     await expectAsync(augmentIndexHtml(options)).toBeRejectedWithError(
-      '`.mjs` files *must* set `isModule` to `true`.',
+      '`.mjs` files *must* set `isModule` to `true`.'
     );
   });
 
