@@ -377,16 +377,7 @@ fn extract_pipes_from_node(node: &t::R3Node, pipes: &mut HashSet<String>, is_def
                 }
             }
         }
-        t::R3Node::Element(el) => {
-            for child in &el.children {
-                extract_pipes_from_node(child, pipes, is_deferred, eager_pipes);
-            }
-        }
-        t::R3Node::Template(tmpl) => {
-            for child in &tmpl.children {
-                extract_pipes_from_node(child, pipes, is_deferred, eager_pipes);
-            }
-        }
+
         t::R3Node::IfBlock(if_block) => {
             for branch in &if_block.branches {
                 for child in &branch.children {
@@ -1116,15 +1107,23 @@ fn visit_expressions_in_template(
             }
             t::R3Node::DeferredBlock(deferred) => {
                 // Explicitly handle DeferredBlock to avoid get_node_children re-wrapping
-                visit_expressions_in_template(&deferred.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level, current_scope.clone());
+                if !deferred.children.is_empty() {
+                    visit_expressions_in_template(&deferred.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level, current_scope.clone());
+                }
                 if let Some(ref placeholder) = deferred.placeholder {
-                    visit_expressions_in_template(&placeholder.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level, current_scope.clone());
+                    if !placeholder.children.is_empty() {
+                        visit_expressions_in_template(&placeholder.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level, current_scope.clone());
+                    }
                 }
                 if let Some(ref loading) = deferred.loading {
-                    visit_expressions_in_template(&loading.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level, current_scope.clone());
+                    if !loading.children.is_empty() {
+                        visit_expressions_in_template(&loading.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level, current_scope.clone());
+                    }
                 }
                 if let Some(ref error) = deferred.error {
-                    visit_expressions_in_template(&error.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level, current_scope.clone());
+                    if !error.children.is_empty() {
+                        visit_expressions_in_template(&error.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level, current_scope.clone());
+                    }
                 }
             }
             t::R3Node::DeferredBlockPlaceholder(placeholder) => {

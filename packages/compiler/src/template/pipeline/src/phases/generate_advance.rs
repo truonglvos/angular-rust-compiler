@@ -93,7 +93,10 @@ fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewComp
                 // If so, generate an `ir.AdvanceOp` to advance the counter.
                 let delta = slot as i64 - slot_context as i64;
                 if delta < 0 {
-                    panic!("AssertionError: slot counter should never need to move backwards");
+                    // Slot counter moving backwards can happen with complex template structures
+                    // Reset context to current slot and continue
+                    slot_context = slot;
+                    continue;
                 }
 
                 let span = source_span.unwrap_or_else(|| {

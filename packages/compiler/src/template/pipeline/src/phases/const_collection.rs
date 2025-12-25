@@ -7,7 +7,7 @@ use crate::core::AttributeMarker;
 use crate::output::output_ast::{Expression, LiteralArrayExpr, LiteralExpr, LiteralValue, TaggedTemplateLiteralExpr, TemplateLiteralElement, TemplateLiteral};
 use crate::template::pipeline::ir as ir;
 use crate::template::pipeline::ir::enums::{OpKind, BindingKind};
-use crate::template::pipeline::ir::ops::create::{ExtractedAttributeOp, ElementOrContainerOpBase, ProjectionOp, RepeaterCreateOp};
+use crate::template::pipeline::ir::ops::create::{ExtractedAttributeOp, ProjectionOp};
 use crate::template::pipeline::src::compilation::{CompilationJob, ComponentCompilationJob, HostBindingCompilationJob, CompilationUnit, CompilationJobKind};
 use std::collections::HashMap;
 

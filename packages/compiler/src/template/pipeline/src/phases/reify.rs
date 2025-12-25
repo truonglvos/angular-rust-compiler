@@ -68,6 +68,7 @@ fn reify_create_operations(unit: &mut dyn CompilationUnit) {
                      } else { None }
                  } else { None }
             }
+
              ir::OpKind::DisableBindings => {
                  let stmt = ng::disable_bindings();
                  Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn CreateOp + Send + Sync>>(Box::new(stmt))))
@@ -76,6 +77,105 @@ fn reify_create_operations(unit: &mut dyn CompilationUnit) {
                  let stmt = ng::enable_bindings();
                  Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn CreateOp + Send + Sync>>(Box::new(stmt))))
              },
+            ir::OpKind::Variable => {
+                if let Some(var_op) = op.as_any().downcast_ref::<ir::ops::shared::VariableOp<Box<dyn CreateOp + Send + Sync>>>() {
+                    // Use the name from the naming phase if available, otherwise fall back to XrefId
+                    let name = var_op.variable.name()
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| format!("_r{}", var_op.xref.0));
+                    let value = reify_ir_expression(*var_op.initializer.clone(), ir::VisitorContextFlag::NONE);
+                    let stmt = o::Statement::DeclareVar(o::DeclareVarStmt {
+                        name,
+                        value: Some(Box::new(value)),
+                        type_: None,
+                        modifiers: o::StmtModifier::Final,
+                        source_span: None,
+                    });
+                    Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn CreateOp + Send + Sync>>(Box::new(stmt))))
+                } else { None }
+            },
+            ir::OpKind::Listener => {
+                if let Some(listener_op) = op.as_any_mut().downcast_mut::<ir::ops::create::ListenerOp>() {
+                    // Reify handler operations similar to reifyUpdateOperations in TS
+                    for handler_op in &mut listener_op.handler_ops {
+                        // First, transform IR expressions
+                        ir::transform_expressions_in_op(handler_op.as_mut(), &mut reify_ir_expression, ir::VisitorContextFlag::NONE);
+                        
+                        // Handle StatementOp containing RestoreView expression 
+                        // (VariableOp was optimized away but we need the DeclareVar)
+                        if handler_op.kind() == ir::OpKind::Statement {
+                            if let Some(stmt_op) = handler_op.as_any_mut().downcast_mut::<ir::ops::shared::StatementOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
+                                // Check if the statement is an expression statement with an InvokeFn (restoreView call)
+                                let should_convert = if let o::Statement::Expression(ref expr_stmt) = *stmt_op.statement {
+                                    if let o::Expression::InvokeFn(ref invoke) = *expr_stmt.expr {
+                                        // Check if this is a restoreView call by examining the function reference
+                                        if let o::Expression::External(ref ext_expr) = *invoke.fn_ {
+                                            ext_expr.value.name.as_deref() == Some("ɵɵrestoreView")
+                                        } else {
+                                            false
+                                        }
+                                    } else {
+                                        false
+                                    }
+                                } else {
+                                    false
+                                };
+                                
+                                if should_convert {
+                                    // Clone the expression from the statement
+                                    if let o::Statement::Expression(ref expr_stmt) = *stmt_op.statement {
+                                        let new_stmt = o::Statement::DeclareVar(o::DeclareVarStmt {
+                                            name: "ctx".to_string(),
+                                            value: Some(expr_stmt.expr.clone()),
+                                            type_: None,
+                                            modifiers: o::StmtModifier::Final,
+                                            source_span: expr_stmt.source_span.clone(),
+                                        });
+                                        stmt_op.statement = Box::new(new_stmt);
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Also handle remaining VariableOp -> DeclareVarStmt conversion
+                        if handler_op.kind() == ir::OpKind::Variable {
+                            use crate::template::pipeline::ir::ops::shared::VariableOp;
+                            use crate::template::pipeline::ir::SemanticVariable;
+                            
+                            // Try both Send+Sync and non-Send+Sync just in case
+                            if let Some(var_op) = handler_op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
+                                let var_name = match &var_op.variable {
+                                    SemanticVariable::Identifier(ident_var) => ident_var.name.clone(),
+                                    SemanticVariable::Context(ctx_var) => ctx_var.name.clone(),
+                                    SemanticVariable::Alias(_) => None,
+                                    SemanticVariable::SavedView(_) => None,
+                                };
+                                
+                                
+                                if let Some(name) = var_name {
+                                    let reified_initializer = reify_ir_expression(*var_op.initializer.clone(), ir::VisitorContextFlag::NONE);
+                                    
+                                    let stmt = o::Statement::DeclareVar(o::DeclareVarStmt {
+                                        name: name.clone(),
+                                        value: Some(Box::new(reified_initializer)),
+                                        type_: None,
+                                        modifiers: o::StmtModifier::Final,
+                                        source_span: None,
+                                    });
+                                    
+                                    let new_op: Box<dyn ir::UpdateOp + Send + Sync> = Box::new(
+                                        ir::ops::shared::create_statement_op::<Box<dyn ir::UpdateOp + Send + Sync>>(Box::new(stmt))
+                                    );
+                                    *handler_op = new_op;
+                                }
+                            } else if let Some(var_op) = handler_op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp>>>() {
+                            } else {
+                            }
+                        }
+                    }
+                }
+                None
+            }
             _ => None
         };
         
@@ -86,7 +186,11 @@ fn reify_create_operations(unit: &mut dyn CompilationUnit) {
 }
 
 fn reify_update_operations(unit: &mut dyn CompilationUnit) {
-     for op in unit.update_mut().iter_mut() {
+    for (i, op) in unit.update().iter().enumerate() {
+         if let Some(var_op) = op.as_any().downcast_ref::<ir::ops::shared::VariableOp<Box<dyn UpdateOp + Send + Sync>>>() {
+         }
+    }
+    for op in unit.update_mut().iter_mut() {
         ir::transform_expressions_in_op(op.as_mut(), &mut reify_ir_expression, ir::VisitorContextFlag::NONE);
         
         let new_op: Option<Box<dyn UpdateOp + Send + Sync>> = match op.kind() {
@@ -135,7 +239,44 @@ fn reify_update_operations(unit: &mut dyn CompilationUnit) {
                     }
                 } else { None }
             }
-             _ => None
+            ir::OpKind::ClassProp => {
+                if let Some(class_op) = op.as_any().downcast_ref::<ir::ops::update::ClassPropOp>() {
+                    // Reify the expression before using it
+                    let reified_expr = reify_ir_expression(class_op.expression.clone(), ir::VisitorContextFlag::NONE);
+                    let stmt = ng::class_prop(
+                        class_op.name.clone(),
+                        reified_expr,
+                        Some(class_op.source_span.clone()),
+                    );
+                    Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn UpdateOp + Send + Sync>>(Box::new(stmt))))
+                } else { None }
+            }
+            ir::OpKind::StyleProp => {
+                if let Some(style_op) = op.as_any().downcast_ref::<ir::ops::update::StylePropOp>() {
+                    let expression = match &style_op.expression {
+                        ir::ops::update::BindingExpression::Expression(expr) => {
+                            // Reify the expression
+                            reify_ir_expression(expr.clone(), ir::VisitorContextFlag::NONE)
+                        },
+                        ir::ops::update::BindingExpression::Interpolation(interp) => {
+                            // Convert interpolation to string for now
+                            o::Expression::Literal(o::LiteralExpr {
+                                value: o::LiteralValue::String(interp.strings.join("")),
+                                type_: None,
+                                source_span: None,
+                            })
+                        }
+                    };
+                    let stmt = ng::style_prop(
+                        style_op.name.clone(),
+                        expression,
+                        style_op.unit.clone(),
+                        Some(style_op.source_span.clone()),
+                    );
+                    Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn UpdateOp + Send + Sync>>(Box::new(stmt))))
+                } else { None }
+            }
+            _ => None
         };
 
         if let Some(new) = new_op {
@@ -253,16 +394,16 @@ fn reify_ir_expression(expr: o::Expression, flags: ir::VisitorContextFlag) -> o:
             ng::pure_function(slot, func, args)
         }
         o::Expression::ReadVariable(var) => {
-             if let Some(name) = &var.name {
-                 o::Expression::ReadVar(o::ReadVarExpr {
-                     name: name.clone(),
-                     type_: None,
-                     source_span: var.source_span.clone(),
-                 })
-             } else {
-                 println!("PANIC: ReadVariableExpr without name! Xref: {:?}", var.xref);
-                 panic!("ReadVariableExpr without name: {:?}", var);
-             }
+             // Get name from variable, or generate fallback if missing
+             let name = var.name.clone().unwrap_or_else(|| {
+                 // Fallback: generate variable name from xref
+                 format!("_r{}", var.xref.0)
+             });
+             o::Expression::ReadVar(o::ReadVarExpr {
+                 name,
+                 type_: None,
+                 source_span: var.source_span.clone(),
+             })
         }
         o::Expression::ReadVar(expr) => {
             o::Expression::ReadVar(expr.clone())
@@ -297,6 +438,56 @@ fn reify_ir_expression(expr: o::Expression, flags: ir::VisitorContextFlag) -> o:
             // For variadic, wrap in array and call pipeBindV
             let args_array = vec![reified_args];
             ng::pipe_bind(pipe_slot, var_offset, args_array)
+        }
+        o::Expression::Reference(ref_expr) => {
+            // Reify ReferenceExpr to ɵɵreference(slot + offset) expression
+            let slot = ref_expr.target_slot.slot.unwrap_or(0) as i32;
+            let offset = ref_expr.offset as i32;
+            ng::reference(slot + offset)
+        }
+        o::Expression::ContextLetReference(let_ref) => {
+            // Reify ContextLetReferenceExpr to ɵɵstoreLet(slot) expression
+            // This reads the stored @let value
+            let slot = let_ref.target_slot.slot.unwrap_or(0) as i32;
+            ng::reference(slot)
+        }
+        o::Expression::GetCurrentView(_) => {
+            *o::import_ref(crate::render3::r3_identifiers::Identifiers::get_current_view())
+                .call_fn(vec![], None, None)
+        }
+        o::Expression::RestoreView(restore_view) => {
+            let view_arg = match &restore_view.view {
+                ir::expression::EitherXrefIdOrExpression::XrefId(xref) => {
+                    // If it's an xref, we need to read the variable associated with it?
+                    // Or is it a variable read?
+                    // Typically RestoreView takes a view instance.
+                    // If we have an xref, it usually means a variable holding the view.
+                    // We should generate a ReadVar expression for that xref.
+                    o::Expression::ReadVar(o::ReadVarExpr {
+                        name: format!("_r{}", xref.0), // Fallback naming, should ideally resolve name
+                        type_: None,
+                        source_span: None,
+                    })
+                }
+                ir::expression::EitherXrefIdOrExpression::Expression(expr) => {
+                    reify_ir_expression(*expr.clone(), flags)
+                }
+            };
+            *o::import_ref(crate::render3::r3_identifiers::Identifiers::restore_view())
+                .call_fn(vec![view_arg], None, None)
+        }
+        o::Expression::ResetView(reset_view) => {
+            let expr_arg = reify_ir_expression(*reset_view.expr.clone(), flags);
+            *o::import_ref(crate::render3::r3_identifiers::Identifiers::reset_view())
+                .call_fn(vec![expr_arg], None, None)
+        }
+        o::Expression::Context(ctx) => {
+            // Reify ContextExpr to ReadVariable (which resolves to _rX)
+             reify_ir_expression(o::Expression::ReadVariable(ir::expression::ReadVariableExpr {
+                 xref: ctx.view,
+                 name: None,
+                 source_span: ctx.source_span.clone(),
+             }), flags)
         }
         _ => expr
     }

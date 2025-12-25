@@ -336,6 +336,7 @@ impl IRExpressionTrait for GetCurrentViewExpr {
 #[derive(Debug, Clone)]
 pub struct RestoreViewExpr {
     pub view: EitherXrefIdOrExpression,
+    pub target_context: Option<XrefId>,
     pub source_span: Option<ParseSourceSpan>,
 }
 
@@ -350,6 +351,7 @@ impl RestoreViewExpr {
     pub fn new(view: EitherXrefIdOrExpression) -> Self {
         RestoreViewExpr {
             view,
+            target_context: None,
             source_span: None,
         }
     }
@@ -1107,7 +1109,19 @@ pub fn transform_expressions_in_expression(
     use crate::output::output_ast::Expression as OutputExpr;
     
     // Transform nested expressions first
+    // println!("DEBUG: transform visiting {:?}", expr);
     match &mut expr {
+        OutputExpr::ReadProp(prop) => {
+             // println!("DEBUG: traversing ReadProp {:?}", prop.name);
+            prop.receiver = Box::new(transform_expressions_in_expression(*prop.receiver.clone(), transform, flags));
+        }
+        OutputExpr::InvokeFn(invoke) => {
+             // InvokeFn - traverse fn_ and args
+            invoke.fn_ = Box::new(transform_expressions_in_expression(*invoke.fn_.clone(), transform, flags));
+            for arg in &mut invoke.args {
+                *arg = transform_expressions_in_expression(arg.clone(), transform, flags);
+            }
+        }
         OutputExpr::BinaryOp(bin) => {
             bin.lhs = Box::new(transform_expressions_in_expression(*bin.lhs.clone(), transform, flags));
             bin.rhs = Box::new(transform_expressions_in_expression(*bin.rhs.clone(), transform, flags));
@@ -1314,6 +1328,16 @@ pub fn transform_expressions_in_expression(
              expr.target = Box::new(transform_expressions_in_expression(*expr.target.clone(), transform, flags));
              expr.value = Box::new(transform_expressions_in_expression(*expr.value.clone(), transform, flags));
         }
+        OutputExpr::ResetView(expr) => {
+             // ResetView wraps an expression - need to traverse the nested expr to visit LexicalReads
+             expr.expr = Box::new(transform_expressions_in_expression(*expr.expr.clone(), transform, flags));
+        }
+        OutputExpr::RestoreView(expr) => {
+             // RestoreView may have nested view expression
+             if let EitherXrefIdOrExpression::Expression(ref mut view_expr) = expr.view {
+                 *view_expr = Box::new(transform_expressions_in_expression(*view_expr.clone(), transform, flags));
+             }
+        }
 
 
         OutputExpr::ArrowFn(expr) => {
@@ -1335,6 +1359,9 @@ pub fn transform_expressions_in_expression(
         }
 
         // Leaf nodes or unhandled
+        OutputExpr::LexicalRead(l) => {
+             // LexicalRead - leaf node
+        }
         OutputExpr::WrappedNode(_)
         | OutputExpr::Literal(_)
         | OutputExpr::External(_)
@@ -1426,9 +1453,7 @@ pub fn transform_expressions_in_op(
     
     match op.kind() {
         OpKind::Binding 
-        | OpKind::StyleProp 
         | OpKind::StyleMap 
-        | OpKind::ClassProp 
         | OpKind::ClassMap 
         | OpKind::AnimationString 
         | OpKind::AnimationBinding => {
@@ -1443,6 +1468,27 @@ pub fn transform_expressions_in_op(
                          }
                      }
                  }
+            }
+        }
+        OpKind::ClassProp => {
+            // ClassPropOp has Expression (not BindingExpression)
+            if let Some(op) = op.as_any_mut().downcast_mut::<crate::template::pipeline::ir::ops::update::ClassPropOp>() {
+                op.expression = transform_expressions_in_expression(op.expression.clone(), transform, flags);
+            }
+        }
+        OpKind::StyleProp => {
+            // StylePropOp has BindingExpression
+            if let Some(op) = op.as_any_mut().downcast_mut::<crate::template::pipeline::ir::ops::update::StylePropOp>() {
+                match &mut op.expression {
+                    crate::template::pipeline::ir::ops::update::BindingExpression::Expression(expr) => {
+                        *expr = transform_expressions_in_expression(expr.clone(), transform, flags);
+                    }
+                    crate::template::pipeline::ir::ops::update::BindingExpression::Interpolation(interp) => {
+                        for expr in &mut interp.expressions {
+                            *expr = transform_expressions_in_expression(expr.clone(), transform, flags);
+                        }
+                    }
+                }
             }
         }
         OpKind::Property 
@@ -1507,10 +1553,14 @@ pub fn transform_expressions_in_op(
 
              // Try CreateOp version
              if let Some(op) = op.as_any_mut().downcast_mut::<StatementOp<Box<dyn CreateOp + Send + Sync>>>() {
+                 println!("DEBUG transform_expressions_in_op: StatementOp CreateOp downcast success");
+                 // CreateOp StatementOp - transform statement expressions
                  transform_expressions_in_statement(&mut op.statement, transform, flags);
              }
              // Try UpdateOp version
              else if let Some(op) = op.as_any_mut().downcast_mut::<StatementOp<Box<dyn UpdateOp + Send + Sync>>>() {
+                 println!("DEBUG transform_expressions_in_op: StatementOp UpdateOp downcast success");
+                 // UpdateOp StatementOp - transform statement expressions
                  transform_expressions_in_statement(&mut op.statement, transform, flags);
              }
         }
@@ -1567,11 +1617,15 @@ pub fn transform_expressions_in_op(
         OpKind::Variable => {
              // Try CreateOp version
              if let Some(op) = op.as_any_mut().downcast_mut::<VariableOp<Box<dyn CreateOp + Send + Sync>>>() {
+                 println!("DEBUG transform_expressions_in_op: VariableOp CreateOp downcast success");
                  op.initializer = Box::new(transform_expressions_in_expression(*op.initializer.clone(), transform, flags));
              } 
              // Try UpdateOp version
              else if let Some(op) = op.as_any_mut().downcast_mut::<VariableOp<Box<dyn UpdateOp + Send + Sync>>>() {
+                 println!("DEBUG transform_expressions_in_op: VariableOp UpdateOp downcast success");
                  op.initializer = Box::new(transform_expressions_in_expression(*op.initializer.clone(), transform, flags));
+             } else {
+                 println!("DEBUG transform_expressions_in_op: VariableOp downcast FAILED for op kind={:?}", op.kind());
              }
         }
 

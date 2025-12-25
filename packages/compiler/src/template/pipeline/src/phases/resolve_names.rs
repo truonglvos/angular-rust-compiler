@@ -19,12 +19,19 @@ use crate::template::pipeline::src::compilation::{CompilationJob, ComponentCompi
 use crate::output::output_ast::Expression;
 
 /// Information about a `SavedView` variable.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct SavedView {
     /// The view `ir.XrefId` which was saved into this variable.
     view: ir::XrefId,
     /// The `ir.XrefId` of the variable into which the view was saved.
     variable: ir::XrefId,
+}
+
+#[derive(Clone, Debug)]
+struct ScopeEntry {
+    xref: ir::XrefId,
+    variable: ir::SemanticVariable,
+    initializer: Expression,
 }
 
 /// Resolves lexical references in views (`ir.LexicalReadExpr`) to either a target variable or to
@@ -36,6 +43,7 @@ pub fn phase(job: &mut dyn CompilationJob) {
     let job_kind = job.kind();
     
     if matches!(job_kind, CompilationJobKind::Tmpl | CompilationJobKind::Both) {
+        // Process lexical scope for this view
         let component_job = unsafe {
             let job_ptr = job as *mut dyn CompilationJob;
             let job_ptr = job_ptr as *mut ComponentCompilationJob;
@@ -67,12 +75,14 @@ fn process_lexical_scope(
     //
     // Since variables are generated in each view for the entire lexical scope (including any
     // identifiers from parent templates) only local variables need be considered here.
-    let mut scope: std::collections::HashMap<String, ir::XrefId> = std::collections::HashMap::new();
+    let mut scope: std::collections::HashMap<String, ScopeEntry> = std::collections::HashMap::new();
     
     // Symbols defined within the current scope. They take precedence over ones defined outside.
-    let mut local_definitions: std::collections::HashMap<String, ir::XrefId> = std::collections::HashMap::new();
+    let mut local_definitions: std::collections::HashMap<String, ScopeEntry> = std::collections::HashMap::new();
     
     let mut current_saved_view = saved_view;
+    
+    println!("DEBUG resolve_names: process_lexical_scope START for unit_xref={:?}", unit.xref());
     
     // First, step through the operations list and:
     // 1) build up the `scope` mapping
@@ -91,22 +101,42 @@ fn process_lexical_scope(
                             if let ir::SemanticVariable::Identifier(identifier_var) = &variable_op.variable {
                                 if identifier_var.local {
                                     if !local_definitions.contains_key(&identifier_var.identifier) {
-                                        local_definitions.insert(identifier_var.identifier.clone(), variable_op.xref);
+                                        local_definitions.insert(identifier_var.identifier.clone(), ScopeEntry {
+                                            xref: variable_op.xref,
+                                            variable: variable_op.variable.clone(),
+                                            initializer: *variable_op.initializer.clone(),
+                                        });
                                     }
                                 } else if !scope.contains_key(&identifier_var.identifier) {
-                                    scope.insert(identifier_var.identifier.clone(), variable_op.xref);
+                                    scope.insert(identifier_var.identifier.clone(), ScopeEntry {
+                                        xref: variable_op.xref,
+                                        variable: variable_op.variable.clone(),
+                                        initializer: *variable_op.initializer.clone(),
+                                    });
                                 }
                             }
                         }
                         SemanticVariableKind::Alias => {
                             if let ir::SemanticVariable::Alias(alias_var) = &variable_op.variable {
                                 if !scope.contains_key(&alias_var.identifier) {
-                                    scope.insert(alias_var.identifier.clone(), variable_op.xref);
+                                    scope.insert(alias_var.identifier.clone(), ScopeEntry {
+                                        xref: variable_op.xref,
+                                        variable: variable_op.variable.clone(),
+                                        initializer: *variable_op.initializer.clone(),
+                                    });
                                 }
                             }
                         }
                         SemanticVariableKind::SavedView => {
                             if let ir::SemanticVariable::SavedView(saved_view_var) = &variable_op.variable {
+                                println!("DEBUG resolve_names: Found SavedView in create ops - view={:?}, variable_xref={:?}", saved_view_var.view, variable_op.xref);
+                                
+                                // Debug: show all op kinds in this view
+                                println!("DEBUG resolve_names: Ops in view={:?}:", saved_view_var.view);
+                                for (idx, debug_op) in unit.create().iter().enumerate() {
+                                    println!("  [{}] kind={:?}", idx, debug_op.kind());
+                                }
+                                
                                 current_saved_view = Some(SavedView {
                                     view: saved_view_var.view,
                                     variable: variable_op.xref,
@@ -141,17 +171,29 @@ fn process_lexical_scope(
                         if let ir::SemanticVariable::Identifier(identifier_var) = &variable_op.variable {
                             if identifier_var.local {
                                 if !local_definitions.contains_key(&identifier_var.identifier) {
-                                    local_definitions.insert(identifier_var.identifier.clone(), variable_op.xref);
+                                    local_definitions.insert(identifier_var.identifier.clone(), ScopeEntry {
+                                        xref: variable_op.xref,
+                                        variable: variable_op.variable.clone(),
+                                        initializer: *variable_op.initializer.clone(),
+                                    });
                                 }
                             } else if !scope.contains_key(&identifier_var.identifier) {
-                                scope.insert(identifier_var.identifier.clone(), variable_op.xref);
+                                scope.insert(identifier_var.identifier.clone(), ScopeEntry {
+                                    xref: variable_op.xref,
+                                    variable: variable_op.variable.clone(),
+                                    initializer: *variable_op.initializer.clone(),
+                                });
                             }
                         }
                     }
                     SemanticVariableKind::Alias => {
                         if let ir::SemanticVariable::Alias(alias_var) = &variable_op.variable {
                             if !scope.contains_key(&alias_var.identifier) {
-                                scope.insert(alias_var.identifier.clone(), variable_op.xref);
+                                scope.insert(alias_var.identifier.clone(), ScopeEntry {
+                                    xref: variable_op.xref,
+                                    variable: variable_op.variable.clone(),
+                                    initializer: *variable_op.initializer.clone(),
+                                });
                             }
                         }
                     }
@@ -173,22 +215,24 @@ fn process_lexical_scope(
     // scope. Also, look for `ir.RestoreViewExpr`s and match them with the snapshotted view context
     // variable.
     // Process create ops
+    let unit_xref = unit.xref();
     let current_saved_view_ref = &current_saved_view;
     for op in unit.create_mut().iter_mut() {
         match op.kind() {
             OpKind::Listener | OpKind::AnimationListener | OpKind::TwoWayListener => {
                 // Listener functions have separate variable declarations, so process them as a separate
                 // lexical scope.
-                process_listener_scope_recursive(op, root_xref, current_saved_view.clone(), &scope, &local_definitions);
+                println!("DEBUG resolve_names: Processing listener at view_xref={:?}, current_saved_view={:?}", unit_xref, current_saved_view);
+                process_listener_scope_recursive(op, root_xref, unit_xref, current_saved_view.clone(), &scope, &local_definitions);
             }
             OpKind::RepeaterCreate => {
-                process_repeater_scope_recursive(op, root_xref, current_saved_view.clone(), &scope, &local_definitions);
+                process_repeater_scope_recursive(op, root_xref, unit_xref, current_saved_view.clone(), &scope, &local_definitions);
             }
             _ => {
                 unsafe {
                     let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                     let op_ptr = op_ptr as *mut dyn ir::Op;
-                    transform_lexical_reads_in_op(&mut *op_ptr, &scope, &local_definitions, root_xref, current_saved_view_ref);
+                    transform_lexical_reads_in_op(&mut *op_ptr, &scope, &local_definitions, root_xref, unit_xref, current_saved_view_ref, false);
                 }
             }
         }
@@ -196,7 +240,7 @@ fn process_lexical_scope(
     
     // Process update ops
     for op in unit.update_mut().iter_mut() {
-        transform_lexical_reads_in_op(op.as_mut(), &scope, &local_definitions, root_xref, current_saved_view_ref);
+        transform_lexical_reads_in_op(op.as_mut(), &scope, &local_definitions, root_xref, unit_xref, current_saved_view_ref, false);
     }
     
     // Verify no lexical reads remain
@@ -206,33 +250,56 @@ fn process_lexical_scope(
 
 fn transform_lexical_reads_in_op(
     op: &mut dyn ir::Op,
-    scope: &std::collections::HashMap<String, ir::XrefId>,
-    local_definitions: &std::collections::HashMap<String, ir::XrefId>,
+    scope: &std::collections::HashMap<String, ScopeEntry>,
+    local_definitions: &std::collections::HashMap<String, ScopeEntry>,
     root_xref: ir::XrefId,
+    view_xref: ir::XrefId,
     saved_view: &Option<SavedView>,
+    is_listener: bool,
 ) {
     transform_expressions_in_op(
         op,
         &mut |expr, _flags| {
             if let Expression::LexicalRead(ref lexical_read) = expr {
+                // LexicalRead found - resolve to either local definition, scope entry, or component context
                 // `expr` is a read of a name within the lexical scope of this view.
                 // Either that name is defined within the current view, or it represents a property from the
-                // main component context.
-                if let Some(xref) = local_definitions.get(&lexical_read.name) {
+                // property from the main component context.
+                if let Some(entry) = local_definitions.get(&lexical_read.name) {
                     return Expression::ReadVariable(ReadVariableExpr {
-                        xref: *xref,
+                        xref: entry.xref,
                         name: None,
                         source_span: lexical_read.source_span.clone(),
                     });
-                } else if let Some(xref) = scope.get(&lexical_read.name) {
+                } else if let Some(entry) = scope.get(&lexical_read.name) {
                     // This was a defined variable in the current scope.
+                    // If we are in a listener, and the variable is a Context variable,
+                    // we should read it from the context instead of the local variable
+                    // (which might be in the update block and thus not accessible).
+                    if is_listener {
+                        // Listener scope - check if variable is initialized with context property read
+                        // Check if the variable is initialized with a property read on the context.
+                        if let Expression::ReadProp(prop) = &entry.initializer {
+                             // Check if receiver is Context.
+                             // We don't need to check WHICH context, because if it's a Context read,
+                             // it's generally safe/correct to re-emit it in the listener,
+                             // allowing resolve_contexts to fix the view lookup.
+                             if let Expression::Context(_) = &*prop.receiver {
+                                 // It is a read from Context.
+                                 // We can safely replicate this property read in the listener!
+                                 return Expression::ReadProp(prop.clone());
+                             }
+                        }
+                    }
+
                     return Expression::ReadVariable(ReadVariableExpr {
-                        xref: *xref,
+                        xref: entry.xref,
                         name: None,
                         source_span: lexical_read.source_span.clone(),
                     });
                 } else {
                     // Reading from the component context.
+                    println!("DEBUG resolve_names: resolve LexicalRead({}) to root_xref={:?}", lexical_read.name, root_xref);
                     return Expression::ReadProp(crate::output::output_ast::ReadPropExpr {
                         receiver: Box::new(Expression::Context(ContextExpr {
                             view: root_xref,
@@ -247,9 +314,11 @@ fn transform_lexical_reads_in_op(
                 // `ir.RestoreViewExpr` happens in listener functions and restores a saved view from the
                 // parent creation list. We expect to find that we captured the `savedView` previously, and
                 // that it matches the expected view to be restored.
-                if let EitherXrefIdOrExpression::XrefId(view_xref) = &restore_view.view {
+                if let EitherXrefIdOrExpression::XrefId(restore_view_xref) = &restore_view.view {
+                    println!("DEBUG resolve_names: RestoreView with XrefId={:?}, saved_view={:?}", restore_view_xref, saved_view);
                     if let Some(saved) = saved_view {
-                        if saved.view == *view_xref {
+                        if saved.view == *restore_view_xref {
+                            println!("DEBUG resolve_names: Matched! Replacing with ReadVariable xref={:?}", saved.variable);
                             return Expression::RestoreView(ir::expression::RestoreViewExpr {
                                 view: EitherXrefIdOrExpression::Expression(Box::new(
                                     Expression::ReadVariable(ReadVariableExpr {
@@ -258,11 +327,18 @@ fn transform_lexical_reads_in_op(
                                         source_span: restore_view.source_span.clone(),
                                     })
                                 )),
+                                target_context: Some(saved.view),
                                 source_span: restore_view.source_span.clone(),
                             });
+                        } else {
+                            println!("DEBUG resolve_names: SavedView.view={:?} != RestoreView.xref={:?}", saved.view, restore_view_xref);
                         }
+                    } else {
+                        println!("DEBUG resolve_names: saved_view is None!");
                     }
-                    panic!("AssertionError: no saved view {:?} from current view", view_xref);
+                    panic!("AssertionError: no saved view {:?} from current view", restore_view_xref);
+                } else {
+                    println!("DEBUG resolve_names: RestoreView already has Expression (not XrefId)");
                 }
             }
             expr
@@ -274,47 +350,72 @@ fn transform_lexical_reads_in_op(
 fn process_listener_scope_recursive(
     op: &mut Box<dyn ir::CreateOp + Send + Sync>,
     root_xref: ir::XrefId,
+    view_xref: ir::XrefId,
     saved_view: Option<SavedView>,
-    scope: &std::collections::HashMap<String, ir::XrefId>,
-    local_definitions: &std::collections::HashMap<String, ir::XrefId>,
+    scope: &std::collections::HashMap<String, ScopeEntry>,
+    local_definitions: &std::collections::HashMap<String, ScopeEntry>,
 ) {
+    println!("DEBUG resolve_names: process_listener_scope_recursive - view_xref={:?}, saved_view={:?}", view_xref, saved_view);
     match op.kind() {
-        OpKind::Listener => {
+        OpKind::Listener | OpKind::TwoWayListener | OpKind::AnimationListener => {
             unsafe {
                 let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
-                let listener_ptr = op_ptr as *mut ListenerOp;
-                let listener = &mut *listener_ptr;
-                
-                // Transform expressions in handler_ops
-                let saved_view_ref = &saved_view;
-                for handler_op in listener.handler_ops.iter_mut() {
-                    transform_lexical_reads_in_op(handler_op.as_mut(), &scope, &local_definitions, root_xref, saved_view_ref);
+                let (handler_ops, listener_view_xref) = match op.kind() {
+                    OpKind::Listener => {
+                        let listener_ptr = op_ptr as *mut ListenerOp;
+                        let listener = &mut *listener_ptr;
+                        (&mut listener.handler_ops, view_xref)
+                    }
+                    OpKind::TwoWayListener => {
+                        let listener_ptr = op_ptr as *mut TwoWayListenerOp;
+                        let listener = &mut *listener_ptr;
+                        (&mut listener.handler_ops, view_xref)
+                    }
+                    OpKind::AnimationListener => {
+                        let listener_ptr = op_ptr as *mut AnimationListenerOp;
+                        let listener = &mut *listener_ptr;
+                        (&mut listener.handler_ops, view_xref)
+                    }
+                    _ => unreachable!(),
+                };
+
+                // Build a listener-local local_definitions map
+                let mut local_defs = local_definitions.clone();
+
+                for handler_op in handler_ops.iter() {
+                    if handler_op.kind() == OpKind::Variable {
+                        let handler_op_ptr = handler_op.as_ref() as *const dyn ir::UpdateOp;
+                        let variable_op_ptr = handler_op_ptr as *const VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>;
+                        let variable_op = &*variable_op_ptr;
+
+                        match variable_op.variable.kind() {
+                            SemanticVariableKind::Identifier => {
+                                if let ir::SemanticVariable::Identifier(identifier_var) = &variable_op.variable {
+                                    local_defs.insert(identifier_var.identifier.clone(), ScopeEntry {
+                                        xref: variable_op.xref,
+                                        variable: variable_op.variable.clone(),
+                                        initializer: *variable_op.initializer.clone(),
+                                    });
+                                }
+                            }
+                            SemanticVariableKind::Alias => {
+                                if let ir::SemanticVariable::Alias(alias_var) = &variable_op.variable {
+                                    local_defs.insert(alias_var.identifier.clone(), ScopeEntry {
+                                        xref: variable_op.xref,
+                                        variable: variable_op.variable.clone(),
+                                        initializer: *variable_op.initializer.clone(),
+                                    });
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
                 }
-            }
-        }
-        OpKind::AnimationListener => {
-            unsafe {
-                let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
-                let animation_listener_ptr = op_ptr as *mut AnimationListenerOp;
-                let animation_listener = &mut *animation_listener_ptr;
-                
+
                 // Transform expressions in handler_ops
                 let saved_view_ref = &saved_view;
-                for handler_op in animation_listener.handler_ops.iter_mut() {
-                    transform_lexical_reads_in_op(handler_op.as_mut(), &scope, &local_definitions, root_xref, saved_view_ref);
-                }
-            }
-        }
-        OpKind::TwoWayListener => {
-            unsafe {
-                let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
-                let two_way_listener_ptr = op_ptr as *mut TwoWayListenerOp;
-                let two_way_listener = &mut *two_way_listener_ptr;
-                
-                // Transform expressions in handler_ops
-                let saved_view_ref = &saved_view;
-                for handler_op in two_way_listener.handler_ops.iter_mut() {
-                    transform_lexical_reads_in_op(handler_op.as_mut(), &scope, &local_definitions, root_xref, saved_view_ref);
+                for handler_op in handler_ops.iter_mut() {
+                     transform_lexical_reads_in_op(handler_op.as_mut(), scope, &local_defs, root_xref, listener_view_xref, saved_view_ref, true);
                 }
             }
         }
@@ -325,9 +426,10 @@ fn process_listener_scope_recursive(
 fn process_repeater_scope_recursive(
     op: &mut Box<dyn ir::CreateOp + Send + Sync>,
     root_xref: ir::XrefId,
+    view_xref: ir::XrefId,
     saved_view: Option<SavedView>,
-    scope: &std::collections::HashMap<String, ir::XrefId>,
-    local_definitions: &std::collections::HashMap<String, ir::XrefId>,
+    scope: &std::collections::HashMap<String, ScopeEntry>,
+    local_definitions: &std::collections::HashMap<String, ScopeEntry>,
 ) {
     unsafe {
         let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
@@ -338,7 +440,7 @@ fn process_repeater_scope_recursive(
             // Transform expressions in trackByOps
             let saved_view_ref = &saved_view;
             for track_op in track_by_ops.iter_mut() {
-                transform_lexical_reads_in_op(track_op.as_mut(), &scope, &local_definitions, root_xref, saved_view_ref);
+                transform_lexical_reads_in_op(track_op.as_mut(), &scope, &local_definitions, root_xref, view_xref, saved_view_ref, false);
             }
         }
     }

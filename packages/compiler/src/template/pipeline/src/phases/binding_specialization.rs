@@ -254,8 +254,41 @@ fn process_unit(
                 // Template bindings are handled separately, don't replace here
                 None
             }
-            BindingKind::I18n | BindingKind::ClassName | BindingKind::StyleProperty => {
-                panic!("Unhandled binding of kind {:?}", binding_op.binding_kind);
+            BindingKind::I18n => {
+                // I18n bindings are handled separately, don't replace here
+                None
+            }
+            BindingKind::ClassName => {
+                // Convert to ClassPropOp
+                // ClassName bindings expect Expression, not Interpolation
+                let expression = match &binding_op.expression {
+                    crate::template::pipeline::ir::ops::update::BindingExpression::Expression(expr) => expr.clone(),
+                    crate::template::pipeline::ir::ops::update::BindingExpression::Interpolation(interp) => {
+                        // Convert interpolation to a string concatenation expression if needed
+                        // For now, use Literal(String) as fallback
+                        crate::output::output_ast::Expression::Literal(crate::output::output_ast::LiteralExpr {
+                            value: crate::output::output_ast::LiteralValue::String(interp.strings.join("")),
+                            type_: None,
+                            source_span: None,
+                        })
+                    }
+                };
+                Some(crate::template::pipeline::ir::ops::update::create_class_prop_op(
+                    binding_op.target,
+                    binding_op.name.clone(),
+                    expression,
+                    binding_op.source_span.clone(),
+                ))
+            }
+            BindingKind::StyleProperty => {
+                // Convert to StylePropOp
+                Some(crate::template::pipeline::ir::ops::update::create_style_prop_op(
+                    binding_op.target,
+                    binding_op.name.clone(),
+                    binding_op.expression.clone(),
+                    binding_op.unit.clone(),
+                    binding_op.source_span.clone(),
+                ))
             }
         };
         

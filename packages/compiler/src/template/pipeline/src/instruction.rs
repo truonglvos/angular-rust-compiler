@@ -258,3 +258,41 @@ pub fn pipe_bind(pipe_slot: i32, var_offset: i32, args: Vec<o::Expression>) -> o
     *o::import_ref(id).call_fn(call_args, None, None)
 }
 
+/// Creates a reference expression for local template refs.
+/// Generates ɵɵreference(slot) expression.
+pub fn reference(slot: i32) -> o::Expression {
+    *o::import_ref(Identifiers::reference()).call_fn(
+        vec![*o::literal(slot as f64)],
+        None,
+        None,
+    )
+}
+
+/// Creates a classProp instruction.
+/// Generates ɵɵclassProp(className, expression) statement.
+pub fn class_prop(
+    name: String,
+    expression: o::Expression,
+    source_span: Option<ParseSourceSpan>,
+) -> o::Statement {
+    call(
+        Identifiers::class_prop(),
+        vec![*o::literal(name), expression],
+        source_span,
+    )
+}
+
+/// Creates a styleProp instruction.
+/// Generates ɵɵstyleProp(styleName, expression, unit?) statement.
+pub fn style_prop(
+    name: String,
+    expression: o::Expression,
+    unit: Option<String>,
+    source_span: Option<ParseSourceSpan>,
+) -> o::Statement {
+    let mut args = vec![*o::literal(name), expression];
+    if let Some(u) = unit {
+        args.push(*o::literal(u));
+    }
+    call(Identifiers::style_prop(), args, source_span)
+}

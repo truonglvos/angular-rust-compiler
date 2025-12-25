@@ -86,7 +86,9 @@ pub fn emit_component(job: &ComponentCompilationJob, metadata: &R3ComponentMetad
             continue;
         }
         
-        let fn_name = unit.fn_name().unwrap_or("template").to_string();
+        let fn_name = unit.fn_name().map(|n| n.to_string()).unwrap_or_else(|| {
+            "template".to_string()
+        });
         let view_fn = emit_view(job, unit);
         
         // Convert FunctionExpr to DeclareFunctionStmt for child views
@@ -597,14 +599,6 @@ pub fn emit_ops(job: &ComponentCompilationJob, ops: Vec<&dyn ir::Op>) -> Vec<o::
                  }
             },
             ir::OpKind::Statement => {
-                // Statements that have already been reified (e.g. by reify phase)
-                // Downcast to either StatementOp<Box<dyn CreateOp>> or StatementOp<Box<dyn UpdateOp>>
-                // Since this function takes &dyn ir::Op, we might need a generic way or try both.
-                // However, the input is `ops: Vec<&dyn ir::Op>`.
-                // We know that `StatementOp` is generic over `OpT`.
-                // In `reify.rs`, we create `StatementOp<Box<dyn CreateOp ...>>` or `StatementOp<Box<dyn UpdateOp ...>>`.
-                // Since we don't know which one it is easily (erasure), we might need to try downcasting to both known types.
-                
                 if let Some(stmt_op) = op.as_any().downcast_ref::<ir::ops::shared::StatementOp<Box<dyn ir::operations::CreateOp + Send + Sync>>>() {
                     stmts.push(*stmt_op.statement.clone());
                 } else if let Some(stmt_op) = op.as_any().downcast_ref::<ir::ops::shared::StatementOp<Box<dyn ir::operations::UpdateOp + Send + Sync>>>() {

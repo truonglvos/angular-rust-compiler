@@ -11,7 +11,7 @@ use crate::template::pipeline::ir::handle::XrefId;
 use crate::template::pipeline::ir::ops::shared::{VariableOp, create_statement_op};
 use crate::template::pipeline::ir::operations::OpList;
 use crate::template::pipeline::src::compilation::{CompilationJob, CompilationUnit};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use indexmap::IndexMap;
 use bitflags::bitflags;
 
@@ -74,55 +74,15 @@ struct OpInfo {
 /// To guarantee correctness, analysis of "fences" in the instruction lists is used to determine
 /// which optimizations are safe to perform.
 pub fn optimize_variables(job: &mut dyn CompilationJob) {
-    // Process all units (root and views)
-    // No unsafe block needed - borrow checker handles this fine with proper scopes
+    let compatibility = job.compatibility();
+    let component_job = job.as_any_mut().downcast_mut::<crate::template::pipeline::src::compilation::ComponentCompilationJob>().expect("Only ComponentCompilationJob is supported");
+
+    // Optimize the root unit
+    optimize_unit(&mut component_job.root, compatibility);
     
-    let component_job = job.as_any_mut().downcast_mut::<crate::template::pipeline::src::compilation::ComponentCompilationJob>()
-        .expect("optimize_variables requires ComponentCompilationJob");
-    
-    let compatibility = component_job.compatibility;
-    
-    // Process root
-    inline_always_inline_variables_create(component_job.root.create_mut());
-    inline_always_inline_variables_update(component_job.root.update_mut());
-    
-    // Process handler ops in root create (using safe approach)
-    // We collect indices or iterate mutably. Since process_handler_ops_create takes &mut op,
-    // we can iterate.
-    for op in component_job.root.create_mut().iter_mut() {
-        process_handler_ops_create(op, |handler_ops| {
-            inline_always_inline_variables_update(handler_ops);
-        });
-    }
-    
-    optimize_variables_in_op_list_create(component_job.root.create_mut(), compatibility);
-    optimize_variables_in_op_list_update(component_job.root.update_mut(), compatibility);
-    
-    for op in component_job.root.create_mut().iter_mut() {
-        process_handler_ops_create(op, |handler_ops| {
-            optimize_variables_in_op_list_update(handler_ops, compatibility);
-        });
-    }
-    
-    // Process views
+    // Optimize each unit
     for view in component_job.views.values_mut() {
-        inline_always_inline_variables_create(view.create_mut());
-        inline_always_inline_variables_update(view.update_mut());
-        
-        for op in view.create_mut().iter_mut() {
-            process_handler_ops_create(op, |handler_ops| {
-                inline_always_inline_variables_update(handler_ops);
-            });
-        }
-        
-        optimize_variables_in_op_list_create(view.create_mut(), compatibility);
-        optimize_variables_in_op_list_update(view.update_mut(), compatibility);
-        
-        for op in view.create_mut().iter_mut() {
-            process_handler_ops_create(op, |handler_ops| {
-                optimize_variables_in_op_list_update(handler_ops, compatibility);
-            });
-        }
+        optimize_unit(view, compatibility);
     }
 }
 
@@ -147,6 +107,52 @@ where
         }
     }
 }
+
+/// Collect all variable usages that occur in remote contexts (like listener handlers) across
+/// both create and update op lists of a unit.
+fn collect_remote_usages_for_unit(unit: &dyn CompilationUnit) -> HashSet<XrefId> {
+    let mut remote_usages = HashSet::new();
+    let mut dummy_usages = IndexMap::new();
+    
+    for op in unit.create().iter() {
+        count_variable_usages(op.as_ref(), &mut dummy_usages, &mut remote_usages, false);
+    }
+    for op in unit.update().iter() {
+        count_variable_usages(op.as_ref(), &mut dummy_usages, &mut remote_usages, false);
+    }
+    remote_usages
+}
+
+fn optimize_unit(unit: &mut dyn CompilationUnit, compatibility: CompatibilityMode) {
+    inline_always_inline_variables_create(unit.create_mut());
+    inline_always_inline_variables_update(unit.update_mut());
+    
+    // Process handler ops (listeners)
+    // First, always-inline in handlers
+    for op in unit.create_mut().iter_mut() {
+        process_handler_ops_create(op, |handler_ops| {
+            inline_always_inline_variables_update(handler_ops);
+        });
+    }
+    
+    // Collect ALL remote usages from the WHOLE unit (including all listeners)
+    let remote_usages = collect_remote_usages_for_unit(unit);
+
+    let unit_xref = unit.xref();
+    
+    // Optimize main lists
+    optimize_variables_in_op_list_create(unit.create_mut(), compatibility, &remote_usages, unit_xref);
+    optimize_variables_in_op_list_update(unit.update_mut(), compatibility, &remote_usages, unit_xref);
+    
+    // Optimize listeners
+    let empty_remote = HashSet::new();
+    for op in unit.create_mut().iter_mut() {
+        process_handler_ops_create(op, |handler_ops| {
+            optimize_variables_in_op_list_update(handler_ops, compatibility, &empty_remote, unit_xref);
+        });
+    }
+}
+
 
 /// Inline variables marked with AlwaysInline flag for CreateOp list.
 fn inline_always_inline_variables_create(ops: &mut OpList<Box<dyn ir::CreateOp + Send + Sync>>) {
@@ -307,452 +313,443 @@ fn inline_always_inline_variables_impl_update(ops: &mut OpList<Box<dyn ir::Updat
 }
 
 /// Process a list of create operations and optimize variables within that list.
-fn optimize_variables_in_op_list_create(
+pub fn optimize_variables_in_op_list_create(
     ops: &mut OpList<Box<dyn ir::CreateOp + Send + Sync>>,
     compatibility: CompatibilityMode,
+    extra_remote_usages: &HashSet<XrefId>,
+    unit_xref: ir::XrefId,
 ) {
-    optimize_variables_in_op_list_impl_create(ops, compatibility);
+    optimize_variables_in_op_list_impl_create(ops, compatibility, extra_remote_usages, unit_xref);
 }
 
 /// Process a list of update operations and optimize variables within that list.
-fn optimize_variables_in_op_list_update(
+pub fn optimize_variables_in_op_list_update(
     ops: &mut OpList<Box<dyn ir::UpdateOp + Send + Sync>>,
     compatibility: CompatibilityMode,
+    extra_remote_usages: &HashSet<XrefId>,
+    unit_xref: ir::XrefId,
 ) {
-    optimize_variables_in_op_list_impl_update(ops, compatibility);
+    optimize_variables_in_op_list_impl_update(ops, compatibility, extra_remote_usages, unit_xref);
 }
 
 /// Implementation for CreateOp list (Safe duplication of logic)
 fn optimize_variables_in_op_list_impl_create(
     ops: &mut OpList<Box<dyn ir::CreateOp + Send + Sync>>,
     compatibility: CompatibilityMode,
+    extra_remote_usages: &HashSet<XrefId>,
+    _unit_xref: ir::XrefId,
 ) {
-     let mut var_decls: IndexMap<XrefId, usize> = IndexMap::new(); 
-    let mut var_usages: IndexMap<XrefId, usize> = IndexMap::new(); 
-    let mut var_remote_usages: HashSet<XrefId> = HashSet::new();
-    let mut op_map: IndexMap<usize, OpInfo> = IndexMap::new(); 
-    
-    // First pass
-    for (index, op) in ops.iter().enumerate() {
-        if op.kind() == OpKind::Variable {
-            if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
-                if var_decls.contains_key(&var_op.xref) || var_usages.contains_key(&var_op.xref) {
-                    panic!("Should not see two declarations of the same variable: {}", var_op.xref.as_usize());
-                }
-                var_decls.insert(var_op.xref, index);
-                var_usages.insert(var_op.xref, 0);
-            }
-        }
-        
-        op_map.insert(index, collect_op_info(op.as_ref()));
-        count_variable_usages(op.as_ref(), &mut var_usages, &mut var_remote_usages);
-    }
-    
-    // Second pass
-    let mut context_is_used = false;
-    let mut indices_to_remove: Vec<usize> = Vec::new();
-    let mut indices_to_replace: Vec<(usize, Statement)> = Vec::new(); 
-    
-    for index in (0..ops.len()).rev() {
-        let op = ops.get(index).unwrap();
-        
-        if op.kind() == OpKind::Variable {
-            if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
-                let usage_count = var_usages.get(&var_op.xref).copied().unwrap_or(0);
-                
-                if usage_count == 0 {
-                    let op_info = op_map.get(&index).unwrap();
-                    if (context_is_used && op_info.fences.contains(Fence::VIEW_CONTEXT_WRITE))
-                        || op_info.fences.contains(Fence::SIDE_EFFECTFUL)
-                    {
-                        let stmt = (*var_op.initializer).clone().to_stmt();
-                        indices_to_replace.push((index, stmt));
-                    } else {
-                        indices_to_remove.push(index);
-                        uncount_variable_usages(op.as_ref(), &mut var_usages);
-                    }
-                    op_map.swap_remove(&index); // Use swap_remove for O(1), order doesn't matter for removal by index here? actually maps by index, so we remove key. IndexMap remove is O(n), Swap remove is O(1) but changes order.
-                    // Actually since we rebuild op_map below, maybe it does not matter explicitly but lets stick to shift_remove (O(n)) to be safe or just remove.
-                    // IndexMap::remove preserves order.
-                    // op_map.remove(&index);
-                    
-                    var_decls.shift_remove(&var_op.xref);
-                    var_usages.shift_remove(&var_op.xref);
-                    continue;
-                }
-            }
-        }
-        
-        if let Some(op_info) = op_map.get(&index) {
-            if op_info.fences.contains(Fence::VIEW_CONTEXT_READ) {
-                context_is_used = true;
-            }
-        }
-    }
-    
-    for (index, stmt) in indices_to_replace {
-        let stmt_op = create_statement_op::<Box<dyn ir::CreateOp + Send + Sync>>(Box::new(stmt));
-        let op_info = op_map.shift_remove(&index).unwrap();
-        ops.replace_at(index, Box::new(stmt_op));
-        op_map.insert(index, op_info);
-        // Restoring order might be tricky if we want index-based map ordered.
-        // Actually op_map keys are indices.
-        // The original logic rebuilt op_map entirely after removals.
-    }
-    
-    for &index in indices_to_remove.iter() {
-        ops.remove_at(index);
-        let mut new_op_map = IndexMap::new();
-        for (old_idx, info) in op_map {
-            if old_idx > index {
-                new_op_map.insert(old_idx - 1, info);
-            } else if old_idx != index {
-                new_op_map.insert(old_idx, info);
-            }
-        }
-        op_map = new_op_map;
-    }
-    
-    // Third pass
-    let mut to_inline: Vec<XrefId> = Vec::new();
-    for (xref, &count) in &var_usages {
-        let &decl_index = var_decls.get(xref).unwrap();
-        let decl_op = ops.get(decl_index).unwrap();
-        
-        if let Some(var_op) = decl_op.as_any().downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
-             let is_always_inline = var_op.flags.contains(VariableFlags::ALWAYS_INLINE);
-             if count != 1 || is_always_inline { continue; }
-             if var_remote_usages.contains(xref) { continue; }
-             to_inline.push(*xref);
-        }
-    }
-    
-    while let Some(candidate) = to_inline.pop() {
-        let decl_index = *var_decls.get(&candidate).unwrap();
-        let decl_op = ops.get(decl_index).unwrap();
-        
-        // We need fields from var_op. Since we can't look it up after starting mutation loop,
-        // we'll clone needed data: initializer, fencesOfVar(implied by info), allow_conservative check
-        
-        // But wait, to inline we need `try_inline_variable_initializer` which modifies target op.
-        // And we need declaration op properties.
-        // We can look up declaration op (read only) via index from ops.
-        // Then get mutable reference to target op.
-        // Rust allow multiple immutable borrows (via index) but if we have mutable borrow to ops...
-        // `ops.get_mut(target_index)` borrows `ops`. We cannot then call `ops.get(decl_index)`.
-        
-        // Solution: Clone the initializer and relevant data from decl_op BEFORE getting target_op mutable.
-        
-        let (initializer, is_always_inline, var_kind) = {
-             let op = ops.get(decl_index).unwrap();
-             if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
-                 ((*var_op.initializer).clone(), var_op.flags.contains(VariableFlags::ALWAYS_INLINE), var_op.variable.kind())
-             } else {
-                 panic!("Expected VariableOp");
-             }
-        };
-        
-        if is_always_inline {
-             panic!("AssertionError: Found an 'AlwaysInline' variable after the always inlining pass.");
-        }
-        
-        let var_info = op_map.get(&decl_index).unwrap().clone();
-        
-        let mut inlined = false;
-        
-        // Iterate usage sites. We can't iterate ops mutably and keep indices easily if we insert/remove.
-        // But here we are just modifying expressions inside ops.
-        for target_index in (decl_index + 1)..ops.len() {
-             let target_info_ref = op_map.get(&target_index).unwrap();
-             if target_info_ref.variables_used.contains(&candidate) {
-                 // Check conservative using safe check (requires cloning logic of allow_conservative_inlining or implementing it safely)
-                 let mut allowed = true;
-                 if compatibility == CompatibilityMode::TemplateDefinitionBuilder {
-                      let target_op = ops.get(target_index).unwrap(); // Immutable borrow
-                      // We need to implement allow_conservative_inlining taking params, not refs?
-                      // We can pass initializer and target op.
-                      if !allow_conservative_inlining(&initializer, target_op.as_ref(), var_kind) {
-                          allowed = false;
-                      }
-                 }
-                 if !allowed { break; }
-                 
-                 // Try inline
-                 let target_op_mut = ops.get_mut(target_index).unwrap(); // Mutable borrow
-                 if try_inline_variable_initializer(
-                     candidate,
-                     initializer.clone(),
-                     target_op_mut.as_mut(),
-                     var_info.fences.clone(),
-                 ) {
-                     let mut new_target_info = OpInfo {
-                        variables_used: target_info_ref.variables_used.clone(),
-                        fences: target_info_ref.fences,
-                    };
-                    new_target_info.variables_used.remove(&candidate);
-                    for &var_xref in &var_info.variables_used {
-                        new_target_info.variables_used.insert(var_xref);
-                    }
-                    new_target_info.fences |= var_info.fences.clone();
-                    op_map.insert(target_index, new_target_info);
-                    
-                    var_decls.swap_remove(&candidate);
-                    var_usages.swap_remove(&candidate);
-                    
-                    op_map.shift_remove(&decl_index);
-                    ops.remove_at(decl_index);
-                    
-                    let mut new_op_map = IndexMap::new();
-                    for (old_idx, info) in op_map {
-                        if old_idx > decl_index {
-                            new_op_map.insert(old_idx - 1, info);
-                        } else if old_idx != decl_index {
-                            new_op_map.insert(old_idx, info);
-                        }
-                    }
-                    op_map = new_op_map;
-                    
-                    for index_ref in var_decls.values_mut() {
-                        if *index_ref > decl_index {
-                            *index_ref -= 1;
-                        }
-                    }
+     loop {
+        let mut did_change = false;
 
-                    inlined = true;
-                    break;
+        let mut var_decls: IndexMap<XrefId, usize> = IndexMap::new(); 
+        let mut var_usages: IndexMap<XrefId, usize> = IndexMap::new(); 
+        let mut var_remote_usages: HashSet<XrefId> = extra_remote_usages.clone();
+        let mut op_map: IndexMap<usize, OpInfo> = IndexMap::new(); 
+        
+        // First pass
+        for (index, op) in ops.iter().enumerate() {
+            if op.kind() == OpKind::Variable {
+                if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
+                    if var_decls.contains_key(&var_op.xref) || var_usages.contains_key(&var_op.xref) {
+                        panic!("Should not see two declarations of the same variable: {}", var_op.xref.as_usize());
+                    }
+                    var_decls.insert(var_op.xref, index);
+                    var_usages.insert(var_op.xref, 0);
+                }
+            }
+            
+            op_map.insert(index, collect_op_info(op.as_ref()));
+            count_variable_usages(op.as_ref(), &mut var_usages, &mut var_remote_usages, false);
+    
+            // Count usages in child ops (handlers)
+            if let Some(listener) = op.as_any().downcast_ref::<crate::template::pipeline::ir::ops::create::ListenerOp>() {
+                 for handler_op in &listener.handler_ops {
+                     count_variable_usages(handler_op.as_ref(), &mut var_usages, &mut var_remote_usages, true);
+                 }
+            } else if let Some(anim_listener) = op.as_any().downcast_ref::<crate::template::pipeline::ir::ops::create::AnimationListenerOp>() {
+                 for handler_op in &anim_listener.handler_ops {
+                     count_variable_usages(handler_op.as_ref(), &mut var_usages, &mut var_remote_usages, true);
+                 }
+            } else if let Some(two_way) = op.as_any().downcast_ref::<crate::template::pipeline::ir::ops::create::TwoWayListenerOp>() {
+                 for handler_op in &two_way.handler_ops {
+                     count_variable_usages(handler_op.as_ref(), &mut var_usages, &mut var_remote_usages, true);
+                 }
+            } else if let Some(repeater) = op.as_any().downcast_ref::<crate::template::pipeline::ir::ops::create::RepeaterCreateOp>() {
+                 if let Some(ref track_by_ops) = repeater.track_by_ops {
+                     for track_op in track_by_ops {
+                         count_variable_usages(track_op.as_ref(), &mut var_usages, &mut var_remote_usages, true);
+                     }
+                 }
+            }
+        }
+        
+        // Second pass
+        let mut context_is_used = false;
+        let mut indices_to_remove: Vec<usize> = Vec::new();
+        let mut indices_to_replace: Vec<(usize, Statement)> = Vec::new(); 
+        
+        for index in (0..ops.len()).rev() {
+            let op = ops.get(index).unwrap();
+            
+            if op.kind() == OpKind::Variable {
+                if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
+                    let usage_count = var_usages.get(&var_op.xref).copied().unwrap_or(0);
+                    
+                    if usage_count == 0 && !var_remote_usages.contains(&var_op.xref) {
+                        let op_info = op_map.get(&index).unwrap();
+                        if (context_is_used && op_info.fences.contains(Fence::VIEW_CONTEXT_WRITE))
+                            || op_info.fences.contains(Fence::SIDE_EFFECTFUL)
+                        {
+                            let stmt = (*var_op.initializer).clone().to_stmt();
+                            indices_to_replace.push((index, stmt));
+                        } else {
+                            indices_to_remove.push(index);
+                            uncount_variable_usages(op.as_ref(), &mut var_usages);
+                            op_map.swap_remove(&index);
+                        }
+                        
+                        var_decls.shift_remove(&var_op.xref);
+                        var_usages.shift_remove(&var_op.xref);
+                        // Optimization occurred, so continue loop
+                        did_change = true;
+                        continue;
+                    }
+                }
+            }
+            
+            if let Some(op_info) = op_map.get(&index) {
+                if op_info.fences.contains(Fence::VIEW_CONTEXT_READ) {
+                    context_is_used = true;
+                }
+            }
+        }
+        
+        for (index, stmt) in indices_to_replace {
+            let stmt_op = create_statement_op::<Box<dyn ir::CreateOp + Send + Sync>>(Box::new(stmt));
+            let op_info = op_map.shift_remove(&index).unwrap();
+            ops.replace_at(index, Box::new(stmt_op));
+            op_map.insert(index, op_info);
+            did_change = true;
+        }
+        
+        for &index in indices_to_remove.iter() {
+            ops.remove_at(index);
+            let mut new_op_map = IndexMap::new();
+            for (old_idx, info) in op_map {
+                if old_idx > index {
+                    new_op_map.insert(old_idx - 1, info);
+                } else if old_idx != index {
+                    new_op_map.insert(old_idx, info);
+                }
+            }
+            op_map = new_op_map;
+        }
+        
+        // Third pass
+        let mut to_inline: Vec<XrefId> = Vec::new();
+        for (xref, &count) in &var_usages {
+            let &decl_index = var_decls.get(xref).unwrap();
+            let decl_op = ops.get(decl_index).unwrap();
+            
+            if let Some(var_op) = decl_op.as_any().downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
+                 let is_always_inline = var_op.flags.contains(VariableFlags::ALWAYS_INLINE);
+                 if count != 1 || is_always_inline { continue; }
+                 if var_remote_usages.contains(xref) { continue; }
+                 to_inline.push(*xref);
+            }
+        }
+        
+        while let Some(candidate) = to_inline.pop() {
+            let decl_index = *var_decls.get(&candidate).unwrap();
+            let decl_op = ops.get(decl_index).unwrap();
+            
+            let (initializer, is_always_inline, var_kind) = {
+                 let op = ops.get(decl_index).unwrap();
+                 if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
+                     ((*var_op.initializer).clone(), var_op.flags.contains(VariableFlags::ALWAYS_INLINE), var_op.variable.kind())
                  } else {
+                     panic!("Expected VariableOp");
+                 }
+            };
+            
+            if is_always_inline {
+                 panic!("AssertionError: Found an 'AlwaysInline' variable after the always inlining pass.");
+            }
+            
+            let var_info = op_map.get(&decl_index).unwrap().clone();
+            
+            for target_index in (decl_index + 1)..ops.len() {
+                 let target_info_ref = op_map.get(&target_index).unwrap();
+                 if target_info_ref.variables_used.contains(&candidate) {
+                     let mut allowed = true;
+                     if compatibility == CompatibilityMode::TemplateDefinitionBuilder {
+                          let target_op = ops.get(target_index).unwrap(); 
+                          if !allow_conservative_inlining(&initializer, target_op.as_ref(), var_kind) {
+                              allowed = false;
+                          }
+                     }
+                     if !allowed { break; }
+                     
+                     let target_op_mut = ops.get_mut(target_index).unwrap(); 
+                     if try_inline_variable_initializer(
+                         candidate,
+                         initializer.clone(),
+                         target_op_mut.as_mut(),
+                         var_info.fences.clone(),
+                     ) {
+                         let mut new_target_info = OpInfo {
+                            variables_used: target_info_ref.variables_used.clone(),
+                            fences: target_info_ref.fences,
+                        };
+                        new_target_info.variables_used.remove(&candidate);
+                        for &var_xref in &var_info.variables_used {
+                            new_target_info.variables_used.insert(var_xref);
+                        }
+                        new_target_info.fences |= var_info.fences.clone();
+                        op_map.insert(target_index, new_target_info);
+                        
+                        var_decls.swap_remove(&candidate);
+                        var_usages.swap_remove(&candidate);
+                        
+                        op_map.shift_remove(&decl_index);
+                        ops.remove_at(decl_index);
+                        
+                        let mut new_op_map = IndexMap::new();
+                        for (old_idx, info) in op_map {
+                            if old_idx > decl_index {
+                                new_op_map.insert(old_idx - 1, info);
+                            } else if old_idx != decl_index {
+                                new_op_map.insert(old_idx, info);
+                            }
+                        }
+                        op_map = new_op_map;
+                        
+                        for index_ref in var_decls.values_mut() {
+                            if *index_ref > decl_index {
+                                *index_ref -= 1;
+                            }
+                        }
+    
+                        did_change = true;
+                        break;
+                     } else {
+                         break;
+                     }
+                 }
+                 
+                 if !safe_to_inline_past_fences(target_info_ref.fences, var_info.fences) {
                      break;
                  }
-             }
-             
-             if !safe_to_inline_past_fences(target_info_ref.fences, var_info.fences) {
-                 break;
-             }
+            }
         }
-    }
+        
+        if !did_change {
+            break;
+        }
+     }
 }
 
 /// Implementation for UpdateOp list (Safe duplication)
 fn optimize_variables_in_op_list_impl_update(
     ops: &mut OpList<Box<dyn ir::UpdateOp + Send + Sync>>,
     compatibility: CompatibilityMode,
+    extra_remote_usages: &HashSet<XrefId>,
+    unit_xref: ir::XrefId,
 ) {
-    let mut var_decls: IndexMap<XrefId, usize> = IndexMap::new(); 
-    let mut var_usages: IndexMap<XrefId, usize> = IndexMap::new(); 
-    let mut var_remote_usages: HashSet<XrefId> = HashSet::new();
-    let mut op_map: IndexMap<usize, OpInfo> = IndexMap::new(); 
-    
-    // First pass
-    for (index, op) in ops.iter().enumerate() {
-        if op.kind() == OpKind::Variable {
-            if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
-                if var_decls.contains_key(&var_op.xref) || var_usages.contains_key(&var_op.xref) {
-                    panic!("Should not see two declarations of the same variable: {}", var_op.xref.as_usize());
-                }
-                var_decls.insert(var_op.xref, index);
-                var_usages.insert(var_op.xref, 0);
-            }
-        }
+    loop {
+        let mut did_change = false;
+
+        let mut var_decls: IndexMap<XrefId, usize> = IndexMap::new(); 
+        let mut var_usages: IndexMap<XrefId, usize> = IndexMap::new(); 
+        let mut var_remote_usages: HashSet<XrefId> = extra_remote_usages.clone();
+        let mut op_map: IndexMap<usize, OpInfo> = IndexMap::new(); 
         
-        op_map.insert(index, collect_op_info(op.as_ref()));
-        count_variable_usages(op.as_ref(), &mut var_usages, &mut var_remote_usages);
-    }
-    
-    // Second pass
-    let mut context_is_used = false;
-    let mut indices_to_remove: Vec<usize> = Vec::new();
-    let mut indices_to_replace: Vec<(usize, Statement)> = Vec::new(); 
-    
-    for index in (0..ops.len()).rev() {
-        let op = ops.get(index).unwrap();
-        
-        if op.kind() == OpKind::Variable {
-            if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
-                let usage_count = var_usages.get(&var_op.xref).copied().unwrap_or(0);
-                
-                if usage_count == 0 {
-                    let op_info = op_map.get(&index).unwrap();
-                    if (context_is_used && op_info.fences.contains(Fence::VIEW_CONTEXT_WRITE))
-                        || op_info.fences.contains(Fence::SIDE_EFFECTFUL)
-                    {
-                        let stmt = (*var_op.initializer).clone().to_stmt();
-                        indices_to_replace.push((index, stmt));
-                    } else {
-                        indices_to_remove.push(index);
-                        uncount_variable_usages(op.as_ref(), &mut var_usages);
+        // First pass
+        for (index, op) in ops.iter().enumerate() {
+            if op.kind() == OpKind::Variable {
+                if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
+                    if var_decls.contains_key(&var_op.xref) || var_usages.contains_key(&var_op.xref) {
+                        panic!("Should not see two declarations of the same variable: {}", var_op.xref.as_usize());
                     }
-                    op_map.swap_remove(&index); // Use swap_remove for O(1)
-                    var_decls.shift_remove(&var_op.xref); // We need to remove the declaration. IndexMap remove is O(n), Swap remove O(1). Order in var_decls might matter depending on next pass?
-                    // Actually next pass iterates var_usages.
-                    // Let's safe shift_remove for now.
-                    
-                    var_usages.shift_remove(&var_op.xref);
-                    continue;
+                    var_decls.insert(var_op.xref, index);
+                    var_usages.insert(var_op.xref, 0);
                 }
             }
+            
+            op_map.insert(index, collect_op_info(op.as_ref()));
+            count_variable_usages(op.as_ref(), &mut var_usages, &mut var_remote_usages, false);
         }
         
-        if let Some(op_info) = op_map.get(&index) {
-            if op_info.fences.contains(Fence::VIEW_CONTEXT_READ) {
-                context_is_used = true;
+        // Second pass
+        let mut context_is_used = false;
+        let mut indices_to_remove: Vec<usize> = Vec::new();
+        let mut indices_to_replace: Vec<(usize, Statement)> = Vec::new(); 
+        
+        for index in (0..ops.len()).rev() {
+            let op = ops.get(index).unwrap();
+            
+            if op.kind() == OpKind::Variable {
+                if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
+                    let usage_count = var_usages.get(&var_op.xref).copied().unwrap_or(0);
+
+                    if usage_count == 0 && !var_remote_usages.contains(&var_op.xref) {
+                        let op_info = op_map.get(&index).unwrap();
+                        let keep_for_side_effects = (context_is_used && op_info.fences.contains(Fence::VIEW_CONTEXT_WRITE))
+                            || op_info.fences.contains(Fence::SIDE_EFFECTFUL);
+    
+                        if keep_for_side_effects {
+                            let stmt = (*var_op.initializer).clone().to_stmt();
+                            indices_to_replace.push((index, stmt));
+                        } else {
+                            indices_to_remove.push(index);
+                            uncount_variable_usages(op.as_ref(), &mut var_usages);
+                            op_map.swap_remove(&index);
+                        }
+                       
+                        var_decls.shift_remove(&var_op.xref); 
+                        var_usages.shift_remove(&var_op.xref);
+
+                        did_change = true;
+                        continue;
+                    }
+                }
+            }
+            
+            if let Some(op_info) = op_map.get(&index) {
+                if op_info.fences.contains(Fence::VIEW_CONTEXT_READ) {
+                    context_is_used = true;
+                }
             }
         }
-    }
-    
-    for (index, stmt) in indices_to_replace {
-        let stmt_op = create_statement_op::<Box<dyn ir::UpdateOp + Send + Sync>>(Box::new(stmt));
-        let op_info = op_map.shift_remove(&index).unwrap();
-        ops.replace_at(index, Box::new(stmt_op));
-        op_map.insert(index, op_info);
-    }
-    
-    for &index in indices_to_remove.iter() {
-        ops.remove_at(index);
-        let mut new_op_map = IndexMap::new();
-        for (old_idx, info) in op_map {
-            if old_idx > index {
-                new_op_map.insert(old_idx - 1, info);
-            } else if old_idx != index {
-                new_op_map.insert(old_idx, info);
+        
+        for (index, stmt) in indices_to_replace {
+            let stmt_op = create_statement_op::<Box<dyn ir::UpdateOp + Send + Sync>>(Box::new(stmt));
+            let op_info = op_map.shift_remove(&index).unwrap();
+            ops.replace_at(index, Box::new(stmt_op));
+            op_map.insert(index, op_info);
+            did_change = true;
+        }
+        
+        for &index in indices_to_remove.iter() {
+            // Update var_decls indices because ops removal shifts indices
+            for decl_idx in var_decls.values_mut() {
+                if *decl_idx > index {
+                    *decl_idx -= 1;
+                }
+            }
+            ops.remove_at(index);
+            let mut new_op_map = IndexMap::new();
+            for (old_idx, info) in op_map {
+                if old_idx > index {
+                    new_op_map.insert(old_idx - 1, info);
+                } else if old_idx != index {
+                    new_op_map.insert(old_idx, info);
+                }
+            }
+            op_map = new_op_map;
+        }
+        
+        // Third pass
+        let mut to_inline: Vec<XrefId> = Vec::new();
+        // Explicitly iterate in insertion order because vars_usages is now an IndexMap
+        for (xref, &count) in &var_usages {
+            let &decl_index = var_decls.get(xref).unwrap();
+            let decl_op = ops.get(decl_index).unwrap();
+            
+            if let Some(var_op) = decl_op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
+                 let is_always_inline = var_op.flags.contains(VariableFlags::ALWAYS_INLINE);
+                 if count != 1 || is_always_inline { continue; }
+                 if var_remote_usages.contains(xref) { continue; }
+                 to_inline.push(*xref);
             }
         }
-        op_map = new_op_map;
-    }
-    
-    // Third pass
-    let mut to_inline: Vec<XrefId> = Vec::new();
-    // Explicitly iterate in insertion order because vars_usages is now an IndexMap
-    for (xref, &count) in &var_usages {
-        let &decl_index = var_decls.get(xref).unwrap();
-        let decl_op = ops.get(decl_index).unwrap();
         
-        if let Some(var_op) = decl_op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
-             let is_always_inline = var_op.flags.contains(VariableFlags::ALWAYS_INLINE);
-             if count != 1 || is_always_inline { continue; }
-             if var_remote_usages.contains(xref) { continue; }
-             to_inline.push(*xref);
-        }
-    }
-    
-    // We want to process in reverse order of declaration to avoid index invalidation problems when we remove things.
-    // Since we iterate var_usages in insertion order (which usually roughly matches declaration order),
-    // we should process to_inline in reverse.
-    // Note: If we really want to be sure, we should likely sort by declaration index descending.
-    // But since the user asked for IndexMap usage to fix non-determinism, let's just reverse the list.
-    // Wait, the user said "indexMap to replace. should not sort because we will have many other properties later".
-    // This implies relying on IndexMap's deterministic order is enough.
-    // However, for correct removal without index invalidation, we generally want to remove from end to start.
-    // Let's assume to_inline is roughly in declaration order. Reversing it processes last declared first.
-    
-    // Actually, let's reverse iteration or pop from back (which is effectively reverse).
-    // to_inline is pushed in order of var_usages iteration.
-    
-    while let Some(candidate) = to_inline.pop() {
-        let decl_index = *var_decls.get(&candidate).unwrap();
-        
-        let (initializer, is_always_inline, var_kind) = {
-             let op = ops.get(decl_index).unwrap();
-             if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
-                 ((*var_op.initializer).clone(), var_op.flags.contains(VariableFlags::ALWAYS_INLINE), var_op.variable.kind())
-             } else {
-                 panic!("Expected VariableOp");
-             }
-        };
-        
-        if is_always_inline {
-             panic!("AssertionError: Found an 'AlwaysInline' variable after the always inlining pass.");
-        }
-        
-        let var_info = op_map.get(&decl_index).unwrap().clone();
-        let mut inlined = false;
-        
-        for target_index in (decl_index + 1)..ops.len() {
-             let target_info_ref = op_map.get(&target_index).unwrap();
-             if target_info_ref.variables_used.contains(&candidate) {
-                 let mut allowed = true;
-                 if compatibility == CompatibilityMode::TemplateDefinitionBuilder {
-                      let target_op = ops.get(target_index).unwrap(); 
-                      if !allow_conservative_inlining(&initializer, target_op.as_ref(), var_kind) {
-                          allowed = false;
-                      }
-                 }
-                 if !allowed { break; }
-                 
-                 let target_op_mut = ops.get_mut(target_index).unwrap(); 
-                 if try_inline_variable_initializer(
-                     candidate,
-                     initializer.clone(),
-                     target_op_mut.as_mut(),
-                     var_info.fences.clone(),
-                 ) {
-                    let mut new_target_info = OpInfo {
-                        variables_used: target_info_ref.variables_used.clone(),
-                        fences: target_info_ref.fences,
-                    };
-                    new_target_info.variables_used.remove(&candidate);
-                    for &var_xref in &var_info.variables_used {
-                        new_target_info.variables_used.insert(var_xref);
-                    }
-                    new_target_info.fences |= var_info.fences.clone();
-                    op_map.insert(target_index, new_target_info);
-                    
-                    var_decls.swap_remove(&candidate); // O(1) removal
-                    var_usages.swap_remove(&candidate);
-                    
-                    op_map.shift_remove(&decl_index); // This shifts indices!
-                    // This is problematic. If we shift remove, all indices > decl_index inside op_map and var_decls become invalid.
-                    // This is why invalidation happens.
-                    // The original code rebuilt op_map.
-                    
-                    ops.remove_at(decl_index);
-                    
-                    let mut new_op_map = IndexMap::new();
-                    // We need to shift keys in op_map > decl_index down by 1.
-                    // Since op_map is IndexMap<usize, OpInfo>, we can iterate and rebuild.
-                    for (old_idx, info) in op_map {
-                        if old_idx > decl_index {
-                            new_op_map.insert(old_idx - 1, info);
-                        } else if old_idx != decl_index { // Should not happen as we removed it
-                            new_op_map.insert(old_idx, info);
-                        }
-                    }
-                    op_map = new_op_map;
-                    
-                    // We also need to update indices in var_decls!
-                    // The original code didn't do this?! 
-                    // Wait, original code:
-                    // `var_decls.remove(&candidate);`
-                    // `op_map = new_op_map;`
-                    // It seems the original code also had this bug or `var_decls` were not used again for indices?
-                    // Ah, `decl_index` is looked up from `var_decls` at the start of loop.
-                    // If we don't update `var_decls`, subsequent lookups for other variables might point to wrong indices if they shifted?
-                    // Only if they were declared AFTER the removed variable.
-                    // If we process in reverse order (to_inline.pop()), we process variables with higher indices first?
-                    // No, `to_inline` order depends on `var_usages` iteration order.
-                    // If we iterate insertion order, we might get any order.
-                    // But popping gives reverse.
-                    
-                    // The user said "should not sort".
-                    // But we MUST handle index invalidation.
-                    // If we use `IndexMap`, validation is deterministic but logic still needs to be correct.
-                    // I will add logic to update `var_decls` indices.
-                    
-                    for index_ref in var_decls.values_mut() {
-                        if *index_ref > decl_index {
-                            *index_ref -= 1;
-                        }
-                    }
-                    
-                    inlined = true;
-                    break;
+        while let Some(candidate) = to_inline.pop() {
+            let decl_index = *var_decls.get(&candidate).unwrap();
+            
+            let (initializer, is_always_inline, var_kind) = {
+                 let op = ops.get(decl_index).unwrap();
+                 if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
+                     ((*var_op.initializer).clone(), var_op.flags.contains(VariableFlags::ALWAYS_INLINE), var_op.variable.kind())
                  } else {
-                     break;
+                     panic!("Expected VariableOp");
                  }
-             }
-             
-             if !safe_to_inline_past_fences(target_info_ref.fences, var_info.fences) {
-                 break;
-             }
+            };
+            
+            if is_always_inline {
+                 panic!("AssertionError: Found an 'AlwaysInline' variable after the always inlining pass.");
+            }
+            
+            let var_info = op_map.get(&decl_index).unwrap().clone();
+            
+            for target_index in (decl_index + 1)..ops.len() {
+                let target_info_ref = op_map.get(&target_index).unwrap();
+                if target_info_ref.variables_used.contains(&candidate) {
+                    let mut allowed = true;
+                    if compatibility == CompatibilityMode::TemplateDefinitionBuilder {
+                        let target_op = ops.get(target_index).unwrap(); 
+                        if !allow_conservative_inlining(&initializer, target_op.as_ref(), var_kind) {
+                            allowed = false;
+                        }
+                    }
+                    if !allowed { break; }
+                     
+                    let target_op_mut = ops.get_mut(target_index).unwrap(); 
+                    if try_inline_variable_initializer(
+                        candidate,
+                        initializer.clone(),
+                        target_op_mut.as_mut(),
+                        var_info.fences.clone(),
+                    ) {
+                        let mut new_target_info = OpInfo {
+                            variables_used: target_info_ref.variables_used.clone(),
+                            fences: target_info_ref.fences,
+                        };
+                        new_target_info.variables_used.remove(&candidate);
+                        for &var_xref in &var_info.variables_used {
+                            new_target_info.variables_used.insert(var_xref);
+                        }
+                        new_target_info.fences |= var_info.fences.clone();
+                        op_map.insert(target_index, new_target_info);
+                        
+                        var_decls.shift_remove(&candidate); 
+                        var_usages.shift_remove(&candidate);
+                        
+                        op_map.shift_remove(&decl_index);
+                        ops.remove_at(decl_index);
+                        
+                        let mut new_op_map = IndexMap::new();
+                        for (old_idx, info) in op_map {
+                            if old_idx > decl_index {
+                                new_op_map.insert(old_idx - 1, info);
+                            } else if old_idx != decl_index {
+                                new_op_map.insert(old_idx, info);
+                            }
+                        }
+                        op_map = new_op_map;
+                        
+                        for index_ref in var_decls.values_mut() {
+                            if *index_ref > decl_index {
+                                *index_ref -= 1;
+                            }
+                        }
+                        
+                        did_change = true;
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+                  
+                if !safe_to_inline_past_fences(target_info_ref.fences, var_info.fences) {
+                    break;
+                }
+            }
+        }
+        
+        if !did_change {
+            break;
         }
     }
 }
@@ -769,7 +766,7 @@ fn visit_expressions_in_op_readonly(
     use crate::template::pipeline::ir::ops::create::*;
     
     // helper to visit binding ops
-    let mut visit_binding_op = |binding: &BindingOp, visitor: &mut dyn FnMut(&Expression, VisitorContextFlag), flags| {
+    let visit_binding_op = |binding: &BindingOp, visitor: &mut dyn FnMut(&Expression, VisitorContextFlag), flags| {
         match &binding.expression {
             BindingExpression::Expression(expr) => visit_expressions_recursive(expr, visitor, flags),
             BindingExpression::Interpolation(interp) => {
@@ -817,6 +814,18 @@ fn visit_expressions_in_op_readonly(
                 }
                 if let Some(ref s) = p.sanitizer { visit_expressions_recursive(s, visitor, flags); }
              }
+        }
+        OpKind::Statement => {
+            use crate::template::pipeline::ir::ops::StatementOp;
+            // StatementOp is usually UpdateOp
+            if let Some(stmt_op) = op.as_any().downcast_ref::<StatementOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
+                 visit_expressions_in_statement(&stmt_op.statement, visitor, flags);
+            } else {
+                 // Try CreateOp?
+                 if let Some(stmt_op) = op.as_any().downcast_ref::<StatementOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
+                     visit_expressions_in_statement(&stmt_op.statement, visitor, flags);
+                 }
+            }
         }
         OpKind::Attribute => {
             if let Some(attr) = op.as_any().downcast_ref::<AttributeOp>() {
@@ -922,6 +931,27 @@ fn visit_expressions_in_op_readonly(
                 }
              }
         }
+        OpKind::Listener => {
+            if let Some(listener) = op.as_any().downcast_ref::<ListenerOp>() {
+                for handler_op in &listener.handler_ops {
+                    visit_expressions_in_op_readonly(handler_op.as_ref(), visitor, flags | VisitorContextFlag::IN_CHILD_OPERATION);
+                }
+            }
+        }
+        OpKind::AnimationListener => {
+            if let Some(listener) = op.as_any().downcast_ref::<AnimationListenerOp>() {
+                for handler_op in &listener.handler_ops {
+                    visit_expressions_in_op_readonly(handler_op.as_ref(), visitor, flags | VisitorContextFlag::IN_CHILD_OPERATION);
+                }
+            }
+        }
+        OpKind::TwoWayListener => {
+            if let Some(listener) = op.as_any().downcast_ref::<TwoWayListenerOp>() {
+                for handler_op in &listener.handler_ops {
+                    visit_expressions_in_op_readonly(handler_op.as_ref(), visitor, flags | VisitorContextFlag::IN_CHILD_OPERATION);
+                }
+            }
+        }
         OpKind::TwoWayProperty => {
              if let Some(t) = op.as_any().downcast_ref::<TwoWayPropertyOp>() {
                  visit_expressions_recursive(&t.expression, visitor, flags);
@@ -956,6 +986,10 @@ fn visit_expressions_recursive(
     visitor(expr, flags);
     use crate::output::output_ast::Expression as OutputExpr;
     match expr {
+        OutputExpr::ReadVariable(read_var) => {
+            if read_var.xref.0 == 134 {
+            }
+        }
         OutputExpr::BinaryOp(bin) => {
             visit_expressions_recursive(&bin.lhs, visitor, flags);
             visit_expressions_recursive(&bin.rhs, visitor, flags);
@@ -1017,7 +1051,37 @@ fn visit_expressions_recursive(
         OutputExpr::ConditionalCase(ir_expr) => {
             if let Some(ref expr) = ir_expr.expr { visit_expressions_recursive(expr, visitor, flags); }
         }
-        _ => {}
+        OutputExpr::ResetView(ir_expr) => {
+            visit_expressions_recursive(&ir_expr.expr, visitor, flags);
+        }
+        OutputExpr::RestoreView(ir_expr) => {
+            if let ir::expression::EitherXrefIdOrExpression::Expression(expr) = &ir_expr.view {
+                visit_expressions_recursive(expr, visitor, flags);
+            }
+        }
+        OutputExpr::RestoreView(ir_expr) => {
+            if let ir::expression::EitherXrefIdOrExpression::Expression(expr) = &ir_expr.view {
+                visit_expressions_recursive(expr, visitor, flags);
+            }
+        }
+        OutputExpr::ArrowFn(ir_expr) => {
+            if let crate::output::output_ast::ArrowFunctionBody::Expression(ref expr) = ir_expr.body {
+                visit_expressions_recursive(expr, visitor, flags);
+            }
+        }
+        OutputExpr::PureFunction(ir_expr) => {
+            if let Some(ref fn_) = ir_expr.fn_ {
+                visit_expressions_recursive(fn_, visitor, flags);
+            }
+            if let Some(ref body) = ir_expr.body {
+                visit_expressions_recursive(body, visitor, flags);
+            }
+            for arg in &ir_expr.args {
+                visit_expressions_recursive(arg, visitor, flags);
+            }
+        }
+        _ => {
+        }
     }
 }
 
@@ -1066,6 +1130,12 @@ fn collect_op_info(op: &dyn ir::Op) -> OpInfo {
                         ir::IRExpression::ReadVariable(read_var) => {
                             variables_used.insert(read_var.xref);
                         }
+                        ir::IRExpression::RestoreView(ref restore) => {
+                            if let ir::expression::EitherXrefIdOrExpression::XrefId(xref) = restore.view {
+                                variables_used.insert(xref);
+                            }
+                            fences |= fences_for_ir_expression(&ir_expr);
+                        }
                         _ => {
                             fences |= fences_for_ir_expression(&ir_expr);
                         }
@@ -1088,20 +1158,61 @@ fn count_variable_usages(
     op: &dyn ir::Op,
     var_usages: &mut IndexMap<XrefId, usize>,
     var_remote_usage: &mut HashSet<XrefId>,
+    is_remote_context: bool,
 ) {
     visit_expressions_in_op_readonly(
         op,
         &mut |expr: &Expression, flags| {
+             let expr_debug = format!("{:?}", expr);
+             if expr_debug.contains("134") {
+             }
+
+             // 1. Handle regular ReadVariable usage
+             if let Expression::ReadVariable(read_var) = expr {
+                 if read_var.xref.0 == 134 {
+                 }
+                 if let Some(count) = var_usages.get_mut(&read_var.xref) {
+                     *count += 1;
+                     if read_var.xref.0 == 134 {
+                     }
+                 }
+                 
+                 // If we are in a child operation (like a listener) or if is_remote_context is set,
+                 // we must mark this variable as having remote usage, even if it's not declared
+                 // in the current list being optimized.
+                 if flags.contains(VisitorContextFlag::IN_CHILD_OPERATION) || is_remote_context {
+                     var_remote_usage.insert(read_var.xref);
+                 }
+             }
+
             if is_ir_expression(expr) {
                 if let Some(ir_expr) = as_ir_expression(expr) {
-                    if let ir::IRExpression::ReadVariable(read_var) = ir_expr {
-                        if let Some(count) = var_usages.get_mut(&read_var.xref) {
-                            *count += 1;
+                    match ir_expr {
+                        ir::IRExpression::ReadVariable(read_var) => {
+                            if let Some(count) = var_usages.get_mut(&read_var.xref) {
+                                *count += 1;
+                            }
                             
-                            if flags.contains(VisitorContextFlag::IN_CHILD_OPERATION) {
+                            if flags.contains(VisitorContextFlag::IN_CHILD_OPERATION) || is_remote_context {
                                 var_remote_usage.insert(read_var.xref);
                             }
                         }
+                        ir::IRExpression::RestoreView(ref restore) => {
+                            match &restore.view {
+                                 ir::expression::EitherXrefIdOrExpression::XrefId(xref) => {
+                                    if let Some(count) = var_usages.get_mut(xref) {
+                                        *count += 1;
+                                    }
+                                    if flags.contains(VisitorContextFlag::IN_CHILD_OPERATION) || is_remote_context {
+                                        var_remote_usage.insert(*xref);
+                                    }
+                                }
+                                ir::expression::EitherXrefIdOrExpression::Expression(_) => {
+                                    // visit_expressions_recursive will handle the nested expression.
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -1120,16 +1231,32 @@ fn uncount_variable_usages(
         &mut |expr: &Expression, _flags| {
             if is_ir_expression(expr) {
                 if let Some(ir_expr) = as_ir_expression(expr) {
-                    if let ir::IRExpression::ReadVariable(read_var) = ir_expr {
-                        if let Some(count) = var_usages.get_mut(&read_var.xref) {
-                            if *count == 0 {
-                                panic!(
-                                    "Inaccurate variable count: {} - found another read but count is already 0",
-                                    read_var.xref.as_usize()
-                                );
+                    match ir_expr {
+                        ir::IRExpression::ReadVariable(read_var) => {
+                            if let Some(count) = var_usages.get_mut(&read_var.xref) {
+                                if *count == 0 {
+                                    panic!(
+                                        "Inaccurate variable count: {} - found another read but count is already 0",
+                                        read_var.xref.as_usize()
+                                    );
+                                }
+                                *count -= 1;
                             }
-                            *count -= 1;
                         }
+                        ir::IRExpression::RestoreView(ref restore) => {
+                            if let ir::expression::EitherXrefIdOrExpression::XrefId(xref) = restore.view {
+                                if let Some(count) = var_usages.get_mut(&xref) {
+                                    if *count == 0 {
+                                        panic!(
+                                            "Inaccurate variable count for view xref: {} - found another restore but count is already 0",
+                                            xref.as_usize()
+                                        );
+                                    }
+                                    *count -= 1;
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -1235,7 +1362,9 @@ fn allow_conservative_inlining(
 fn fences_for_ir_expression(expr: &ir::IRExpression) -> Fence {
     match expr {
         ir::IRExpression::NextContext(_) => {
-            Fence::VIEW_CONTEXT_READ | Fence::VIEW_CONTEXT_WRITE
+            // NextContext reads/writes context but isn't considered "side-effectful" in a way that
+            // prevents removal if the context is otherwise unused.
+            Fence::VIEW_CONTEXT_READ
         }
         ir::IRExpression::RestoreView(_) => {
             Fence::VIEW_CONTEXT_READ | Fence::VIEW_CONTEXT_WRITE | Fence::SIDE_EFFECTFUL

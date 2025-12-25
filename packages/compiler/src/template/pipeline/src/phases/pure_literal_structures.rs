@@ -8,16 +8,12 @@ use crate::template::pipeline::src::compilation::{CompilationJob, ComponentCompi
 use crate::output::output_ast::ExpressionTrait;
 
 pub fn phase(job: &mut dyn CompilationJob) {
-    println!("DEBUG: pure_literal_structures phase START. Job kind: {:?}", job.kind());
     fn process_expr(expr: o::Expression) -> o::Expression {
         match expr {
             o::Expression::LiteralArray(ref arr) => {
-                println!("DEBUG: pure_literal_structures visiting LiteralArray with {} entries", arr.entries.len());
                 if let Some(transformed) = transform_literal_array(arr) {
-                    println!("DEBUG: LiteralArray transformed to PureFunction");
                     return transformed;
                 } else {
-                    println!("DEBUG: LiteralArray NOT transformed");
                 }
             },
             o::Expression::LiteralMap(ref map) => {
@@ -39,7 +35,7 @@ pub fn phase(job: &mut dyn CompilationJob) {
         }
     } {
         // Helper to process a unit
-        let mut process_unit = |unit: &mut dyn CompilationUnit| {
+        let process_unit = |unit: &mut dyn CompilationUnit| {
             for op in unit.update_mut().iter_mut() {
                  ir::transform_expressions_in_op(op.as_mut(), &mut |expr: o::Expression, flags: ir::VisitorContextFlag| {
                      if flags.contains(ir::VisitorContextFlag::IN_CHILD_OPERATION) {

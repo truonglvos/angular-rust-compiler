@@ -13,7 +13,7 @@ use crate::template::pipeline::ir::handle::SlotHandle;
 use crate::template::pipeline::src::compilation::{ComponentCompilationJob, CompilationJobKind, CompilationUnit};
 use crate::template::pipeline::src::compilation::CompilationJob;
 use crate::template::pipeline::ir::enums::VariableFlags;
-use crate::output::output_ast::Expression;
+use crate::output::output_ast::{Expression, ReadVarExpr};
 use indexmap::IndexMap;
 
 /// Generate a preamble sequence for each view creation block and listener function which declares
@@ -114,7 +114,7 @@ fn recursively_process_view(
                         }
                         // Generate variables for trackByOps
                         if rep.track_by_ops.is_some() {
-                            let var_ops = generate_variables_in_scope_for_view(view, &scope, false, &mut *component_job_ptr);
+                            let var_ops = generate_variables_in_scope_for_view(view.xref(), &scope, false, &mut *component_job_ptr);
                             // Prepend to track_by_ops - need mutable access
                             // Find the op again in the mutable list
                             for op_mut in view.create_mut().iter_mut() {
@@ -134,16 +134,26 @@ fn recursively_process_view(
             }
             OpKind::Animation | OpKind::AnimationListener | OpKind::Listener | OpKind::TwoWayListener => {
                 // Prepend variables to listener handler functions
-                let var_ops = generate_variables_in_scope_for_view(view, &scope, true, component_job);
+                let var_ops = generate_variables_in_scope_for_view(view.xref(), &scope, true, component_job);
+                for op in &var_ops {
+                }
                 prepend_variables_to_listener(view, xref, kind, var_ops);
             }
             _ => {}
         }
     }
     
-    // Prepend variables to update ops
-    let var_ops = generate_variables_in_scope_for_view(view, &scope, false, component_job);
-    view.update_mut().prepend(var_ops);
+    // Generate variables for this view
+    // Generate variables for this view
+    let vars = generate_variables_in_scope_for_view(view.xref(), &scope, false, component_job);
+    for op in &vars {
+        if let Some(var_op) = op.as_any().downcast_ref::<ir::ops::shared::VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
+        }
+    }
+    view.update_mut().prepend(vars);
+    
+    // Generate variables for listeners in this view
+    // Redundant loop removed.
 }
 
 /// Helper to find an op by xref
@@ -354,24 +364,38 @@ unsafe fn get_slot_from_op(
 /// This is a recursive process, as views inherit variables available from their parent view, which
 /// itself may have inherited variables, etc.
 fn generate_variables_in_scope_for_view(
-    view: &crate::template::pipeline::src::compilation::ViewCompilationUnit,
+    view_xref: ir::XrefId,
     scope: &Scope,
     is_callback: bool,
     component_job: &mut ComponentCompilationJob,
 ) -> Vec<Box<dyn ir::UpdateOp + Send + Sync>> {
     let mut new_ops: Vec<Box<dyn ir::UpdateOp + Send + Sync>> = Vec::new();
 
-    if scope.view != view.xref() {
+
+    if scope.view != view_xref || is_callback {
         // Before generating variables for a parent view, we need to switch to the context of the parent
         // view with a `nextContext` expression. This context switching operation itself declares a
         // variable, because the context of the view may be referenced directly.
         let next_context_xref = component_job.allocate_xref_id();
-        let next_context_expr = Expression::NextContext(NextContextExpr::new());
+        
+        let (next_context_expr, flags) = if scope.view == view_xref && is_callback {
+             (
+                 Expression::ReadVar(ReadVarExpr {
+                     name: "ctx".to_string(),
+                     type_: None,
+                     source_span: None,
+                 }),
+                 VariableFlags::ALWAYS_INLINE
+             )
+        } else {
+             (Expression::NextContext(NextContextExpr::new()), VariableFlags::NONE)
+        };
+
         let variable_op = create_variable_op::<Box<dyn ir::UpdateOp + Send + Sync>>(
             next_context_xref,
             scope.view_context_variable.clone(),
             Box::new(next_context_expr),
-            VariableFlags::NONE,
+            flags,
         );
         new_ops.push(Box::new(variable_op));
     }
@@ -415,6 +439,7 @@ fn generate_variables_in_scope_for_view(
             );
             
             new_ops.push(Box::new(variable_op));
+        } else {
         }
     }
 
@@ -457,7 +482,7 @@ fn generate_variables_in_scope_for_view(
         new_ops.push(Box::new(variable_op));
     }
 
-    if scope.view != view.xref() || is_callback {
+    if scope.view != view_xref || is_callback {
         // Add variables for @let declarations
         for decl in &scope.let_declarations {
             let let_xref = component_job.allocate_xref_id();
@@ -475,10 +500,10 @@ fn generate_variables_in_scope_for_view(
         }
     }
 
-    // Recursively add variables from the parent scope.
-    if let Some(ref parent) = scope.parent {
-        let parent_vars = generate_variables_in_scope_for_view(view, parent, false, component_job);
-        new_ops.extend(parent_vars);
+    // Recursively add variables from parent scope
+    if let Some(parent_scope) = &scope.parent {
+        let parent_ops = generate_variables_in_scope_for_view(view_xref, parent_scope, false, component_job);
+        new_ops.extend(parent_ops);
     }
 
     new_ops
@@ -491,40 +516,45 @@ fn prepend_variables_to_listener(
     kind: OpKind,
     var_ops: Vec<Box<dyn ir::UpdateOp + Send + Sync>>,
 ) {
+    // Skip if no variables to prepend
+    if var_ops.is_empty() {
+        return;
+    }
+    
     // Find the listener op and prepend variables to its handler_ops
     for op in view.create_mut().iter_mut() {
         if op.xref() == xref {
-            unsafe {
-                let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
-                match kind {
-                    OpKind::Listener => {
-                        use crate::template::pipeline::ir::ops::create::ListenerOp;
-                        let listener_ptr = op_ptr as *mut ListenerOp;
-                        let listener = &mut *listener_ptr;
+            match kind {
+                OpKind::Listener => {
+                    use crate::template::pipeline::ir::ops::create::ListenerOp;
+                    if let Some(listener) = op.as_any_mut().downcast_mut::<ListenerOp>() {
                         listener.handler_ops.prepend(var_ops);
+                        return;
                     }
-                    OpKind::TwoWayListener => {
-                        use crate::template::pipeline::ir::ops::create::TwoWayListenerOp;
-                        let two_way_ptr = op_ptr as *mut TwoWayListenerOp;
-                        let two_way = &mut *two_way_ptr;
-                        two_way.handler_ops.prepend(var_ops);
-                    }
-                    OpKind::Animation => {
-                        use crate::template::pipeline::ir::ops::create::AnimationOp;
-                        let anim_ptr = op_ptr as *mut AnimationOp;
-                        let anim = &mut *anim_ptr;
-                        anim.handler_ops.prepend(var_ops);
-                    }
-                    OpKind::AnimationListener => {
-                        use crate::template::pipeline::ir::ops::create::AnimationListenerOp;
-                        let anim_listener_ptr = op_ptr as *mut AnimationListenerOp;
-                        let anim_listener = &mut *anim_listener_ptr;
-                        anim_listener.handler_ops.prepend(var_ops);
-                    }
-                    _ => {}
                 }
+                OpKind::TwoWayListener => {
+                    use crate::template::pipeline::ir::ops::create::TwoWayListenerOp;
+                    if let Some(two_way) = op.as_any_mut().downcast_mut::<TwoWayListenerOp>() {
+                        two_way.handler_ops.prepend(var_ops);
+                        return;
+                    }
+                }
+                OpKind::Animation => {
+                    use crate::template::pipeline::ir::ops::create::AnimationOp;
+                    if let Some(anim) = op.as_any_mut().downcast_mut::<AnimationOp>() {
+                        anim.handler_ops.prepend(var_ops);
+                        return;
+                    }
+                }
+                OpKind::AnimationListener => {
+                    use crate::template::pipeline::ir::ops::create::AnimationListenerOp;
+                    if let Some(anim_listener) = op.as_any_mut().downcast_mut::<AnimationListenerOp>() {
+                        anim_listener.handler_ops.prepend(var_ops);
+                        return;
+                    }
+                }
+                _ => {}
             }
-            break;
         }
     }
 }

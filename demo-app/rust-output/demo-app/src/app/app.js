@@ -7,6 +7,8 @@ import { FullNamePipe } from "./src/pipes/full-name-pipe";
 import { NgForTest } from "./src/components/ng-for/ng-for";
 import { NgIfTest } from "./src/components/ng-if-test/ng-if-test";
 import { EventBindingTest } from "./src/components/event-binding-test/event-binding-test";
+import { PropertyBindingTest } from "./src/components/property-binding-test/property-binding-test";
+import { TwoWayBindingTest } from "./src/components/two-way-binding-test/two-way-binding-test";
 const _c0 = () => ({
 	title: "Explore the Docs",
 	link: "https://angular.dev"
@@ -42,13 +44,13 @@ const _c6 = (a0, a1, a2, a3, a4, a5) => [
 const _forTrack0 = ($index, $item) => $item.title;
 function App_For_29_Template(rf, ctx) {
 	if (rf & 1) {
-		i0.ɵɵelementStart(0, "a", 21);
+		i0.ɵɵelementStart(0, "a", 34);
 		i0.ɵɵelementStart(1, "span");
 		i0.ɵɵtext(2);
 		i0.ɵɵelementEnd();
 		i0.ɵɵnamespaceSVG();
-		i0.ɵɵelementStart(3, "svg", 34);
-		i0.ɵɵelementStart(4, "path", 35);
+		i0.ɵɵelementStart(3, "svg", 35);
+		i0.ɵɵelementStart(4, "path", 36);
 		i0.ɵɵelementEnd();
 		i0.ɵɵelementEnd();
 		i0.ɵɵelementEnd();
@@ -64,7 +66,7 @@ function App_For_29_Template(rf, ctx) {
 }
 function App_div_46_Template(rf, ctx) {
 	if (rf & 1) {
-		i0.ɵɵelementStart(0, "div", 36);
+		i0.ɵɵelementStart(0, "div", 37);
 		i0.ɵɵtext(1);
 		i0.ɵɵelementEnd();
 	}
@@ -109,7 +111,7 @@ export class App {
 	static ɵcmp = /* @__PURE__ */ i0.ɵɵdefineComponent({
 		type: App,
 		selectors: [["app-root"]],
-		decls: 50,
+		decls: 52,
 		vars: 19,
 		consts: [
 			[1, "main"],
@@ -219,16 +221,7 @@ export class App {
 			],
 			[1, "right-side"],
 			[1, "pill-group"],
-			[
-				"target",
-				"_blank",
-				"rel",
-				"noopener",
-				1,
-				"pill",
-				3,
-				"href"
-			],
+			[3, "href"],
 			[1, "social-links"],
 			[
 				"href",
@@ -324,6 +317,16 @@ export class App {
 				4,
 				"ngFor",
 				"ngForOf"
+			],
+			[
+				"target",
+				"_blank",
+				"rel",
+				"noopener",
+				1,
+				"pill",
+				3,
+				"href"
 			],
 			[
 				"xmlns",
@@ -439,13 +442,17 @@ export class App {
 				i0.ɵɵelementEnd();
 				i0.ɵɵelementStart(48, "app-event-binding-test");
 				i0.ɵɵelementEnd();
-				i0.ɵɵpipe(49, "fullName");
+				i0.ɵɵelementStart(49, "app-property-binding-test");
+				i0.ɵɵelementEnd();
+				i0.ɵɵelementStart(50, "app-two-way-binding-test");
+				i0.ɵɵelementEnd();
+				i0.ɵɵpipe(51, "fullName");
 			}
 			if (rf & 2) {
 				i0.ɵɵadvance(20);
 				i0.ɵɵtextInterpolate1("Hello, ", ctx.title(), "");
 				i0.ɵɵadvance(4);
-				i0.ɵɵtextInterpolate1("hello ", i0.ɵɵpipeBind2(49, 3, ctx.name, ctx.surname), "");
+				i0.ɵɵtextInterpolate1("hello ", i0.ɵɵpipeBind2(51, 3, ctx.name, ctx.surname), "");
 				i0.ɵɵadvance(4);
 				i0.ɵɵrepeater(i0.ɵɵpureFunction6(12, _c6, i0.ɵɵpureFunction0(6, _c0), i0.ɵɵpureFunction0(7, _c1), i0.ɵɵpureFunction0(8, _c2), i0.ɵɵpureFunction0(9, _c3), i0.ɵɵpureFunction0(10, _c4), i0.ɵɵpureFunction0(11, _c5)));
 				i0.ɵɵadvance(18);
@@ -474,7 +481,9 @@ export class App {
 			FullNamePipe,
 			NgForTest,
 			NgIfTest,
-			EventBindingTest
+			EventBindingTest,
+			PropertyBindingTest,
+			TwoWayBindingTest
 		]
 	});
 }

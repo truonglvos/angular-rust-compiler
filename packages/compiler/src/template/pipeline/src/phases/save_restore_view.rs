@@ -55,33 +55,10 @@ fn process_unit(
     let root_xref = component_job.root.xref();
     let is_root = unit_xref == root_xref;
     
-    // First pass: collect ops that need restore view BEFORE prepending variable op
-    // We'll collect references to ops by iterating first, then modify them
-    let mut ops_needing_restore_view: Vec<*mut Box<dyn ir::CreateOp + Send + Sync>> = Vec::new();
-    
-    for op in unit.create_mut().iter_mut() {
-        match op.kind() {
-            OpKind::Listener | OpKind::TwoWayListener | OpKind::Animation | OpKind::AnimationListener => {
-                // Embedded views always need the save/restore view operation.
-                let mut needs_restore_view = !is_root;
-                
-                if !needs_restore_view {
-                    // Check if handler ops contain ReferenceExpr or ContextLetReferenceExpr
-                    needs_restore_view = check_needs_restore_view(op);
-                }
-                
-                if needs_restore_view {
-                    // Store raw pointer to op for later modification
-                    let op_ptr = op as *mut Box<dyn ir::CreateOp + Send + Sync>;
-                    ops_needing_restore_view.push(op_ptr);
-                }
-            }
-            _ => {}
-        }
-    }
-    
-    // Prepend a variable op with SavedView for this unit
+    // Prepend a variable op with SavedView for this unit FIRST
+    // (before collecting op indices, since prepend may reallocate)
     let saved_view_xref = component_job.allocate_xref_id();
+    println!("DEBUG save_restore_view: unit_xref={:?}, saved_view_xref={:?}, is_root={}", unit_xref, saved_view_xref, is_root);
     let saved_view_variable = SemanticVariable::SavedView(SavedViewVariable::new(unit_xref));
     let get_current_view_expr = Expression::GetCurrentView(GetCurrentViewExpr::new());
     
@@ -96,14 +73,39 @@ fn process_unit(
     let boxed_variable_op: Box<dyn ir::CreateOp + Send + Sync> = Box::new(variable_op);
     unit.create_mut().prepend(vec![boxed_variable_op]);
     
-    // Second pass: apply changes using raw pointers to avoid borrow checker issues
+    // Now collect indices of ops that need restore view (AFTER prepend, so indices are stable)
+    // Note: indices are shifted by 1 due to prepend
+    let mut ops_needing_restore_view_indices: Vec<usize> = Vec::new();
+    
+    for (idx, op) in unit.create_mut().iter_mut().enumerate() {
+        match op.kind() {
+            OpKind::Listener | OpKind::TwoWayListener | OpKind::Animation | OpKind::AnimationListener => {
+                // Embedded views always need the save/restore view operation.
+                let mut needs_restore_view = !is_root;
+                
+                if !needs_restore_view {
+                    // Check if handler ops contain ReferenceExpr or ContextLetReferenceExpr
+                    needs_restore_view = check_needs_restore_view(op);
+                }
+                
+                if needs_restore_view {
+                    ops_needing_restore_view_indices.push(idx);
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    // Second pass: apply changes using indices
     let component_job_ptr = component_job as *mut ComponentCompilationJob;
     let unit_ptr = unit as *mut crate::template::pipeline::src::compilation::ViewCompilationUnit;
     
-    for op_ptr in ops_needing_restore_view {
+    for idx in ops_needing_restore_view_indices {
         unsafe {
-            let op = &mut *op_ptr;
-            add_save_restore_view_operation_to_listener(unit_ptr, op, component_job_ptr);
+            let unit_ref = &mut *unit_ptr;
+            if let Some(op) = unit_ref.create_mut().get_mut(idx) {
+                add_save_restore_view_operation_to_listener(unit_ptr, op, component_job_ptr);
+            }
         }
     }
 }
@@ -390,6 +392,7 @@ unsafe fn add_save_restore_view_operation_to_listener(
     let context_xref = unsafe {
         (&mut *component_job_ptr).allocate_xref_id()
     };
+    println!("DEBUG save_restore_view: Creating RestoreView - unit_xref={:?}, context_xref={:?}", unit_xref, context_xref);
     let context_variable = SemanticVariable::Context(ContextVariable::new(unit_xref));
     let restore_view_expr = Expression::RestoreView(RestoreViewExpr::new(
         EitherXrefIdOrExpression::XrefId(unit_xref)

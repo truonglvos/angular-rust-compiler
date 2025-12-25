@@ -235,6 +235,7 @@ cargo test -p angular-compiler expression_parser
 - ✅ **changeDetection Support**: Properly extract and emit `ChangeDetectionStrategy.OnPush` (as `changeDetection: 0`)
 - ✅ **$index/$count Ordering**: Fixed context variable ordering in `@for` loops to match official Angular compiler
 - ✅ **Signal Inputs/Outputs**: Full support for `input()` and `output()` signals
+- ✅ **NgFor Variable Optimization**: Optimized context access in listener functions (removed extraneous `nextContext()` calls) and fixed variable naming collision/reuse issues.
 
 ---
 

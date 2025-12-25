@@ -1,4 +1,4 @@
-import { NgFor } from '@angular/common';
+import { NgFor, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 interface User {
@@ -15,7 +15,7 @@ interface Category {
 
 @Component({
   selector: 'app-ng-for',
-  imports: [NgFor],
+  imports: [NgFor, NgIf],
   templateUrl: './ng-for.html',
   styleUrl: './ng-for.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

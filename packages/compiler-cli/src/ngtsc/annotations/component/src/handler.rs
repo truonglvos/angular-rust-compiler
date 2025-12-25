@@ -1,8 +1,7 @@
 use crate::ngtsc::transform::src::api::{DecoratorHandler, HandlerPrecedence, DetectResult, AnalysisOutput, CompileResult, ConstantPool};
 use crate::ngtsc::reflection::{ClassDeclaration, ReflectionHost, TypeScriptReflectionHost};
 use crate::ngtsc::metadata::{
-    DirectiveMetadata, DecoratorMetadata, extract_directive_metadata,
-    T2DirectiveMetadata, ComponentMetadata
+    DirectiveMetadata, DecoratorMetadata, extract_directive_metadata
 };
 use angular_compiler::render3::view::api::{
     R3ComponentMetadata, R3DirectiveMetadata, R3ComponentTemplate, R3ComponentDeferMetadata, DeclarationListEmitMode,
@@ -166,7 +165,7 @@ impl DecoratorHandler<DirectiveMetadata<'static>, DirectiveMetadata<'static>, ()
             if decorator.name == "Component" {
                  if let Some(metadata) = extract_directive_metadata(node, &decorator, true, std::path::Path::new("")) {
                      // Clear the decorator reference to avoid lifetime issues
-                     let mut owned_metadata = match metadata {
+                     let owned_metadata = match metadata {
                          DecoratorMetadata::Directive(mut d) => {
                              d.decorator = None; // Clear the lifetime-bound reference
                              DecoratorMetadata::Directive(d)
@@ -346,7 +345,7 @@ impl ComponentDecoratorHandler {
             has_directive_dependencies: false,
         };
 
-        let mut real_constant_pool = angular_compiler::constant_pool::ConstantPool::new(false);
+        let real_constant_pool = angular_compiler::constant_pool::ConstantPool::new(false);
         
         // Use template pipeline instead of placeholder compile_component_from_metadata
         // 1. Ingest template into compilation job

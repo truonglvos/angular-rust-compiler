@@ -1,5 +1,5 @@
 use crate::linker::partial_linker::PartialLinker;
-use crate::linker::ast_value::{AstObject, AstValue};
+use crate::linker::ast_value::AstObject;
 use crate::linker::ast::AstNode;
 use angular_compiler::constant_pool::ConstantPool;
 use angular_compiler::output::output_ast as o;

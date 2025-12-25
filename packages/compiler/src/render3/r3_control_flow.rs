@@ -5,7 +5,6 @@
 
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::collections::HashSet;
 
 use crate::expression_parser::ast::{ASTWithSource, AST};
 use crate::i18n;

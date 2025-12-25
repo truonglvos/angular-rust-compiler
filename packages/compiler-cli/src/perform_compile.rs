@@ -180,8 +180,8 @@ pub fn read_configuration(project: &str, cmd_options: Option<CompilerOptions>) -
 /// Strip JSON comments (simple implementation for single-line comments)
 fn strip_json_comments(input: &str) -> String {
     let mut result = String::new();
-    let mut in_string = false;
-    let mut prev_char = '\0';
+    // let in_string = false;
+    // let prev_char = '\0';
     
     for line in input.lines() {
         let trimmed = line.trim();

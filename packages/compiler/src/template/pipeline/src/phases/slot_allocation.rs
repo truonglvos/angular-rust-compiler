@@ -272,6 +272,10 @@ fn propagate_slot_indexes_in_unit(
                     let listener_ptr = op_ptr as *mut ListenerOp;
                     let listener = &mut *listener_ptr;
                     
+                    if let Some(&slot) = slot_map.get(&listener.target) {
+                        listener.target_slot.slot = Some(slot);
+                    }
+
                     for handler_op in listener.handler_ops.iter_mut() {
                         propagate_slot_indexes_in_nested_ops(handler_op.as_mut(), slot_map);
                     }

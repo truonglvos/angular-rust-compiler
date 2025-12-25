@@ -83,9 +83,9 @@ pub fn link_file(source_code: String, filename: String) -> Result<String> {
             match expr {
                 o::Expression::External(e) => {
                     if let Some(module) = &e.value.module_name {
-                        if let Some(alias) = self.imports.get(module) {
-                            let mut name = alias.clone();
-                            if let Some(prop) = &e.value.name {
+                                if let Some(alias) = self.imports.get(module) {
+                                    let mut _name = alias.clone();
+                                    if let Some(prop) = &e.value.name {
                                 let alias_expr = o::Expression::ReadVar(o::ReadVarExpr {
                                     name: alias.clone(),
                                     type_: None,
@@ -630,7 +630,7 @@ println!("LOG: Visiting Component decorator");
                                      
                                      // Emit JS
                                      let js_code = self.emit_expression(&result_expr);
-                                     println!("[Rust Linker] Linked Partial Declaration {} -> {:.100}...", n, js_code);
+                                     // println!("[Rust Linker] Linked Partial Declaration {} -> {:.100}...", n, js_code);
                                      
                                      // Record replacement
                                      let span = expr.span;
