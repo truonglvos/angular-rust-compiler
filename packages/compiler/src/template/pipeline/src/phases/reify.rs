@@ -6,7 +6,7 @@ use crate::output::output_ast as o;
 use crate::template::pipeline::ir;
 use crate::template::pipeline::ir::operations::{CreateOp, UpdateOp};
 use crate::template::pipeline::src::compilation::{
-    CompilationJob, ComponentCompilationJob, CompilationUnit,
+    CompilationJob, CompilationUnit, ComponentCompilationJob,
 };
 use crate::template::pipeline::src::instruction as ng;
 
@@ -24,66 +24,134 @@ fn reify_unit(unit: &mut dyn CompilationUnit) {
 
 fn reify_create_operations(unit: &mut dyn CompilationUnit) {
     for op in unit.create_mut().iter_mut() {
-        ir::transform_expressions_in_op(op.as_mut(), &mut reify_ir_expression, ir::VisitorContextFlag::NONE);
-        
+        ir::transform_expressions_in_op(
+            op.as_mut(),
+            &mut reify_ir_expression,
+            ir::VisitorContextFlag::NONE,
+        );
+
         let new_op: Option<Box<dyn CreateOp + Send + Sync>> = match op.kind() {
             ir::OpKind::Text => {
                 if let Some(text_op) = op.as_any().downcast_ref::<ir::ops::create::TextOp>() {
-                   if let Some(slot) = text_op.handle.slot {
-                        let stmt = ng::text(slot as i32, text_op.initial_value.clone(), text_op.source_span.clone());
-                        Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn CreateOp + Send + Sync>>(Box::new(stmt))))
-                   } else { None }
-                } else { None }
+                    if let Some(slot) = text_op.handle.slot {
+                        let stmt = ng::text(
+                            slot as i32,
+                            text_op.initial_value.clone(),
+                            text_op.source_span.clone(),
+                        );
+                        Some(Box::new(ir::ops::shared::create_statement_op::<
+                            Box<dyn CreateOp + Send + Sync>,
+                        >(Box::new(stmt))))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             }
             ir::OpKind::Element | ir::OpKind::ElementStart => {
-                if let Some(el_op) = op.as_any().downcast_ref::<ir::ops::create::ElementStartOp>() {
-                   if let Some(slot) = el_op.base.base.handle.slot {
-                       let const_index = el_op.base.base.attributes.map(|idx| idx.as_usize() as i32);
-                       let local_ref_index = el_op.base.base.local_refs_index.map(|idx| idx.as_usize() as i32);
-                       let tag = el_op.base.tag.clone().unwrap_or_default();
-                       let stmt = ng::element_start(slot as i32, tag, const_index, local_ref_index, el_op.base.base.start_source_span.clone());
-                       Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn CreateOp + Send + Sync>>(Box::new(stmt))))
-                   } else { None }
-                } else if let Some(el_op) = op.as_any().downcast_ref::<ir::ops::create::ElementOp>() {
-                   if let Some(slot) = el_op.base.base.handle.slot {
-                       let const_index = el_op.base.base.attributes.map(|idx| idx.as_usize() as i32);
-                       let local_ref_index = el_op.base.base.local_refs_index.map(|idx| idx.as_usize() as i32);
-                       let tag = el_op.base.tag.clone().unwrap_or_default();
-                       let stmt = ng::element(slot as i32, tag, const_index, local_ref_index, el_op.base.base.start_source_span.clone());
-                       Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn CreateOp + Send + Sync>>(Box::new(stmt))))
-                   } else { None }
+                if let Some(el_op) = op
+                    .as_any()
+                    .downcast_ref::<ir::ops::create::ElementStartOp>()
+                {
+                    if let Some(slot) = el_op.base.base.handle.slot {
+                        let const_index =
+                            el_op.base.base.attributes.map(|idx| idx.as_usize() as i32);
+                        let local_ref_index = el_op
+                            .base
+                            .base
+                            .local_refs_index
+                            .map(|idx| idx.as_usize() as i32);
+                        let tag = el_op.base.tag.clone().unwrap_or_default();
+                        let stmt = ng::element_start(
+                            slot as i32,
+                            tag,
+                            const_index,
+                            local_ref_index,
+                            el_op.base.base.start_source_span.clone(),
+                        );
+                        Some(Box::new(ir::ops::shared::create_statement_op::<
+                            Box<dyn CreateOp + Send + Sync>,
+                        >(Box::new(stmt))))
+                    } else {
+                        None
+                    }
+                } else if let Some(el_op) = op.as_any().downcast_ref::<ir::ops::create::ElementOp>()
+                {
+                    if let Some(slot) = el_op.base.base.handle.slot {
+                        let const_index =
+                            el_op.base.base.attributes.map(|idx| idx.as_usize() as i32);
+                        let local_ref_index = el_op
+                            .base
+                            .base
+                            .local_refs_index
+                            .map(|idx| idx.as_usize() as i32);
+                        let tag = el_op.base.tag.clone().unwrap_or_default();
+                        let stmt = ng::element(
+                            slot as i32,
+                            tag,
+                            const_index,
+                            local_ref_index,
+                            el_op.base.base.start_source_span.clone(),
+                        );
+                        Some(Box::new(ir::ops::shared::create_statement_op::<
+                            Box<dyn CreateOp + Send + Sync>,
+                        >(Box::new(stmt))))
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
             }
             ir::OpKind::ElementEnd => {
-                 let stmt = ng::element_end(op.source_span().cloned());
-                 Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn CreateOp + Send + Sync>>(Box::new(stmt))))
+                let stmt = ng::element_end(op.source_span().cloned());
+                Some(Box::new(ir::ops::shared::create_statement_op::<
+                    Box<dyn CreateOp + Send + Sync>,
+                >(Box::new(stmt))))
             }
             ir::OpKind::Pipe => {
-                 if let Some(pipe_op) = op.as_any().downcast_ref::<ir::ops::create::CreatePipeOp>() {
-                     if let Some(slot) = pipe_op.handle.slot {
-                         let stmt = ng::pipe(slot as i32, pipe_op.name.clone());
-                          Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn CreateOp + Send + Sync>>(Box::new(stmt))))
-                     } else { None }
-                 } else { None }
+                if let Some(pipe_op) = op.as_any().downcast_ref::<ir::ops::create::CreatePipeOp>() {
+                    if let Some(slot) = pipe_op.handle.slot {
+                        let stmt = ng::pipe(slot as i32, pipe_op.name.clone());
+                        Some(Box::new(ir::ops::shared::create_statement_op::<
+                            Box<dyn CreateOp + Send + Sync>,
+                        >(Box::new(stmt))))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             }
 
-             ir::OpKind::DisableBindings => {
-                 let stmt = ng::disable_bindings();
-                 Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn CreateOp + Send + Sync>>(Box::new(stmt))))
-             },
-             ir::OpKind::EnableBindings => {
-                 let stmt = ng::enable_bindings();
-                 Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn CreateOp + Send + Sync>>(Box::new(stmt))))
-             },
+            ir::OpKind::DisableBindings => {
+                let stmt = ng::disable_bindings();
+                Some(Box::new(ir::ops::shared::create_statement_op::<
+                    Box<dyn CreateOp + Send + Sync>,
+                >(Box::new(stmt))))
+            }
+            ir::OpKind::EnableBindings => {
+                let stmt = ng::enable_bindings();
+                Some(Box::new(ir::ops::shared::create_statement_op::<
+                    Box<dyn CreateOp + Send + Sync>,
+                >(Box::new(stmt))))
+            }
             ir::OpKind::Variable => {
-                if let Some(var_op) = op.as_any().downcast_ref::<ir::ops::shared::VariableOp<Box<dyn CreateOp + Send + Sync>>>() {
+                if let Some(var_op) = op
+                    .as_any()
+                    .downcast_ref::<ir::ops::shared::VariableOp<Box<dyn CreateOp + Send + Sync>>>()
+                {
                     // Use the name from the naming phase if available, otherwise fall back to XrefId
-                    let name = var_op.variable.name()
+                    let name = var_op
+                        .variable
+                        .name()
                         .map(|s| s.to_string())
                         .unwrap_or_else(|| format!("_r{}", var_op.xref.0));
-                    let value = reify_ir_expression(*var_op.initializer.clone(), ir::VisitorContextFlag::NONE);
+                    let value = reify_ir_expression(
+                        *var_op.initializer.clone(),
+                        ir::VisitorContextFlag::NONE,
+                    );
                     let stmt = o::Statement::DeclareVar(o::DeclareVarStmt {
                         name,
                         value: Some(Box::new(value)),
@@ -91,70 +159,102 @@ fn reify_create_operations(unit: &mut dyn CompilationUnit) {
                         modifiers: o::StmtModifier::Final,
                         source_span: None,
                     });
-                    Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn CreateOp + Send + Sync>>(Box::new(stmt))))
-                } else { None }
-            },
+                    Some(Box::new(ir::ops::shared::create_statement_op::<
+                        Box<dyn CreateOp + Send + Sync>,
+                    >(Box::new(stmt))))
+                } else {
+                    None
+                }
+            }
             ir::OpKind::Listener => {
-                if let Some(listener_op) = op.as_any_mut().downcast_mut::<ir::ops::create::ListenerOp>() {
+                if let Some(listener_op) = op
+                    .as_any_mut()
+                    .downcast_mut::<ir::ops::create::ListenerOp>()
+                {
                     // Reify handler operations similar to reifyUpdateOperations in TS
                     for handler_op in &mut listener_op.handler_ops {
                         // First, transform IR expressions
-                        ir::transform_expressions_in_op(handler_op.as_mut(), &mut reify_ir_expression, ir::VisitorContextFlag::NONE);
-                        
-                        // Handle StatementOp containing RestoreView expression 
+                        ir::transform_expressions_in_op(
+                            handler_op.as_mut(),
+                            &mut reify_ir_expression,
+                            ir::VisitorContextFlag::NONE,
+                        );
+
+                        // Handle StatementOp containing RestoreView expression
                         // (VariableOp was optimized away but we need the DeclareVar)
                         if handler_op.kind() == ir::OpKind::Statement {
-                            if let Some(stmt_op) = handler_op.as_any_mut().downcast_mut::<ir::ops::shared::StatementOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
+                            if let Some(stmt_op) = handler_op
+                                .as_any_mut()
+                                .downcast_mut::<ir::ops::shared::StatementOp<
+                                Box<dyn ir::UpdateOp + Send + Sync>,
+                            >>() {
                                 // Check if the statement is an expression statement with an InvokeFn (restoreView call)
-                                let should_convert = if let o::Statement::Expression(ref expr_stmt) = *stmt_op.statement {
-                                    if let o::Expression::InvokeFn(ref invoke) = *expr_stmt.expr {
-                                        // Check if this is a restoreView call by examining the function reference
-                                        if let o::Expression::External(ref ext_expr) = *invoke.fn_ {
-                                            ext_expr.value.name.as_deref() == Some("ɵɵrestoreView")
+                                let should_convert =
+                                    if let o::Statement::Expression(ref expr_stmt) =
+                                        *stmt_op.statement
+                                    {
+                                        if let o::Expression::InvokeFn(ref invoke) = *expr_stmt.expr
+                                        {
+                                            // Check if this is a restoreView call by examining the function reference
+                                            if let o::Expression::External(ref ext_expr) =
+                                                *invoke.fn_
+                                            {
+                                                ext_expr.value.name.as_deref()
+                                                    == Some("ɵɵrestoreView")
+                                            } else {
+                                                false
+                                            }
                                         } else {
                                             false
                                         }
                                     } else {
                                         false
-                                    }
-                                } else {
-                                    false
-                                };
-                                
+                                    };
+
                                 if should_convert {
                                     // Clone the expression from the statement
-                                    if let o::Statement::Expression(ref expr_stmt) = *stmt_op.statement {
-                                        let new_stmt = o::Statement::DeclareVar(o::DeclareVarStmt {
-                                            name: "ctx".to_string(),
-                                            value: Some(expr_stmt.expr.clone()),
-                                            type_: None,
-                                            modifiers: o::StmtModifier::Final,
-                                            source_span: expr_stmt.source_span.clone(),
-                                        });
+                                    if let o::Statement::Expression(ref expr_stmt) =
+                                        *stmt_op.statement
+                                    {
+                                        let new_stmt =
+                                            o::Statement::DeclareVar(o::DeclareVarStmt {
+                                                name: "ctx".to_string(),
+                                                value: Some(expr_stmt.expr.clone()),
+                                                type_: None,
+                                                modifiers: o::StmtModifier::Final,
+                                                source_span: expr_stmt.source_span.clone(),
+                                            });
                                         stmt_op.statement = Box::new(new_stmt);
                                     }
                                 }
                             }
                         }
-                        
+
                         // Also handle remaining VariableOp -> DeclareVarStmt conversion
                         if handler_op.kind() == ir::OpKind::Variable {
                             use crate::template::pipeline::ir::ops::shared::VariableOp;
                             use crate::template::pipeline::ir::SemanticVariable;
-                            
+
                             // Try both Send+Sync and non-Send+Sync just in case
-                            if let Some(var_op) = handler_op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
+                            if let Some(var_op) = handler_op
+                                .as_any()
+                                .downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>()
+                            {
                                 let var_name = match &var_op.variable {
-                                    SemanticVariable::Identifier(ident_var) => ident_var.name.clone(),
+                                    SemanticVariable::Identifier(ident_var) => {
+                                        ident_var.name.clone()
+                                    }
                                     SemanticVariable::Context(ctx_var) => ctx_var.name.clone(),
                                     SemanticVariable::Alias(_) => None,
                                     SemanticVariable::SavedView(_) => None,
                                 };
-                                
-                                
+
                                 if let Some(name) = var_name {
-                                    let reified_initializer = reify_ir_expression(*var_op.initializer.clone(), ir::VisitorContextFlag::NONE);
-                                    
+                                    let reified_initializer = reify_ir_expression(
+                                        *var_op.initializer.clone(),
+                                        ir::VisitorContextFlag::NONE,
+                                    );
+
                                     let stmt = o::Statement::DeclareVar(o::DeclareVarStmt {
                                         name: name.clone(),
                                         value: Some(Box::new(reified_initializer)),
@@ -162,13 +262,19 @@ fn reify_create_operations(unit: &mut dyn CompilationUnit) {
                                         modifiers: o::StmtModifier::Final,
                                         source_span: None,
                                     });
-                                    
-                                    let new_op: Box<dyn ir::UpdateOp + Send + Sync> = Box::new(
-                                        ir::ops::shared::create_statement_op::<Box<dyn ir::UpdateOp + Send + Sync>>(Box::new(stmt))
-                                    );
+
+                                    let new_op: Box<dyn ir::UpdateOp + Send + Sync> =
+                                        Box::new(ir::ops::shared::create_statement_op::<
+                                            Box<dyn ir::UpdateOp + Send + Sync>,
+                                        >(
+                                            Box::new(stmt)
+                                        ));
                                     *handler_op = new_op;
                                 }
-                            } else if let Some(var_op) = handler_op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp>>>() {
+                            } else if let Some(var_op) = handler_op
+                                .as_any()
+                                .downcast_ref::<VariableOp<Box<dyn ir::UpdateOp>>>()
+                            {
                             } else {
                             }
                         }
@@ -176,42 +282,67 @@ fn reify_create_operations(unit: &mut dyn CompilationUnit) {
                 }
                 None
             }
-            _ => None
+            _ => None,
         };
-        
+
         if let Some(new) = new_op {
-             *op = new;
+            *op = new;
         }
     }
 }
 
 fn reify_update_operations(unit: &mut dyn CompilationUnit) {
     for (i, op) in unit.update().iter().enumerate() {
-         if let Some(var_op) = op.as_any().downcast_ref::<ir::ops::shared::VariableOp<Box<dyn UpdateOp + Send + Sync>>>() {
-         }
+        if let Some(var_op) = op
+            .as_any()
+            .downcast_ref::<ir::ops::shared::VariableOp<Box<dyn UpdateOp + Send + Sync>>>()
+        {
+        }
     }
     for op in unit.update_mut().iter_mut() {
-        ir::transform_expressions_in_op(op.as_mut(), &mut reify_ir_expression, ir::VisitorContextFlag::NONE);
-        
+        ir::transform_expressions_in_op(
+            op.as_mut(),
+            &mut reify_ir_expression,
+            ir::VisitorContextFlag::NONE,
+        );
+
         let new_op: Option<Box<dyn UpdateOp + Send + Sync>> = match op.kind() {
             ir::OpKind::Advance => {
-                 if let Some(adv) = op.as_any().downcast_ref::<ir::ops::update::AdvanceOp>() {
-                     let stmt = ng::advance(adv.delta as i32, adv.source_span.clone());
-                     Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn UpdateOp + Send + Sync>>(Box::new(stmt))))
-                 } else { None }
+                if let Some(adv) = op.as_any().downcast_ref::<ir::ops::update::AdvanceOp>() {
+                    let stmt = ng::advance(adv.delta as i32, adv.source_span.clone());
+                    Some(Box::new(ir::ops::shared::create_statement_op::<
+                        Box<dyn UpdateOp + Send + Sync>,
+                    >(Box::new(stmt))))
+                } else {
+                    None
+                }
             }
             ir::OpKind::Property => {
-                 if let Some(prop) = op.as_any().downcast_ref::<ir::ops::update::PropertyOp>() {
-                     if let ir::ops::update::BindingExpression::Expression(expr) = &prop.expression {
-                         let stmt = ng::property(prop.name.clone(), expr.clone(), prop.sanitizer.clone(), prop.source_span.clone());
-                         Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn UpdateOp + Send + Sync>>(Box::new(stmt))))
-                     } else { None }
-                 } else { None }
+                if let Some(prop) = op.as_any().downcast_ref::<ir::ops::update::PropertyOp>() {
+                    if let ir::ops::update::BindingExpression::Expression(expr) = &prop.expression {
+                        let stmt = ng::property(
+                            prop.name.clone(),
+                            expr.clone(),
+                            prop.sanitizer.clone(),
+                            prop.source_span.clone(),
+                        );
+                        Some(Box::new(ir::ops::shared::create_statement_op::<
+                            Box<dyn UpdateOp + Send + Sync>,
+                        >(Box::new(stmt))))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             }
             ir::OpKind::Variable => {
                 use crate::template::pipeline::ir::ops::shared::VariableOp;
                 use crate::template::pipeline::ir::SemanticVariable;
-                if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn UpdateOp + Send + Sync>>>() {
+                if let Some(var_op) = op
+                    .as_any()
+                    .downcast_ref::<VariableOp<Box<dyn UpdateOp + Send + Sync>>>()
+                {
                     // Get variable name from SemanticVariable
                     let var_name = match &var_op.variable {
                         SemanticVariable::Identifier(ident_var) => ident_var.name.clone(),
@@ -219,11 +350,14 @@ fn reify_update_operations(unit: &mut dyn CompilationUnit) {
                         SemanticVariable::Alias(_) => None, // Aliases are always inlined, shouldn't reach here
                         SemanticVariable::SavedView(_) => None, // SavedView variables don't need declarations here
                     };
-                    
+
                     if let Some(name) = var_name {
                         // Reify initializer expression before using it
-                        let reified_initializer = reify_ir_expression(*var_op.initializer.clone(), ir::VisitorContextFlag::NONE);
-                        
+                        let reified_initializer = reify_ir_expression(
+                            *var_op.initializer.clone(),
+                            ir::VisitorContextFlag::NONE,
+                        );
+
                         // Convert VariableOp to DeclareVarStmt
                         let stmt = o::Statement::DeclareVar(o::DeclareVarStmt {
                             name,
@@ -232,24 +366,35 @@ fn reify_update_operations(unit: &mut dyn CompilationUnit) {
                             modifiers: o::StmtModifier::Final,
                             source_span: op.source_span().cloned(),
                         });
-                        Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn UpdateOp + Send + Sync>>(Box::new(stmt))))
+                        Some(Box::new(ir::ops::shared::create_statement_op::<
+                            Box<dyn UpdateOp + Send + Sync>,
+                        >(Box::new(stmt))))
                     } else {
                         // Variable name not yet assigned - this should not happen after naming phase
                         None
                     }
-                } else { None }
+                } else {
+                    None
+                }
             }
             ir::OpKind::ClassProp => {
                 if let Some(class_op) = op.as_any().downcast_ref::<ir::ops::update::ClassPropOp>() {
                     // Reify the expression before using it
-                    let reified_expr = reify_ir_expression(class_op.expression.clone(), ir::VisitorContextFlag::NONE);
+                    let reified_expr = reify_ir_expression(
+                        class_op.expression.clone(),
+                        ir::VisitorContextFlag::NONE,
+                    );
                     let stmt = ng::class_prop(
                         class_op.name.clone(),
                         reified_expr,
                         Some(class_op.source_span.clone()),
                     );
-                    Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn UpdateOp + Send + Sync>>(Box::new(stmt))))
-                } else { None }
+                    Some(Box::new(ir::ops::shared::create_statement_op::<
+                        Box<dyn UpdateOp + Send + Sync>,
+                    >(Box::new(stmt))))
+                } else {
+                    None
+                }
             }
             ir::OpKind::StyleProp => {
                 if let Some(style_op) = op.as_any().downcast_ref::<ir::ops::update::StylePropOp>() {
@@ -257,7 +402,7 @@ fn reify_update_operations(unit: &mut dyn CompilationUnit) {
                         ir::ops::update::BindingExpression::Expression(expr) => {
                             // Reify the expression
                             reify_ir_expression(expr.clone(), ir::VisitorContextFlag::NONE)
-                        },
+                        }
                         ir::ops::update::BindingExpression::Interpolation(interp) => {
                             // Convert interpolation to string for now
                             o::Expression::Literal(o::LiteralExpr {
@@ -273,10 +418,14 @@ fn reify_update_operations(unit: &mut dyn CompilationUnit) {
                         style_op.unit.clone(),
                         Some(style_op.source_span.clone()),
                     );
-                    Some(Box::new(ir::ops::shared::create_statement_op::<Box<dyn UpdateOp + Send + Sync>>(Box::new(stmt))))
-                } else { None }
+                    Some(Box::new(ir::ops::shared::create_statement_op::<
+                        Box<dyn UpdateOp + Send + Sync>,
+                    >(Box::new(stmt))))
+                } else {
+                    None
+                }
             }
-            _ => None
+            _ => None,
         };
 
         if let Some(new) = new_op {
@@ -288,25 +437,33 @@ fn reify_update_operations(unit: &mut dyn CompilationUnit) {
 fn reify_ir_expression(expr: o::Expression, flags: ir::VisitorContextFlag) -> o::Expression {
     match expr {
         o::Expression::LiteralArray(arr) => {
-             return o::Expression::LiteralArray(o::LiteralArrayExpr {
-                entries: arr.entries.into_iter().map(|e| reify_ir_expression(e, flags)).collect(),
+            return o::Expression::LiteralArray(o::LiteralArrayExpr {
+                entries: arr
+                    .entries
+                    .into_iter()
+                    .map(|e| reify_ir_expression(e, flags))
+                    .collect(),
                 type_: arr.type_,
                 source_span: arr.source_span,
             });
         }
         o::Expression::LiteralMap(map) => {
-             return o::Expression::LiteralMap(o::LiteralMapExpr {
-                entries: map.entries.into_iter().map(|e| o::LiteralMapEntry {
-                    key: e.key,
-                    value: Box::new(reify_ir_expression(*e.value, flags)),
-                    quoted: e.quoted,
-                }).collect(),
+            return o::Expression::LiteralMap(o::LiteralMapExpr {
+                entries: map
+                    .entries
+                    .into_iter()
+                    .map(|e| o::LiteralMapEntry {
+                        key: e.key,
+                        value: Box::new(reify_ir_expression(*e.value, flags)),
+                        quoted: e.quoted,
+                    })
+                    .collect(),
                 type_: map.type_,
                 source_span: map.source_span,
             });
         }
         o::Expression::BinaryOp(op) => {
-             return o::Expression::BinaryOp(o::BinaryOperatorExpr {
+            return o::Expression::BinaryOp(o::BinaryOperatorExpr {
                 lhs: Box::new(reify_ir_expression(*op.lhs, flags)),
                 rhs: Box::new(reify_ir_expression(*op.rhs, flags)),
                 operator: op.operator,
@@ -315,9 +472,13 @@ fn reify_ir_expression(expr: o::Expression, flags: ir::VisitorContextFlag) -> o:
             });
         }
         o::Expression::InvokeFn(func) => {
-             return o::Expression::InvokeFn(o::InvokeFunctionExpr {
+            return o::Expression::InvokeFn(o::InvokeFunctionExpr {
                 fn_: Box::new(reify_ir_expression(*func.fn_, flags)),
-                args: func.args.into_iter().map(|a| reify_ir_expression(a, flags)).collect(),
+                args: func
+                    .args
+                    .into_iter()
+                    .map(|a| reify_ir_expression(a, flags))
+                    .collect(),
                 type_: func.type_,
                 source_span: func.source_span,
                 pure: func.pure,
@@ -335,19 +496,21 @@ fn reify_ir_expression(expr: o::Expression, flags: ir::VisitorContextFlag) -> o:
             return o::Expression::Conditional(o::ConditionalExpr {
                 condition: Box::new(reify_ir_expression(*cond.condition, flags)),
                 true_case: Box::new(reify_ir_expression(*cond.true_case, flags)),
-                false_case: cond.false_case.map(|f| Box::new(reify_ir_expression(*f, flags))),
+                false_case: cond
+                    .false_case
+                    .map(|f| Box::new(reify_ir_expression(*f, flags))),
                 type_: cond.type_,
                 source_span: cond.source_span,
             });
         }
         o::Expression::NotExpr(not) => {
-             return o::Expression::NotExpr(o::NotExpr {
+            return o::Expression::NotExpr(o::NotExpr {
                 condition: Box::new(reify_ir_expression(*not.condition, flags)),
                 source_span: not.source_span,
             });
         }
         o::Expression::Parens(paren) => {
-             return o::Expression::Parens(o::ParenthesizedExpr {
+            return o::Expression::Parens(o::ParenthesizedExpr {
                 expr: Box::new(reify_ir_expression(*paren.expr, flags)),
                 type_: paren.type_,
                 source_span: paren.source_span,
@@ -359,27 +522,27 @@ fn reify_ir_expression(expr: o::Expression, flags: ir::VisitorContextFlag) -> o:
     if !ir::is_ir_expression(&expr) {
         return expr;
     }
-    
+
     match &expr {
-        o::Expression::PureFunctionParameter(param) => {
-             o::Expression::ReadVar(o::ReadVarExpr {
-                 name: format!("_p{}", param.index),
-                 type_: None,
-                 source_span: param.source_span.clone(),
-             })
-        }
+        o::Expression::PureFunctionParameter(param) => o::Expression::ReadVar(o::ReadVarExpr {
+            name: format!("_p{}", param.index),
+            type_: None,
+            source_span: param.source_span.clone(),
+        }),
         o::Expression::PureFunction(pf) => {
             let func = if let Some(fn_) = &pf.fn_ {
                 reify_ir_expression(*fn_.clone(), flags)
             } else if let Some(body) = &pf.body {
-                 let params: Vec<o::FnParam> = (0..pf.args.len()).map(|i| o::FnParam {
-                    name: format!("_p{}", i),
-                    type_: None,
-                }).collect();
-                
-                 let reified_body = reify_ir_expression(*body.clone(), flags);
-                 
-                 o::Expression::ArrowFn(o::ArrowFunctionExpr {
+                let params: Vec<o::FnParam> = (0..pf.args.len())
+                    .map(|i| o::FnParam {
+                        name: format!("_p{}", i),
+                        type_: None,
+                    })
+                    .collect();
+
+                let reified_body = reify_ir_expression(*body.clone(), flags);
+
+                o::Expression::ArrowFn(o::ArrowFunctionExpr {
                     params,
                     body: o::ArrowFunctionBody::Expression(Box::new(reified_body)),
                     type_: None,
@@ -388,26 +551,28 @@ fn reify_ir_expression(expr: o::Expression, flags: ir::VisitorContextFlag) -> o:
             } else {
                 *o::literal(o::LiteralValue::Null)
             };
-            
-            let args: Vec<o::Expression> = pf.args.iter().map(|arg| reify_ir_expression(arg.clone(), flags)).collect();
+
+            let args: Vec<o::Expression> = pf
+                .args
+                .iter()
+                .map(|arg| reify_ir_expression(arg.clone(), flags))
+                .collect();
             let slot = pf.var_offset.unwrap_or(0) as i32;
             ng::pure_function(slot, func, args)
         }
         o::Expression::ReadVariable(var) => {
-             // Get name from variable, or generate fallback if missing
-             let name = var.name.clone().unwrap_or_else(|| {
-                 // Fallback: generate variable name from xref
-                 format!("_r{}", var.xref.0)
-             });
-             o::Expression::ReadVar(o::ReadVarExpr {
-                 name,
-                 type_: None,
-                 source_span: var.source_span.clone(),
-             })
+            // Get name from variable, or generate fallback if missing
+            let name = var.name.clone().unwrap_or_else(|| {
+                // Fallback: generate variable name from xref
+                format!("_r{}", var.xref.0)
+            });
+            o::Expression::ReadVar(o::ReadVarExpr {
+                name,
+                type_: None,
+                source_span: var.source_span.clone(),
+            })
         }
-        o::Expression::ReadVar(expr) => {
-            o::Expression::ReadVar(expr.clone())
-        }
+        o::Expression::ReadVar(expr) => o::Expression::ReadVar(expr.clone()),
         o::Expression::NextContext(next_ctx) => {
             // Reify NextContextExpr to ng.nextContext(steps) expression
             // If steps == 1, call with empty args, otherwise pass steps as argument
@@ -416,15 +581,20 @@ fn reify_ir_expression(expr: o::Expression, flags: ir::VisitorContextFlag) -> o:
             } else {
                 vec![*o::literal(next_ctx.steps as f64)]
             };
-            *o::import_ref(crate::render3::r3_identifiers::Identifiers::next_context())
-                .call_fn(args, next_ctx.source_span.clone(), None)
+            *o::import_ref(crate::render3::r3_identifiers::Identifiers::next_context()).call_fn(
+                args,
+                next_ctx.source_span.clone(),
+                None,
+            )
         }
         o::Expression::PipeBinding(pipe) => {
             // Reify PipeBindingExpr to ɵɵpipeBind call
-            let reified_args: Vec<o::Expression> = pipe.args.iter()
+            let reified_args: Vec<o::Expression> = pipe
+                .args
+                .iter()
                 .map(|arg| reify_ir_expression(arg.clone(), flags))
                 .collect();
-            
+
             let pipe_slot = pipe.target_slot.slot.unwrap_or(0) as i32;
             let var_offset = pipe.var_offset.unwrap_or(0) as i32;
             ng::pipe_bind(pipe_slot, var_offset, reified_args)
@@ -434,7 +604,7 @@ fn reify_ir_expression(expr: o::Expression, flags: ir::VisitorContextFlag) -> o:
             let reified_args = reify_ir_expression(*pipe.args.clone(), flags);
             let pipe_slot = pipe.target_slot.slot.unwrap_or(0) as i32;
             let var_offset = pipe.var_offset.unwrap_or(0) as i32;
-            
+
             // For variadic, wrap in array and call pipeBindV
             let args_array = vec![reified_args];
             ng::pipe_bind(pipe_slot, var_offset, args_array)
@@ -451,10 +621,10 @@ fn reify_ir_expression(expr: o::Expression, flags: ir::VisitorContextFlag) -> o:
             let slot = let_ref.target_slot.slot.unwrap_or(0) as i32;
             ng::reference(slot)
         }
-        o::Expression::GetCurrentView(_) => {
-            *o::import_ref(crate::render3::r3_identifiers::Identifiers::get_current_view())
-                .call_fn(vec![], None, None)
-        }
+        o::Expression::GetCurrentView(_) => *o::import_ref(
+            crate::render3::r3_identifiers::Identifiers::get_current_view(),
+        )
+        .call_fn(vec![], None, None),
         o::Expression::RestoreView(restore_view) => {
             let view_arg = match &restore_view.view {
                 ir::expression::EitherXrefIdOrExpression::XrefId(xref) => {
@@ -473,22 +643,31 @@ fn reify_ir_expression(expr: o::Expression, flags: ir::VisitorContextFlag) -> o:
                     reify_ir_expression(*expr.clone(), flags)
                 }
             };
-            *o::import_ref(crate::render3::r3_identifiers::Identifiers::restore_view())
-                .call_fn(vec![view_arg], None, None)
+            *o::import_ref(crate::render3::r3_identifiers::Identifiers::restore_view()).call_fn(
+                vec![view_arg],
+                None,
+                None,
+            )
         }
         o::Expression::ResetView(reset_view) => {
             let expr_arg = reify_ir_expression(*reset_view.expr.clone(), flags);
-            *o::import_ref(crate::render3::r3_identifiers::Identifiers::reset_view())
-                .call_fn(vec![expr_arg], None, None)
+            *o::import_ref(crate::render3::r3_identifiers::Identifiers::reset_view()).call_fn(
+                vec![expr_arg],
+                None,
+                None,
+            )
         }
         o::Expression::Context(ctx) => {
             // Reify ContextExpr to ReadVariable (which resolves to _rX)
-             reify_ir_expression(o::Expression::ReadVariable(ir::expression::ReadVariableExpr {
-                 xref: ctx.view,
-                 name: None,
-                 source_span: ctx.source_span.clone(),
-             }), flags)
+            reify_ir_expression(
+                o::Expression::ReadVariable(ir::expression::ReadVariableExpr {
+                    xref: ctx.view,
+                    name: None,
+                    source_span: ctx.source_span.clone(),
+                }),
+                flags,
+            )
         }
-        _ => expr
+        _ => expr,
     }
 }

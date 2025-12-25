@@ -27,42 +27,42 @@ impl ResolvedValue {
             _ => None,
         }
     }
-    
+
     pub fn as_number(&self) -> Option<f64> {
         match self {
             ResolvedValue::Number(n) => Some(*n),
             _ => None,
         }
     }
-    
+
     pub fn as_bool(&self) -> Option<bool> {
         match self {
             ResolvedValue::Boolean(b) => Some(*b),
             _ => None,
         }
     }
-    
+
     pub fn as_array(&self) -> Option<&Vec<ResolvedValue>> {
         match self {
             ResolvedValue::Array(arr) => Some(arr),
             _ => None,
         }
     }
-    
+
     pub fn as_object(&self) -> Option<&HashMap<String, ResolvedValue>> {
         match self {
             ResolvedValue::Object(obj) => Some(obj),
             _ => None,
         }
     }
-    
+
     pub fn get_property(&self, key: &str) -> Option<&ResolvedValue> {
         match self {
             ResolvedValue::Object(obj) => obj.get(key),
             _ => None,
         }
     }
-    
+
     pub fn is_known(&self) -> bool {
         !matches!(self, ResolvedValue::Unknown | ResolvedValue::Error(_))
     }

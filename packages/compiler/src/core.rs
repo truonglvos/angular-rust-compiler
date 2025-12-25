@@ -112,7 +112,7 @@ pub enum SelectorFlags {
 }
 
 // R3 CSS Selector types
-pub type R3CssSelector = Vec<String>;  // Simplified - actual implementation more complex
+pub type R3CssSelector = Vec<String>; // Simplified - actual implementation more complex
 pub type R3CssSelectorList = Vec<R3CssSelector>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

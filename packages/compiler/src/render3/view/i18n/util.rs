@@ -37,7 +37,9 @@ pub fn icu_from_i18n_message(message: &i18n::Message) -> Option<&i18n::IcuPlaceh
 }
 
 /// Convert placeholders map to params
-pub fn placeholders_to_params(placeholders: &HashMap<String, Vec<String>>) -> HashMap<String, Expression> {
+pub fn placeholders_to_params(
+    placeholders: &HashMap<String, Vec<String>>,
+) -> HashMap<String, Expression> {
     let mut params = HashMap::new();
     for (key, values) in placeholders {
         let value = if values.len() > 1 {
@@ -67,7 +69,10 @@ pub fn format_i18n_placeholder_names_in_map(
 ) -> HashMap<String, Expression> {
     let mut result = HashMap::new();
     for (key, value) in params {
-        result.insert(format_i18n_placeholder_name(key, use_camel_case), value.clone());
+        result.insert(
+            format_i18n_placeholder_name(key, use_camel_case),
+            value.clone(),
+        );
     }
     result
 }
@@ -77,28 +82,31 @@ pub fn format_i18n_placeholder_names_in_map(
 /// Example: `START_TAG_DIV_1` is converted to `startTagDiv_1`.
 pub fn format_i18n_placeholder_name(name: &str, use_camel_case: bool) -> String {
     let public_name = to_public_name(name);
-    
+
     if !use_camel_case {
         return public_name;
     }
-    
+
     let chunks: Vec<&str> = public_name.split('_').collect();
     if chunks.len() == 1 {
         // if no "_" found - just lowercase the value
         return name.to_lowercase();
     }
-    
+
     let mut chunks = chunks.into_iter().map(String::from).collect::<Vec<_>>();
-    
+
     // eject last element if it's a number
-    let postfix = if chunks.last().map_or(false, |s| s.chars().all(|c| c.is_ascii_digit())) {
+    let postfix = if chunks
+        .last()
+        .map_or(false, |s| s.chars().all(|c| c.is_ascii_digit()))
+    {
         chunks.pop()
     } else {
         None
     };
-    
+
     let mut raw = chunks.remove(0).to_lowercase();
-    
+
     if !chunks.is_empty() {
         for chunk in chunks {
             if let Some(first_char) = chunk.chars().next() {
@@ -111,7 +119,7 @@ pub fn format_i18n_placeholder_name(name: &str, use_camel_case: bool) -> String 
             }
         }
     }
-    
+
     if let Some(p) = postfix {
         format!("{}_{}", raw, p)
     } else {
@@ -125,10 +133,22 @@ mod tests {
 
     #[test]
     fn test_format_i18n_placeholder_name() {
-        assert_eq!(format_i18n_placeholder_name("START_TAG_DIV", true), "startTagDiv");
-        assert_eq!(format_i18n_placeholder_name("START_TAG_DIV_1", true), "startTagDiv_1");
-        assert_eq!(format_i18n_placeholder_name("INTERPOLATION", true), "interpolation");
-        assert_eq!(format_i18n_placeholder_name("CLOSE_TAG_SPAN", true), "closeTagSpan");
+        assert_eq!(
+            format_i18n_placeholder_name("START_TAG_DIV", true),
+            "startTagDiv"
+        );
+        assert_eq!(
+            format_i18n_placeholder_name("START_TAG_DIV_1", true),
+            "startTagDiv_1"
+        );
+        assert_eq!(
+            format_i18n_placeholder_name("INTERPOLATION", true),
+            "interpolation"
+        );
+        assert_eq!(
+            format_i18n_placeholder_name("CLOSE_TAG_SPAN", true),
+            "closeTagSpan"
+        );
     }
 
     #[test]
@@ -140,4 +160,3 @@ mod tests {
         assert!(!is_i18n_attribute("i18"));
     }
 }
-

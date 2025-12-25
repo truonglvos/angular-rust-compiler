@@ -5,16 +5,19 @@
 
 use crate::expression_parser::parser::Parser as ExpressionParser;
 use crate::expression_parser::serializer::serialize;
+use crate::i18n::i18n_ast::{
+    self as i18n, BlockPlaceholder, Container, Icu, IcuPlaceholder, Message, Placeholder,
+    TagPlaceholder, Text as I18nText,
+};
+use crate::i18n::serializers::placeholder::PlaceholderRegistry;
 use crate::ml_parser::ast as html;
 use crate::ml_parser::html_tags::get_html_tag_definition;
 use crate::ml_parser::tags::TagDefinition;
-use crate::ml_parser::tokens::{Token, InterpolationToken};
-use crate::parse_util::{ParseSourceSpan, ParseLocation, ParseSourceFile};
-use crate::i18n::i18n_ast::{self as i18n, Message, Container, Text as I18nText, Placeholder, Icu, IcuPlaceholder, TagPlaceholder, BlockPlaceholder};
-use crate::i18n::serializers::placeholder::PlaceholderRegistry;
-use std::collections::{HashMap, HashSet};
-use regex::Regex;
+use crate::ml_parser::tokens::{InterpolationToken, Token};
+use crate::parse_util::{ParseLocation, ParseSourceFile, ParseSourceSpan};
 use lazy_static::lazy_static;
+use regex::Regex;
+use std::collections::{HashMap, HashSet};
 
 lazy_static! {
     // Match both single and double quotes separately since Rust regex doesn't support backreferences
@@ -106,9 +109,7 @@ impl I18nVisitor {
 
         let i18n_nodes: Vec<i18n::Node> = html::visit_all(self, nodes, &mut context)
             .into_iter()
-            .filter_map(|result| {
-                result.downcast::<i18n::Node>().ok().map(|n| *n)
-            })
+            .filter_map(|result| result.downcast::<i18n::Node>().ok().map(|n| *n))
             .collect();
 
         Message::new(
@@ -128,9 +129,7 @@ impl I18nVisitor {
     ) -> i18n::Node {
         let children: Vec<i18n::Node> = html::visit_all(self, &node.children, context)
             .into_iter()
-            .filter_map(|result| {
-                result.downcast::<i18n::Node>().ok().map(|n| *n)
-            })
+            .filter_map(|result| result.downcast::<i18n::Node>().ok().map(|n| *n))
             .collect();
 
         let mut attrs: HashMap<String, String> = HashMap::new();
@@ -146,24 +145,33 @@ impl I18nVisitor {
         let node_name = &node.name;
         let is_void = get_html_tag_definition(node_name).is_void();
 
-        let start_ph_name = context.placeholder_registry.get_start_tag_placeholder_name(
-            node_name,
-            &attrs,
-            is_void,
+        let start_ph_name = context
+            .placeholder_registry
+            .get_start_tag_placeholder_name(node_name, &attrs, is_void);
+        context.placeholder_to_content.insert(
+            start_ph_name.clone(),
+            i18n::MessagePlaceholder {
+                text: node.start_source_span.to_string(),
+                source_span: node.start_source_span.clone(),
+            },
         );
-        context.placeholder_to_content.insert(start_ph_name.clone(), i18n::MessagePlaceholder {
-            text: node.start_source_span.to_string(),
-            source_span: node.start_source_span.clone(),
-        });
 
         let close_ph_name = if is_void {
             String::new()
         } else {
-            let name = context.placeholder_registry.get_close_tag_placeholder_name(node_name);
-            context.placeholder_to_content.insert(name.clone(), i18n::MessagePlaceholder {
-                text: format!("</{}>", node_name),
-                source_span: node.end_source_span.clone().unwrap_or_else(|| node.source_span.clone()),
-            });
+            let name = context
+                .placeholder_registry
+                .get_close_tag_placeholder_name(node_name);
+            context.placeholder_to_content.insert(
+                name.clone(),
+                i18n::MessagePlaceholder {
+                    text: format!("</{}>", node_name),
+                    source_span: node
+                        .end_source_span
+                        .clone()
+                        .unwrap_or_else(|| node.source_span.clone()),
+                },
+            );
             name
         };
 
@@ -203,14 +211,20 @@ impl I18nVisitor {
                     let parts = &interp_token.parts;
                     if parts.len() >= 3 {
                         let expression = &parts[1];
-                        let base_name = extract_placeholder_name(expression).unwrap_or_else(|| "INTERPOLATION".to_string());
-                        let ph_name = context.placeholder_registry.get_placeholder_name(&base_name, expression);
+                        let base_name = extract_placeholder_name(expression)
+                            .unwrap_or_else(|| "INTERPOLATION".to_string());
+                        let ph_name = context
+                            .placeholder_registry
+                            .get_placeholder_name(&base_name, expression);
 
                         if self.preserve_expression_whitespace {
-                            context.placeholder_to_content.insert(ph_name.clone(), i18n::MessagePlaceholder {
-                                text: parts.join(""),
-                                source_span: interp_token.source_span.clone(),
-                            });
+                            context.placeholder_to_content.insert(
+                                ph_name.clone(),
+                                i18n::MessagePlaceholder {
+                                    text: parts.join(""),
+                                    source_span: interp_token.source_span.clone(),
+                                },
+                            );
                             nodes.push(i18n::Node::Placeholder(Placeholder {
                                 value: expression.clone(),
                                 name: ph_name,
@@ -218,10 +232,13 @@ impl I18nVisitor {
                             }));
                         } else {
                             let normalized = self.normalize_expression(interp_token);
-                            context.placeholder_to_content.insert(ph_name.clone(), i18n::MessagePlaceholder {
-                                text: format!("{}{}{}", parts[0], normalized, parts[2]),
-                                source_span: interp_token.source_span.clone(),
-                            });
+                            context.placeholder_to_content.insert(
+                                ph_name.clone(),
+                                i18n::MessagePlaceholder {
+                                    text: format!("{}{}{}", parts[0], normalized, parts[2]),
+                                    source_span: interp_token.source_span.clone(),
+                                },
+                            );
                             nodes.push(i18n::Node::Placeholder(Placeholder {
                                 value: normalized,
                                 name: ph_name,
@@ -235,14 +252,20 @@ impl I18nVisitor {
                     let parts = &attr_interp_token.parts;
                     if parts.len() >= 3 {
                         let expression = &parts[1];
-                        let base_name = extract_placeholder_name(expression).unwrap_or_else(|| "INTERPOLATION".to_string());
-                        let ph_name = context.placeholder_registry.get_placeholder_name(&base_name, expression);
+                        let base_name = extract_placeholder_name(expression)
+                            .unwrap_or_else(|| "INTERPOLATION".to_string());
+                        let ph_name = context
+                            .placeholder_registry
+                            .get_placeholder_name(&base_name, expression);
 
                         if self.preserve_expression_whitespace {
-                            context.placeholder_to_content.insert(ph_name.clone(), i18n::MessagePlaceholder {
-                                text: parts.join(""),
-                                source_span: attr_interp_token.source_span.clone(),
-                            });
+                            context.placeholder_to_content.insert(
+                                ph_name.clone(),
+                                i18n::MessagePlaceholder {
+                                    text: parts.join(""),
+                                    source_span: attr_interp_token.source_span.clone(),
+                                },
+                            );
                             nodes.push(i18n::Node::Placeholder(Placeholder {
                                 value: expression.clone(),
                                 name: ph_name,
@@ -255,10 +278,13 @@ impl I18nVisitor {
                                 source_span: attr_interp_token.source_span.clone(),
                             };
                             let normalized = self.normalize_expression(&temp_token);
-                            context.placeholder_to_content.insert(ph_name.clone(), i18n::MessagePlaceholder {
-                                text: format!("{}{}{}", parts[0], normalized, parts[2]),
-                                source_span: attr_interp_token.source_span.clone(),
-                            });
+                            context.placeholder_to_content.insert(
+                                ph_name.clone(),
+                                i18n::MessagePlaceholder {
+                                    text: format!("{}{}{}", parts[0], normalized, parts[2]),
+                                    source_span: attr_interp_token.source_span.clone(),
+                                },
+                            );
                             nodes.push(i18n::Node::Placeholder(Placeholder {
                                 value: normalized,
                                 name: ph_name,
@@ -270,8 +296,12 @@ impl I18nVisitor {
                 _ => {
                     // Text or encoded entity token
                     let text_value = match token {
-                        Token::Text(text_token) => text_token.parts.get(0).cloned().unwrap_or_default(),
-                        Token::EncodedEntity(entity_token) => entity_token.parts.get(0).cloned().unwrap_or_default(),
+                        Token::Text(text_token) => {
+                            text_token.parts.get(0).cloned().unwrap_or_default()
+                        }
+                        Token::EncodedEntity(entity_token) => {
+                            entity_token.parts.get(0).cloned().unwrap_or_default()
+                        }
                         _ => String::new(),
                     };
 
@@ -300,7 +330,7 @@ impl I18nVisitor {
                                     ParseLocation::new(file.clone(), 0, 0, 0),
                                     ParseLocation::new(file, 0, 0, 0),
                                 )
-                            },
+                            }
                         };
                         nodes.push(i18n::Node::Text(I18nText::new(
                             text_value.clone(),
@@ -316,12 +346,9 @@ impl I18nVisitor {
                                     ParseLocation::new(file.clone(), 0, 0, 0),
                                     ParseLocation::new(file, 0, 0, 0),
                                 )
-                            },
+                            }
                         };
-                        nodes.push(i18n::Node::Text(I18nText::new(
-                            text_value,
-                            span,
-                        )));
+                        nodes.push(i18n::Node::Text(I18nText::new(text_value, span)));
                     }
                 }
             }
@@ -342,7 +369,10 @@ impl I18nVisitor {
 
     fn normalize_expression(&self, token: &crate::ml_parser::tokens::InterpolationToken) -> String {
         let expression = &token.parts[1];
-        match self.expression_parser.parse_binding(expression, token.source_span.start.offset) {
+        match self
+            .expression_parser
+            .parse_binding(expression, token.source_span.start.offset)
+        {
             Ok(ast) => serialize(&ast),
             Err(_) => expression.clone(),
         }
@@ -369,18 +399,24 @@ impl I18nMessageFactory for I18nVisitor {
 }
 
 impl html::Visitor for I18nVisitor {
-    fn visit_element(&mut self, element: &html::Element, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_element(
+        &mut self,
+        element: &html::Element,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         let ctx = context.downcast_mut::<I18nMessageVisitorContext>().unwrap();
         Some(Box::new(self.visit_element_like(element, ctx)))
     }
 
-    fn visit_component(&mut self, component: &html::Component, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_component(
+        &mut self,
+        component: &html::Component,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         // First, visit children (this needs mutable access to context)
         let children: Vec<i18n::Node> = html::visit_all(self, &component.children, context)
             .into_iter()
-            .filter_map(|result| {
-                result.downcast::<i18n::Node>().ok().map(|n| *n)
-            })
+            .filter_map(|result| result.downcast::<i18n::Node>().ok().map(|n| *n))
             .collect();
 
         // Now we can safely borrow context as ctx
@@ -396,28 +432,39 @@ impl html::Visitor for I18nVisitor {
         }
 
         let node_name = &component.full_name;
-        let is_void = component.tag_name.as_ref()
+        let is_void = component
+            .tag_name
+            .as_ref()
             .map(|tn| get_html_tag_definition(tn).is_void())
             .unwrap_or(false);
 
-        let start_ph_name = ctx.placeholder_registry.get_start_tag_placeholder_name(
-            node_name,
-            &attrs,
-            is_void,
+        let start_ph_name = ctx
+            .placeholder_registry
+            .get_start_tag_placeholder_name(node_name, &attrs, is_void);
+        ctx.placeholder_to_content.insert(
+            start_ph_name.clone(),
+            i18n::MessagePlaceholder {
+                text: component.start_source_span.to_string(),
+                source_span: component.start_source_span.clone(),
+            },
         );
-        ctx.placeholder_to_content.insert(start_ph_name.clone(), i18n::MessagePlaceholder {
-            text: component.start_source_span.to_string(),
-            source_span: component.start_source_span.clone(),
-        });
 
         let close_ph_name = if is_void {
             String::new()
         } else {
-            let name = ctx.placeholder_registry.get_close_tag_placeholder_name(node_name);
-            ctx.placeholder_to_content.insert(name.clone(), i18n::MessagePlaceholder {
-                text: format!("</{}>", node_name),
-                source_span: component.end_source_span.clone().unwrap_or_else(|| component.source_span.clone()),
-            });
+            let name = ctx
+                .placeholder_registry
+                .get_close_tag_placeholder_name(node_name);
+            ctx.placeholder_to_content.insert(
+                name.clone(),
+                i18n::MessagePlaceholder {
+                    text: format!("</{}>", node_name),
+                    source_span: component
+                        .end_source_span
+                        .clone()
+                        .unwrap_or_else(|| component.source_span.clone()),
+                },
+            );
             name
         };
 
@@ -442,19 +489,31 @@ impl html::Visitor for I18nVisitor {
         Some(Box::new(result))
     }
 
-    fn visit_attribute(&mut self, attribute: &html::Attribute, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_attribute(
+        &mut self,
+        attribute: &html::Attribute,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         let ctx = context.downcast_mut::<I18nMessageVisitorContext>().unwrap();
-        let node = if attribute.value_tokens.is_none() || attribute.value_tokens.as_ref().unwrap().len() == 1 {
+        let node = if attribute.value_tokens.is_none()
+            || attribute.value_tokens.as_ref().unwrap().len() == 1
+        {
             i18n::Node::Text(I18nText::new(
                 attribute.value.clone(),
-                attribute.value_span.clone().unwrap_or_else(|| attribute.source_span.clone()),
+                attribute
+                    .value_span
+                    .clone()
+                    .unwrap_or_else(|| attribute.source_span.clone()),
             ))
         } else {
             let tokens = attribute.value_tokens.as_ref().unwrap();
             let token_vec: Vec<Token> = tokens.iter().cloned().collect();
             self.visit_text_with_interpolation(
                 &token_vec,
-                &attribute.value_span.clone().unwrap_or_else(|| attribute.source_span.clone()),
+                &attribute
+                    .value_span
+                    .clone()
+                    .unwrap_or_else(|| attribute.source_span.clone()),
                 ctx,
                 attribute.i18n.as_ref(),
             )
@@ -469,13 +528,14 @@ impl html::Visitor for I18nVisitor {
         Some(Box::new(result))
     }
 
-    fn visit_text(&mut self, text: &html::Text, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_text(
+        &mut self,
+        text: &html::Text,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         let ctx = context.downcast_mut::<I18nMessageVisitorContext>().unwrap();
         let node = if text.tokens.len() == 1 {
-            i18n::Node::Text(I18nText::new(
-                text.value.clone(),
-                text.source_span.clone(),
-            ))
+            i18n::Node::Text(I18nText::new(text.value.clone(), text.source_span.clone()))
         } else {
             let token_vec: Vec<Token> = text.tokens.iter().cloned().collect();
             self.visit_text_with_interpolation(
@@ -495,11 +555,19 @@ impl html::Visitor for I18nVisitor {
         Some(Box::new(result))
     }
 
-    fn visit_comment(&mut self, _comment: &html::Comment, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_comment(
+        &mut self,
+        _comment: &html::Comment,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         None
     }
 
-    fn visit_expansion(&mut self, expansion: &html::Expansion, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_expansion(
+        &mut self,
+        expansion: &html::Expansion,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         // First, update icu_depth
         {
             let ctx = context.downcast_mut::<I18nMessageVisitorContext>().unwrap();
@@ -511,14 +579,15 @@ impl html::Visitor for I18nVisitor {
         for case in &expansion.cases {
             let case_nodes: Vec<i18n::Node> = html::visit_all(self, &case.expression, context)
                 .into_iter()
-                .filter_map(|result| {
-                    result.downcast::<i18n::Node>().ok().map(|n| *n)
-                })
+                .filter_map(|result| result.downcast::<i18n::Node>().ok().map(|n| *n))
                 .collect();
-            i18n_icu_cases.insert(case.value.clone(), i18n::Node::Container(Container {
-                children: case_nodes,
-                source_span: case.exp_source_span.clone(),
-            }));
+            i18n_icu_cases.insert(
+                case.value.clone(),
+                i18n::Node::Container(Container {
+                    children: case_nodes,
+                    source_span: case.exp_source_span.clone(),
+                }),
+            );
         }
 
         // Now we can safely borrow context as ctx
@@ -534,26 +603,43 @@ impl html::Visitor for I18nVisitor {
         };
 
         if ctx.is_icu || ctx.icu_depth > 0 {
-            let exp_ph = ctx.placeholder_registry.get_unique_placeholder(&format!("VAR_{}", expansion.expansion_type));
+            let exp_ph = ctx
+                .placeholder_registry
+                .get_unique_placeholder(&format!("VAR_{}", expansion.expansion_type));
             let mut i18n_icu_with_ph = i18n_icu.clone();
             i18n_icu_with_ph.expression_placeholder = Some(exp_ph.clone());
-            ctx.placeholder_to_content.insert(exp_ph.clone(), i18n::MessagePlaceholder {
-                text: expansion.switch_value.clone(),
-                source_span: expansion.switch_value_source_span.clone(),
-            });
+            ctx.placeholder_to_content.insert(
+                exp_ph.clone(),
+                i18n::MessagePlaceholder {
+                    text: expansion.switch_value.clone(),
+                    source_span: expansion.switch_value_source_span.clone(),
+                },
+            );
 
             let result = if let Some(visit_fn) = ctx.visit_node_fn {
-                visit_fn(&html::Node::Expansion(expansion.clone()), &i18n::Node::Icu(i18n_icu_with_ph))
+                visit_fn(
+                    &html::Node::Expansion(expansion.clone()),
+                    &i18n::Node::Icu(i18n_icu_with_ph),
+                )
             } else {
                 i18n::Node::Icu(i18n_icu_with_ph)
             };
 
             Some(Box::new(result))
         } else {
-            let ph_name = ctx.placeholder_registry.get_placeholder_name("ICU", &expansion.source_span.to_string());
-            let sub_message = self.to_i18n_message(&[html::Node::Expansion(expansion.clone())], "", "", "", None);
-            ctx.placeholder_to_message.insert(ph_name.clone(), Box::new(sub_message));
-            
+            let ph_name = ctx
+                .placeholder_registry
+                .get_placeholder_name("ICU", &expansion.source_span.to_string());
+            let sub_message = self.to_i18n_message(
+                &[html::Node::Expansion(expansion.clone())],
+                "",
+                "",
+                "",
+                None,
+            );
+            ctx.placeholder_to_message
+                .insert(ph_name.clone(), Box::new(sub_message));
+
             let icu_placeholder = IcuPlaceholder {
                 value: i18n_icu,
                 name: ph_name,
@@ -562,7 +648,10 @@ impl html::Visitor for I18nVisitor {
             };
 
             let result = if let Some(visit_fn) = ctx.visit_node_fn {
-                visit_fn(&html::Node::Expansion(expansion.clone()), &i18n::Node::IcuPlaceholder(icu_placeholder.clone()))
+                visit_fn(
+                    &html::Node::Expansion(expansion.clone()),
+                    &i18n::Node::IcuPlaceholder(icu_placeholder.clone()),
+                )
             } else {
                 i18n::Node::IcuPlaceholder(icu_placeholder)
             };
@@ -571,17 +660,23 @@ impl html::Visitor for I18nVisitor {
         }
     }
 
-    fn visit_expansion_case(&mut self, _expansion_case: &html::ExpansionCase, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_expansion_case(
+        &mut self,
+        _expansion_case: &html::ExpansionCase,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         None // Handled in visit_expansion
     }
 
-    fn visit_block(&mut self, block: &html::Block, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_block(
+        &mut self,
+        block: &html::Block,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         if block.name == "switch" {
             let children: Vec<i18n::Node> = html::visit_all(self, &block.children, context)
                 .into_iter()
-                .filter_map(|result| {
-                    result.downcast::<i18n::Node>().ok().map(|n| *n)
-                })
+                .filter_map(|result| result.downcast::<i18n::Node>().ok().map(|n| *n))
                 .collect();
             return Some(Box::new(i18n::Node::Container(Container {
                 children,
@@ -592,35 +687,47 @@ impl html::Visitor for I18nVisitor {
         // First, visit children (this needs mutable access to context)
         let children: Vec<i18n::Node> = html::visit_all(self, &block.children, context)
             .into_iter()
-            .filter_map(|result| {
-                result.downcast::<i18n::Node>().ok().map(|n| *n)
-            })
+            .filter_map(|result| result.downcast::<i18n::Node>().ok().map(|n| *n))
             .collect();
 
         // Now we can safely borrow context as ctx
         let ctx = context.downcast_mut::<I18nMessageVisitorContext>().unwrap();
 
-        let parameters: Vec<String> = block.parameters.iter()
+        let parameters: Vec<String> = block
+            .parameters
+            .iter()
             .map(|param| param.expression.clone())
             .collect();
 
-        let start_ph_name = ctx.placeholder_registry.get_start_block_placeholder_name(
-            &block.name,
-            &parameters,
+        let start_ph_name = ctx
+            .placeholder_registry
+            .get_start_block_placeholder_name(&block.name, &parameters);
+        let close_ph_name = ctx
+            .placeholder_registry
+            .get_close_block_placeholder_name(&block.name);
+
+        ctx.placeholder_to_content.insert(
+            start_ph_name.clone(),
+            i18n::MessagePlaceholder {
+                text: block.start_source_span.to_string(),
+                source_span: block.start_source_span.clone(),
+            },
         );
-        let close_ph_name = ctx.placeholder_registry.get_close_block_placeholder_name(&block.name);
 
-        ctx.placeholder_to_content.insert(start_ph_name.clone(), i18n::MessagePlaceholder {
-            text: block.start_source_span.to_string(),
-            source_span: block.start_source_span.clone(),
-        });
-
-        ctx.placeholder_to_content.insert(close_ph_name.clone(), i18n::MessagePlaceholder {
-            text: block.end_source_span.as_ref()
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| "}".to_string()),
-            source_span: block.end_source_span.clone().unwrap_or_else(|| block.source_span.clone()),
-        });
+        ctx.placeholder_to_content.insert(
+            close_ph_name.clone(),
+            i18n::MessagePlaceholder {
+                text: block
+                    .end_source_span
+                    .as_ref()
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| "}".to_string()),
+                source_span: block
+                    .end_source_span
+                    .clone()
+                    .unwrap_or_else(|| block.source_span.clone()),
+            },
+        );
 
         let block_placeholder = BlockPlaceholder {
             name: block.name.clone(),
@@ -634,7 +741,10 @@ impl html::Visitor for I18nVisitor {
         };
 
         let result = if let Some(visit_fn) = ctx.visit_node_fn {
-            visit_fn(&html::Node::Block(block.clone()), &i18n::Node::BlockPlaceholder(block_placeholder.clone()))
+            visit_fn(
+                &html::Node::Block(block.clone()),
+                &i18n::Node::BlockPlaceholder(block_placeholder.clone()),
+            )
         } else {
             i18n::Node::BlockPlaceholder(block_placeholder)
         };
@@ -642,23 +752,32 @@ impl html::Visitor for I18nVisitor {
         Some(Box::new(result))
     }
 
-    fn visit_block_parameter(&mut self, _parameter: &html::BlockParameter, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_block_parameter(
+        &mut self,
+        _parameter: &html::BlockParameter,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         None
     }
 
-    fn visit_let_declaration(&mut self, _decl: &html::LetDeclaration, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_let_declaration(
+        &mut self,
+        _decl: &html::LetDeclaration,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         None
     }
 
-    fn visit_directive(&mut self, _directive: &html::Directive, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_directive(
+        &mut self,
+        _directive: &html::Directive,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         None
     }
 }
 
-fn reuse_previous_source_spans(
-    nodes: &mut [i18n::Node],
-    previous_i18n: Option<&i18n::I18nMeta>,
-) {
+fn reuse_previous_source_spans(nodes: &mut [i18n::Node], previous_i18n: Option<&i18n::I18nMeta>) {
     if let Some(i18n_meta) = previous_i18n {
         match i18n_meta {
             i18n::I18nMeta::Message(msg) => {

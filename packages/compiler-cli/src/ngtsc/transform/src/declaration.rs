@@ -3,10 +3,10 @@
 // This module provides utilities for transforming .d.ts declaration files
 // to add static field declarations with types.
 
-use std::collections::HashMap;
 use crate::ngtsc::transform::src::api::{
-    DtsTransform, ReferenceEmitter, ImportManager, ReflectionHost,
+    DtsTransform, ImportManager, ReferenceEmitter, ReflectionHost,
 };
+use std::collections::HashMap;
 
 // ============================================================================
 // DTS Transform Registry
@@ -28,7 +28,10 @@ impl DtsTransformRegistry {
     }
 
     /// Get or create an Ivy declaration transform for the given source file.
-    pub fn get_ivy_declaration_transform(&mut self, sf_path: &str) -> &mut IvyDeclarationDtsTransform {
+    pub fn get_ivy_declaration_transform(
+        &mut self,
+        sf_path: &str,
+    ) -> &mut IvyDeclarationDtsTransform {
         self.ivy_declaration_transforms
             .entry(sf_path.to_string())
             .or_insert_with(IvyDeclarationDtsTransform::new)
@@ -39,14 +42,18 @@ impl DtsTransformRegistry {
     /// Note: Due to how TypeScript afterDeclarations transformers work, the source file
     /// path is the same as the original .ts. We check `is_declaration_file` to determine
     /// if it's actually a declaration file.
-    pub fn get_all_transforms(&self, sf_path: &str, is_declaration_file: bool) -> Option<Vec<&dyn DtsTransform>> {
+    pub fn get_all_transforms(
+        &self,
+        sf_path: &str,
+        is_declaration_file: bool,
+    ) -> Option<Vec<&dyn DtsTransform>> {
         // No need to transform if it's not a declarations file
         if !is_declaration_file {
             return None;
         }
 
         let mut transforms: Vec<&dyn DtsTransform> = Vec::new();
-        
+
         if let Some(ivy_transform) = self.ivy_declaration_transforms.get(sf_path) {
             transforms.push(ivy_transform);
         }

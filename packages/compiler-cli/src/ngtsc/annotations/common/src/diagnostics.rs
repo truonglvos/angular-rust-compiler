@@ -73,19 +73,19 @@ impl Diagnostic {
             related: Vec::new(),
         }
     }
-    
+
     pub fn with_location(mut self, file: impl Into<String>, line: u32, column: u32) -> Self {
         self.file = Some(file.into());
         self.line = Some(line);
         self.column = Some(column);
         self
     }
-    
+
     pub fn with_related(mut self, info: RelatedInfo) -> Self {
         self.related.push(info);
         self
     }
-    
+
     pub fn format(&self) -> String {
         let location = match (&self.file, self.line, self.column) {
             (Some(file), Some(line), Some(col)) => format!("{}:{}:{}: ", file, line, col),
@@ -115,7 +115,7 @@ impl FatalDiagnosticError {
             chain: Vec::new(),
         }
     }
-    
+
     pub fn with_chain(mut self, message: impl Into<String>) -> Self {
         self.chain.push(message.into());
         self
@@ -163,10 +163,13 @@ pub fn make_duplicate_declaration_error(
             kind, class_name
         ),
     );
-    
+
     for (module_name, location) in modules {
         let mut info = RelatedInfo {
-            message: format!("'{}' is listed in @NgModule.declarations of '{}'", class_name, module_name),
+            message: format!(
+                "'{}' is listed in @NgModule.declarations of '{}'",
+                class_name, module_name
+            ),
             file: None,
             line: None,
         };
@@ -176,7 +179,7 @@ pub fn make_duplicate_declaration_error(
         }
         diag.related.push(info);
     }
-    
+
     diag
 }
 
@@ -186,7 +189,7 @@ pub fn get_provider_diagnostics(
     injectable_classes: &std::collections::HashSet<String>,
 ) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
-    
+
     for class_name in provider_class_names {
         if !injectable_classes.contains(class_name) {
             diagnostics.push(Diagnostic::new(
@@ -198,14 +201,12 @@ pub fn get_provider_diagnostics(
             ));
         }
     }
-    
+
     diagnostics
 }
 
 /// Get diagnostic for undecorated class with Angular features.
-pub fn get_undecorated_class_with_angular_features_diagnostic(
-    class_name: &str,
-) -> Diagnostic {
+pub fn get_undecorated_class_with_angular_features_diagnostic(class_name: &str) -> Diagnostic {
     Diagnostic::new(
         ErrorCode::DecoratorArgNotLiteral,
         format!(

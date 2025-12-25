@@ -27,12 +27,12 @@ impl CompileResult {
             deferrable_imports: None,
         }
     }
-    
+
     pub fn with_statements(mut self, statements: Vec<String>) -> Self {
         self.statements = statements;
         self
     }
-    
+
     pub fn with_type(mut self, type_expr: impl Into<String>) -> Self {
         self.type_expr = Some(type_expr.into());
         self
@@ -80,7 +80,7 @@ pub enum FactoryTarget {
 /// Compile the factory definition field.
 pub fn compile_ng_factory_def_field(metadata: &R3FactoryMetadata) -> CompileResult {
     let factory_expr = generate_factory_expression(metadata);
-    
+
     CompileResult {
         name: "ɵfac".to_string(),
         initializer: factory_expr,
@@ -93,7 +93,7 @@ pub fn compile_ng_factory_def_field(metadata: &R3FactoryMetadata) -> CompileResu
 /// Compile a declare factory function (for partial compilation).
 pub fn compile_declare_factory(metadata: &R3FactoryMetadata) -> CompileResult {
     let factory_expr = generate_declare_factory_expression(metadata);
-    
+
     CompileResult {
         name: "ɵfac".to_string(),
         initializer: factory_expr,
@@ -106,7 +106,8 @@ pub fn compile_declare_factory(metadata: &R3FactoryMetadata) -> CompileResult {
 fn generate_factory_expression(metadata: &R3FactoryMetadata) -> String {
     match &metadata.deps {
         Some(deps) if !deps.is_empty() => {
-            let dep_tokens: Vec<String> = deps.iter()
+            let dep_tokens: Vec<String> = deps
+                .iter()
                 .map(|d| format!("inject({})", d.token))
                 .collect();
             format!(
@@ -119,8 +120,7 @@ fn generate_factory_expression(metadata: &R3FactoryMetadata) -> String {
         _ => {
             format!(
                 "function {}Factory(t) {{ return new (t || {})(); }}",
-                metadata.name,
-                metadata.name
+                metadata.name, metadata.name
             )
         }
     }

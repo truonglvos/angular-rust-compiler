@@ -8,14 +8,13 @@
  * Mirrors angular/packages/compiler/test/ml_parser/ast_spec_utils.ts
  * and helper functions from lexer_spec.ts
  */
-
 pub mod serializer;
 
 use angular_compiler::ml_parser::ast::*;
-use angular_compiler::ml_parser::parser::ParseTreeResult;
-use angular_compiler::ml_parser::lexer::{tokenize, TokenizeOptions, TokenizeResult};
-use angular_compiler::ml_parser::tokens::{Token, TokenType};
 use angular_compiler::ml_parser::html_tags::get_html_tag_definition;
+use angular_compiler::ml_parser::lexer::{tokenize, TokenizeOptions, TokenizeResult};
+use angular_compiler::ml_parser::parser::ParseTreeResult;
+use angular_compiler::ml_parser::tokens::{Token, TokenType};
 use angular_compiler::parse_util::{ParseLocation, ParseSourceSpan};
 
 pub use serializer::serialize_nodes;
@@ -162,14 +161,18 @@ fn get_token_source_span(token: &Token) -> &ParseSourceSpan {
         Token::DirectiveClose(t) => &t.source_span,
         Token::RawText(t) => &t.source_span,
         Token::EscapableRawText(t) => &t.source_span,
-
     }
 }
 
 /// Humanize DOM parse result
-pub fn humanize_dom(parse_result: &ParseTreeResult, add_source_span: bool) -> Result<Vec<Vec<String>>, String> {
+pub fn humanize_dom(
+    parse_result: &ParseTreeResult,
+    add_source_span: bool,
+) -> Result<Vec<Vec<String>>, String> {
     if !parse_result.errors.is_empty() {
-        let error_string = parse_result.errors.iter()
+        let error_string = parse_result
+            .errors
+            .iter()
             .map(|e| format!("{}", e.msg))
             .collect::<Vec<_>>()
             .join("\n");
@@ -180,7 +183,9 @@ pub fn humanize_dom(parse_result: &ParseTreeResult, add_source_span: bool) -> Re
 }
 
 /// Humanize DOM with source spans
-pub fn humanize_dom_source_spans(parse_result: &ParseTreeResult) -> Result<Vec<Vec<String>>, String> {
+pub fn humanize_dom_source_spans(
+    parse_result: &ParseTreeResult,
+) -> Result<Vec<Vec<String>>, String> {
     humanize_dom(parse_result, true)
 }
 
@@ -235,11 +240,11 @@ impl Humanizer {
             element.name.clone(),
             self.el_depth.to_string(),
         ];
-        
+
         if element.is_self_closing {
             res.push("#selfClosing".to_string());
         }
-        
+
         if self.include_source_span {
             res.push(element.source_span.start.to_string());
             if let Some(ref end_span) = element.end_source_span {
@@ -248,10 +253,10 @@ impl Humanizer {
                 res.push("null".to_string());
             }
         }
-        
+
         self.result.push(res);
         self.el_depth += 1;
-        
+
         for attr in &element.attrs {
             self.visit_attribute(attr);
         }
@@ -259,11 +264,11 @@ impl Humanizer {
         for directive in &element.directives {
             self.visit_directive(directive);
         }
-        
+
         for child in &element.children {
             self.visit(child);
         }
-        
+
         self.el_depth -= 1;
     }
 
@@ -286,12 +291,12 @@ impl Humanizer {
     }
 
     fn visit_comment(&mut self, comment: &Comment) {
-        let value = comment.value.as_ref().map(|v| v.clone()).unwrap_or_default();
-        let res = vec![
-            "Comment".to_string(),
-            value,
-            self.el_depth.to_string(),
-        ];
+        let value = comment
+            .value
+            .as_ref()
+            .map(|v| v.clone())
+            .unwrap_or_default();
+        let res = vec!["Comment".to_string(), value, self.el_depth.to_string()];
         self.result.push(res);
     }
 
@@ -304,11 +309,11 @@ impl Humanizer {
         ];
         self.result.push(res);
         self.el_depth += 1;
-        
+
         for case in &expansion.cases {
             self.visit_expansion_case(case);
         }
-        
+
         self.el_depth -= 1;
     }
 
@@ -327,7 +332,7 @@ impl Humanizer {
             block.name.clone(),
             self.el_depth.to_string(),
         ];
-        
+
         if self.include_source_span {
             res.push(block.source_span.start.to_string());
             if let Some(ref end_span) = block.end_source_span {
@@ -336,26 +341,23 @@ impl Humanizer {
                 res.push("null".to_string());
             }
         }
-        
+
         self.result.push(res);
         self.el_depth += 1;
-        
+
         for param in &block.parameters {
             self.visit_block_parameter(param);
         }
-        
+
         for child in &block.children {
             self.visit(child);
         }
-        
+
         self.el_depth -= 1;
     }
 
     fn visit_block_parameter(&mut self, parameter: &BlockParameter) {
-        let res = vec![
-            "BlockParameter".to_string(),
-            parameter.expression.clone(),
-        ];
+        let res = vec!["BlockParameter".to_string(), parameter.expression.clone()];
         self.result.push(res);
     }
 
@@ -365,12 +367,12 @@ impl Humanizer {
             decl.name.clone(),
             decl.value.clone(),
         ];
-        
+
         if self.include_source_span {
             res.push(decl.name_span.start.to_string());
             res.push(decl.value_span.start.to_string());
         }
-        
+
         self.result.push(res);
     }
 
@@ -380,11 +382,11 @@ impl Humanizer {
             component.component_name.clone(),
             self.el_depth.to_string(),
         ];
-        
+
         if component.is_self_closing {
             res.push("#selfClosing".to_string());
         }
-        
+
         if self.include_source_span {
             res.push(component.source_span.start.to_string());
             if let Some(ref end_span) = component.end_source_span {
@@ -393,10 +395,10 @@ impl Humanizer {
                 res.push("null".to_string());
             }
         }
-        
+
         self.result.push(res);
         self.el_depth += 1;
-        
+
         for attr in &component.attrs {
             self.visit_attribute(attr);
         }
@@ -404,20 +406,17 @@ impl Humanizer {
         for directive in &component.directives {
             self.visit_directive(directive);
         }
-        
+
         for child in &component.children {
             self.visit(child);
         }
-        
+
         self.el_depth -= 1;
     }
 
     fn visit_directive(&mut self, directive: &Directive) {
-        let mut res = vec![
-            "Directive".to_string(),
-            directive.name.clone(),
-        ];
-        
+        let mut res = vec!["Directive".to_string(), directive.name.clone()];
+
         if self.include_source_span {
             res.push(directive.source_span.start.to_string());
             if let Some(ref end_span) = directive.end_source_span {
@@ -426,35 +425,46 @@ impl Humanizer {
                 res.push("null".to_string());
             }
         }
-        
+
         self.result.push(res);
     }
 }
 
 /// Tokenize without errors (panics if errors found)
 pub fn tokenize_without_errors(input: &str, options: TokenizeOptions) -> TokenizeResult {
-    let result = tokenize(input.to_string(), "someUrl".to_string(), |name| {
-        get_html_tag_definition(name) as &'static dyn angular_compiler::ml_parser::tags::TagDefinition
-    }, options);
-    
+    let result = tokenize(
+        input.to_string(),
+        "someUrl".to_string(),
+        |name| {
+            get_html_tag_definition(name)
+                as &'static dyn angular_compiler::ml_parser::tags::TagDefinition
+        },
+        options,
+    );
+
     if !result.errors.is_empty() {
-        let error_string = result.errors.iter()
+        let error_string = result
+            .errors
+            .iter()
             .map(|e| format!("{}", e.msg))
             .collect::<Vec<_>>()
             .join("\n");
         panic!("Unexpected parse errors:\n{}", error_string);
     }
-    
+
     result
 }
 
 /// Humanize token parts
 pub fn humanize_parts(tokens: &[Token]) -> Vec<Vec<String>> {
-    tokens.iter().map(|token| {
-        let mut parts = vec![to_screaming_snake_case(get_token_type(token))];
-        parts.extend(get_token_parts(token).iter().map(|p| p.clone()));
-        parts
-    }).collect()
+    tokens
+        .iter()
+        .map(|token| {
+            let mut parts = vec![to_screaming_snake_case(get_token_type(token))];
+            parts.extend(get_token_parts(token).iter().map(|p| p.clone()));
+            parts
+        })
+        .collect()
 }
 
 fn to_screaming_snake_case(t: TokenType) -> String {
@@ -479,77 +489,115 @@ pub fn tokenize_and_humanize_parts(input: &str, options: TokenizeOptions) -> Vec
 }
 
 /// Tokenize and humanize source spans
-pub fn tokenize_and_humanize_source_spans(input: &str, options: TokenizeOptions) -> Vec<Vec<String>> {
+pub fn tokenize_and_humanize_source_spans(
+    input: &str,
+    options: TokenizeOptions,
+) -> Vec<Vec<String>> {
     let result = tokenize_without_errors(input, options);
-    result.tokens.iter().map(|token| {
-        vec![
-            to_screaming_snake_case(get_token_type(token)),
-            get_token_source_span(token).to_string(),
-        ]
-    }).collect()
+    result
+        .tokens
+        .iter()
+        .map(|token| {
+            vec![
+                to_screaming_snake_case(get_token_type(token)),
+                get_token_source_span(token).to_string(),
+            ]
+        })
+        .collect()
 }
 
 /// Tokenize and humanize line/column
-pub fn tokenize_and_humanize_line_column(input: &str, options: TokenizeOptions) -> Vec<Vec<String>> {
+pub fn tokenize_and_humanize_line_column(
+    input: &str,
+    options: TokenizeOptions,
+) -> Vec<Vec<String>> {
     let result = tokenize_without_errors(input, options);
-    result.tokens.iter().map(|token| {
-        vec![
-            to_screaming_snake_case(get_token_type(token)),
-            humanize_line_column(&get_token_source_span(token).start),
-        ]
-    }).collect()
+    result
+        .tokens
+        .iter()
+        .map(|token| {
+            vec![
+                to_screaming_snake_case(get_token_type(token)),
+                humanize_line_column(&get_token_source_span(token).start),
+            ]
+        })
+        .collect()
 }
 
 /// Tokenize and humanize full start (with both start and fullStart)
 /// Note: In Rust, ParseSourceSpan doesn't have full_start field, so we use start for both
 pub fn tokenize_and_humanize_full_start(input: &str, options: TokenizeOptions) -> Vec<Vec<String>> {
     let result = tokenize_without_errors(input, options);
-    result.tokens.iter().map(|token| {
-        let span = get_token_source_span(token);
-        vec![
-            format!("{:?}", get_token_type(token)),
-            humanize_line_column(&span.start),
-            humanize_line_column(&span.start), // TODO: Use full_start when available
-        ]
-    }).collect()
+    result
+        .tokens
+        .iter()
+        .map(|token| {
+            let span = get_token_source_span(token);
+            vec![
+                format!("{:?}", get_token_type(token)),
+                humanize_line_column(&span.start),
+                humanize_line_column(&span.start), // TODO: Use full_start when available
+            ]
+        })
+        .collect()
 }
 
 /// Tokenize and humanize errors
 pub fn tokenize_and_humanize_errors(input: &str, options: TokenizeOptions) -> Vec<Vec<String>> {
-    let result = tokenize(input.to_string(), "someUrl".to_string(), |name| {
-        get_html_tag_definition(name) as &'static dyn angular_compiler::ml_parser::tags::TagDefinition
-    }, options);
-    result.errors.iter().map(|e| {
-        vec![
-            e.msg.clone(),
-            humanize_line_column(&e.span.start),
-        ]
-    }).collect()
+    let result = tokenize(
+        input.to_string(),
+        "someUrl".to_string(),
+        |name| {
+            get_html_tag_definition(name)
+                as &'static dyn angular_compiler::ml_parser::tags::TagDefinition
+        },
+        options,
+    );
+    result
+        .errors
+        .iter()
+        .map(|e| vec![e.msg.clone(), humanize_line_column(&e.span.start)])
+        .collect()
 }
-
 
 /// Tokenize ignoring errors (helper)
 pub fn tokenize_ignoring_errors(input: &str, options: TokenizeOptions) -> TokenizeResult {
-    tokenize(input.to_string(), "someUrl".to_string(), |name| {
-        get_html_tag_definition(name) as &'static dyn angular_compiler::ml_parser::tags::TagDefinition
-    }, options)
+    tokenize(
+        input.to_string(),
+        "someUrl".to_string(),
+        |name| {
+            get_html_tag_definition(name)
+                as &'static dyn angular_compiler::ml_parser::tags::TagDefinition
+        },
+        options,
+    )
 }
 
 /// Tokenize and humanize parts ignoring errors
-pub fn tokenize_and_humanize_parts_ignoring_errors(input: &str, options: TokenizeOptions) -> Vec<Vec<String>> {
+pub fn tokenize_and_humanize_parts_ignoring_errors(
+    input: &str,
+    options: TokenizeOptions,
+) -> Vec<Vec<String>> {
     let result = tokenize_ignoring_errors(input, options);
     humanize_parts(&result.tokens)
 }
 
 /// Tokenize and humanize source spans ignoring errors
-pub fn tokenize_and_humanize_source_spans_ignoring_errors(input: &str, options: TokenizeOptions) -> Vec<Vec<String>> {
+pub fn tokenize_and_humanize_source_spans_ignoring_errors(
+    input: &str,
+    options: TokenizeOptions,
+) -> Vec<Vec<String>> {
     let result = tokenize_ignoring_errors(input, options);
-    result.tokens.iter().map(|token| {
-        vec![
-            to_screaming_snake_case(get_token_type(token)),
-            get_token_source_span(token).to_string(),
-        ]
-    }).collect()
+    result
+        .tokens
+        .iter()
+        .map(|token| {
+            vec![
+                to_screaming_snake_case(get_token_type(token)),
+                get_token_source_span(token).to_string(),
+            ]
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -558,12 +606,11 @@ mod tests {
 
     #[test]
     fn test_humanize_line_column() {
-        use angular_compiler::parse_util::{ParseSourceFile, ParseLocation};
-        
+        use angular_compiler::parse_util::{ParseLocation, ParseSourceFile};
+
         let file = ParseSourceFile::new("test".to_string(), "test.html".to_string());
         let location = ParseLocation::new(file, 0, 2, 5);
-        
+
         assert_eq!(humanize_line_column(&location), "2:5");
     }
 }
-

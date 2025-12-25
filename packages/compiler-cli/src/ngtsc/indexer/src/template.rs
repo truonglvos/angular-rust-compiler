@@ -2,7 +2,6 @@
 //
 // Indexes template elements and bindings.
 
-
 /// Template element index.
 #[derive(Debug, Clone)]
 pub struct TemplateIndex {

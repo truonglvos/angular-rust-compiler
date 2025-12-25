@@ -8,11 +8,11 @@
 
 use crate::ngtsc::imports::ImportedSymbolsTracker;
 
-use super::transform_api::{PropertyTransform, PropertyTransformResult, PropertyInfo};
 use super::input_function::signal_inputs_transform;
+use super::model_function::signal_model_transform;
 use super::output_function::initializer_api_output_transform;
 use super::query_functions::query_functions_transforms;
-use super::model_function::signal_model_transform;
+use super::transform_api::{PropertyInfo, PropertyTransform, PropertyTransformResult};
 
 /// Decorators for classes that should be transformed.
 const DECORATORS_WITH_INPUTS: &[&str] = &["Directive", "Component"];
@@ -71,15 +71,15 @@ impl InitializerApiJitTransform {
     /// Applies property transforms in order, returning the first matching result.
     pub fn transform_property(&self, property: &PropertyInfo) -> PropertyTransformResult {
         let transforms = get_property_transforms();
-        
+
         for transform in transforms {
             let result = transform(property, &self.import_tracker, self.config.is_core);
-            
+
             if result.transformed {
                 return result;
             }
         }
-        
+
         PropertyTransformResult::unchanged()
     }
 
@@ -92,14 +92,14 @@ impl InitializerApiJitTransform {
         properties: &[PropertyInfo],
     ) -> Vec<(String, PropertyTransformResult)> {
         let mut results = Vec::new();
-        
+
         for property in properties {
             let result = self.transform_property(property);
             if result.transformed {
                 results.push((property.name.clone(), result));
             }
         }
-        
+
         results
     }
 }

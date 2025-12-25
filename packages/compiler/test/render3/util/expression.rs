@@ -2,12 +2,12 @@
 //!
 //! Mirrors angular/packages/compiler/test/render3/util/expression.ts
 
-use angular_compiler::expression_parser::ast::{AST, ASTWithSource};
 use angular_compiler::expression_parser::ast::AbsoluteSourceSpan;
+use angular_compiler::expression_parser::ast::{ASTWithSource, AST};
 use angular_compiler::render3::r3_ast as t;
 use angular_compiler::render3::r3_ast::Visitor;
 
-// Include unparser from test utilities  
+// Include unparser from test utilities
 #[path = "../../expression_parser/utils/unparser.rs"]
 mod unparser_mod;
 pub use unparser_mod::unparse;
@@ -22,18 +22,16 @@ struct ExpressionSourceHumanizer {
 
 impl ExpressionSourceHumanizer {
     fn new() -> Self {
-        ExpressionSourceHumanizer {
-            result: vec![],
-        }
+        ExpressionSourceHumanizer { result: vec![] }
     }
-    
+
     fn record_ast(&mut self, ast: &AST) {
         let unparsed = unparse(ast);
         let span = ast.source_span();
         // AbsoluteSourceSpan is Copy, so we can use it directly
         self.result.push((unparsed, span));
     }
-    
+
     fn visit_ast(&mut self, ast: &AST) {
         self.record_ast(ast);
         // Recursively visit child nodes
@@ -138,7 +136,10 @@ impl ExpressionSourceHumanizer {
             AST::VoidExpression(v) => {
                 self.visit_ast(&*v.expression);
             }
-            AST::ImplicitReceiver(_) | AST::ThisReceiver(_) | AST::LiteralPrimitive(_) | AST::EmptyExpr(_) => {
+            AST::ImplicitReceiver(_)
+            | AST::ThisReceiver(_)
+            | AST::LiteralPrimitive(_)
+            | AST::EmptyExpr(_) => {
                 // Leaf nodes - already recorded
             }
             _ => {
@@ -151,7 +152,7 @@ impl ExpressionSourceHumanizer {
 /// R3 AST Visitor implementation for ExpressionSourceHumanizer
 impl Visitor for ExpressionSourceHumanizer {
     type Result = ();
-    
+
     fn visit_element(&mut self, element: &t::Element) {
         for input in &element.inputs {
             // BoundAttribute.value is ExprAST, not Option
@@ -166,7 +167,7 @@ impl Visitor for ExpressionSourceHumanizer {
         use t::visit_all;
         let _ = visit_all(self, &element.children);
     }
-    
+
     fn visit_template(&mut self, template: &t::Template) {
         for input in &template.inputs {
             // BoundAttribute.value is ExprAST, not Option
@@ -191,30 +192,30 @@ impl Visitor for ExpressionSourceHumanizer {
         use t::visit_all;
         let _ = visit_all(self, &template.children);
     }
-    
+
     fn visit_bound_text(&mut self, text: &t::BoundText) {
         // BoundText.value is ExprAST, not ASTWithSource
         self.record_ast(&text.value);
         self.visit_ast(&text.value);
     }
-    
+
     fn visit_bound_attribute(&mut self, attr: &t::BoundAttribute) {
         // BoundAttribute.value is ExprAST, not Option
         self.record_ast(&attr.value);
         self.visit_ast(&attr.value);
     }
-    
+
     fn visit_bound_event(&mut self, event: &t::BoundEvent) {
         // BoundEvent.handler is ExprAST, not ASTWithSource
         self.record_ast(&event.handler);
         self.visit_ast(&event.handler);
     }
-    
+
     fn visit_content(&mut self, content: &t::Content) {
         use t::visit_all;
         let _ = visit_all(self, &content.children);
     }
-    
+
     fn visit_text(&mut self, _text: &t::Text) {}
     fn visit_variable(&mut self, _variable: &t::Variable) {}
     fn visit_reference(&mut self, _reference: &t::Reference) {}
@@ -310,7 +311,7 @@ impl Visitor for ExpressionSourceHumanizer {
         use t::visit_all;
         let _ = visit_all(self, &deferred.children);
     }
-    
+
     fn visit_deferred_trigger(&mut self, trigger: &t::DeferredTrigger) {
         match trigger {
             t::DeferredTrigger::Bound(bound) => {
@@ -412,4 +413,3 @@ pub fn humanize_expression_source(template_asts: &[t::R3Node]) -> Vec<HumanizedE
     let _ = visit_all(&mut humanizer, template_asts);
     humanizer.result
 }
-

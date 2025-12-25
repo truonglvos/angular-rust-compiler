@@ -9,13 +9,11 @@ pub struct ConstantExtractor;
 
 impl ConstantExtractor {
     /// Extract constant entry.
-    pub fn extract(
-        name: &str,
-        type_annotation: &str,
-        value: Option<&str>,
-    ) -> DocEntry {
+    pub fn extract(name: &str, type_annotation: &str, value: Option<&str>) -> DocEntry {
         let mut entry = DocEntry::new(name, EntryType::Constant);
-        entry.metadata.insert("type".to_string(), type_annotation.to_string());
+        entry
+            .metadata
+            .insert("type".to_string(), type_annotation.to_string());
         if let Some(v) = value {
             entry.metadata.insert("value".to_string(), v.to_string());
         }

@@ -6,7 +6,7 @@
 pub trait Visitor {
     type Node;
     type Result;
-    
+
     fn visit(&mut self, node: &Self::Node) -> Self::Result;
 }
 

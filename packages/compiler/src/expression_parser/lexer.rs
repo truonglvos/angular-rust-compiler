@@ -1,11 +1,10 @@
+use crate::chars;
 /**
  * Angular Expression Lexer - Rust Implementation
  *
  * Tokenizes Angular template expressions into tokens for parsing
  */
-
 use serde::{Deserialize, Serialize};
-use crate::chars;
 
 /// Token types in Angular expressions
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -214,7 +213,13 @@ pub const EOF: Token = Token {
 
 /// Helper functions for creating tokens
 pub fn new_character_token(index: usize, end: usize, code: char) -> Token {
-    Token::new(index, end, TokenType::Character, code as u32 as f64, code.to_string())
+    Token::new(
+        index,
+        end,
+        TokenType::Character,
+        code as u32 as f64,
+        code.to_string(),
+    )
 }
 
 pub fn new_identifier_token(index: usize, end: usize, text: String) -> Token {
@@ -275,11 +280,21 @@ struct Scanner {
     resume_template: bool,
 }
 
-
 // Angular keywords
 const KEYWORDS: &[&str] = &[
-    "var", "let", "as", "null", "undefined", "true", "false",
-    "if", "else", "this", "typeof", "void", "in",
+    "var",
+    "let",
+    "as",
+    "null",
+    "undefined",
+    "true",
+    "false",
+    "if",
+    "else",
+    "this",
+    "typeof",
+    "void",
+    "in",
 ];
 
 impl Scanner {
@@ -302,7 +317,10 @@ impl Scanner {
         while let Some(token) = self.scan_token() {
             count += 1;
             if count > 10000 {
-                panic!("Lexer infinite loop! Generated over 10000 tokens for input: {}", self.input);
+                panic!(
+                    "Lexer infinite loop! Generated over 10000 tokens for input: {}",
+                    self.input
+                );
             }
             self.tokens.push(token);
         }
@@ -312,7 +330,10 @@ impl Scanner {
     fn advance(&mut self) {
         self.index += self.peek.len_utf8();
         self.peek = if self.index < self.length {
-            self.input[self.index..].chars().next().unwrap_or(chars::EOF)
+            self.input[self.index..]
+                .chars()
+                .next()
+                .unwrap_or(chars::EOF)
         } else {
             chars::EOF
         };
@@ -343,15 +364,15 @@ impl Scanner {
             } else {
                 None
             };
-            
+
             if next_char == Some(chars::LBRACE) {
                 self.advance(); // consume $
                 self.advance(); // consume {
-                
+
                 // Track interpolation
                 self.interpolation_brace_stack.push(self.brace_depth);
                 self.brace_depth += 1;
-                
+
                 return Some(Token::operator(start, self.index, "${"));
             }
         }
@@ -381,8 +402,13 @@ impl Scanner {
                     chars::PERIOD.to_string(),
                 ));
             }
-            chars::LPAREN | chars::RPAREN | chars::LBRACKET | chars::RBRACKET |
-            chars::COMMA | chars::COLON | chars::SEMICOLON => {
+            chars::LPAREN
+            | chars::RPAREN
+            | chars::LBRACKET
+            | chars::RBRACKET
+            | chars::COMMA
+            | chars::COLON
+            | chars::SEMICOLON => {
                 return Some(self.scan_character(start, ch));
             }
             chars::LBRACE => {
@@ -392,14 +418,14 @@ impl Scanner {
             chars::RBRACE => {
                 self.brace_depth -= 1;
                 let token = self.scan_character(start, ch);
-                
+
                 if let Some(&target_depth) = self.interpolation_brace_stack.last() {
-                     if self.brace_depth == target_depth {
-                         self.interpolation_brace_stack.pop();
-                         self.resume_template = true;
-                     }
+                    if self.brace_depth == target_depth {
+                        self.interpolation_brace_stack.pop();
+                        self.resume_template = true;
+                    }
                 }
-                
+
                 return Some(token);
             }
             chars::SQ | chars::DQ => {
@@ -443,60 +469,66 @@ impl Scanner {
                 };
 
                 if next_char == Some(chars::SLASH) {
-                     self.advance(); // consume first /
-                     self.advance(); // consume second /
-                     while self.index < self.length {
+                    self.advance(); // consume first /
+                    self.advance(); // consume second /
+                    while self.index < self.length {
                         if self.peek == chars::CR || self.peek == chars::LF {
                             break;
                         }
                         self.advance();
-                     }
-                     return None;
+                    }
+                    return None;
                 }
-                
+
                 // Check if this slash is a division operator or a regex literal
                 // If the last token was an identifier, number, or closing brace/paren, it's likely division
                 // Otherwise (start of expr, operator, keyword, open brace/paren), it's likely a regex
-                
+
                 let is_regex_start = if let Some(last) = self.tokens.last() {
-                     match last.token_type {
-                         TokenType::Identifier | TokenType::PrivateIdentifier | TokenType::Number | 
-                         TokenType::String | TokenType::RegExpFlags => false,
-                         TokenType::Character => {
-                             let s = &last.str_value;
-                             s != ")" && s != "]" && s != "}"
-                         },
-                         TokenType::Operator => {
-                             // SPECIAL CASE: `!` can be prefix (Logical Not) or postfix (Non-null assertion).
-                             // If `!` is postfix, then `/` is division.
-                             // If `!` is prefix, then `/` is regex.
-                             // We determine this by looking at what came BEFORE `!`.
-                             if last.str_value == "!" {
-                                 if self.tokens.len() > 1 {
-                                     let prev = &self.tokens[self.tokens.len() - 2];
-                                     match prev.token_type {
-                                         TokenType::Identifier | TokenType::PrivateIdentifier | TokenType::Number | 
-                                         TokenType::String | TokenType::RegExpFlags => false, // Postfix ! found, so / is division
-                                         TokenType::Character => {
-                                             let s = &prev.str_value;
-                                             // If `!` follows `)`, `]`, `}` -> Postfix
-                                             !(s == ")" || s == "]" || s == "}")
-                                         },
-                                         _ => true // Prefix !
-                                     }
-                                 } else {
-                                     true // Start of input ! -> Prefix
-                                 }
-                             } else {
-                                 true // Other operators imply regex start
-                             }
-                         }, 
-                         TokenType::Keyword => {
-                             // "this" can be followed by division, others like "return", "typeof" etc likely regex
-                             last.str_value != "this"
-                         },
-                         _ => true
-                     }
+                    match last.token_type {
+                        TokenType::Identifier
+                        | TokenType::PrivateIdentifier
+                        | TokenType::Number
+                        | TokenType::String
+                        | TokenType::RegExpFlags => false,
+                        TokenType::Character => {
+                            let s = &last.str_value;
+                            s != ")" && s != "]" && s != "}"
+                        }
+                        TokenType::Operator => {
+                            // SPECIAL CASE: `!` can be prefix (Logical Not) or postfix (Non-null assertion).
+                            // If `!` is postfix, then `/` is division.
+                            // If `!` is prefix, then `/` is regex.
+                            // We determine this by looking at what came BEFORE `!`.
+                            if last.str_value == "!" {
+                                if self.tokens.len() > 1 {
+                                    let prev = &self.tokens[self.tokens.len() - 2];
+                                    match prev.token_type {
+                                        TokenType::Identifier
+                                        | TokenType::PrivateIdentifier
+                                        | TokenType::Number
+                                        | TokenType::String
+                                        | TokenType::RegExpFlags => false, // Postfix ! found, so / is division
+                                        TokenType::Character => {
+                                            let s = &prev.str_value;
+                                            // If `!` follows `)`, `]`, `}` -> Postfix
+                                            !(s == ")" || s == "]" || s == "}")
+                                        }
+                                        _ => true, // Prefix !
+                                    }
+                                } else {
+                                    true // Start of input ! -> Prefix
+                                }
+                            } else {
+                                true // Other operators imply regex start
+                            }
+                        }
+                        TokenType::Keyword => {
+                            // "this" can be followed by division, others like "return", "typeof" etc likely regex
+                            last.str_value != "this"
+                        }
+                        _ => true,
+                    }
                 } else {
                     true // Start of input
                 };
@@ -648,7 +680,10 @@ impl Scanner {
                     self.index,
                     TokenType::Error,
                     0.0,
-                    format!("Lexer Error: Invalid character [{}] at column {} in expression [{}]", ch, start, self.input),
+                    format!(
+                        "Lexer Error: Invalid character [{}] at column {} in expression [{}]",
+                        ch, start, self.input
+                    ),
                 ));
             }
         }
@@ -693,7 +728,10 @@ impl Scanner {
                 self.index,
                 TokenType::Error,
                 0.0,
-                format!("Lexer Error: Invalid character [#] at column {} in expression [{}]", start, self.input),
+                format!(
+                    "Lexer Error: Invalid character [#] at column {} in expression [{}]",
+                    start, self.input
+                ),
             );
         }
 
@@ -702,7 +740,13 @@ impl Scanner {
         }
 
         let str_value = self.input[start..self.index].to_string();
-        Token::new(start, self.index, TokenType::PrivateIdentifier, 0.0, str_value)
+        Token::new(
+            start,
+            self.index,
+            TokenType::PrivateIdentifier,
+            0.0,
+            str_value,
+        )
     }
 
     fn scan_number(&mut self, start: usize) -> Token {
@@ -733,10 +777,10 @@ impl Scanner {
                 } else {
                     None
                 };
-                 
+
                 let prev_is_digit = prev_char.map_or(false, |c| chars::is_digit(c));
                 let next_is_digit = next_char.map_or(false, |c| chars::is_digit(c));
-                
+
                 if !prev_is_digit || !next_is_digit {
                     return Token::new(self.index, self.index, TokenType::Error, 0.0, format!("Lexer Error: Invalid numeric separator at column {} in expression [{}]", self.index, self.input));
                 }
@@ -747,17 +791,31 @@ impl Scanner {
         }
 
         let str_value = self.input[start..self.index].to_string();
-        let value_str = if simple { 
+        let value_str = if simple {
             str_value.clone()
         } else {
             str_value.chars().filter(|&c| c != '_').collect()
         };
-        
+
         // Handle invalid exp like '1e'
-        if value_str.ends_with('e') || value_str.ends_with('E') || value_str.ends_with('+') || value_str.ends_with('-') {
-             return Token::new(self.index - 1, self.index, TokenType::Error, 0.0, format!("Lexer Error: Invalid exponent at column {} in expression [{}]", self.index - 1, self.input));
+        if value_str.ends_with('e')
+            || value_str.ends_with('E')
+            || value_str.ends_with('+')
+            || value_str.ends_with('-')
+        {
+            return Token::new(
+                self.index - 1,
+                self.index,
+                TokenType::Error,
+                0.0,
+                format!(
+                    "Lexer Error: Invalid exponent at column {} in expression [{}]",
+                    self.index - 1,
+                    self.input
+                ),
+            );
         }
-        
+
         let num_value = value_str.parse::<f64>().unwrap_or(0.0);
 
         Token::new(start, self.index, TokenType::Number, num_value, str_value)
@@ -817,7 +875,7 @@ impl Scanner {
                 self.advance();
             } else if ch == quote {
                 self.advance(); // Skip closing quote
-                
+
                 return Token::new(start, self.index, TokenType::String, 0.0, buffer)
                     .with_kind(StringTokenKind::Plain);
             } else {
@@ -825,19 +883,28 @@ impl Scanner {
                 self.advance();
             }
         }
-        
+
         // Unterminated string
-        Token::new(start, self.index, TokenType::Error, 0.0, format!("Lexer Error: Unterminated quote at column {} in expression [{}]", start, self.input))
+        Token::new(
+            start,
+            self.index,
+            TokenType::Error,
+            0.0,
+            format!(
+                "Lexer Error: Unterminated quote at column {} in expression [{}]",
+                start, self.input
+            ),
+        )
     }
-    
+
     fn scan_regexp_body(&mut self, start: usize) -> Token {
         let mut buffer = String::new();
         let mut in_class = false;
         let mut escaped = false;
-        
+
         while self.index < self.length {
             let ch = self.peek;
-            
+
             if escaped {
                 buffer.push(ch);
                 escaped = false;
@@ -858,19 +925,28 @@ impl Scanner {
                 self.advance();
             } else if ch == '/' {
                 self.advance(); // Consume closing slash
-                
+
                 // Scan flags
                 return self.scan_regexp_flags(start, buffer);
             } else {
                 if ch == chars::EOF || ch == chars::CR || ch == chars::LF {
-                     return Token::new(self.index, self.index, TokenType::Error, 0.0, format!("Lexer Error: Unterminated regular expression at column {} in expression [{}]", self.index, self.input));
+                    return Token::new(self.index, self.index, TokenType::Error, 0.0, format!("Lexer Error: Unterminated regular expression at column {} in expression [{}]", self.index, self.input));
                 }
                 buffer.push(ch);
                 self.advance();
             }
         }
-        
-        Token::new(self.index, self.index, TokenType::Error, 0.0, format!("Lexer Error: Unterminated regular expression at column {} in expression [{}]", self.index, self.input))
+
+        Token::new(
+            self.index,
+            self.index,
+            TokenType::Error,
+            0.0,
+            format!(
+                "Lexer Error: Unterminated regular expression at column {} in expression [{}]",
+                self.index, self.input
+            ),
+        )
     }
 
     fn scan_regexp_flags(&mut self, start: usize, body: String) -> Token {
@@ -881,53 +957,47 @@ impl Scanner {
             let ch = self.peek;
             // Validate flag
             if !['g', 'i', 'm', 'u', 'y'].contains(&ch) {
-                 return Token::new(
-                    self.index, 
-                    self.index + 1, 
-                    TokenType::Error, 
-                    0.0, 
-                    format!("Lexer Error: Invalid regular expression flag {}", ch)
+                return Token::new(
+                    self.index,
+                    self.index + 1,
+                    TokenType::Error,
+                    0.0,
+                    format!("Lexer Error: Invalid regular expression flag {}", ch),
                 );
             }
             // Check duplicate
             if seen.contains(&ch) {
-                 return Token::new(
-                    self.index, 
-                    self.index + 1, 
-                    TokenType::Error, 
-                    0.0, 
-                    format!("Lexer Error: Duplicated regular expression flag {}", ch)
+                return Token::new(
+                    self.index,
+                    self.index + 1,
+                    TokenType::Error,
+                    0.0,
+                    format!("Lexer Error: Duplicated regular expression flag {}", ch),
                 );
             }
-            
+
             seen.insert(ch);
             flags.push(ch);
             self.advance();
         }
 
         if flags.is_empty() {
-             Token::new(
-                start, 
-                self.index, 
-                TokenType::RegExpBody, 
-                0.0, 
-                body
-            )
+            Token::new(start, self.index, TokenType::RegExpBody, 0.0, body)
         } else {
             self.tokens.push(Token::new(
-                start, 
-                self.index - flags.len(), 
-                TokenType::RegExpBody, 
-                0.0, 
-                body
+                start,
+                self.index - flags.len(),
+                TokenType::RegExpBody,
+                0.0,
+                body,
             ));
-            
+
             Token::new(
                 self.index - flags.len(),
                 self.index,
                 TokenType::RegExpFlags,
                 0.0,
-                flags
+                flags,
             )
         }
     }
@@ -942,11 +1012,11 @@ impl Scanner {
                 self.advance();
                 if self.index < self.length {
                     let escaped_char = self.peek;
-                     // Handle escaping: only specific chars strictly or just passthrough?
-                     // Verify behavior with scans_string. 
-                     // For template literals, \` is escaped backtick. \$ is escaped dollar.
-                     // Standard string escapes also usually apply.
-                     buffer.push(match escaped_char {
+                    // Handle escaping: only specific chars strictly or just passthrough?
+                    // Verify behavior with scans_string.
+                    // For template literals, \` is escaped backtick. \$ is escaped dollar.
+                    // Standard string escapes also usually apply.
+                    buffer.push(match escaped_char {
                         'n' => '\n',
                         'r' => '\r',
                         't' => '\t',
@@ -956,10 +1026,10 @@ impl Scanner {
                         // TODO: Unicode escapes in template literals? Assuming simplified for now or handled by parser?
                         // Tests `should_be_able_to_use_interpolation_characters_inside_template_string` likely uses `\${`.
                         _ => escaped_char,
-                     });
-                     self.advance();
+                    });
+                    self.advance();
                 } else {
-                     buffer.push(chars::BACKSLASH); // Trailing backslash
+                    buffer.push(chars::BACKSLASH); // Trailing backslash
                 }
             } else if ch == chars::BT {
                 self.advance();
@@ -974,15 +1044,15 @@ impl Scanner {
                 };
 
                 if next_char == Some(chars::LBRACE) {
-                     return Token::new(start, self.index, TokenType::String, 0.0, buffer)
+                    return Token::new(start, self.index, TokenType::String, 0.0, buffer)
                         .with_kind(StringTokenKind::TemplateLiteralPart);
                 }
                 buffer.push(chars::DOLLAR);
                 self.advance();
             } else if ch == chars::EOF {
                 return Token::new(
-                    self.index, 
-                    self.index, 
+                    self.index,
+                    self.index,
                     TokenType::Error,
                     0.0,
                     format!("Lexer Error: Unterminated template literal at column {} in expression [{}]", self.index, self.input)
@@ -994,11 +1064,14 @@ impl Scanner {
         }
 
         Token::new(
-            self.index, 
-            self.index, 
+            self.index,
+            self.index,
             TokenType::Error,
             0.0,
-            format!("Lexer Error: Unterminated template literal at column {} in expression [{}]", self.index, self.input)
+            format!(
+                "Lexer Error: Unterminated template literal at column {} in expression [{}]",
+                self.index, self.input
+            ),
         )
     }
 
@@ -1011,7 +1084,13 @@ impl Scanner {
         self.advance();
         if self.peek == two {
             self.advance();
-            Token::new(start, self.index, TokenType::Operator, 0.0, format!("{}{}", op1, op2))
+            Token::new(
+                start,
+                self.index,
+                TokenType::Operator,
+                0.0,
+                format!("{}{}", op1, op2),
+            )
         } else {
             Token::new(start, self.index, TokenType::Operator, 0.0, op1.to_string())
         }

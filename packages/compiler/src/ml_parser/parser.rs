@@ -6,11 +6,11 @@
 //! NOTE: This is a skeletal implementation with complete structure.
 //! Many methods have TODO markers for detailed implementation.
 
-use crate::parse_util::{ParseError, ParseSourceSpan};
 use super::ast::*;
 use super::lexer::{tokenize, TokenizeOptions};
-use super::tags::{merge_ns_and_name, get_ns_prefix, TagDefinition};
+use super::tags::{get_ns_prefix, merge_ns_and_name, TagDefinition};
 use super::tokens::*;
+use crate::parse_util::{ParseError, ParseSourceSpan};
 
 /// Node containers (can contain child nodes)
 #[derive(Debug, Clone)]
@@ -75,7 +75,12 @@ impl Parser {
         Parser { get_tag_definition }
     }
 
-    pub fn parse(&self, source: &str, url: &str, options: Option<TokenizeOptions>) -> ParseTreeResult {
+    pub fn parse(
+        &self,
+        source: &str,
+        url: &str,
+        options: Option<TokenizeOptions>,
+    ) -> ParseTreeResult {
         self.parse_with_options(source, url, options, ParseOptions::default())
     }
 
@@ -87,8 +92,12 @@ impl Parser {
         parse_options: ParseOptions,
     ) -> ParseTreeResult {
         let opts = tokenize_options.unwrap_or_default();
-        let tokenize_result = tokenize(source.to_string(), url.to_string(), self.get_tag_definition, opts);
-
+        let tokenize_result = tokenize(
+            source.to_string(),
+            url.to_string(),
+            self.get_tag_definition,
+            opts,
+        );
 
         let tree_builder = TreeBuilder::new(
             tokenize_result.tokens,
@@ -97,9 +106,12 @@ impl Parser {
         );
 
         let mut all_errors = tokenize_result.errors;
-        all_errors.extend(tree_builder.errors.into_iter().map(|e| {
-            ParseError::new(e.span, e.msg)
-        }));
+        all_errors.extend(
+            tree_builder
+                .errors
+                .into_iter()
+                .map(|e| ParseError::new(e.span, e.msg)),
+        );
 
         ParseTreeResult::new(tree_builder.root_nodes, all_errors)
     }
@@ -178,7 +190,11 @@ impl TreeBuilder {
                     let tok = self.advance().unwrap();
                     self.consume_comment(tok);
                 }
-                Token::Text(_) | Token::Interpolation(_) | Token::EncodedEntity(_) | Token::RawText(_) | Token::EscapableRawText(_) => {
+                Token::Text(_)
+                | Token::Interpolation(_)
+                | Token::EncodedEntity(_)
+                | Token::RawText(_)
+                | Token::EscapableRawText(_) => {
                     self.close_void_element();
                     let tok = self.advance().unwrap();
                     self.consume_text(tok);
@@ -289,7 +305,9 @@ impl TreeBuilder {
 
     fn advance_if(&mut self, token_type: TokenType) -> Option<Token> {
         if let Some(ref token) = self.peek {
-            if std::mem::discriminant(token) == std::mem::discriminant(&create_token_discriminant(token_type)) {
+            if std::mem::discriminant(token)
+                == std::mem::discriminant(&create_token_discriminant(token_type))
+            {
                 return self.advance();
             }
         }
@@ -325,19 +343,13 @@ impl TreeBuilder {
             } else {
                 None
             };
-            
+
             let end_token = self.advance_if(TokenType::CommentEnd);
 
-            let value = text.and_then(|t| {
-                match t {
-                    Token::Text(txt) => {
-                        txt.parts.get(0).cloned()
-                    },
-                    Token::RawText(txt) => {
-                        txt.parts.get(0).cloned()
-                    },
-                    _ => None
-                }
+            let value = text.and_then(|t| match t {
+                Token::Text(txt) => txt.parts.get(0).cloned(),
+                Token::RawText(txt) => txt.parts.get(0).cloned(),
+                _ => None,
             });
 
             let span = if let Some(Token::CommentEnd(end)) = &end_token {
@@ -383,12 +395,13 @@ impl TreeBuilder {
         }
 
         if !text.is_empty() {
-            let tokens_converted: Vec<InterpolatedTextToken> = tokens.into_iter()
+            let tokens_converted: Vec<InterpolatedTextToken> = tokens
+                .into_iter()
                 .filter_map(|t| match t {
                     Token::Text(txt) => Some(Token::Text(txt)),
                     Token::Interpolation(i) => Some(Token::Interpolation(i)),
                     Token::EncodedEntity(e) => Some(Token::EncodedEntity(e)),
-                    _ => None
+                    _ => None,
                 })
                 .collect();
 
@@ -412,11 +425,11 @@ impl TreeBuilder {
             let switch_value = if let Some(t) = self.peek.clone() {
                 match t {
                     Token::RawText(_) | Token::Text(_) => {
-                         let tok = self.advance().unwrap();
-                         switch_value_span = get_token_source_span(&tok);
-                         get_token_text(&tok)
-                    },
-                    _ => String::new()
+                        let tok = self.advance().unwrap();
+                        switch_value_span = get_token_source_span(&tok);
+                        get_token_text(&tok)
+                    }
+                    _ => String::new(),
                 }
             } else {
                 String::new()
@@ -424,17 +437,17 @@ impl TreeBuilder {
 
             // Note: Commas are consumed by lexer and do not produce tokens.
 
-             // Read type
+            // Read type
             let exp_type = if let Some(t) = self.peek.clone() {
                 match t {
                     Token::RawText(_) | Token::Text(_) => {
-                         let tok = self.advance().unwrap();
-                         get_token_text(&tok)
-                    },
-                     _ => "plural".to_string() // Default?
+                        let tok = self.advance().unwrap();
+                        get_token_text(&tok)
+                    }
+                    _ => "plural".to_string(), // Default?
                 }
             } else {
-                 "plural".to_string()
+                "plural".to_string()
             };
 
             // Commas skipped by lexer
@@ -451,13 +464,16 @@ impl TreeBuilder {
 
             // Expect }
             if !matches!(self.peek, Some(Token::ExpansionFormEnd(_))) {
-                 self.add_error("Invalid ICU message. Missing '}'.".to_string(), exp_token.source_span.clone());
+                self.add_error(
+                    "Invalid ICU message. Missing '}'.".to_string(),
+                    exp_token.source_span.clone(),
+                );
                 return;
             }
 
             let _end_span = get_token_source_span(self.peek.as_ref().unwrap());
             let source_span = exp_token.source_span.clone(); // TODO: Merge with _end_span
-            
+
             let expansion = Expansion {
                 switch_value,
                 expansion_type: exp_type,
@@ -478,7 +494,10 @@ impl TreeBuilder {
 
             // Check for {
             if !matches!(self.peek, Some(Token::ExpansionCaseExpStart(_))) {
-                self.add_error("Invalid ICU message. Missing '{'.".to_string(), value_token.source_span.clone());
+                self.add_error(
+                    "Invalid ICU message. Missing '{'.".to_string(),
+                    value_token.source_span.clone(),
+                );
                 return None;
             }
 
@@ -502,7 +521,10 @@ impl TreeBuilder {
                         exp_tokens.push(self.advance().unwrap());
                     }
                     Some(Token::Eof(_)) => {
-                        self.add_error("Invalid ICU message. Missing '}'.".to_string(), get_token_source_span(&start_token));
+                        self.add_error(
+                            "Invalid ICU message. Missing '}'.".to_string(),
+                            get_token_source_span(&start_token),
+                        );
                         return None;
                     }
                     Some(_) => {
@@ -520,7 +542,11 @@ impl TreeBuilder {
                 source_span: get_token_source_span(&end_token),
             }));
 
-            let mut case_parser = TreeBuilder::new(exp_tokens, self.tag_definition_resolver, self.preserve_whitespaces);
+            let mut case_parser = TreeBuilder::new(
+                exp_tokens,
+                self.tag_definition_resolver,
+                self.preserve_whitespaces,
+            );
             case_parser.build();
 
             if !case_parser.errors.is_empty() {
@@ -560,31 +586,35 @@ impl TreeBuilder {
                 _ => (String::new(), String::new()),
             };
 
-            let mut prefix = if token_prefix.is_empty() { None } else { Some(token_prefix) };
-            
+            let mut prefix = if token_prefix.is_empty() {
+                None
+            } else {
+                Some(token_prefix)
+            };
+
             // Namespace inheritance
             if prefix.is_none() {
-                 if let Some(NodeContainer::Element(parent_el)) = self.get_container() {
-                     // Check if parent prevents inheritance
-                     let parent_tag_def = self.get_tag_definition(&parent_el.name);
-                     if !parent_tag_def.prevent_namespace_inheritance() {
-                         if let Some(ns) = get_ns_prefix(Some(&parent_el.name)) {
-                              prefix = Some(ns.to_string());
-                         }
-                     }
-                 }
+                if let Some(NodeContainer::Element(parent_el)) = self.get_container() {
+                    // Check if parent prevents inheritance
+                    let parent_tag_def = self.get_tag_definition(&parent_el.name);
+                    if !parent_tag_def.prevent_namespace_inheritance() {
+                        if let Some(ns) = get_ns_prefix(Some(&parent_el.name)) {
+                            prefix = Some(ns.to_string());
+                        }
+                    }
+                }
             }
 
             let full_name = merge_ns_and_name(prefix.as_deref(), &token_name);
 
             let tag_def = self.get_tag_definition(&full_name);
             let full_name = if let Some(implicit_ns) = tag_def.implicit_namespace_prefix() {
-                 merge_ns_and_name(Some(implicit_ns), &full_name)
+                merge_ns_and_name(Some(implicit_ns), &full_name)
             } else {
-                 full_name
+                full_name
             };
             // Re-fetch definition after name change? No, implicit namespace depends on the original tag name's definition.
-            // TypeScript: 
+            // TypeScript:
             // const tagDef = this.getHtmlTagDefinition(allNames[0]);
             // if (tagDef.implicitNamespacePrefix) {
             //   fullName = mergeNsAndName(tagDef.implicitNamespacePrefix, allNames[0]);
@@ -600,8 +630,14 @@ impl TreeBuilder {
                 self_closing = true;
 
                 // Validate self-closing
-                if !tag_def.can_self_close() && get_ns_prefix(Some(&full_name)).is_none() && !tag_def.is_void() {
-                    let msg = format!("Only void, custom and foreign elements can be self closed \"{}\"", full_name);
+                if !tag_def.can_self_close()
+                    && get_ns_prefix(Some(&full_name)).is_none()
+                    && !tag_def.is_void()
+                {
+                    let msg = format!(
+                        "Only void, custom and foreign elements can be self closed \"{}\"",
+                        full_name
+                    );
                     self.add_error(msg, start_token.source_span.clone());
                 }
             } else if let Some(Token::TagOpenEnd(tok)) = &self.peek {
@@ -614,18 +650,16 @@ impl TreeBuilder {
             let end_loc = if let Some(loc) = end_span_loc {
                 loc
             } else {
-                 // Fallback to last consumed token end or start token end
-                 // Since we just consumed attributes, check if we have any
-                 // If not, use start_token end.
-                 // Ideally we should check strict token stream, but this is error recovery path.
-                 start_token.source_span.end.clone()
+                // Fallback to last consumed token end or start token end
+                // Since we just consumed attributes, check if we have any
+                // If not, use start_token end.
+                // Ideally we should check strict token stream, but this is error recovery path.
+                start_token.source_span.end.clone()
             };
 
-            let start_span = ParseSourceSpan::new(
-                start_token.source_span.start.clone(),
-                end_loc.clone()
-            );
-            
+            let start_span =
+                ParseSourceSpan::new(start_token.source_span.start.clone(), end_loc.clone());
+
             // source_span initially covers just the start tag (will be updated on close)
             // UNLESS it is self-closing, in which case it is the final span.
             let span = start_span.clone();
@@ -647,10 +681,10 @@ impl TreeBuilder {
             // Push to container stack
             let is_closed_by_child = if let Some(parent) = self.get_container() {
                 match parent {
-                    NodeContainer::Element(parent_el) => {
-                        self.get_tag_definition(&parent_el.name).is_closed_by_child(&full_name)
-                    }
-                    _ => false
+                    NodeContainer::Element(parent_el) => self
+                        .get_tag_definition(&parent_el.name)
+                        .is_closed_by_child(&full_name),
+                    _ => false,
                 }
             } else {
                 false
@@ -673,7 +707,8 @@ impl TreeBuilder {
             } else {
                 // Non-self-closing: Push to stack to collect children
                 // Will be added to parent when end tag is processed
-                self.container_stack.push(NodeContainer::Element(element.clone()));
+                self.container_stack
+                    .push(NodeContainer::Element(element.clone()));
             }
         }
     }
@@ -690,8 +725,12 @@ impl TreeBuilder {
             };
 
             let full_name = merge_ns_and_name(
-                if end_token_prefix.is_empty() { None } else { Some(&end_token_prefix) },
-                &end_token_name
+                if end_token_prefix.is_empty() {
+                    None
+                } else {
+                    Some(&end_token_prefix)
+                },
+                &end_token_name,
             );
 
             let tag_def = self.get_tag_definition(&full_name);
@@ -716,31 +755,35 @@ impl TreeBuilder {
             for i in (0..self.container_stack.len()).rev() {
                 if let NodeContainer::Element(el) = &self.container_stack[i] {
                     // Calculate expected name for this element context
-                    let mut prefix = if end_token_prefix.is_empty() { None } else { Some(end_token_prefix.clone()) };
-                    
+                    let mut prefix = if end_token_prefix.is_empty() {
+                        None
+                    } else {
+                        Some(end_token_prefix.clone())
+                    };
+
                     if prefix.is_none() {
-                         // Check parent in stack (element at i-1)
-                         // Or if i=0, check root? (Root usually doesn't have parent for this context, or context matters)
-                         // But usually we only care about elements in the stack.
-                         
-                         // Note: We need to find the nearest ELEMENT parent.
-                         // Intervening blocks shouldn't break namespace inheritance? 
-                         // For now, look at immediate container parent if it exists.
-                         
-                         let parent_result = if i > 0 {
-                             Some(&self.container_stack[i-1])
-                         } else {
-                             None
-                         };
-                         
-                         if let Some(NodeContainer::Element(parent_el)) = parent_result {
-                             let parent_tag_def = self.get_tag_definition(&parent_el.name);
-                             if !parent_tag_def.prevent_namespace_inheritance() {
-                                 if let Some(ns) = get_ns_prefix(Some(&parent_el.name)) {
-                                      prefix = Some(ns.to_string());
-                                 }
-                             }
-                         }
+                        // Check parent in stack (element at i-1)
+                        // Or if i=0, check root? (Root usually doesn't have parent for this context, or context matters)
+                        // But usually we only care about elements in the stack.
+
+                        // Note: We need to find the nearest ELEMENT parent.
+                        // Intervening blocks shouldn't break namespace inheritance?
+                        // For now, look at immediate container parent if it exists.
+
+                        let parent_result = if i > 0 {
+                            Some(&self.container_stack[i - 1])
+                        } else {
+                            None
+                        };
+
+                        if let Some(NodeContainer::Element(parent_el)) = parent_result {
+                            let parent_tag_def = self.get_tag_definition(&parent_el.name);
+                            if !parent_tag_def.prevent_namespace_inheritance() {
+                                if let Some(ns) = get_ns_prefix(Some(&parent_el.name)) {
+                                    prefix = Some(ns.to_string());
+                                }
+                            }
+                        }
                     }
 
                     let mut target_name = merge_ns_and_name(prefix.as_deref(), &end_token_name);
@@ -755,7 +798,6 @@ impl TreeBuilder {
                         match_index = Some(i);
                         break;
                     } else {
-
                     }
                 }
             }
@@ -773,7 +815,7 @@ impl TreeBuilder {
                             // Update source_span to cover start to end
                             el.source_span = ParseSourceSpan::new(
                                 el.start_source_span.start.clone(),
-                                end_token.source_span.end.clone()
+                                end_token.source_span.end.clone(),
                             );
                         } else {
                             // Implicitly closed: Report error if not void and not closed by parent
@@ -781,7 +823,7 @@ impl TreeBuilder {
                             if !el.is_void && !el_tag_def.closed_by_parent() {
                                 self.add_error(
                                     format!("Unclosed element \"{}\"", el.name),
-                                    el.source_span.clone()
+                                    el.source_span.clone(),
                                 );
                             }
                         }
@@ -791,9 +833,15 @@ impl TreeBuilder {
                             // Has parent - add to parent's children
                             if let Some(parent) = self.container_stack.get_mut(i - 1) {
                                 match parent {
-                                    NodeContainer::Element(parent_el) => parent_el.children.push(Node::Element(el)),
-                                    NodeContainer::Block(parent_block) => parent_block.children.push(Node::Element(el)),
-                                    NodeContainer::Component(parent_comp) => parent_comp.children.push(Node::Element(el)),
+                                    NodeContainer::Element(parent_el) => {
+                                        parent_el.children.push(Node::Element(el))
+                                    }
+                                    NodeContainer::Block(parent_block) => {
+                                        parent_block.children.push(Node::Element(el))
+                                    }
+                                    NodeContainer::Component(parent_comp) => {
+                                        parent_comp.children.push(Node::Element(el))
+                                    }
                                 }
                             }
                         } else {
@@ -801,7 +849,7 @@ impl TreeBuilder {
                             self.root_nodes.push(Node::Element(el));
                         }
                     } else if i == idx {
-                         // Should not happen as we checked NodeContainer::Element above
+                        // Should not happen as we checked NodeContainer::Element above
                     }
                     // For non-element containers (Block, Component), we also pop them?
                     // Assuming we only close elements here. But if a block is inside an element, it should be closed too?
@@ -822,11 +870,14 @@ impl TreeBuilder {
         }
     }
 
-    fn consume_attributes_and_directives(&mut self, attrs: &mut Vec<Attribute>, directives: &mut Vec<Directive>) {
+    fn consume_attributes_and_directives(
+        &mut self,
+        attrs: &mut Vec<Attribute>,
+        directives: &mut Vec<Directive>,
+    ) {
         // Collect all attributes and directives
 
         while let Some(token) = &self.peek {
-
             match token {
                 Token::AttrName(_) => {
                     if let Some(Token::AttrName(attr_token)) = self.advance() {
@@ -835,7 +886,6 @@ impl TreeBuilder {
                     }
                 }
                 Token::DirectiveName(_) => {
-
                     if let Some(Token::DirectiveName(dir_token)) = self.advance() {
                         let directive = self.consume_directive(dir_token);
 
@@ -859,7 +909,7 @@ impl TreeBuilder {
         } else {
             merge_ns_and_name(
                 Some(&attr_name.parts[0]),
-                &attr_name.parts.get(1).map(|s| s.as_str()).unwrap_or("")
+                &attr_name.parts.get(1).map(|s| s.as_str()).unwrap_or(""),
             )
         };
         let name = full_name;
@@ -875,26 +925,28 @@ impl TreeBuilder {
 
         // Consume attribute value (Text, Interpolation, EncodedEntity)
         while let Some(token) = &self.peek {
-             match token {
-                 Token::AttrValueText(_) | Token::AttrValueInterpolation(_) | Token::EncodedEntity(_) => {
-                     if let Some(val_token) = self.advance() {
-                         let text = get_token_text(&val_token);
-                         value.push_str(&text);
-                         
-                         let span = get_token_source_span(&val_token);
-                         if value_span.is_none() {
-                             value_span = Some(span.clone());
-                         } else {
-                             // Merge spans
-                             if let Some(ref mut vs) = value_span {
-                                 vs.end = span.end.clone();
-                             }
-                         }
-                         value_tokens.push(val_token);
-                     }
-                 }
-                 _ => break,
-             }
+            match token {
+                Token::AttrValueText(_)
+                | Token::AttrValueInterpolation(_)
+                | Token::EncodedEntity(_) => {
+                    if let Some(val_token) = self.advance() {
+                        let text = get_token_text(&val_token);
+                        value.push_str(&text);
+
+                        let span = get_token_source_span(&val_token);
+                        if value_span.is_none() {
+                            value_span = Some(span.clone());
+                        } else {
+                            // Merge spans
+                            if let Some(ref mut vs) = value_span {
+                                vs.end = span.end.clone();
+                            }
+                        }
+                        value_tokens.push(val_token);
+                    }
+                }
+                _ => break,
+            }
         }
 
         // Consume closing quote
@@ -905,22 +957,23 @@ impl TreeBuilder {
         };
 
         if let Some(Token::AttrQuote(quote)) = self.peek.clone() {
-             end_span_loc = quote.source_span.end.clone();
-             self.advance();
+            end_span_loc = quote.source_span.end.clone();
+            self.advance();
         }
-        
-        let source_span = ParseSourceSpan::new(
-            attr_name.source_span.start.clone(),
-            end_span_loc
-        );
-        
+
+        let source_span = ParseSourceSpan::new(attr_name.source_span.start.clone(), end_span_loc);
+
         Attribute {
             name,
             value,
             source_span,
             key_span: Some(attr_name.source_span),
             value_span,
-            value_tokens: if value_tokens.is_empty() { None } else { Some(value_tokens) },
+            value_tokens: if value_tokens.is_empty() {
+                None
+            } else {
+                Some(value_tokens)
+            },
             i18n: None,
         }
     }
@@ -943,11 +996,13 @@ impl TreeBuilder {
         // Consume directive value (Text, Interpolation, EncodedEntity)
         while let Some(token) = &self.peek {
             match token {
-                Token::AttrValueText(_) | Token::AttrValueInterpolation(_) | Token::EncodedEntity(_) => {
+                Token::AttrValueText(_)
+                | Token::AttrValueInterpolation(_)
+                | Token::EncodedEntity(_) => {
                     if let Some(val_token) = self.advance() {
                         let text = get_token_text(&val_token);
                         value.push_str(&text);
-                        
+
                         let span = get_token_source_span(&val_token);
                         if value_span.is_none() {
                             value_span = Some(span.clone());
@@ -963,7 +1018,7 @@ impl TreeBuilder {
         if let Some(Token::AttrQuote(_)) = self.peek {
             self.advance();
         }
-        
+
         // If we collected a value, create a synthetic attribute for it
         if !value.is_empty() {
             let key_span = name_token.source_span.clone();
@@ -973,7 +1028,11 @@ impl TreeBuilder {
                 source_span: key_span.clone(),
                 key_span: Some(key_span.clone()),
                 value_span: value_span.clone(),
-                value_tokens: if value_tokens.is_empty() { None } else { Some(value_tokens.clone()) },
+                value_tokens: if value_tokens.is_empty() {
+                    None
+                } else {
+                    Some(value_tokens.clone())
+                },
                 i18n: None,
             });
         }
@@ -991,7 +1050,10 @@ impl TreeBuilder {
             if let Some(Token::DirectiveClose(close)) = self.advance_if(TokenType::DirectiveClose) {
                 end_source_span = Some(close.source_span);
             } else {
-                self.add_error("Unterminated directive definition".to_string(), name_token.source_span.clone());
+                self.add_error(
+                    "Unterminated directive definition".to_string(),
+                    name_token.source_span.clone(),
+                );
             }
         }
 
@@ -1004,10 +1066,13 @@ impl TreeBuilder {
 
         let name_idx = if name_token.parts.len() > 1 { 1 } else { 0 };
         let full_name = name_token.parts.get(name_idx).cloned().unwrap_or_default();
-        let name = if full_name.starts_with('*') || full_name.starts_with('@') || full_name.starts_with(':') {
-             full_name[1..].to_string()
+        let name = if full_name.starts_with('*')
+            || full_name.starts_with('@')
+            || full_name.starts_with(':')
+        {
+            full_name[1..].to_string()
         } else {
-             full_name
+            full_name
         };
 
         Directive {
@@ -1032,7 +1097,10 @@ impl TreeBuilder {
         if let Some(Token::DirectiveClose(close)) = self.advance_if(TokenType::DirectiveClose) {
             end_source_span = Some(close.source_span);
         } else {
-            self.add_error("Unterminated directive definition".to_string(), open_token.source_span.clone());
+            self.add_error(
+                "Unterminated directive definition".to_string(),
+                open_token.source_span.clone(),
+            );
         }
 
         let start_span = open_token.source_span.clone();
@@ -1044,10 +1112,13 @@ impl TreeBuilder {
 
         let name_idx = if open_token.parts.len() > 1 { 1 } else { 0 };
         let full_name = open_token.parts.get(name_idx).cloned().unwrap_or_default();
-         let name = if full_name.starts_with('*') || full_name.starts_with('@') || full_name.starts_with(':') {
-             full_name[1..].to_string()
+        let name = if full_name.starts_with('*')
+            || full_name.starts_with('@')
+            || full_name.starts_with(':')
+        {
+            full_name[1..].to_string()
         } else {
-             full_name
+            full_name
         };
 
         Directive {
@@ -1064,7 +1135,9 @@ impl TreeBuilder {
             let mut parameters = Vec::new();
 
             // Collect block parameters
-            while let Some(Token::BlockParameter(param)) = self.advance_if(TokenType::BlockParameter) {
+            while let Some(Token::BlockParameter(param)) =
+                self.advance_if(TokenType::BlockParameter)
+            {
                 parameters.push(BlockParameter::new(
                     param.parts.get(0).cloned().unwrap_or_default(),
                     param.source_span,
@@ -1106,7 +1179,9 @@ impl TreeBuilder {
             let mut parameters = Vec::new();
 
             // Collect block parameters if any (though usually incomplete implies issues before params)
-            while let Some(Token::BlockParameter(param)) = self.advance_if(TokenType::BlockParameter) {
+            while let Some(Token::BlockParameter(param)) =
+                self.advance_if(TokenType::BlockParameter)
+            {
                 parameters.push(BlockParameter::new(
                     param.parts.get(0).cloned().unwrap_or_default(),
                     param.source_span,
@@ -1114,13 +1189,13 @@ impl TreeBuilder {
             }
 
             let span = block_token.source_span.clone();
-            
+
             // Report error for missing parameters or brace
             // TypeScript: parser.ts _consumeIncompleteBlockOpen
             // if (this._cursor.peek() === chars.$EOF) ...
             // But lexer handled incomplete, passing token.
             // We just create block and error?
-            
+
             let block = Block {
                 name: block_token.parts.get(0).cloned().unwrap_or_default(),
                 parameters,
@@ -1132,33 +1207,33 @@ impl TreeBuilder {
                 end_source_span: None,
                 i18n: None,
             };
-            
+
             self.container_stack.push(NodeContainer::Block(block));
         }
     }
 
     fn consume_incomplete_let(&mut self, token: Token) {
         if let Token::IncompleteLet(let_token) = token {
-             let span = let_token.source_span.clone();
-             // Create declaration but add error?
-             // In TypeScript, it seems incomplete let is just processed as much as possible?
-             // Actually incomplete Let usually implies missing semicolon or value?
-             
-             // For now, let's treat it as a let declaration but closed? 
-             // Or just add error and stop?
-             
-             // Assuming it's similar to LetStart but incomplete.
-             let decl = LetDeclaration {
+            let span = let_token.source_span.clone();
+            // Create declaration but add error?
+            // In TypeScript, it seems incomplete let is just processed as much as possible?
+            // Actually incomplete Let usually implies missing semicolon or value?
+
+            // For now, let's treat it as a let declaration but closed?
+            // Or just add error and stop?
+
+            // Assuming it's similar to LetStart but incomplete.
+            let decl = LetDeclaration {
                 name: let_token.parts.get(0).cloned().unwrap_or_default(),
                 value: String::new(), // Incomplete
                 source_span: span.clone(),
                 name_span: span.clone(),
                 value_span: span.clone(),
-             };
-             self.add_to_parent(Node::LetDeclaration(decl));
-             
-             // Add error
-             // self.add_error("Incomplete let declaration".to_string(), span);
+            };
+            self.add_to_parent(Node::LetDeclaration(decl));
+
+            // Add error
+            // self.add_error("Incomplete let declaration".to_string(), span);
         }
     }
 
@@ -1177,7 +1252,7 @@ impl TreeBuilder {
                     while self.container_stack.len() > i + 1 {
                         let invalid = self.container_stack.pop().unwrap();
                         if let NodeContainer::Element(el) = invalid {
-                             self.add_error(
+                            self.add_error(
                                 format!("Unexpected closing tag \"{}\". It may happen when the tag \"{}\" has already been closed by another tag. For more info see https://www.w3.org/TR/html5/syntax.html#closing-elements-that-have-implied-end-tags", el.name, el.name),
                                 el.source_span.clone(),
                             );
@@ -1189,7 +1264,7 @@ impl TreeBuilder {
                     // Now pop the block itself
                     let removed = self.container_stack.remove(i);
                     // ... (rest of logic handles adding block to parent)
-                    
+
                     if let NodeContainer::Block(mut block) = removed {
                         block.end_source_span = Some(close_token.source_span.clone());
 
@@ -1198,9 +1273,15 @@ impl TreeBuilder {
                             // Has parent - add to parent's children
                             if let Some(parent) = self.container_stack.get_mut(i - 1) {
                                 match parent {
-                                    NodeContainer::Element(parent_el) => parent_el.children.push(Node::Block(block)),
-                                    NodeContainer::Block(parent_block) => parent_block.children.push(Node::Block(block)),
-                                    NodeContainer::Component(parent_comp) => parent_comp.children.push(Node::Block(block)),
+                                    NodeContainer::Element(parent_el) => {
+                                        parent_el.children.push(Node::Block(block))
+                                    }
+                                    NodeContainer::Block(parent_block) => {
+                                        parent_block.children.push(Node::Block(block))
+                                    }
+                                    NodeContainer::Component(parent_comp) => {
+                                        parent_comp.children.push(Node::Block(block))
+                                    }
                                 }
                             }
                         } else {
@@ -1267,11 +1348,20 @@ impl TreeBuilder {
                 1 => (String::new(), start_token.parts[0].clone()),
                 _ => (String::new(), String::new()),
             };
-            
-            let prefix = if token_prefix.is_empty() { None } else { Some(token_prefix.clone()) };
+
+            let prefix = if token_prefix.is_empty() {
+                None
+            } else {
+                Some(token_prefix.clone())
+            };
             let full_name = merge_ns_and_name(prefix.as_deref(), &token_name);
-            
-            let component_name = if !token_prefix.is_empty() && token_prefix.chars().next().map_or(false, |c| c.is_uppercase()) {
+
+            let component_name = if !token_prefix.is_empty()
+                && token_prefix
+                    .chars()
+                    .next()
+                    .map_or(false, |c| c.is_uppercase())
+            {
                 token_prefix.clone()
             } else {
                 token_name.clone()
@@ -1308,7 +1398,8 @@ impl TreeBuilder {
                 self.add_to_parent(Node::Component(component));
             } else {
                 // Not self-closing - push to stack to collect children
-                self.container_stack.push(NodeContainer::Component(component));
+                self.container_stack
+                    .push(NodeContainer::Component(component));
             }
         }
     }
@@ -1324,8 +1415,12 @@ impl TreeBuilder {
             };
 
             let full_name = merge_ns_and_name(
-                if end_token_prefix.is_empty() { None } else { Some(&end_token_prefix) },
-                &end_token_name
+                if end_token_prefix.is_empty() {
+                    None
+                } else {
+                    Some(&end_token_prefix)
+                },
+                &end_token_name,
             );
 
             // Find and pop matching component from stack
@@ -1345,9 +1440,15 @@ impl TreeBuilder {
                                 // Has parent - add to parent's children
                                 if let Some(parent) = self.container_stack.get_mut(i - 1) {
                                     match parent {
-                                        NodeContainer::Element(parent_el) => parent_el.children.push(Node::Component(comp)),
-                                        NodeContainer::Block(parent_block) => parent_block.children.push(Node::Component(comp)),
-                                        NodeContainer::Component(parent_comp) => parent_comp.children.push(Node::Component(comp)),
+                                        NodeContainer::Element(parent_el) => {
+                                            parent_el.children.push(Node::Component(comp))
+                                        }
+                                        NodeContainer::Block(parent_block) => {
+                                            parent_block.children.push(Node::Component(comp))
+                                        }
+                                        NodeContainer::Component(parent_comp) => {
+                                            parent_comp.children.push(Node::Component(comp))
+                                        }
                                     }
                                 }
                             } else {
@@ -1363,13 +1464,12 @@ impl TreeBuilder {
             }
 
             if !found {
-                 let msg = format!(
+                let msg = format!(
                      "Unexpected component closing tag \"{}\". It may happen when the tag has already been closed by another tag.",
                      full_name
                  );
-                 self.add_error(msg, end_token.source_span);
+                self.add_error(msg, end_token.source_span);
             }
-
         }
     }
 
@@ -1405,15 +1505,23 @@ impl TreeBuilder {
         };
 
         if should_merge {
-            let new_text = if let Node::Text(t) = node { t } else { unreachable!() };
+            let new_text = if let Node::Text(t) = node {
+                t
+            } else {
+                unreachable!()
+            };
             // Use unwrap because we checked matches above
-            let last_text = if let Some(Node::Text(t)) = list.last_mut() { t } else { unreachable!() };
-            
+            let last_text = if let Some(Node::Text(t)) = list.last_mut() {
+                t
+            } else {
+                unreachable!()
+            };
+
             // println!("DEBUG: Merging text. Last: {:?} ({:?}), New: {:?} ({:?})", last_text.value, last_text.source_span, new_text.value, new_text.source_span);
             last_text.value.push_str(&new_text.value);
             last_text.tokens.extend(new_text.tokens);
             last_text.source_span.end = new_text.source_span.end;
-             // println!("DEBUG: Result span: {:?}", last_text.source_span);
+            // println!("DEBUG: Result span: {:?}", last_text.source_span);
         } else {
             list.push(node);
         }
@@ -1431,39 +1539,45 @@ impl TreeBuilder {
             return nodes; // Safety limit
         }
 
-        nodes.into_iter().filter_map(|node| {
-            match node {
-                Node::Element(mut el) => {
-                    // Recursively process children
-                    el.children = Self::remove_whitespace_from_list_static(el.children, depth + 1);
-                    Some(Node::Element(el))
-                }
-                Node::Block(mut block) => {
-                    // Recursively process children
-                    block.children = Self::remove_whitespace_from_list_static(block.children, depth + 1);
-                    Some(Node::Block(block))
-                }
-                Node::Component(mut comp) => {
-                    // Recursively process children
-                    comp.children = Self::remove_whitespace_from_list_static(comp.children, depth + 1);
-                    Some(Node::Component(comp))
-                }
-                Node::Text(text) => {
-                    // Remove if ONLY contains WS_CHARS (preserve nbsp \u{00A0})
-                    // WS_CHARS: space, tab, newline, carriage return, form feed
-                    const WS_CHARS: &str = " \t\n\r\u{000C}";
-                    let is_whitespace_only = text.value.chars().all(|c| WS_CHARS.contains(c));
-                    
-                    if is_whitespace_only {
-                        None // Filter out
-                    } else {
-                        Some(Node::Text(text))
+        nodes
+            .into_iter()
+            .filter_map(|node| {
+                match node {
+                    Node::Element(mut el) => {
+                        // Recursively process children
+                        el.children =
+                            Self::remove_whitespace_from_list_static(el.children, depth + 1);
+                        Some(Node::Element(el))
                     }
+                    Node::Block(mut block) => {
+                        // Recursively process children
+                        block.children =
+                            Self::remove_whitespace_from_list_static(block.children, depth + 1);
+                        Some(Node::Block(block))
+                    }
+                    Node::Component(mut comp) => {
+                        // Recursively process children
+                        comp.children =
+                            Self::remove_whitespace_from_list_static(comp.children, depth + 1);
+                        Some(Node::Component(comp))
+                    }
+                    Node::Text(text) => {
+                        // Remove if ONLY contains WS_CHARS (preserve nbsp \u{00A0})
+                        // WS_CHARS: space, tab, newline, carriage return, form feed
+                        const WS_CHARS: &str = " \t\n\r\u{000C}";
+                        let is_whitespace_only = text.value.chars().all(|c| WS_CHARS.contains(c));
+
+                        if is_whitespace_only {
+                            None // Filter out
+                        } else {
+                            Some(Node::Text(text))
+                        }
+                    }
+                    // Keep other node types as-is
+                    _ => Some(node),
                 }
-                // Keep other node types as-is
-                _ => Some(node),
-            }
-        }).collect()
+            })
+            .collect()
     }
 
     fn push_container(&mut self, container: NodeContainer) {
@@ -1494,11 +1608,15 @@ fn get_token_source_span(token: &Token) -> ParseSourceSpan {
         _ => ParseSourceSpan::new(
             crate::parse_util::ParseLocation::new(
                 crate::parse_util::ParseSourceFile::new(String::new(), String::new()),
-                0, 0, 0
+                0,
+                0,
+                0,
             ),
             crate::parse_util::ParseLocation::new(
                 crate::parse_util::ParseSourceFile::new(String::new(), String::new()),
-                0, 0, 0
+                0,
+                0,
+                0,
             ),
         ),
     }
@@ -1510,9 +1628,7 @@ fn get_token_text(token: &Token) -> String {
         Token::RawText(t) => t.parts.join(""),
         Token::EscapableRawText(t) => t.parts.join(""),
         Token::Interpolation(t) => t.parts.join(""),
-        Token::EncodedEntity(t) => {
-            t.parts.get(0).cloned().unwrap_or_default()
-        },
+        Token::EncodedEntity(t) => t.parts.get(0).cloned().unwrap_or_default(),
         Token::AttrValueText(t) => t.parts.join(""),
         Token::AttrValueInterpolation(t) => t.parts.join(""),
         _ => String::new(),
@@ -1525,62 +1641,197 @@ fn create_token_discriminant(token_type: TokenType) -> Token {
     let dummy_span = ParseSourceSpan::new(
         crate::parse_util::ParseLocation::new(
             crate::parse_util::ParseSourceFile::new(String::new(), String::new()),
-            0, 0, 0
+            0,
+            0,
+            0,
         ),
         crate::parse_util::ParseLocation::new(
             crate::parse_util::ParseSourceFile::new(String::new(), String::new()),
-            0, 0, 0
+            0,
+            0,
+            0,
         ),
     );
 
     match token_type {
-        TokenType::TagOpenStart => Token::TagOpenStart(TagOpenStartToken { parts: vec![], source_span: dummy_span }),
-        TokenType::TagOpenEnd => Token::TagOpenEnd(TagOpenEndToken { parts: vec![], source_span: dummy_span }),
-        TokenType::TagOpenEndVoid => Token::TagOpenEndVoid(TagOpenEndVoidToken { parts: vec![], source_span: dummy_span }),
-        TokenType::TagClose => Token::TagClose(TagCloseToken { parts: vec![], source_span: dummy_span }),
-        TokenType::AttrName => Token::AttrName(AttributeNameToken { parts: vec![], source_span: dummy_span }),
-        TokenType::AttrQuote => Token::AttrQuote(AttributeQuoteToken { parts: vec![], source_span: dummy_span }),
-        TokenType::AttrValueText => Token::AttrValueText(AttributeValueTextToken { parts: vec![], source_span: dummy_span }),
-        TokenType::Text => Token::Text(TextToken { parts: vec![], source_span: dummy_span }),
-        TokenType::CommentStart => Token::CommentStart(CommentStartToken { parts: vec![], source_span: dummy_span }),
-        TokenType::CommentEnd => Token::CommentEnd(CommentEndToken { parts: vec![], source_span: dummy_span }),
-        TokenType::CdataStart => Token::CdataStart(CdataStartToken { parts: vec![], source_span: dummy_span }),
-        TokenType::CdataEnd => Token::CdataEnd(CdataEndToken { parts: vec![], source_span: dummy_span }),
-        TokenType::BlockOpenStart => Token::BlockOpenStart(BlockOpenStartToken { parts: vec![], source_span: dummy_span }),
-        TokenType::BlockOpenEnd => Token::BlockOpenEnd(BlockOpenEndToken { parts: vec![], source_span: dummy_span }),
-        TokenType::BlockClose => Token::BlockClose(BlockCloseToken { parts: vec![], source_span: dummy_span }),
-        TokenType::BlockParameter => Token::BlockParameter(BlockParameterToken { parts: vec![], source_span: dummy_span }),
-        TokenType::LetStart => Token::LetStart(LetStartToken { parts: vec![], source_span: dummy_span }),
-        TokenType::LetValue => Token::LetValue(LetValueToken { parts: vec![], source_span: dummy_span }),
-        TokenType::LetEnd => Token::LetEnd(LetEndToken { parts: vec![], source_span: dummy_span }),
-        TokenType::ExpansionFormStart => Token::ExpansionFormStart(ExpansionFormStartToken { parts: vec![], source_span: dummy_span }),
-        TokenType::ExpansionFormEnd => Token::ExpansionFormEnd(ExpansionFormEndToken { parts: vec![], source_span: dummy_span }),
-        TokenType::ExpansionCaseValue => Token::ExpansionCaseValue(ExpansionCaseValueToken { parts: vec![], source_span: dummy_span }),
-        TokenType::ExpansionCaseExpStart => Token::ExpansionCaseExpStart(ExpansionCaseExpressionStartToken { parts: vec![], source_span: dummy_span }),
-        TokenType::ExpansionCaseExpEnd => Token::ExpansionCaseExpEnd(ExpansionCaseExpressionEndToken { parts: vec![], source_span: dummy_span }),
-        TokenType::Eof => Token::Eof(EndOfFileToken { parts: vec![], source_span: dummy_span }),
-        TokenType::DirectiveName => Token::DirectiveName(DirectiveNameToken { parts: vec![], source_span: dummy_span }),
-        TokenType::DirectiveOpen => Token::DirectiveOpen(DirectiveOpenToken { parts: vec![], source_span: dummy_span }),
-        TokenType::DirectiveClose => Token::DirectiveClose(DirectiveCloseToken { parts: vec![], source_span: dummy_span }),
-        TokenType::RawText => Token::RawText(RawTextToken { parts: vec![], source_span: dummy_span }),
-        TokenType::EscapableRawText => Token::EscapableRawText(EscapableRawTextToken { parts: vec![], source_span: dummy_span }),
-        TokenType::EncodedEntity => Token::EncodedEntity(EncodedEntityToken { parts: vec![], source_span: dummy_span }),
-        TokenType::DocType => Token::DocType(DocTypeToken { parts: vec![], source_span: dummy_span }),
-        TokenType::ComponentOpenStart => Token::ComponentOpenStart(ComponentOpenStartToken { parts: vec![], source_span: dummy_span }),
-        TokenType::ComponentOpenEnd => Token::ComponentOpenEnd(ComponentOpenEndToken { parts: vec![], source_span: dummy_span }),
-        TokenType::ComponentOpenEndVoid => Token::ComponentOpenEndVoid(ComponentOpenEndVoidToken { parts: vec![], source_span: dummy_span }),
-        TokenType::ComponentClose => Token::ComponentClose(ComponentCloseToken { parts: vec![], source_span: dummy_span }),
-        TokenType::IncompleteComponentOpen => Token::IncompleteComponentOpen(IncompleteComponentOpenToken { parts: vec![], source_span: dummy_span }),
-        TokenType::Interpolation => Token::Interpolation(InterpolationToken { parts: vec![], source_span: dummy_span }),
-        TokenType::AttrValueInterpolation => Token::AttrValueInterpolation(AttributeValueInterpolationToken { parts: vec![], source_span: dummy_span }),
-        TokenType::IncompleteTagOpen => Token::IncompleteTagOpen(IncompleteTagOpenToken { parts: vec![], source_span: dummy_span }),
-        TokenType::IncompleteLet => Token::IncompleteLet(IncompleteLetToken { parts: vec![], source_span: dummy_span }),
-        TokenType::IncompleteBlockOpen => Token::IncompleteBlockOpen(IncompleteBlockOpenToken { parts: vec![], source_span: dummy_span }),
-
+        TokenType::TagOpenStart => Token::TagOpenStart(TagOpenStartToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::TagOpenEnd => Token::TagOpenEnd(TagOpenEndToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::TagOpenEndVoid => Token::TagOpenEndVoid(TagOpenEndVoidToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::TagClose => Token::TagClose(TagCloseToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::AttrName => Token::AttrName(AttributeNameToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::AttrQuote => Token::AttrQuote(AttributeQuoteToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::AttrValueText => Token::AttrValueText(AttributeValueTextToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::Text => Token::Text(TextToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::CommentStart => Token::CommentStart(CommentStartToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::CommentEnd => Token::CommentEnd(CommentEndToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::CdataStart => Token::CdataStart(CdataStartToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::CdataEnd => Token::CdataEnd(CdataEndToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::BlockOpenStart => Token::BlockOpenStart(BlockOpenStartToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::BlockOpenEnd => Token::BlockOpenEnd(BlockOpenEndToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::BlockClose => Token::BlockClose(BlockCloseToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::BlockParameter => Token::BlockParameter(BlockParameterToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::LetStart => Token::LetStart(LetStartToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::LetValue => Token::LetValue(LetValueToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::LetEnd => Token::LetEnd(LetEndToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::ExpansionFormStart => Token::ExpansionFormStart(ExpansionFormStartToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::ExpansionFormEnd => Token::ExpansionFormEnd(ExpansionFormEndToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::ExpansionCaseValue => Token::ExpansionCaseValue(ExpansionCaseValueToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::ExpansionCaseExpStart => {
+            Token::ExpansionCaseExpStart(ExpansionCaseExpressionStartToken {
+                parts: vec![],
+                source_span: dummy_span,
+            })
+        }
+        TokenType::ExpansionCaseExpEnd => {
+            Token::ExpansionCaseExpEnd(ExpansionCaseExpressionEndToken {
+                parts: vec![],
+                source_span: dummy_span,
+            })
+        }
+        TokenType::Eof => Token::Eof(EndOfFileToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::DirectiveName => Token::DirectiveName(DirectiveNameToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::DirectiveOpen => Token::DirectiveOpen(DirectiveOpenToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::DirectiveClose => Token::DirectiveClose(DirectiveCloseToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::RawText => Token::RawText(RawTextToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::EscapableRawText => Token::EscapableRawText(EscapableRawTextToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::EncodedEntity => Token::EncodedEntity(EncodedEntityToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::DocType => Token::DocType(DocTypeToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::ComponentOpenStart => Token::ComponentOpenStart(ComponentOpenStartToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::ComponentOpenEnd => Token::ComponentOpenEnd(ComponentOpenEndToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::ComponentOpenEndVoid => Token::ComponentOpenEndVoid(ComponentOpenEndVoidToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::ComponentClose => Token::ComponentClose(ComponentCloseToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::IncompleteComponentOpen => {
+            Token::IncompleteComponentOpen(IncompleteComponentOpenToken {
+                parts: vec![],
+                source_span: dummy_span,
+            })
+        }
+        TokenType::Interpolation => Token::Interpolation(InterpolationToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::AttrValueInterpolation => {
+            Token::AttrValueInterpolation(AttributeValueInterpolationToken {
+                parts: vec![],
+                source_span: dummy_span,
+            })
+        }
+        TokenType::IncompleteTagOpen => Token::IncompleteTagOpen(IncompleteTagOpenToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::IncompleteLet => Token::IncompleteLet(IncompleteLetToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
+        TokenType::IncompleteBlockOpen => Token::IncompleteBlockOpen(IncompleteBlockOpenToken {
+            parts: vec![],
+            source_span: dummy_span,
+        }),
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -1590,12 +1841,22 @@ mod tests {
     fn test_tree_error_creation() {
         let span = ParseSourceSpan::new(
             crate::parse_util::ParseLocation::new(
-                crate::parse_util::ParseSourceFile::new("test".to_string(), "test.html".to_string()),
-                0, 0, 0
+                crate::parse_util::ParseSourceFile::new(
+                    "test".to_string(),
+                    "test.html".to_string(),
+                ),
+                0,
+                0,
+                0,
             ),
             crate::parse_util::ParseLocation::new(
-                crate::parse_util::ParseSourceFile::new("test".to_string(), "test.html".to_string()),
-                0, 0, 0
+                crate::parse_util::ParseSourceFile::new(
+                    "test".to_string(),
+                    "test.html".to_string(),
+                ),
+                0,
+                0,
+                0,
             ),
         );
 
@@ -1611,4 +1872,3 @@ mod tests {
         assert_eq!(result.errors.len(), 0);
     }
 }
-

@@ -9,14 +9,14 @@
 
 // Special characters
 pub const EOF: char = '\0';
-pub const BSPACE: char = '\x08';  // Backspace
+pub const BSPACE: char = '\x08'; // Backspace
 pub const TAB: char = '\t';
-pub const LF: char = '\n';        // Line feed
-pub const NEWLINE: char = '\n';   // Alias for LF
+pub const LF: char = '\n'; // Line feed
+pub const NEWLINE: char = '\n'; // Alias for LF
 pub const VTAB: char = '\x0B';
 pub const FF: char = '\x0C';
-pub const CR: char = '\r';        // Carriage return
-pub const RETURN: char = '\r';    // Alias for CR
+pub const CR: char = '\r'; // Carriage return
+pub const RETURN: char = '\r'; // Alias for CR
 pub const SPACE: char = ' ';
 pub const NBSP: char = '\u{00A0}';
 
@@ -55,7 +55,7 @@ pub const BT: char = '`';
 // Braces
 pub const LBRACE: char = '{';
 pub const BAR: char = '|';
-pub const PIPE: char = '|';       // Alias for BAR
+pub const PIPE: char = '|'; // Alias for BAR
 pub const RBRACE: char = '}';
 pub const TILDA: char = '~';
 
@@ -80,14 +80,21 @@ pub const z: char = 'z';
 
 // Digits
 pub const ZERO: char = '0';
-pub const CHAR_0: char = '0';     // Alias for ZERO
+pub const CHAR_0: char = '0'; // Alias for ZERO
 pub const CHAR_7: char = '7';
 pub const CHAR_9: char = '9';
-pub const NINE: char = '9';       // Alias for CHAR_9
+pub const NINE: char = '9'; // Alias for CHAR_9
 
 /// Check if character is whitespace
 pub fn is_whitespace(ch: char) -> bool {
-    ch == SPACE || ch == TAB || ch == NEWLINE || ch == RETURN || ch == VTAB || ch == FF || ch <= ' ' || ch == NBSP
+    ch == SPACE
+        || ch == TAB
+        || ch == NEWLINE
+        || ch == RETURN
+        || ch == VTAB
+        || ch == FF
+        || ch <= ' '
+        || ch == NBSP
 }
 
 /// Check if character is a digit

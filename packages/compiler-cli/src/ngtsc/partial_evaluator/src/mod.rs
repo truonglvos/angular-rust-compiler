@@ -9,5 +9,5 @@ pub mod result;
 pub mod synthetic;
 
 pub use interface::*;
-pub use result::*;
 pub use interpreter::*;
+pub use result::*;

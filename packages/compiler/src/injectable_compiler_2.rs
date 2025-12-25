@@ -236,9 +236,7 @@ fn compile_injectable_use_existing(
 }
 
 /// Compile injectable with default factory
-fn compile_injectable_default(
-    meta: R3InjectableMetadata,
-) -> Result<R3CompiledExpression, String> {
+fn compile_injectable_default(meta: R3InjectableMetadata) -> Result<R3CompiledExpression, String> {
     let expression = Expression {
         value: serde_json::json!({
             "kind": "factory",
@@ -343,19 +341,27 @@ mod tests {
         let meta = R3InjectableMetadata {
             name: "MY_TOKEN".to_string(),
             type_ref: R3Reference {
-                value: Expression { value: serde_json::json!("MY_TOKEN") },
-                type_ref: Expression { value: serde_json::json!("any") },
+                value: Expression {
+                    value: serde_json::json!("MY_TOKEN"),
+                },
+                type_ref: Expression {
+                    value: serde_json::json!("any"),
+                },
             },
             type_argument_count: 0,
             provided_in: MaybeForwardRefExpression {
-                expression: Expression { value: serde_json::json!("root") },
+                expression: Expression {
+                    value: serde_json::json!("root"),
+                },
                 forward_ref: false,
             },
             use_class: None,
             use_factory: None,
             use_existing: None,
             use_value: Some(MaybeForwardRefExpression {
-                expression: Expression { value: serde_json::json!(42) },
+                expression: Expression {
+                    value: serde_json::json!(42),
+                },
                 forward_ref: false,
             }),
             deps: None,
@@ -370,12 +376,18 @@ mod tests {
         let meta = R3InjectableMetadata {
             name: "TestService".to_string(),
             type_ref: R3Reference {
-                value: Expression { value: serde_json::json!("TestService") },
-                type_ref: Expression { value: serde_json::json!("TestService") },
+                value: Expression {
+                    value: serde_json::json!("TestService"),
+                },
+                type_ref: Expression {
+                    value: serde_json::json!("TestService"),
+                },
             },
             type_argument_count: 2,
             provided_in: MaybeForwardRefExpression {
-                expression: Expression { value: serde_json::json!("root") },
+                expression: Expression {
+                    value: serde_json::json!("root"),
+                },
                 forward_ref: false,
             },
             use_class: None,
@@ -395,9 +407,15 @@ mod tests {
 
     #[test]
     fn test_expression_equivalence() {
-        let expr1 = Expression { value: serde_json::json!("MyClass") };
-        let expr2 = Expression { value: serde_json::json!("MyClass") };
-        let expr3 = Expression { value: serde_json::json!("OtherClass") };
+        let expr1 = Expression {
+            value: serde_json::json!("MyClass"),
+        };
+        let expr2 = Expression {
+            value: serde_json::json!("MyClass"),
+        };
+        let expr3 = Expression {
+            value: serde_json::json!("OtherClass"),
+        };
 
         assert!(is_expression_equivalent(&expr1, &expr2));
         assert!(!is_expression_equivalent(&expr1, &expr3));

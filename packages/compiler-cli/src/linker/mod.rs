@@ -8,8 +8,8 @@ pub mod ast;
 pub mod ast_value;
 pub mod error;
 pub mod file_linker;
+pub mod napi;
 pub mod oxc_ast_host;
 pub mod partial_linker;
 pub mod partial_linkers;
-pub mod napi;
 // pub mod file_linker; // To be implemented

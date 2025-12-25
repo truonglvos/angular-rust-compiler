@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::linker::ast::{AstHost, AstNode};
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct AstValue<'a, TExpression: AstNode> {
@@ -42,7 +42,10 @@ impl<'a, TExpression: AstNode> AstValue<'a, TExpression> {
 
     pub fn get_array(&self) -> Result<Vec<AstValue<'a, TExpression>>, String> {
         let items = self.host.parse_array_literal(&self.node)?;
-        Ok(items.into_iter().map(|n| AstValue::new(n, self.host)).collect())
+        Ok(items
+            .into_iter()
+            .map(|n| AstValue::new(n, self.host))
+            .collect())
     }
 
     pub fn is_object(&self) -> bool {
@@ -54,9 +57,12 @@ impl<'a, TExpression: AstNode> AstValue<'a, TExpression> {
             return Err("Expected object literal".to_string());
         }
         let map = self.host.parse_object_literal(&self.node)?;
-        Ok(AstObject { map, host: self.host })
+        Ok(AstObject {
+            map,
+            host: self.host,
+        })
     }
-    
+
     pub fn is_null(&self) -> bool {
         self.host.is_null(&self.node)
     }
@@ -88,12 +94,12 @@ impl<'a, TExpression: AstNode> AstObject<'a, TExpression> {
         let val = self.get_value(key)?;
         val.get_string()
     }
-    
+
     pub fn get_bool(&self, key: &str) -> Result<bool, String> {
         let val = self.get_value(key)?;
         val.get_boolean()
     }
-    
+
     pub fn get_number(&self, key: &str) -> Result<f64, String> {
         let val = self.get_value(key)?;
         val.get_number()
@@ -108,7 +114,7 @@ impl<'a, TExpression: AstNode> AstObject<'a, TExpression> {
         let val = self.get_value(key)?;
         val.get_object()
     }
-    
+
     /// Returns the raw map for advanced usage
     pub fn to_map(&self) -> &HashMap<String, TExpression> {
         &self.map

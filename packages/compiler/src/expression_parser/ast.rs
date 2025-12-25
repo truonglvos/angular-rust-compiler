@@ -1,13 +1,12 @@
+use crate::core::SecurityContext;
+use crate::parse_util::{ParseError, ParseSourceSpan};
 /**
  * Angular Expression AST
  *
  * Defines all AST node types for Angular template expressions
  * Mirrors packages/compiler/src/expression_parser/ast.ts (862 lines)
  */
-
 use serde::{Deserialize, Serialize};
-use crate::core::SecurityContext;
-use crate::parse_util::{ParseError, ParseSourceSpan};
 
 /// Source span for error reporting
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,10 +21,7 @@ impl ParseSpan {
     }
 
     pub fn to_absolute(&self, absolute_offset: usize) -> AbsoluteSourceSpan {
-        AbsoluteSourceSpan::new(
-            absolute_offset + self.start,
-            absolute_offset + self.end,
-        )
+        AbsoluteSourceSpan::new(absolute_offset + self.start, absolute_offset + self.end)
     }
 }
 
@@ -43,21 +39,39 @@ impl AbsoluteSourceSpan {
 }
 
 impl AstNode for PropertyRead {
-    fn span(&self) -> &ParseSpan { &self.span }
-    fn source_span(&self) -> &AbsoluteSourceSpan { &self.source_span }
-    fn visit<V: AstVisitor>(&self, visitor: &mut V) -> V::Result { visitor.visit_property_read(self) }
+    fn span(&self) -> &ParseSpan {
+        &self.span
+    }
+    fn source_span(&self) -> &AbsoluteSourceSpan {
+        &self.source_span
+    }
+    fn visit<V: AstVisitor>(&self, visitor: &mut V) -> V::Result {
+        visitor.visit_property_read(self)
+    }
 }
 
 impl AstNode for PropertyWrite {
-    fn span(&self) -> &ParseSpan { &self.span }
-    fn source_span(&self) -> &AbsoluteSourceSpan { &self.source_span }
-    fn visit<V: AstVisitor>(&self, visitor: &mut V) -> V::Result { visitor.visit_property_write(self) }
+    fn span(&self) -> &ParseSpan {
+        &self.span
+    }
+    fn source_span(&self) -> &AbsoluteSourceSpan {
+        &self.source_span
+    }
+    fn visit<V: AstVisitor>(&self, visitor: &mut V) -> V::Result {
+        visitor.visit_property_write(self)
+    }
 }
 
 impl AstNode for SafePropertyRead {
-    fn span(&self) -> &ParseSpan { &self.span }
-    fn source_span(&self) -> &AbsoluteSourceSpan { &self.source_span }
-    fn visit<V: AstVisitor>(&self, visitor: &mut V) -> V::Result { visitor.visit_safe_property_read(self) }
+    fn span(&self) -> &ParseSpan {
+        &self.span
+    }
+    fn source_span(&self) -> &AbsoluteSourceSpan {
+        &self.source_span
+    }
+    fn visit<V: AstVisitor>(&self, visitor: &mut V) -> V::Result {
+        visitor.visit_safe_property_read(self)
+    }
 }
 
 /// Base trait for all AST nodes
@@ -757,11 +771,11 @@ impl RecursiveAstVisitor {
                 self.visit(&k.key);
                 self.visit(&k.value);
             }
-            AST::RegularExpressionLiteral(_) |
-            AST::EmptyExpr(_) |
-            AST::ImplicitReceiver(_) |
-            AST::ThisReceiver(_) |
-            AST::LiteralPrimitive(_) => {
+            AST::RegularExpressionLiteral(_)
+            | AST::EmptyExpr(_)
+            | AST::ImplicitReceiver(_)
+            | AST::ThisReceiver(_)
+            | AST::LiteralPrimitive(_) => {
                 // Leaf nodes
             }
         }
@@ -773,7 +787,6 @@ impl Default for RecursiveAstVisitor {
         Self::new()
     }
 }
-
 
 impl AST {
     pub fn source_span(&self) -> AbsoluteSourceSpan {
@@ -846,7 +859,8 @@ mod tests {
             _ => panic!("Expected number"),
         }
 
-        let str_val = LiteralPrimitive::string(span.clone(), source_span.clone(), "hello".to_string());
+        let str_val =
+            LiteralPrimitive::string(span.clone(), source_span.clone(), "hello".to_string());
         match str_val {
             LiteralPrimitive::String { value, .. } => assert_eq!(value, "hello"),
             _ => panic!("Expected string"),

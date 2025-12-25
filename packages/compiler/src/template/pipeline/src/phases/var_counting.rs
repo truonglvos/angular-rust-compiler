@@ -4,32 +4,39 @@
 //! Counts the number of variable slots used within each view, and stores that on the view itself, as
 //! well as propagates it to the `ir.TemplateOp` for embedded views.
 
-use crate::template::pipeline::ir as ir;
-use crate::template::pipeline::ir::enums::{OpKind, ExpressionKind, CompatibilityMode};
-use crate::template::pipeline::ir::expression::{transform_expressions_in_op, is_ir_expression, VisitorContextFlag};
-use crate::template::pipeline::ir::ops::update::{BindingExpression, Interpolation};
-use crate::template::pipeline::src::compilation::{CompilationJob, ComponentCompilationJob, CompilationJobKind, CompilationUnit};
 use crate::output::output_ast::Expression;
+use crate::template::pipeline::ir;
+use crate::template::pipeline::ir::enums::{CompatibilityMode, ExpressionKind, OpKind};
+use crate::template::pipeline::ir::expression::{
+    is_ir_expression, transform_expressions_in_op, VisitorContextFlag,
+};
+use crate::template::pipeline::ir::ops::update::{BindingExpression, Interpolation};
+use crate::template::pipeline::src::compilation::{
+    CompilationJob, CompilationJobKind, CompilationUnit, ComponentCompilationJob,
+};
 
 /// Counts the number of variable slots used within each view, and stores that on the view itself, as
 /// well as propagates it to the `ir.TemplateOp` for embedded views.
 pub fn phase(job: &mut dyn CompilationJob) {
     let job_kind = job.kind();
-    
+
     // First, count the vars used in each view, and update the view-level counter.
-    if matches!(job_kind, CompilationJobKind::Tmpl | CompilationJobKind::Both) {
+    if matches!(
+        job_kind,
+        CompilationJobKind::Tmpl | CompilationJobKind::Both
+    ) {
         let component_job = unsafe {
             let job_ptr = job as *mut dyn CompilationJob;
             let job_ptr = job_ptr as *mut ComponentCompilationJob;
             &mut *job_ptr
         };
-        
+
         // Process root unit first
         {
             let compatibility = component_job.compatibility();
             process_unit_with_compatibility(&mut component_job.root, compatibility);
         }
-        
+
         // Process all view units
         {
             let compatibility = component_job.compatibility();
@@ -37,7 +44,7 @@ pub fn phase(job: &mut dyn CompilationJob) {
                 process_unit_with_compatibility(unit, compatibility);
             }
         }
-        
+
         // Propagate var counts to TemplateOp for embedded views
         propagate_var_counts_to_embedded_views(component_job);
     }
@@ -56,7 +63,7 @@ fn process_unit_with_compatibility(
             var_count += vars_used_by_op_create(op);
         }
     }
-    
+
     for op in unit.update().iter() {
         if check_consumes_vars_trait_update(op) {
             var_count += vars_used_by_op_update(op);
@@ -74,7 +81,7 @@ fn process_unit_with_compatibility(
             false, // not compatibility mode pass yet
         );
     }
-    
+
     for op in unit.update_mut().iter_mut() {
         visit_expressions_for_var_counting(
             op.as_mut(),
@@ -94,7 +101,7 @@ fn process_unit_with_compatibility(
                 true, // compatibility mode pass for pure functions
             );
         }
-        
+
         for op in unit.update_mut().iter_mut() {
             visit_expressions_for_var_counting(
                 op.as_mut(),
@@ -140,8 +147,9 @@ fn visit_expressions_for_var_counting(
                 }
             } else {
                 // In normal pass, skip PureFunctionExpr if in compatibility mode
-                if compatibility == CompatibilityMode::TemplateDefinitionBuilder 
-                    && expr_kind == Some(ExpressionKind::PureFunctionExpr) {
+                if compatibility == CompatibilityMode::TemplateDefinitionBuilder
+                    && expr_kind == Some(ExpressionKind::PureFunctionExpr)
+                {
                     return expr;
                 }
             }
@@ -254,7 +262,7 @@ fn vars_used_by_op_create(op: &Box<dyn ir::CreateOp + Send + Sync>) -> usize {
 fn vars_used_by_op_update(op: &Box<dyn ir::UpdateOp + Send + Sync>) -> usize {
     unsafe {
         let op_ptr = op.as_ref() as *const dyn ir::UpdateOp;
-        
+
         match op.kind() {
             OpKind::Attribute => {
                 use crate::template::pipeline::ir::ops::update::AttributeOp;
@@ -271,7 +279,7 @@ fn vars_used_by_op_update(op: &Box<dyn ir::UpdateOp + Send + Sync>) -> usize {
                 slots
             }
             OpKind::Property | OpKind::DomProperty => {
-                use crate::template::pipeline::ir::ops::update::{PropertyOp};
+                use crate::template::pipeline::ir::ops::update::PropertyOp;
                 let prop_ptr = if op.kind() == OpKind::Property {
                     op_ptr as *const PropertyOp
                 } else {
@@ -348,18 +356,10 @@ fn vars_used_by_op_update(op: &Box<dyn ir::UpdateOp + Send + Sync>) -> usize {
 
 pub fn vars_used_by_ir_expression(expr: &Expression) -> usize {
     match expr {
-        Expression::PureFunction(pure_fn) => {
-            1 + pure_fn.args.len()
-        }
-        Expression::PipeBinding(pipe) => {
-            1 + pipe.args.len()
-        }
-        Expression::PipeBindingVariadic(pipe_var) => {
-            1 + pipe_var.num_args
-        }
-        Expression::StoreLet(_) => {
-            1
-        }
+        Expression::PureFunction(pure_fn) => 1 + pure_fn.args.len(),
+        Expression::PipeBinding(pipe) => 1 + pipe.args.len(),
+        Expression::PipeBindingVariadic(pipe_var) => 1 + pipe_var.num_args,
+        Expression::StoreLet(_) => 1,
         _ => 0,
     }
 }
@@ -378,19 +378,20 @@ fn is_singleton_interpolation(interp: &Interpolation) -> bool {
 /// an embedded view).
 fn propagate_var_counts_to_embedded_views(component_job: &mut ComponentCompilationJob) {
     // First collect all var counts we need
-    let mut var_counts: std::collections::HashMap<ir::XrefId, usize> = std::collections::HashMap::new();
-    
+    let mut var_counts: std::collections::HashMap<ir::XrefId, usize> =
+        std::collections::HashMap::new();
+
     for (xref, unit) in component_job.views.iter() {
         if let Some(vars) = unit.vars() {
             var_counts.insert(*xref, vars);
         }
     }
-    
+
     // Then update ops with the var counts
     for op in component_job.root.create_mut().iter_mut() {
         propagate_var_count_for_op_with_map(op, &var_counts);
     }
-    
+
     // Process all view units
     for (_, unit) in component_job.views.iter_mut() {
         for op in unit.create_mut().iter_mut() {
@@ -406,12 +407,13 @@ fn propagate_var_count_for_op_with_map(
     let xref = op.xref();
     // Get vars from map
     let vars = match op.kind() {
-        OpKind::Template | OpKind::RepeaterCreate | OpKind::ConditionalCreate | OpKind::ConditionalBranchCreate => {
-            var_counts.get(&xref).copied()
-        }
+        OpKind::Template
+        | OpKind::RepeaterCreate
+        | OpKind::ConditionalCreate
+        | OpKind::ConditionalBranchCreate => var_counts.get(&xref).copied(),
         _ => None,
     };
-    
+
     if let Some(vars) = vars {
         unsafe {
             let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
@@ -445,4 +447,3 @@ fn propagate_var_count_for_op_with_map(
         }
     }
 }
-

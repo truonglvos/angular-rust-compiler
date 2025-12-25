@@ -7,10 +7,7 @@
 
 #[cfg(test)]
 mod tests {
-    use angular_compiler::expression_parser::{
-        ast::*,
-        parser::Parser,
-    };
+    use angular_compiler::expression_parser::{ast::*, parser::Parser};
 
     /// Custom visitor that collects all visited nodes in a path
     struct PathCollector {
@@ -125,11 +122,11 @@ mod tests {
                 AST::ParenthesizedExpression(p) => {
                     self.visit_recursive(&p.expression);
                 }
-                AST::RegularExpressionLiteral(_) |
-                AST::EmptyExpr(_) |
-                AST::ImplicitReceiver(_) |
-                AST::ThisReceiver(_) |
-                AST::LiteralPrimitive(_) => {
+                AST::RegularExpressionLiteral(_)
+                | AST::EmptyExpr(_)
+                | AST::ImplicitReceiver(_)
+                | AST::ThisReceiver(_)
+                | AST::LiteralPrimitive(_) => {
                     // Leaf nodes - no children to visit
                 }
             }
@@ -174,7 +171,11 @@ mod tests {
 
         // If the visitor method of RecursiveAstVisitor is implemented correctly,
         // then we should have collected the full path from root to leaf.
-        assert_eq!(visitor.path.len(), 4, "Should visit 4 nodes: Call, PropertyRead(y), PropertyRead(x), ImplicitReceiver");
+        assert_eq!(
+            visitor.path.len(),
+            4,
+            "Should visit 4 nodes: Call, PropertyRead(y), PropertyRead(x), ImplicitReceiver"
+        );
 
         let call = &visitor.path[0];
         let y_read = &visitor.path[1];
@@ -262,7 +263,7 @@ mod tests {
         // Should visit: Binary, PropertyRead(a), PropertyRead(x for implicit), ImplicitReceiver,
         // PropertyRead(b), PropertyRead(x for implicit), ImplicitReceiver
         assert!(visitor.path.len() >= 3, "Should visit at least 3 nodes");
-        
+
         match &visitor.path[0] {
             AST::Binary(b) => {
                 assert_eq!(b.operation, "+", "Operator should be Plus");
@@ -284,7 +285,10 @@ mod tests {
         match &visitor.path[0] {
             AST::Conditional(_c) => {
                 // Verify all three parts are visited
-                assert!(visitor.path.len() >= 4, "Should visit condition, true, false, and their children");
+                assert!(
+                    visitor.path.len() >= 4,
+                    "Should visit condition, true, false, and their children"
+                );
             }
             _ => panic!("Expected Conditional AST node"),
         }
@@ -301,16 +305,14 @@ mod tests {
         visitor.visit_recursive(&ast);
 
         assert_eq!(visitor.path.len(), 1, "Should visit only the literal");
-        
+
         match &visitor.path[0] {
-            AST::LiteralPrimitive(lit) => {
-                match lit {
-                    LiteralPrimitive::Number { value, .. } => {
-                        assert_eq!(*value, 42.0, "Number value should be 42");
-                    }
-                    _ => panic!("Expected number literal"),
+            AST::LiteralPrimitive(lit) => match lit {
+                LiteralPrimitive::Number { value, .. } => {
+                    assert_eq!(*value, 42.0, "Number value should be 42");
                 }
-            }
+                _ => panic!("Expected number literal"),
+            },
             _ => panic!("Expected LiteralPrimitive AST node"),
         }
     }
@@ -364,7 +366,10 @@ mod tests {
         match &visitor.path[0] {
             AST::KeyedRead(_k) => {
                 // Should visit receiver and key
-                assert!(visitor.path.len() >= 3, "Should visit keyed read, receiver, and key");
+                assert!(
+                    visitor.path.len() >= 3,
+                    "Should visit keyed read, receiver, and key"
+                );
             }
             _ => panic!("Expected KeyedRead AST node"),
         }
@@ -400,7 +405,10 @@ mod tests {
 
         match &visitor.path[0] {
             AST::TemplateLiteral(t) => {
-                assert!(!t.expressions.is_empty(), "Template literal should have expressions");
+                assert!(
+                    !t.expressions.is_empty(),
+                    "Template literal should have expressions"
+                );
             }
             _ => panic!("Expected TemplateLiteral AST node"),
         }
@@ -438,7 +446,10 @@ mod tests {
         match &visitor.path[0] {
             AST::ParenthesizedExpression(_p) => {
                 // Should visit the inner expression
-                assert!(visitor.path.len() >= 2, "Should visit parentheses and inner expression");
+                assert!(
+                    visitor.path.len() >= 2,
+                    "Should visit parentheses and inner expression"
+                );
             }
             _ => panic!("Expected ParenthesizedExpression AST node"),
         }
@@ -511,7 +522,10 @@ mod tests {
         match &visitor.path[0] {
             AST::PrefixNot(_p) => {
                 // Should visit the expression
-                assert!(visitor.path.len() >= 2, "Should visit prefix not and expression");
+                assert!(
+                    visitor.path.len() >= 2,
+                    "Should visit prefix not and expression"
+                );
             }
             _ => panic!("Expected PrefixNot AST node"),
         }
@@ -530,7 +544,10 @@ mod tests {
         match &visitor.path[0] {
             AST::NonNullAssert(_n) => {
                 // Should visit the expression
-                assert!(visitor.path.len() >= 2, "Should visit non-null assert and expression");
+                assert!(
+                    visitor.path.len() >= 2,
+                    "Should visit non-null assert and expression"
+                );
             }
             _ => panic!("Expected NonNullAssert AST node"),
         }
@@ -548,7 +565,7 @@ mod tests {
 
         // Should visit multiple levels: PropertyRead(d) -> PropertyRead(c) -> Call -> PropertyRead(b) -> PropertyRead(a) -> ImplicitReceiver
         assert!(visitor.path.len() >= 6, "Should visit all nested nodes");
-        
+
         // Verify the structure
         match &visitor.path[0] {
             AST::PropertyRead(p) => {
@@ -573,9 +590,12 @@ mod tests {
             }
             _ => panic!("Expected PropertyWrite AST node"),
         }
-        
+
         // Should visit value 'c' and receiver 'a'
-        assert!(visitor.path.len() >= 3, "Should visit write, value and receiver");
+        assert!(
+            visitor.path.len() >= 3,
+            "Should visit write, value and receiver"
+        );
     }
 
     #[test]
@@ -594,7 +614,10 @@ mod tests {
             }
             _ => panic!("Expected KeyedWrite AST node"),
         }
-        
-        assert!(visitor.path.len() >= 4, "Should visit write, receiver, key, and value");
+
+        assert!(
+            visitor.path.len() >= 4,
+            "Should visit write, receiver, key, and value"
+        );
     }
 }

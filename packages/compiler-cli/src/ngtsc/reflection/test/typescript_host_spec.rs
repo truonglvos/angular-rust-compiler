@@ -1,6 +1,4 @@
-use crate::ngtsc::reflection::{
-    ClassMemberKind, TypeScriptReflectionHost, ReflectionHost,
-};
+use crate::ngtsc::reflection::{ClassMemberKind, ReflectionHost, TypeScriptReflectionHost};
 use oxc_allocator::Allocator;
 use oxc_ast::ast;
 use oxc_parser::Parser;
@@ -13,9 +11,11 @@ struct TestProgram<'a> {
 
 impl<'a> TestProgram<'a> {
     fn new(allocator: &'a Allocator, source: &'a str) -> Self {
-        let source_type = SourceType::default().with_typescript(true).with_module(true);
+        let source_type = SourceType::default()
+            .with_typescript(true)
+            .with_module(true);
         let ret = Parser::new(allocator, source, source_type).parse();
-        
+
         if !ret.errors.is_empty() {
             panic!("Parse errors: {:?}", ret.errors);
         }
@@ -25,7 +25,7 @@ impl<'a> TestProgram<'a> {
             program: ret.program,
         }
     }
-    
+
     fn find_class(&self, name: &str) -> Option<&ast::Class<'a>> {
         for stmt in &self.program.body {
             match stmt {
@@ -46,13 +46,15 @@ impl<'a> TestProgram<'a> {
                     }
                 }
                 ast::Statement::ExportDefaultDeclaration(decl) => {
-                     if let ast::ExportDefaultDeclarationKind::ClassDeclaration(class) = &decl.declaration {
+                    if let ast::ExportDefaultDeclarationKind::ClassDeclaration(class) =
+                        &decl.declaration
+                    {
                         if let Some(id) = &class.id {
                             if id.name == name {
                                 return Some(class);
                             }
                         }
-                     }
+                    }
                 }
                 _ => {}
             }
@@ -61,10 +63,10 @@ impl<'a> TestProgram<'a> {
     }
 
     fn find_function(&self, name: &str) -> Option<&ast::Function<'a>> {
-         for stmt in &self.program.body {
+        for stmt in &self.program.body {
             match stmt {
                 ast::Statement::FunctionDeclaration(func) => {
-                     if let Some(id) = &func.id {
+                    if let Some(id) = &func.id {
                         if id.name == name {
                             return Some(func);
                         }
@@ -87,33 +89,34 @@ impl<'a> TestProgram<'a> {
 
     fn find_variable(&self, name: &str) -> Option<&ast::VariableDeclarator<'a>> {
         for stmt in &self.program.body {
-             match stmt {
+            match stmt {
                 ast::Statement::VariableDeclaration(var_decl) => {
-                     for decl in &var_decl.declarations {
-                         if let ast::BindingPatternKind::BindingIdentifier(id) = &decl.id.kind {
-                             if id.name == name {
-                                 return Some(decl);
-                             }
-                         }
+                    for decl in &var_decl.declarations {
+                        if let ast::BindingPatternKind::BindingIdentifier(id) = &decl.id.kind {
+                            if id.name == name {
+                                return Some(decl);
+                            }
+                        }
                     }
                 }
-                 ast::Statement::ExportNamedDeclaration(decl) => {
-                    if let Some(ast::Declaration::VariableDeclaration(var_decl)) = &decl.declaration {
-                         for decl in &var_decl.declarations {
-                             if let ast::BindingPatternKind::BindingIdentifier(id) = &decl.id.kind {
-                                 if id.name == name {
-                                     return Some(decl);
-                                 }
-                             }
+                ast::Statement::ExportNamedDeclaration(decl) => {
+                    if let Some(ast::Declaration::VariableDeclaration(var_decl)) = &decl.declaration
+                    {
+                        for decl in &var_decl.declarations {
+                            if let ast::BindingPatternKind::BindingIdentifier(id) = &decl.id.kind {
+                                if id.name == name {
+                                    return Some(decl);
+                                }
+                            }
                         }
                     }
                 }
                 _ => {}
-             }
+            }
         }
         None
     }
-    
+
     fn find_declaration(&self, name: &str) -> Option<&ast::Declaration<'a>> {
         for stmt in &self.program.body {
             if let ast::Statement::ExportNamedDeclaration(decl) = stmt {
@@ -125,22 +128,22 @@ impl<'a> TestProgram<'a> {
                                     return Some(declaration);
                                 }
                             }
-                        },
+                        }
                         ast::Declaration::FunctionDeclaration(func) => {
-                             if let Some(id) = &func.id {
+                            if let Some(id) = &func.id {
                                 if id.name == name {
                                     return Some(declaration);
                                 }
                             }
-                        },
+                        }
                         ast::Declaration::VariableDeclaration(var_decl) => {
-                             for d in &var_decl.declarations {
-                                 if let ast::BindingPatternKind::BindingIdentifier(id) = &d.id.kind {
-                                     if id.name == name {
-                                         return Some(declaration);
-                                     }
-                                 }
-                             }
+                            for d in &var_decl.declarations {
+                                if let ast::BindingPatternKind::BindingIdentifier(id) = &d.id.kind {
+                                    if id.name == name {
+                                        return Some(declaration);
+                                    }
+                                }
+                            }
                         }
                         _ => {}
                     }
@@ -166,10 +169,12 @@ mod tests {
         let allocator = Allocator::default();
         let program = TestProgram::new(&allocator, source);
         let foo_class = program.find_class("Foo").expect("Class Foo not found");
-        
+
         let host = TypeScriptReflectionHost::new();
-        let args = host.get_constructor_parameters(foo_class).expect("Constructor params not found");
-        
+        let args = host
+            .get_constructor_parameters(foo_class)
+            .expect("Constructor params not found");
+
         assert_eq!(args.len(), 1);
         assert_eq!(args[0].name.as_deref(), Some("bar"));
     }
@@ -186,14 +191,19 @@ mod tests {
         let allocator = Allocator::default();
         let program = TestProgram::new(&allocator, source);
         let foo_class = program.find_class("Foo").expect("Class Foo not found");
-        
+
         let host = TypeScriptReflectionHost::new();
-        let args = host.get_constructor_parameters(foo_class).expect("Constructor params not found");
-        
+        let args = host
+            .get_constructor_parameters(foo_class)
+            .expect("Constructor params not found");
+
         assert_eq!(args.len(), 1);
         assert_eq!(args[0].name.as_deref(), Some("bar"));
-        
-        let decorators = args[0].decorators.as_ref().expect("Decorators should exist");
+
+        let decorators = args[0]
+            .decorators
+            .as_ref()
+            .expect("Decorators should exist");
         assert_eq!(decorators.len(), 1);
         assert_eq!(decorators[0].name, "dec");
     }
@@ -209,14 +219,20 @@ mod tests {
         let allocator = Allocator::default();
         let program = TestProgram::new(&allocator, source);
         let foo_class = program.find_class("Foo").expect("Class Foo not found");
-        
+
         let host = TypeScriptReflectionHost::new();
         let members = host.get_members_of_class(foo_class);
-        
-        let literal_prop = members.iter().find(|m| m.name == "string-literal-property-member").expect("Literal prop not found");
+
+        let literal_prop = members
+            .iter()
+            .find(|m| m.name == "string-literal-property-member")
+            .expect("Literal prop not found");
         assert_eq!(literal_prop.kind, ClassMemberKind::Property);
-        
-        let regular_prop = members.iter().find(|m| m.name == "regularProp").expect("Regular prop not found");
+
+        let regular_prop = members
+            .iter()
+            .find(|m| m.name == "regularProp")
+            .expect("Regular prop not found");
         assert_eq!(regular_prop.kind, ClassMemberKind::Property);
     }
 
@@ -230,14 +246,17 @@ mod tests {
         let allocator = Allocator::default();
         let program = TestProgram::new(&allocator, source);
         let foo_class = program.find_class("Foo").expect("Class Foo not found");
-        
+
         let host = TypeScriptReflectionHost::new();
         let members = host.get_members_of_class(foo_class);
-        
-        let method = members.iter().find(|m| m.name == "myMethod").expect("Method not found");
+
+        let method = members
+            .iter()
+            .find(|m| m.name == "myMethod")
+            .expect("Method not found");
         assert_eq!(method.kind, ClassMemberKind::Method);
     }
-    
+
     #[test]
     fn test_get_members_static() {
         let source = r#"
@@ -248,14 +267,17 @@ mod tests {
         let allocator = Allocator::default();
         let program = TestProgram::new(&allocator, source);
         let foo_class = program.find_class("Foo").expect("Class Foo not found");
-        
+
         let host = TypeScriptReflectionHost::new();
         let members = host.get_members_of_class(foo_class);
-        
-        let static_member = members.iter().find(|m| m.name == "staticMember").expect("Static member not found");
+
+        let static_member = members
+            .iter()
+            .find(|m| m.name == "staticMember")
+            .expect("Static member not found");
         assert!(static_member.is_static);
     }
-    
+
     #[test]
     fn test_member_decorators() {
         let source = r#"
@@ -267,11 +289,14 @@ mod tests {
         let allocator = Allocator::default();
         let program = TestProgram::new(&allocator, source);
         let foo_class = program.find_class("Foo").expect("Class Foo not found");
-        
+
         let host = TypeScriptReflectionHost::new();
         let members = host.get_members_of_class(foo_class);
-        
-        let prop = members.iter().find(|m| m.name == "prop").expect("Prop not found");
+
+        let prop = members
+            .iter()
+            .find(|m| m.name == "prop")
+            .expect("Prop not found");
         let decorators = prop.decorators.as_ref().expect("Decorators not found");
         assert_eq!(decorators[0].name, "Input");
     }
@@ -286,10 +311,14 @@ mod tests {
         let program = TestProgram::new(&allocator, source);
         let host = TypeScriptReflectionHost::new();
 
-        let class_decl = program.find_declaration("A").expect("Class A declaration not found");
+        let class_decl = program
+            .find_declaration("A")
+            .expect("Class A declaration not found");
         assert!(host.is_class(class_decl));
 
-        let func_decl = program.find_declaration("foo").expect("Function foo declaration not found");
+        let func_decl = program
+            .find_declaration("foo")
+            .expect("Function foo declaration not found");
         assert!(!host.is_class(func_decl));
     }
 
@@ -308,8 +337,10 @@ mod tests {
 
         let class_b = program.find_class("B").expect("Class B not found");
         assert!(host.has_base_class(class_b));
-        
-        let base_expr = host.get_base_class_expression(class_b).expect("Base class expression should exist");
+
+        let base_expr = host
+            .get_base_class_expression(class_b)
+            .expect("Base class expression should exist");
         // Verify base expression is identifier 'A'
         if let ast::Expression::Identifier(id) = base_expr {
             assert_eq!(id.name, "A");
@@ -348,9 +379,13 @@ mod tests {
         let program = TestProgram::new(&allocator, source);
         let host = TypeScriptReflectionHost::new();
 
-        let func = program.find_function("foo").expect("Function foo not found");
-        let def = host.get_definition_of_function(func).expect("Function definition not found");
-        
+        let func = program
+            .find_function("foo")
+            .expect("Function foo not found");
+        let def = host
+            .get_definition_of_function(func)
+            .expect("Function definition not found");
+
         assert_eq!(def.parameters.len(), 2);
         assert_eq!(def.parameters[0].name.as_deref(), Some("a"));
         assert_eq!(def.parameters[1].name.as_deref(), Some("b"));
@@ -366,13 +401,15 @@ mod tests {
         let host = TypeScriptReflectionHost::new();
 
         let decl = program.find_variable("a").expect("Variable a not found");
-        let value = host.get_variable_value(decl).expect("Variable value not found");
-        
+        let value = host
+            .get_variable_value(decl)
+            .expect("Variable value not found");
+
         // Check value is literal 1
         if let ast::Expression::NumericLiteral(lit) = value {
             assert_eq!(lit.value, 1.0);
         } else {
-             panic!("Variable value is not a numeric literal");
+            panic!("Variable value is not a numeric literal");
         }
     }
 
@@ -386,9 +423,11 @@ mod tests {
         let program = TestProgram::new(&allocator, source);
         let host = TypeScriptReflectionHost::new();
 
-        let decl = program.find_declaration("A").expect("Class A declaration not found");
+        let decl = program
+            .find_declaration("A")
+            .expect("Class A declaration not found");
         let decorators = host.get_decorators_of_declaration(decl);
-        
+
         assert_eq!(decorators.len(), 1);
         assert_eq!(decorators[0].name, "Dec");
     }

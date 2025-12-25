@@ -95,9 +95,7 @@ pub type PropertyTransform = fn(
 /// ensuring the decorator symbol access can be traced back to an Angular core
 /// import in order to make the synthetic decorator compatible with the JIT
 /// decorator downlevel transform.
-pub fn create_synthetic_angular_core_decorator_access(
-    decorator_name: &str,
-) -> SyntheticDecorator {
+pub fn create_synthetic_angular_core_decorator_access(decorator_name: &str) -> SyntheticDecorator {
     SyntheticDecorator::new(decorator_name, "@angular/core")
 }
 
@@ -112,7 +110,7 @@ pub fn is_signal_input_call(value: Option<&str>, is_core: bool) -> bool {
     if let Some(value_str) = value {
         if is_core {
             // Handle input() and input.required() with or without generic type params
-            return value_str.starts_with("input(") 
+            return value_str.starts_with("input(")
                 || value_str.starts_with("input.required(")
                 || value_str.starts_with("input.required<");
         }

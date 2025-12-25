@@ -5,7 +5,7 @@
 
 /// Branded type for a cross-reference ID. During ingest, `XrefId`s are generated to link together
 /// different IR operations which need to reference each other.
-/// 
+///
 /// Note: In TypeScript, this is defined as `export type XrefId = number & {__brand: 'XrefId'};`
 /// In Rust, we use a newtype struct to achieve type safety.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -39,14 +39,14 @@ impl ConstIndex {
 }
 
 /// Slot handle for operations that consume slots.
-/// 
+///
 /// In TypeScript, this is defined as a class with a nullable `slot` field:
 /// ```typescript
 /// export class SlotHandle {
 ///   slot: number | null = null;
 /// }
 /// ```
-/// 
+///
 /// In Rust, we use a struct with an `Option<usize>` to represent the nullable slot value.
 /// The `handle` field in operations is typically initialized with `SlotHandle::new()` which creates
 /// a handle with `slot: None`, matching the TypeScript default value of `null`.
@@ -63,27 +63,27 @@ impl SlotHandle {
     pub fn new() -> Self {
         SlotHandle { slot: None }
     }
-    
+
     /// Create a SlotHandle with a specific slot number.
     pub fn with_slot(slot: usize) -> Self {
         SlotHandle { slot: Some(slot) }
     }
-    
+
     /// Get the slot number if assigned, or None if not yet assigned.
     pub fn get_slot(&self) -> Option<usize> {
         self.slot
     }
-    
+
     /// Set the slot number.
     pub fn set_slot(&mut self, slot: usize) {
         self.slot = Some(slot);
     }
-    
+
     /// Clear the slot assignment (set to None/null).
     pub fn clear_slot(&mut self) {
         self.slot = None;
     }
-    
+
     /// Check if a slot has been assigned.
     pub fn has_slot(&self) -> bool {
         self.slot.is_some()

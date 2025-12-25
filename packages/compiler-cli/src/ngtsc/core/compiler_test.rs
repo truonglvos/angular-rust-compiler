@@ -1,18 +1,20 @@
-
 #[cfg(test)]
 mod tests {
-    use crate::ngtsc::core::{CompilationTicket, CompilationTicketKind, NgCompiler, NgCompilerOptions};
+    use crate::ngtsc::core::{
+        CompilationTicket, CompilationTicketKind, NgCompiler, NgCompilerOptions,
+    };
     use crate::ngtsc::file_system::testing::MockFileSystem;
     use crate::ngtsc::file_system::FileSystem;
     use crate::ngtsc::metadata::DecoratorMetadata;
-    use std::sync::Arc;
     use angular_compiler::ml_parser::ast::Node;
+    use std::sync::Arc;
 
     #[test]
     fn test_analyze_async_parses_template() {
         let fs = MockFileSystem::new_posix();
-        fs.init_with_files(vec![
-            ("/app.component.ts", r#"
+        fs.init_with_files(vec![(
+            "/app.component.ts",
+            r#"
                 import { Component } from '@angular/core';
 
                 @Component({
@@ -21,10 +23,10 @@ mod tests {
                     standalone: true
                 })
                 export class AppComponent {}
-            "#)
-        ]);
+            "#,
+        )]);
         let fs_arc = Arc::new(fs);
-        
+
         let options = NgCompilerOptions {
             project: ".".to_string(),
             strict_injection_parameters: true,
@@ -41,20 +43,25 @@ mod tests {
         };
 
         let compiler = NgCompiler::new(ticket);
-        let result = compiler.analyze_async(&["/app.component.ts".to_string()]).expect("Analysis failed");
+        let result = compiler
+            .analyze_async(&["/app.component.ts".to_string()])
+            .expect("Analysis failed");
 
         assert_eq!(result.directives.len(), 1);
-        
+
         // Pattern match to extract DirectiveMeta from DecoratorMetadata
         if let DecoratorMetadata::Directive(dir) = &result.directives[0] {
             assert_eq!(dir.t2.name, "AppComponent");
-            assert_eq!(dir.component.as_ref().and_then(|c| c.template.as_ref()), Some(&"<h1>Hello World</h1>".to_string()));
-            
+            assert_eq!(
+                dir.component.as_ref().and_then(|c| c.template.as_ref()),
+                Some(&"<h1>Hello World</h1>".to_string())
+            );
+
             let template_ast = dir.component.as_ref().and_then(|c| c.template_ast.as_ref());
             assert!(template_ast.is_some(), "Template AST should be present");
             let ast = template_ast.unwrap();
             assert_eq!(ast.len(), 1);
-            
+
             if let Node::Element(el) = &ast[0] {
                 assert_eq!(el.name, "h1");
                 assert_eq!(el.children.len(), 1);
@@ -75,7 +82,9 @@ mod tests {
     fn test_analyze_async_parses_template_url() {
         let fs = MockFileSystem::new_posix();
         fs.init_with_files(vec![
-            ("/app.component.ts", r#"
+            (
+                "/app.component.ts",
+                r#"
                 import { Component } from '@angular/core';
 
                 @Component({
@@ -84,11 +93,12 @@ mod tests {
                     standalone: true
                 })
                 export class AppComponent {}
-            "#),
-            ("/app.component.html", "<h1>Hello World External</h1>")
+            "#,
+            ),
+            ("/app.component.html", "<h1>Hello World External</h1>"),
         ]);
         let fs_arc = Arc::new(fs);
-        
+
         let options = NgCompilerOptions {
             project: ".".to_string(),
             strict_injection_parameters: true,
@@ -106,22 +116,25 @@ mod tests {
 
         let compiler = NgCompiler::new(ticket);
         let result = compiler.analyze_async(&["/app.component.ts".to_string()]);
-        
+
         assert!(result.is_ok());
         let res = result.unwrap();
         assert_eq!(res.directives.len(), 1);
-        
+
         if let DecoratorMetadata::Directive(dir) = &res.directives[0] {
             assert_eq!(dir.t2.name, "AppComponent");
             let template_ast = dir.component.as_ref().and_then(|c| c.template_ast.as_ref());
-            assert!(template_ast.is_some(), "Template AST should be populated from templateUrl");
-            
+            assert!(
+                template_ast.is_some(),
+                "Template AST should be populated from templateUrl"
+            );
+
             let ast = template_ast.unwrap();
             if let Node::Element(el) = &ast[0] {
-                 assert_eq!(el.name, "h1");
-                 if let Node::Text(text) = &el.children[0] {
-                     assert_eq!(text.value, "Hello World External");
-                 }
+                assert_eq!(el.name, "h1");
+                if let Node::Text(text) = &el.children[0] {
+                    assert_eq!(text.value, "Hello World External");
+                }
             }
         } else {
             panic!("Expected Directive metadata");
@@ -132,7 +145,9 @@ mod tests {
     fn test_analyze_async_parses_style_urls() {
         let fs = MockFileSystem::new_posix();
         fs.init_with_files(vec![
-            ("/app.component.ts", r#"
+            (
+                "/app.component.ts",
+                r#"
                 import { Component } from '@angular/core';
 
                 @Component({
@@ -142,11 +157,12 @@ mod tests {
                     standalone: true
                 })
                 export class AppComponent {}
-            "#),
-            ("/app.component.css", "h1 { color: red; }")
+            "#,
+            ),
+            ("/app.component.css", "h1 { color: red; }"),
         ]);
         let fs_arc = Arc::new(fs);
-        
+
         let options = NgCompilerOptions {
             project: ".".to_string(),
             strict_injection_parameters: true,
@@ -164,14 +180,14 @@ mod tests {
 
         let compiler = NgCompiler::new(ticket);
         let result = compiler.analyze_async(&["/app.component.ts".to_string()]);
-        
+
         assert!(result.is_ok());
         let res = result.unwrap();
         assert_eq!(res.directives.len(), 1);
-        
+
         if let DecoratorMetadata::Directive(dir) = &res.directives[0] {
             assert_eq!(dir.t2.name, "AppComponent");
-            
+
             let styles = dir.component.as_ref().and_then(|c| c.styles.as_ref());
             assert!(styles.is_some());
             let styles = styles.unwrap();
@@ -182,4 +198,3 @@ mod tests {
         }
     }
 }
-

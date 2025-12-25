@@ -19,7 +19,7 @@ impl MessageLoader {
             locale: locale.into(),
         }
     }
-    
+
     /// Load messages from a file.
     pub fn load(&mut self, content: &str, format: I18nFormat) -> Result<(), String> {
         match format {
@@ -28,27 +28,27 @@ impl MessageLoader {
             I18nFormat::Json => self.load_json(content),
         }
     }
-    
+
     /// Get a translated message.
     pub fn get(&self, id: &str) -> Option<&str> {
         self.messages.get(id).map(|s| s.as_str())
     }
-    
+
     /// Get locale.
     pub fn locale(&self) -> &str {
         &self.locale
     }
-    
+
     fn load_xliff(&mut self, _content: &str) -> Result<(), String> {
         // Simplified XLIFF parsing
         Ok(())
     }
-    
+
     fn load_xmb(&mut self, _content: &str) -> Result<(), String> {
         // Simplified XMB parsing
         Ok(())
     }
-    
+
     fn load_json(&mut self, content: &str) -> Result<(), String> {
         // Simple JSON parsing
         for line in content.lines() {
@@ -89,7 +89,7 @@ impl I18nInlineTransformer {
             missing_strategy,
         }
     }
-    
+
     /// Translate a message.
     pub fn translate(&self, id: &str, fallback: &str) -> String {
         if let Some(msg) = self.loader.get(id) {
@@ -103,9 +103,7 @@ impl I18nInlineTransformer {
                     eprintln!("Warning: Missing translation for: {}", id);
                     fallback.to_string()
                 }
-                MissingTranslationStrategy::Ignore => {
-                    fallback.to_string()
-                }
+                MissingTranslationStrategy::Ignore => fallback.to_string(),
             }
         }
     }

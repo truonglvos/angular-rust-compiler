@@ -13,10 +13,7 @@ pub fn call(
     source_span: Option<ParseSourceSpan>,
 ) -> o::Statement {
     let expr = o::import_ref(fn_).call_fn(args, source_span.clone(), None);
-    o::Statement::Expression(o::ExpressionStatement {
-        expr,
-        source_span,
-    })
+    o::Statement::Expression(o::ExpressionStatement { expr, source_span })
 }
 
 // Update helper as well, same return type as it produces a Statement
@@ -43,14 +40,15 @@ fn element_or_container_base(
     }
 
     if let Some(local_ref) = local_ref_index {
-        args.push(*o::literal(
-             match const_index { Some(i) => o::LiteralValue::from(i as f64), None => o::LiteralValue::Null }, 
-        ));
+        args.push(*o::literal(match const_index {
+            Some(i) => o::LiteralValue::from(i as f64),
+            None => o::LiteralValue::Null,
+        }));
         args.push(*o::literal(local_ref as f64));
     } else if let Some(const_i) = const_index {
         args.push(*o::literal(const_i as f64));
     }
-    
+
     call(instruction, args, Some(source_span))
 }
 
@@ -99,7 +97,7 @@ pub fn text(
 ) -> o::Statement {
     let mut args = vec![*o::literal(slot as f64)];
     if !initial_value.is_empty() {
-         args.push(*o::literal(initial_value));
+        args.push(*o::literal(initial_value));
     }
     call(Identifiers::text(), args, source_span)
 }
@@ -107,26 +105,23 @@ pub fn text(
 pub fn pipe(slot: i32, name: String) -> o::Statement {
     call(
         Identifiers::pipe(),
-        vec![
-            *o::literal(slot as f64),
-            *o::literal(name),
-        ],
+        vec![*o::literal(slot as f64), *o::literal(name)],
         None,
     )
 }
 
 pub fn advance(delta: i32, source_span: ParseSourceSpan) -> o::Statement {
-     let args = if delta > 1 {
-         vec![*o::literal(delta as f64)]
-     } else {
-         vec![]
-     };
-     call(Identifiers::advance(), args, Some(source_span))
+    let args = if delta > 1 {
+        vec![*o::literal(delta as f64)]
+    } else {
+        vec![]
+    };
+    call(Identifiers::advance(), args, Some(source_span))
 }
 
 pub fn property(
     name: String,
-    expression: o::Expression, 
+    expression: o::Expression,
     sanitizer: Option<o::Expression>,
     source_span: ParseSourceSpan,
 ) -> o::Statement {
@@ -148,12 +143,11 @@ pub fn enable_bindings() -> o::Statement {
 
 /// Creates a two-way binding set instruction expression.
 /// Corresponds to `ng.twoWayBindingSet(target, value)` in TypeScript.
-pub fn two_way_binding_set(target: Box<o::Expression>, value: Box<o::Expression>) -> Box<o::Expression> {
-    o::import_ref(Identifiers::two_way_binding_set()).call_fn(
-        vec![*target, *value],
-        None,
-        None,
-    )
+pub fn two_way_binding_set(
+    target: Box<o::Expression>,
+    value: Box<o::Expression>,
+) -> Box<o::Expression> {
+    o::import_ref(Identifiers::two_way_binding_set()).call_fn(vec![*target, *value], None, None)
 }
 
 pub fn pure_function(slot: i32, func: o::Expression, args: Vec<o::Expression>) -> o::Expression {
@@ -170,19 +164,19 @@ pub fn pure_function(slot: i32, func: o::Expression, args: Vec<o::Expression>) -
         8 => Identifiers::pure_function8(),
         _ => Identifiers::pure_function_v(),
     };
-    
+
     let mut call_args = vec![*o::literal(slot as f64), func];
     if num_args > 8 {
-         // Box args into array for pureFunctionV
-         call_args.push(o::Expression::LiteralArray(o::LiteralArrayExpr {
-             entries: args,
-             type_: None,
-             source_span: None,
-         }));
+        // Box args into array for pureFunctionV
+        call_args.push(o::Expression::LiteralArray(o::LiteralArrayExpr {
+            entries: args,
+            type_: None,
+            source_span: None,
+        }));
     } else {
-         call_args.extend(args);
+        call_args.extend(args);
     }
-    
+
     *o::import_ref(id).call_fn(call_args, None, None)
 }
 
@@ -239,7 +233,7 @@ pub fn pipe_bind(pipe_slot: i32, var_offset: i32, args: Vec<o::Expression>) -> o
         4 => Identifiers::pipe_bind4(),
         _ => Identifiers::pipe_bind_v(),
     };
-    
+
     let mut call_args = vec![
         *o::literal(pipe_slot as f64),
         *o::literal(var_offset as f64),
@@ -254,18 +248,14 @@ pub fn pipe_bind(pipe_slot: i32, var_offset: i32, args: Vec<o::Expression>) -> o
     } else {
         call_args.extend(args);
     }
-    
+
     *o::import_ref(id).call_fn(call_args, None, None)
 }
 
 /// Creates a reference expression for local template refs.
 /// Generates ɵɵreference(slot) expression.
 pub fn reference(slot: i32) -> o::Expression {
-    *o::import_ref(Identifiers::reference()).call_fn(
-        vec![*o::literal(slot as f64)],
-        None,
-        None,
-    )
+    *o::import_ref(Identifiers::reference()).call_fn(vec![*o::literal(slot as f64)], None, None)
 }
 
 /// Creates a classProp instruction.

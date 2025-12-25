@@ -4,7 +4,7 @@
 //! Visitor that traverses all template and expression AST nodes in a template.
 //! Useful for cases where every single node needs to be visited.
 
-use crate::expression_parser::ast::{AST, ASTWithSource, RecursiveAstVisitor};
+use crate::expression_parser::ast::{ASTWithSource, RecursiveAstVisitor, AST};
 use crate::render3::r3_ast as t;
 use crate::render3::r3_ast::Visitor;
 
@@ -79,7 +79,6 @@ impl Default for CombinedRecursiveAstVisitor {
         Self::new()
     }
 }
-
 
 // Implement Visitor trait for R3 AST nodes
 impl Visitor for CombinedRecursiveAstVisitor {
@@ -202,7 +201,9 @@ impl Visitor for CombinedRecursiveAstVisitor {
         self.visit_all_template_nodes(&deferred.children);
         // Visit connected blocks (placeholder, loading, error)
         if let Some(ref placeholder) = deferred.placeholder {
-            self.visit_all_template_nodes(&[t::R3Node::DeferredBlockPlaceholder((**placeholder).clone())]);
+            self.visit_all_template_nodes(&[t::R3Node::DeferredBlockPlaceholder(
+                (**placeholder).clone(),
+            )]);
         }
         if let Some(ref loading) = deferred.loading {
             self.visit_all_template_nodes(&[t::R3Node::DeferredBlockLoading((**loading).clone())]);

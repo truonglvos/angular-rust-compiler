@@ -2,8 +2,8 @@
 //!
 //! Corresponds to packages/compiler/src/parse_util.ts (241 lines)
 
-use serde::{Deserialize, Serialize};
 use crate::chars;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParseSourceFile {
@@ -27,7 +27,12 @@ pub struct ParseLocation {
 
 impl ParseLocation {
     pub fn new(file: ParseSourceFile, offset: usize, line: usize, col: usize) -> Self {
-        ParseLocation { file, offset, line, col }
+        ParseLocation {
+            file,
+            offset,
+            line,
+            col,
+        }
     }
 
     pub fn to_string(&self) -> String {
@@ -130,7 +135,11 @@ pub struct ParseSourceSpan {
 
 impl ParseSourceSpan {
     pub fn new(start: ParseLocation, end: ParseLocation) -> Self {
-        ParseSourceSpan { start, end, details: None }
+        ParseSourceSpan {
+            start,
+            end,
+            details: None,
+        }
     }
 
     pub fn with_details(mut self, details: String) -> Self {
@@ -178,10 +187,18 @@ impl ParseError {
     }
 
     pub fn to_string(&self) -> String {
-        let details = self.span.details.as_ref()
+        let details = self
+            .span
+            .details
+            .as_ref()
             .map(|d| format!(", {}", d))
             .unwrap_or_default();
-        format!("{}: {}{}", self.contextual_message(), self.span.start.to_string(), details)
+        format!(
+            "{}: {}{}",
+            self.contextual_message(),
+            self.span.start.to_string(),
+            details
+        )
     }
 }
 
@@ -206,27 +223,27 @@ static mut ANONYMOUS_TYPE_INDEX: usize = 0;
 /// Get identifier name from compile identifier metadata
 pub fn identifier_name(compile_identifier: Option<&CompileIdentifierMetadata>) -> Option<String> {
     let metadata = compile_identifier?;
-    
+
     // In TypeScript, this checks for reference property
     // For Rust, we'll use serde_json::Value and check for string representation
     let ref_value = &metadata.reference;
-    
+
     // Check for __anonymousType
     if let Some(anon_type) = ref_value.get("__anonymousType") {
         if let Some(s) = anon_type.as_str() {
             return Some(s.to_string());
         }
     }
-    
+
     // Check for __forward_ref__
     if ref_value.get("__forward_ref__").is_some() {
         return Some("__forward_ref__".to_string());
     }
-    
+
     // Try to stringify the reference
-    let identifier = serde_json::to_string(ref_value)
-        .unwrap_or_else(|_| format!("{:?}", ref_value));
-    
+    let identifier =
+        serde_json::to_string(ref_value).unwrap_or_else(|_| format!("{:?}", ref_value));
+
     // Check if it contains '(' (anonymous functions)
     if identifier.contains('(') {
         unsafe {
@@ -245,6 +262,12 @@ pub fn identifier_name(compile_identifier: Option<&CompileIdentifierMetadata>) -
 /// Sanitize identifier by replacing non-word characters with underscores
 pub fn sanitize_identifier(name: &str) -> String {
     name.chars()
-        .map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect()
 }

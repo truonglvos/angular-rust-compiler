@@ -18,7 +18,7 @@ impl ResolvedModuleWithProviders {
             is_method_call: false,
         }
     }
-    
+
     pub fn from_method(ng_module: impl Into<String>) -> Self {
         Self {
             ng_module: ng_module.into(),
@@ -70,12 +70,12 @@ pub fn is_module_with_providers_type(
     if type_name != "ModuleWithProviders" {
         return false;
     }
-    
+
     // If compiling core, no import check needed
     if is_core {
         return true;
     }
-    
+
     // Must be from @angular/core
     import_from == Some("@angular/core")
 }
@@ -91,12 +91,11 @@ pub fn try_resolve_module_with_providers(
     if !is_module_with_providers_type(type_name, import_from, is_core) {
         return Ok(None);
     }
-    
+
     // Type argument is required
-    let ng_module = type_arg.ok_or_else(|| {
-        ModuleWithProvidersError::missing_generic(symbol_name)
-    })?;
-    
+    let ng_module =
+        type_arg.ok_or_else(|| ModuleWithProvidersError::missing_generic(symbol_name))?;
+
     Ok(Some(ResolvedModuleWithProviders::new(ng_module)))
 }
 

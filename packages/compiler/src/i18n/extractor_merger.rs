@@ -3,17 +3,17 @@
 //! Corresponds to packages/compiler/src/i18n/extractor_merger.ts
 //! Extracts translatable messages from HTML AST and merges translations
 
-use crate::ml_parser::ast as html;
-use crate::ml_parser::ast::Visitor as HtmlVisitor;
-use crate::ml_parser::parser::ParseTreeResult;
-use crate::parse_util::{ParseError, ParseSourceSpan, ParseLocation, ParseSourceFile};
 use crate::i18n::i18n_ast::{Message, Node as I18nNode};
 use crate::i18n::i18n_parser::{create_i18n_message_factory, I18nMessageFactory};
 use crate::i18n::translation_bundle::TranslationBundle;
+use crate::ml_parser::ast as html;
+use crate::ml_parser::ast::Visitor as HtmlVisitor;
 use crate::ml_parser::defaults::DEFAULT_CONTAINER_BLOCKS;
-use std::collections::{HashMap, HashSet};
-use regex::Regex;
+use crate::ml_parser::parser::ParseTreeResult;
+use crate::parse_util::{ParseError, ParseLocation, ParseSourceFile, ParseSourceSpan};
 use lazy_static::lazy_static;
+use regex::Regex;
+use std::collections::{HashMap, HashSet};
 
 lazy_static! {
     static ref I18N_COMMENT_PREFIX_REGEXP: Regex = Regex::new(r"^i18n:?").unwrap();
@@ -46,11 +46,7 @@ pub fn merge_translations(
     implicit_tags: &[String],
     implicit_attrs: &HashMap<String, Vec<String>>,
 ) -> ParseTreeResult {
-    let mut visitor = Visitor::new(
-        implicit_tags.to_vec(),
-        implicit_attrs.clone(),
-        true,
-    );
+    let mut visitor = Visitor::new(implicit_tags.to_vec(), implicit_attrs.clone(), true);
     visitor.merge(nodes, translations)
 }
 
@@ -165,7 +161,11 @@ impl Visitor {
     }
 
     /// Returns a tree where all translatable nodes are translated
-    fn merge(&mut self, nodes: &[html::Node], translations: &mut TranslationBundle) -> ParseTreeResult {
+    fn merge(
+        &mut self,
+        nodes: &[html::Node],
+        translations: &mut TranslationBundle,
+    ) -> ParseTreeResult {
         self.init(VisitorMode::Merge);
         self.translations = Some(translations as *mut TranslationBundle);
 
@@ -174,7 +174,7 @@ impl Visitor {
         let start_loc = ParseLocation::new(file.clone(), 0, 0, 0);
         let end_loc = ParseLocation::new(file, 0, 0, 0);
         let source_span = ParseSourceSpan::new(start_loc.clone(), end_loc.clone());
-        
+
         let wrapper = html::Element {
             name: "wrapper".to_string(),
             attrs: Vec::new(),
@@ -227,7 +227,8 @@ impl Visitor {
         }
 
         let start_index = self.msg_count_at_section_start.unwrap();
-        let significant_children: usize = direct_children.iter()
+        let significant_children: usize = direct_children
+            .iter()
             .filter(|n| !matches!(n, html::Node::Comment(_)))
             .count();
 
@@ -254,9 +255,21 @@ impl Visitor {
         let factory = self.create_i18n_message.as_mut()?;
         let message = factory.create_message(
             ast,
-            if meta.meaning.is_empty() { None } else { Some(&meta.meaning) },
-            if meta.description.is_empty() { None } else { Some(&meta.description) },
-            if meta.id.is_empty() { None } else { Some(&meta.id) },
+            if meta.meaning.is_empty() {
+                None
+            } else {
+                Some(&meta.meaning)
+            },
+            if meta.description.is_empty() {
+                None
+            } else {
+                Some(&meta.description)
+            },
+            if meta.id.is_empty() {
+                None
+            } else {
+                Some(&meta.id)
+            },
             None,
         );
         self.messages.push(message.clone());
@@ -296,7 +309,8 @@ impl Visitor {
             html::Node::BlockParameter(b) => &b.source_span,
             html::Node::LetDeclaration(l) => &l.source_span,
         };
-        self.errors.push(ParseError::new(span.clone(), msg.to_string()));
+        self.errors
+            .push(ParseError::new(span.clone(), msg.to_string()));
     }
 
     // Helper to check if element has i18n attribute
@@ -310,14 +324,16 @@ impl Visitor {
 
     // Helper to get i18n meta value
     fn get_i18n_meta_value(el: &html::Element) -> String {
-        el.attrs.iter()
+        el.attrs
+            .iter()
             .find(|attr| attr.name == I18N_ATTR)
             .map(|a| a.value.clone())
             .unwrap_or_default()
     }
 
     fn get_i18n_meta_value_component(comp: &html::Component) -> String {
-        comp.attrs.iter()
+        comp.attrs
+            .iter()
             .find(|attr| attr.name == I18N_ATTR)
             .map(|a| a.value.clone())
             .unwrap_or_default()
@@ -325,7 +341,11 @@ impl Visitor {
 }
 
 impl html::Visitor for Visitor {
-    fn visit_element(&mut self, element: &html::Element, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_element(
+        &mut self,
+        element: &html::Element,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         self.may_be_add_block_children(&html::Node::Element(element.clone()));
         self.depth += 1;
         let was_in_i18n_node = self.in_i18n_node;
@@ -336,9 +356,9 @@ impl html::Visitor for Visitor {
         let node_name = element.name.clone();
         let has_i18n_attr = Self::has_i18n_attr(element);
         let i18n_meta = Self::get_i18n_meta_value(element);
-        let is_implicit = self.implicit_tags.contains(&node_name) && 
-                         !self.in_icu && 
-                         !self.is_in_translatable_section();
+        let is_implicit = self.implicit_tags.contains(&node_name)
+            && !self.in_icu
+            && !self.is_in_translatable_section();
         let is_top_level_implicit = !was_in_implicit_node && is_implicit;
         self.in_implicit_node = was_in_implicit_node || is_implicit;
 
@@ -346,7 +366,9 @@ impl html::Visitor for Visitor {
             if has_i18n_attr || is_top_level_implicit {
                 self.in_i18n_node = true;
                 if let Some(message) = self.add_message(&element.children, Some(&i18n_meta)) {
-                    translated_child_nodes = Some(self.translate_message(&html::Node::Element(element.clone()), &message));
+                    translated_child_nodes = Some(
+                        self.translate_message(&html::Node::Element(element.clone()), &message),
+                    );
                 }
             }
 
@@ -358,13 +380,18 @@ impl html::Visitor for Visitor {
                 let mut context: *mut () = std::ptr::null_mut();
                 html::visit_all(self, &element.children, &mut context);
                 if is_translatable {
-                    self.close_translatable_section(&html::Node::Element(element.clone()), &element.children);
+                    self.close_translatable_section(
+                        &html::Node::Element(element.clone()),
+                        &element.children,
+                    );
                 }
             }
         } else {
             if has_i18n_attr || is_top_level_implicit {
-                self.report_error(&html::Node::Element(element.clone()),
-                    "Could not mark an element as translatable inside a translatable section");
+                self.report_error(
+                    &html::Node::Element(element.clone()),
+                    "Could not mark an element as translatable inside a translatable section",
+                );
             }
 
             if self.mode == VisitorMode::Extract {
@@ -390,7 +417,8 @@ impl html::Visitor for Visitor {
 
         // Visit attributes (simplified - just mark messages for extraction)
         if self.mode == VisitorMode::Extract {
-            let implicit_attr_names = self.implicit_attrs
+            let implicit_attr_names = self
+                .implicit_attrs
                 .get(&element.name)
                 .cloned()
                 .unwrap_or_default();
@@ -424,7 +452,11 @@ impl html::Visitor for Visitor {
         }
     }
 
-    fn visit_component(&mut self, component: &html::Component, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_component(
+        &mut self,
+        component: &html::Component,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         self.may_be_add_block_children(&html::Node::Component(component.clone()));
         self.depth += 1;
         let was_in_i18n_node = self.in_i18n_node;
@@ -435,9 +467,9 @@ impl html::Visitor for Visitor {
         let node_name = component.tag_name.clone().unwrap_or_default();
         let has_i18n_attr = Self::has_i18n_attr_component(component);
         let i18n_meta = Self::get_i18n_meta_value_component(component);
-        let is_implicit = self.implicit_tags.contains(&node_name) && 
-                         !self.in_icu && 
-                         !self.is_in_translatable_section();
+        let is_implicit = self.implicit_tags.contains(&node_name)
+            && !self.in_icu
+            && !self.is_in_translatable_section();
         let is_top_level_implicit = !was_in_implicit_node && is_implicit;
         self.in_implicit_node = was_in_implicit_node || is_implicit;
 
@@ -445,7 +477,9 @@ impl html::Visitor for Visitor {
             if has_i18n_attr || is_top_level_implicit {
                 self.in_i18n_node = true;
                 if let Some(message) = self.add_message(&component.children, Some(&i18n_meta)) {
-                    translated_child_nodes = Some(self.translate_message(&html::Node::Component(component.clone()), &message));
+                    translated_child_nodes = Some(
+                        self.translate_message(&html::Node::Component(component.clone()), &message),
+                    );
                 }
             }
 
@@ -457,13 +491,18 @@ impl html::Visitor for Visitor {
                 let mut context: *mut () = std::ptr::null_mut();
                 html::visit_all(self, &component.children, &mut context);
                 if is_translatable {
-                    self.close_translatable_section(&html::Node::Component(component.clone()), &component.children);
+                    self.close_translatable_section(
+                        &html::Node::Component(component.clone()),
+                        &component.children,
+                    );
                 }
             }
         } else {
             if has_i18n_attr || is_top_level_implicit {
-                self.report_error(&html::Node::Component(component.clone()),
-                    "Could not mark an element as translatable inside a translatable section");
+                self.report_error(
+                    &html::Node::Component(component.clone()),
+                    "Could not mark an element as translatable inside a translatable section",
+                );
             }
 
             if self.mode == VisitorMode::Extract {
@@ -473,7 +512,9 @@ impl html::Visitor for Visitor {
         }
 
         if self.mode == VisitorMode::Merge {
-            let visit_nodes = translated_child_nodes.as_ref().unwrap_or(&component.children);
+            let visit_nodes = translated_child_nodes
+                .as_ref()
+                .unwrap_or(&component.children);
             let mut context: *mut () = std::ptr::null_mut();
             for child in visit_nodes {
                 let visit_results = html::visit_all(self, &[child.clone()], &mut context);
@@ -489,7 +530,8 @@ impl html::Visitor for Visitor {
 
         // Visit attributes
         if self.mode == VisitorMode::Extract {
-            let implicit_attr_names = self.implicit_attrs
+            let implicit_attr_names = self
+                .implicit_attrs
                 .get(component.tag_name.as_deref().unwrap_or(""))
                 .cloned()
                 .unwrap_or_default();
@@ -524,31 +566,47 @@ impl html::Visitor for Visitor {
         }
     }
 
-    fn visit_attribute(&mut self, _attribute: &html::Attribute, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_attribute(
+        &mut self,
+        _attribute: &html::Attribute,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         None
     }
 
-    fn visit_text(&mut self, text: &html::Text, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_text(
+        &mut self,
+        text: &html::Text,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         if self.is_in_translatable_section() {
             self.may_be_add_block_children(&html::Node::Text(text.clone()));
         }
         Some(Box::new(text.clone()))
     }
 
-    fn visit_comment(&mut self, comment: &html::Comment, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_comment(
+        &mut self,
+        comment: &html::Comment,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         let is_opening = is_opening_comment(comment);
-        
+
         if is_opening && self.is_in_translatable_section() {
-            self.report_error(&html::Node::Comment(comment.clone()),
-                "Could not start a block inside a translatable section");
+            self.report_error(
+                &html::Node::Comment(comment.clone()),
+                "Could not start a block inside a translatable section",
+            );
             return None;
         }
 
         let is_closing = is_closing_comment(comment);
 
         if is_closing && !self.in_i18n_block {
-            self.report_error(&html::Node::Comment(comment.clone()),
-                "Trying to close an unopened block");
+            self.report_error(
+                &html::Node::Comment(comment.clone()),
+                "Trying to close an unopened block",
+            );
             return None;
         }
 
@@ -571,20 +629,29 @@ impl html::Visitor for Visitor {
                     if self.depth == self.block_start_depth {
                         let block_children = self.block_children.clone();
                         let block_meaning_and_desc = self.block_meaning_and_desc.clone();
-                        self.close_translatable_section(&html::Node::Comment(comment.clone()), &block_children);
+                        self.close_translatable_section(
+                            &html::Node::Comment(comment.clone()),
+                            &block_children,
+                        );
                         self.in_i18n_block = false;
-                        if let Some(message) = self.add_message(&block_children, Some(&block_meaning_and_desc)) {
-                            let nodes = self.translate_message(&html::Node::Comment(comment.clone()), &message);
+                        if let Some(message) =
+                            self.add_message(&block_children, Some(&block_meaning_and_desc))
+                        {
+                            let nodes = self
+                                .translate_message(&html::Node::Comment(comment.clone()), &message);
                             let mut context: *mut () = std::ptr::null_mut();
-                            let results: Vec<html::Node> = html::visit_all(self, &nodes, &mut context)
-                                .into_iter()
-                                .filter_map(|r| r.downcast::<html::Node>().ok().map(|n| *n))
-                                .collect();
+                            let results: Vec<html::Node> =
+                                html::visit_all(self, &nodes, &mut context)
+                                    .into_iter()
+                                    .filter_map(|r| r.downcast::<html::Node>().ok().map(|n| *n))
+                                    .collect();
                             return Some(Box::new(results));
                         }
                     } else {
-                        self.report_error(&html::Node::Comment(comment.clone()),
-                            "I18N blocks should not cross element boundaries");
+                        self.report_error(
+                            &html::Node::Comment(comment.clone()),
+                            "I18N blocks should not cross element boundaries",
+                        );
                         return None;
                     }
                 }
@@ -593,7 +660,11 @@ impl html::Visitor for Visitor {
         None
     }
 
-    fn visit_expansion(&mut self, expansion: &html::Expansion, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_expansion(
+        &mut self,
+        expansion: &html::Expansion,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         self.may_be_add_block_children(&html::Node::Expansion(expansion.clone()));
 
         let was_in_icu = self.in_icu;
@@ -608,12 +679,16 @@ impl html::Visitor for Visitor {
         let mut context: *mut () = std::ptr::null_mut();
         let cases: Vec<html::ExpansionCase> = html::visit_all(
             self,
-            &expansion.cases.iter().map(|c| html::Node::ExpansionCase(c.clone())).collect::<Vec<_>>(),
-            &mut context
+            &expansion
+                .cases
+                .iter()
+                .map(|c| html::Node::ExpansionCase(c.clone()))
+                .collect::<Vec<_>>(),
+            &mut context,
         )
-            .into_iter()
-            .filter_map(|r| r.downcast::<html::ExpansionCase>().ok().map(|c| *c))
-            .collect();
+        .into_iter()
+        .filter_map(|r| r.downcast::<html::ExpansionCase>().ok().map(|c| *c))
+        .collect();
 
         self.in_icu = was_in_icu;
 
@@ -631,7 +706,11 @@ impl html::Visitor for Visitor {
         }
     }
 
-    fn visit_expansion_case(&mut self, icu_case: &html::ExpansionCase, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_expansion_case(
+        &mut self,
+        icu_case: &html::ExpansionCase,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         let mut context: *mut () = std::ptr::null_mut();
         let expression: Vec<html::Node> = html::visit_all(self, &icu_case.expression, &mut context)
             .into_iter()
@@ -651,27 +730,46 @@ impl html::Visitor for Visitor {
         }
     }
 
-    fn visit_block(&mut self, block: &html::Block, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_block(
+        &mut self,
+        block: &html::Block,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         let mut context: *mut () = std::ptr::null_mut();
         html::visit_all(self, &block.children, &mut context);
         None
     }
 
-    fn visit_block_parameter(&mut self, _parameter: &html::BlockParameter, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_block_parameter(
+        &mut self,
+        _parameter: &html::BlockParameter,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         None
     }
 
-    fn visit_let_declaration(&mut self, _decl: &html::LetDeclaration, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_let_declaration(
+        &mut self,
+        _decl: &html::LetDeclaration,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         None
     }
 
-    fn visit_directive(&mut self, _directive: &html::Directive, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_directive(
+        &mut self,
+        _directive: &html::Directive,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         None
     }
 }
 
 fn is_opening_comment(n: &html::Comment) -> bool {
-    n.value.as_ref().map(|v| v.starts_with("i18n")).unwrap_or(false)
+    n.value
+        .as_ref()
+        .map(|v| v.starts_with("i18n"))
+        .unwrap_or(false)
 }
 
 fn is_closing_comment(n: &html::Comment) -> bool {

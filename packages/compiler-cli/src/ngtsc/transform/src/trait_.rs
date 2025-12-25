@@ -4,8 +4,8 @@
 // pending state and undergoes transitions as compilation proceeds through various steps.
 
 use crate::ngtsc::transform::src::api::{DecoratorHandler, DetectResult};
-use ts::Diagnostic;
 use std::sync::Arc;
+use ts::Diagnostic;
 
 // ============================================================================
 // Trait State
@@ -16,13 +16,13 @@ use std::sync::Arc;
 pub enum TraitState {
     /// Pending traits are freshly created and have never been analyzed.
     Pending,
-    
+
     /// Analyzed traits have successfully been analyzed, but are pending resolution.
     Analyzed,
-    
+
     /// Resolved traits have successfully been analyzed and resolved and are ready for compilation.
     Resolved,
-    
+
     /// Skipped traits are no longer considered for compilation.
     Skipped,
 }
@@ -41,26 +41,26 @@ pub enum TraitState {
 pub struct TraitImpl<D, A, S, R> {
     /// Current state of the trait.
     pub state: TraitState,
-    
+
     /// The `DecoratorHandler` which matched on the class to create this trait.
     /// Using Arc to allow shared ownership without complex lifetime issues.
     pub handler: Arc<dyn DecoratorHandler<D, A, S, R>>,
-    
+
     /// The detection result which indicated that this trait applied to the class.
     pub detected: DetectResult<D>,
-    
+
     /// Analysis results of the given trait (valid in Analyzed and Resolved states).
     pub analysis: Option<A>,
-    
+
     /// Semantic symbol for incremental compilation.
     pub symbol: Option<S>,
-    
+
     /// Resolution results (valid in Resolved state).
     pub resolution: Option<R>,
-    
+
     /// Any diagnostics that resulted from analysis.
     pub analysis_diagnostics: Option<Vec<Diagnostic>>,
-    
+
     /// Any diagnostics that resulted from resolution.
     pub resolve_diagnostics: Option<Vec<Diagnostic>>,
 }
@@ -127,11 +127,7 @@ impl<D, A, S, R> TraitImpl<D, A, S, R> {
     ///
     /// # Panics
     /// Panics if the trait is not in Analyzed state, or if analysis is None.
-    pub fn to_resolved(
-        &mut self,
-        resolution: Option<R>,
-        diagnostics: Option<Vec<Diagnostic>>,
-    ) {
+    pub fn to_resolved(&mut self, resolution: Option<R>, diagnostics: Option<Vec<Diagnostic>>) {
         self.assert_transition_legal(TraitState::Analyzed, TraitState::Resolved);
         if self.analysis.is_none() {
             panic!("Cannot transition an Analyzed trait with a null analysis to Resolved");

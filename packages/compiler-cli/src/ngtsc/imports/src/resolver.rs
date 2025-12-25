@@ -18,7 +18,7 @@ impl ModuleResolver {
             base_path: base_path.into(),
         }
     }
-    
+
     /// Resolve a module by name relative to a containing file.
     ///
     /// # Arguments
@@ -30,31 +30,31 @@ impl ModuleResolver {
             let containing_dir = std::path::Path::new(containing_file)
                 .parent()
                 .unwrap_or(std::path::Path::new(""));
-            
+
             let resolved = containing_dir.join(module_name);
-            
+
             // Try with .ts extension
             let with_ts = resolved.with_extension("ts");
             if with_ts.exists() {
                 return Some(with_ts);
             }
-            
+
             // Try with /index.ts
             let with_index = resolved.join("index.ts");
             if with_index.exists() {
                 return Some(with_index);
             }
-            
+
             return Some(resolved);
         }
-        
+
         // Handle absolute/package paths
         // In a real implementation, this would use TypeScript's module resolution
         let resolved = self.base_path.join("node_modules").join(module_name);
         if resolved.exists() {
             return Some(resolved);
         }
-        
+
         None
     }
 }

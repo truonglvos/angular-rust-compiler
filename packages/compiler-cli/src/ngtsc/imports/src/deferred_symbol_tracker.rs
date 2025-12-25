@@ -29,10 +29,10 @@ pub type SymbolMap = HashMap<String, SymbolState>;
 pub struct DeferredSymbolTracker {
     /// Map of import declaration ID to its symbol map.
     imports: HashMap<String, SymbolMap>,
-    
+
     /// Map of component class to import declarations used in deferredImports.
     explicitly_deferred_imports: HashMap<String, Vec<String>>,
-    
+
     /// Whether to only allow explicit defer dependency imports.
     only_explicit_defer_dependency_imports: bool,
 }
@@ -45,7 +45,7 @@ impl DeferredSymbolTracker {
             only_explicit_defer_dependency_imports,
         }
     }
-    
+
     /// Extract imported symbols from an import declaration.
     ///
     /// Recognizes these import shapes:
@@ -59,13 +59,13 @@ impl DeferredSymbolTracker {
         }
         symbol_map
     }
-    
+
     /// Register an import declaration with its symbols.
     pub fn register_import(&mut self, import_id: &str, symbols: &[&str]) {
         let symbol_map = self.extract_imported_symbols(symbols);
         self.imports.insert(import_id.to_string(), symbol_map);
     }
-    
+
     /// Mark an identifier as a candidate for defer loading.
     ///
     /// # Arguments
@@ -83,14 +83,14 @@ impl DeferredSymbolTracker {
         if self.only_explicit_defer_dependency_imports && !is_explicitly_deferred {
             return;
         }
-        
+
         if is_explicitly_deferred {
             self.explicitly_deferred_imports
                 .entry(component_class.to_string())
                 .or_insert_with(Vec::new)
                 .push(import_id.to_string());
         }
-        
+
         if let Some(symbol_map) = self.imports.get_mut(import_id) {
             if let Some(state) = symbol_map.get_mut(identifier) {
                 // If AssumeEager, convert to empty set (meaning no eager refs remaining)
@@ -100,7 +100,7 @@ impl DeferredSymbolTracker {
             }
         }
     }
-    
+
     /// Check if all symbols from an import can be deferred.
     pub fn can_defer(&self, import_id: &str) -> bool {
         if let Some(symbol_map) = self.imports.get(import_id) {
@@ -116,7 +116,7 @@ impl DeferredSymbolTracker {
             false
         }
     }
-    
+
     /// Get set of import declaration IDs that are safe to defer.
     pub fn get_deferrable_import_decls(&self) -> HashSet<String> {
         let mut deferrable = HashSet::new();
@@ -127,7 +127,7 @@ impl DeferredSymbolTracker {
         }
         deferrable
     }
-    
+
     /// Get non-removable deferred imports for a component.
     pub fn get_non_removable_deferred_imports(
         &self,

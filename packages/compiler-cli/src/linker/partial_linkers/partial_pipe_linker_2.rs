@@ -1,11 +1,11 @@
-use crate::linker::partial_linker::PartialLinker;
-use crate::linker::ast_value::AstObject;
 use crate::linker::ast::AstNode;
+use crate::linker::ast_value::AstObject;
+use crate::linker::partial_linker::PartialLinker;
 use angular_compiler::constant_pool::ConstantPool;
 use angular_compiler::output::output_ast as o;
+use angular_compiler::parse_util::{ParseLocation, ParseSourceFile, ParseSourceSpan};
 use angular_compiler::render3::r3_pipe_compiler::{compile_pipe_from_metadata, R3PipeMetadata};
 use angular_compiler::render3::util::R3Reference;
-use angular_compiler::parse_util::{ParseSourceSpan, ParseLocation, ParseSourceFile};
 
 pub struct PartialPipeLinker2;
 
@@ -20,7 +20,7 @@ impl PartialPipeLinker2 {
     ) -> Result<R3PipeMetadata, String> {
         let type_expr = meta_obj.get_value("type")?.node;
         let type_str = meta_obj.host.print_node(&type_expr);
-        
+
         let wrapped_type = o::Expression::ReadVar(o::ReadVarExpr {
             name: type_str,
             type_: None,
@@ -36,10 +36,12 @@ impl PartialPipeLinker2 {
         let dummy_file = ParseSourceFile::new("".to_string(), "unknown".to_string());
         let _dummy_span = ParseSourceSpan::new(
             ParseLocation::new(dummy_file.clone(), 0, 0, 0),
-            ParseLocation::new(dummy_file, 0, 0, 0)
+            ParseLocation::new(dummy_file, 0, 0, 0),
         );
 
-        let pipe_name = meta_obj.get_string("name").unwrap_or_else(|_| "Pipe".to_string());
+        let pipe_name = meta_obj
+            .get_string("name")
+            .unwrap_or_else(|_| "Pipe".to_string());
         let pure = meta_obj.get_bool("pure").unwrap_or(true);
         let is_standalone = meta_obj.get_bool("isStandalone").unwrap_or(false);
 
@@ -68,14 +70,12 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialPipeLinker2 {
             Ok(meta) => {
                 let res = compile_pipe_from_metadata(&meta);
                 res.expression
-            },
-            Err(e) => {
-                o::Expression::Literal(o::LiteralExpr {
-                    value: o::LiteralValue::String(format!("Error: {}", e)),
-                    type_: None,
-                    source_span: None,
-                })
             }
+            Err(e) => o::Expression::Literal(o::LiteralExpr {
+                value: o::LiteralValue::String(format!("Error: {}", e)),
+                type_: None,
+                source_span: None,
+            }),
         }
     }
 }

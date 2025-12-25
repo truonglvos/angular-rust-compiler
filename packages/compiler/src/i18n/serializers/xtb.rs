@@ -5,7 +5,9 @@
 #![allow(dead_code)]
 
 use crate::i18n::i18n_ast::Message;
-use crate::i18n::serializers::serializer::{Serializer, PlaceholderMapper, SimplePlaceholderMapper};
+use crate::i18n::serializers::serializer::{
+    PlaceholderMapper, Serializer, SimplePlaceholderMapper,
+};
 use crate::i18n::serializers::xmb::{to_public_name, Xmb};
 use crate::i18n::translation_bundle::LoadResult;
 use std::collections::HashMap;
@@ -22,9 +24,7 @@ pub struct Xtb {
 
 impl Xtb {
     pub fn new() -> Self {
-        Xtb {
-            xmb: Xmb::new(),
-        }
+        Xtb { xmb: Xmb::new() }
     }
 }
 
@@ -52,7 +52,10 @@ impl Serializer for Xtb {
     }
 
     fn create_name_mapper(&self, message: &Message) -> Option<Box<dyn PlaceholderMapper>> {
-        Some(Box::new(SimplePlaceholderMapper::new(message, to_public_name)))
+        Some(Box::new(SimplePlaceholderMapper::new(
+            message,
+            to_public_name,
+        )))
     }
 }
 
@@ -60,4 +63,3 @@ impl Serializer for Xtb {
 // This parser extracts translations from XTB format
 
 // TODO: Implement XmlToI18n for converting XTB XML to i18n nodes
-

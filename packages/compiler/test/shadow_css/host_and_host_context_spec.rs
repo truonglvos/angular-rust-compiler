@@ -27,7 +27,10 @@ fn should_handle_attribute_selector() {
         &shim(":host([a=\"b\"]) {}", "contenta", "a-host"),
         "[a=\"b\"][a-host] {}",
     );
-    assert_equal_css(&shim(":host([a=b]) {}", "contenta", "a-host"), "[a=b][a-host] {}");
+    assert_equal_css(
+        &shim(":host([a=b]) {}", "contenta", "a-host"),
+        "[a=b][a-host] {}",
+    );
 }
 
 #[test]
@@ -55,7 +58,10 @@ fn should_handle_multiple_tag_selectors() {
 
 #[test]
 fn should_handle_compound_class_selectors() {
-    assert_equal_css(&shim(":host(.a.b) {}", "contenta", "a-host"), ".a.b[a-host] {}");
+    assert_equal_css(
+        &shim(":host(.a.b) {}", "contenta", "a-host"),
+        ".a.b[a-host] {}",
+    );
 }
 
 #[test]
@@ -84,13 +90,20 @@ fn should_handle_pseudo_selectors() {
         &shim(":host(:before) {}", "contenta", "a-host"),
         "[a-host]:before {}",
     );
-    assert_equal_css(&shim(":host:before {}", "contenta", "a-host"), "[a-host]:before {}");
+    assert_equal_css(
+        &shim(":host:before {}", "contenta", "a-host"),
+        "[a-host]:before {}",
+    );
     assert_equal_css(
         &shim(":host:nth-child(8n+1) {}", "contenta", "a-host"),
         "[a-host]:nth-child(8n+1) {}",
     );
     assert_equal_css(
-        &shim(":host(:nth-child(3n of :not(p, a))) {}", "contenta", "a-host"),
+        &shim(
+            ":host(:nth-child(3n of :not(p, a))) {}",
+            "contenta",
+            "a-host",
+        ),
         "[a-host]:nth-child(3n of :not(p, a)) {}",
     );
     assert_equal_css(
@@ -142,7 +155,11 @@ fn should_handle_pseudo_selectors() {
         "[a-host]:not(.foo, .bar) {}",
     );
     assert_equal_css(
-        &shim(":host:has(> child-element:not(.foo)) {}", "contenta", "a-host"),
+        &shim(
+            ":host:has(> child-element:not(.foo)) {}",
+            "contenta",
+            "a-host",
+        ),
         "[a-host]:has(> child-element:not(.foo)) {}",
     );
 }
@@ -151,7 +168,10 @@ fn should_handle_pseudo_selectors() {
 #[test]
 fn should_handle_unexpected_selectors_in_the_most_reasonable_way() {
     assert_equal_css(&shim("cmp:host {}", "contenta", "a-host"), "cmp[a-host] {}");
-    assert_equal_css(&shim("cmp:host >>> {}", "contenta", "a-host"), "cmp[a-host] {}");
+    assert_equal_css(
+        &shim("cmp:host >>> {}", "contenta", "a-host"),
+        "cmp[a-host] {}",
+    );
     assert_equal_css(
         &shim("cmp:host child {}", "contenta", "a-host"),
         "cmp[a-host] child[contenta] {}",
@@ -160,8 +180,14 @@ fn should_handle_unexpected_selectors_in_the_most_reasonable_way() {
         &shim("cmp:host >>> child {}", "contenta", "a-host"),
         "cmp[a-host] child {}",
     );
-    assert_equal_css(&shim("cmp :host {}", "contenta", "a-host"), "cmp [a-host] {}");
-    assert_equal_css(&shim("cmp :host >>> {}", "contenta", "a-host"), "cmp [a-host] {}");
+    assert_equal_css(
+        &shim("cmp :host {}", "contenta", "a-host"),
+        "cmp [a-host] {}",
+    );
+    assert_equal_css(
+        &shim("cmp :host >>> {}", "contenta", "a-host"),
+        "cmp [a-host] {}",
+    );
     assert_equal_css(
         &shim("cmp :host child {}", "contenta", "a-host"),
         "cmp [a-host] child[contenta] {}",
@@ -196,7 +222,11 @@ fn should_transform_host_context_with_pseudo_selectors() {
         ":where(backdrop[hosta]), :where(backdrop [hosta]) {}",
     );
     assert_equal_css(
-        &shim(":where(:host-context(outer1)) :host(bar) {}", "contenta", "hosta"),
+        &shim(
+            ":where(:host-context(outer1)) :host(bar) {}",
+            "contenta",
+            "hosta",
+        ),
         ":where(outer1) bar[hosta] {}",
     );
     assert_equal_css(
@@ -208,11 +238,19 @@ fn should_transform_host_context_with_pseudo_selectors() {
         ":where(backdrop[hosta]) .foo[contenta] ~ .bar[contenta], :where(backdrop [hosta]) .foo[contenta] ~ .bar[contenta] {}",
     );
     assert_equal_css(
-        &shim(":where(:host-context(backdrop)) :host {}", "contenta", "hosta"),
+        &shim(
+            ":where(:host-context(backdrop)) :host {}",
+            "contenta",
+            "hosta",
+        ),
         ":where(backdrop) [hosta] {}",
     );
     assert_equal_css(
-        &shim("div:where(:host-context(backdrop)) :host {}", "contenta", "hosta"),
+        &shim(
+            "div:where(:host-context(backdrop)) :host {}",
+            "contenta",
+            "hosta",
+        ),
         "div:where(backdrop) [hosta] {}",
     );
 }
@@ -220,7 +258,11 @@ fn should_transform_host_context_with_pseudo_selectors() {
 #[test]
 fn should_transform_host_context_with_nested_pseudo_selectors() {
     assert_equal_css(
-        &shim(":host-context(:where(.foo:not(.bar))) {}", "contenta", "hosta"),
+        &shim(
+            ":host-context(:where(.foo:not(.bar))) {}",
+            "contenta",
+            "hosta",
+        ),
         ":where(.foo:not(.bar))[hosta], :where(.foo:not(.bar)) [hosta] {}",
     );
     assert_equal_css(
@@ -275,11 +317,15 @@ fn should_handle_multiple_host_context_selectors() {
         &shim(":host-context(.one):host-context(.two) {}", "contenta", "a-host"),
         ".one.two[a-host], .one.two [a-host], .one .two[a-host], .one .two [a-host], .two .one[a-host], .two .one [a-host] {}",
     );
-    
+
     // Test with 3 selectors - very long expected string
     let expected = ".X.Y.Z[a-host], .X.Y.Z [a-host], .X.Y .Z[a-host], .X.Y .Z [a-host], .X.Z .Y[a-host], .X.Z .Y [a-host], .X .Y.Z[a-host], .X .Y.Z [a-host], .X .Y .Z[a-host], .X .Y .Z [a-host], .X .Z .Y[a-host], .X .Z .Y [a-host], .Y.Z .X[a-host], .Y.Z .X [a-host], .Y .Z .X[a-host], .Y .Z .X [a-host], .Z .Y .X[a-host], .Z .Y .X [a-host] {}";
     assert_equal_css(
-        &shim(":host-context(.X):host-context(.Y):host-context(.Z) {}", "contenta", "a-host"),
+        &shim(
+            ":host-context(.X):host-context(.Y):host-context(.Z) {}",
+            "contenta",
+            "a-host",
+        ),
         expected,
     );
 }
@@ -351,7 +397,11 @@ fn should_handle_selectors_on_different_elements() {
         "div .x[a-host] > .y[contenta] {}",
     );
     assert_equal_css(
-        &shim(":host-context(div) > :host(.x) > .y {}", "contenta", "a-host"),
+        &shim(
+            ":host-context(div) > :host(.x) > .y {}",
+            "contenta",
+            "a-host",
+        ),
         "div > .x[a-host] > .y[contenta] {}",
     );
 }
@@ -367,4 +417,3 @@ fn should_parse_multiple_rules_containing_host_context_and_host() {
         "outer1 bar[a-host] {} outer2 foo[a-host] {}",
     );
 }
-

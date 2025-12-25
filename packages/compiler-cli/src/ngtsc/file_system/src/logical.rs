@@ -1,5 +1,6 @@
 use crate::ngtsc::file_system::src::helpers::{
-    absolute_from_source_file, dirname, is_local_relative_path, relative, resolve, to_relative_import,
+    absolute_from_source_file, dirname, is_local_relative_path, relative, resolve,
+    to_relative_import,
 };
 use crate::ngtsc::file_system::src::types::{AbsoluteFsPath, BrandedPath, PathSegment};
 use crate::ngtsc::file_system::src::util::strip_extension;
@@ -65,9 +66,13 @@ impl LogicalFileSystem {
     }
 
     /// Get the logical path in the project of a source file.
-    pub fn logical_path_of_file(&mut self, physical_file: &AbsoluteFsPath) -> Option<LogicalProjectPath> {
+    pub fn logical_path_of_file(
+        &mut self,
+        physical_file: &AbsoluteFsPath,
+    ) -> Option<LogicalProjectPath> {
         if !self.cache.contains_key(physical_file) {
-            let canonical_file_path = AbsoluteFsPath::new((self.canonicalizer)(physical_file.as_str()));
+            let canonical_file_path =
+                AbsoluteFsPath::new((self.canonicalizer)(physical_file.as_str()));
             let mut logical_file: Option<LogicalProjectPath> = None;
 
             for i in 0..self.root_dirs.len() {
@@ -98,13 +103,13 @@ impl LogicalFileSystem {
         // file.slice(root_dir.length)
         let relative_path_str = &file.as_str()[root_dir.as_str().len()..];
         let logical_path = strip_extension(relative_path_str);
-        
+
         let normalized = if logical_path.starts_with('/') {
             logical_path
         } else {
             format!("/{}", logical_path)
         };
-        
+
         LogicalProjectPath::new(normalized)
     }
 }
@@ -115,12 +120,15 @@ fn is_within_base_path(base: &AbsoluteFsPath, path: &AbsoluteFsPath) -> bool {
 
 pub struct LogicalProjectPathHelper;
 impl LogicalProjectPathHelper {
-     /// Get the relative path between two `LogicalProjectPath`s.
-    pub fn relative_path_between(from: &LogicalProjectPath, to: &LogicalProjectPath) -> PathSegment {
-         let from_abs = resolve(from.as_str(), &[]);
-         let from_dir = dirname(from_abs.as_str());
-         let to_abs = resolve(to.as_str(), &[]);
-         let relative_path = relative(&from_dir, to_abs.as_str());
-         PathSegment::new(to_relative_import(&relative_path))
+    /// Get the relative path between two `LogicalProjectPath`s.
+    pub fn relative_path_between(
+        from: &LogicalProjectPath,
+        to: &LogicalProjectPath,
+    ) -> PathSegment {
+        let from_abs = resolve(from.as_str(), &[]);
+        let from_dir = dirname(from_abs.as_str());
+        let to_abs = resolve(to.as_str(), &[]);
+        let relative_path = relative(&from_dir, to_abs.as_str());
+        PathSegment::new(to_relative_import(&relative_path))
     }
 }

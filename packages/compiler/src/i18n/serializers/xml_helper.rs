@@ -23,11 +23,7 @@ impl IVisitor for Visitor {
             return format!("<{}{}/>", tag.name, str_attrs);
         }
 
-        let str_children: Vec<String> = tag
-            .children
-            .iter()
-            .map(|node| node.visit(self))
-            .collect();
+        let str_children: Vec<String> = tag.children.iter().map(|node| node.visit(self)).collect();
 
         format!(
             "<{}{}>{}</{}>",
@@ -247,4 +243,3 @@ pub fn escape_xml(text: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
 }
-

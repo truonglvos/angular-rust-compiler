@@ -8,16 +8,16 @@ use super::api::TypeCheckError;
 pub trait TemplateTypeChecker {
     /// Get diagnostics for a component.
     fn get_diagnostics_for_component(&self, component: &str) -> Vec<TypeCheckError>;
-    
+
     /// Get all diagnostics.
     fn get_all_diagnostics(&self) -> Vec<TypeCheckError>;
-    
+
     /// Check if a component has been type-checked.
     fn is_type_checked(&self, component: &str) -> bool;
-    
+
     /// Invalidate a component, forcing re-type-check.
     fn invalidate(&mut self, component: &str);
-    
+
     /// Invalidate all components.
     fn invalidate_all(&mut self);
 }
@@ -38,7 +38,7 @@ impl TypeCheckResult {
             diagnostics: Vec::new(),
         }
     }
-    
+
     pub fn failure(diagnostics: Vec<TypeCheckError>) -> Self {
         Self {
             success: false,

@@ -18,7 +18,7 @@ impl AccessLevel {
             AccessLevel::Private => "private",
         }
     }
-    
+
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "public" => Some(AccessLevel::Public),
@@ -57,7 +57,9 @@ pub struct AccessLevelError {
 
 impl AccessLevelError {
     pub fn message(&self) -> String {
-        let allowed = self.allowed_levels.iter()
+        let allowed = self
+            .allowed_levels
+            .iter()
             .map(|l| l.as_str())
             .collect::<Vec<_>>()
             .join(", ");

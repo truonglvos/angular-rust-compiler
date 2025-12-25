@@ -2,8 +2,8 @@
 //
 // Generates type-check blocks for templates.
 
-use std::fmt::Write;
 use super::super::api::{TypeCheckError, TypeCheckingConfig};
+use std::fmt::Write;
 
 /// Generates a type-check block (TCB) for a component template.
 pub struct TypeCheckBlockGenerator {
@@ -23,26 +23,33 @@ impl TypeCheckBlockGenerator {
             indent: 0,
         }
     }
-    
+
     /// Generate TCB for a component.
-    pub fn generate(&mut self, component_name: &str, template: &str) -> Result<String, TypeCheckError> {
+    pub fn generate(
+        &mut self,
+        component_name: &str,
+        template: &str,
+    ) -> Result<String, TypeCheckError> {
         self.output.clear();
-        
+
         // Generate function signature
-        self.write_line(&format!("function _tcb_{}(ctx: {}) {{", component_name, component_name));
+        self.write_line(&format!(
+            "function _tcb_{}(ctx: {}) {{",
+            component_name, component_name
+        ));
         self.indent += 1;
-        
+
         // For now, generate placeholder
         self.write_line("// Template type-check block");
         self.write_line(&format!("// Template: {}", template.replace('\n', " ")));
-        
+
         // Close function
         self.indent -= 1;
         self.write_line("}");
-        
+
         Ok(self.output.clone())
     }
-    
+
     /// Generate element type-check.
     pub fn generate_element(&mut self, tag: &str, attrs: &[(String, String)]) {
         self.write_line(&format!("// Element: <{}>", tag));
@@ -50,7 +57,7 @@ impl TypeCheckBlockGenerator {
             self.write_line(&format!("// Attr: {}=\"{}\"", name, value));
         }
     }
-    
+
     /// Generate directive type-check.
     pub fn generate_directive(&mut self, directive_name: &str, inputs: &[(String, String)]) {
         self.write_line(&format!("const _dir = new {}();", directive_name));
@@ -58,14 +65,14 @@ impl TypeCheckBlockGenerator {
             self.write_line(&format!("_dir.{} = {};", input, value));
         }
     }
-    
+
     /// Generate pipe type-check.
     pub fn generate_pipe(&mut self, pipe_name: &str, args: &[String]) {
         let args_str = args.join(", ");
         self.write_line(&format!("const _pipe = new {}();", pipe_name));
         self.write_line(&format!("_pipe.transform({});", args_str));
     }
-    
+
     fn write_line(&mut self, line: &str) {
         let indent = "  ".repeat(self.indent);
         writeln!(self.output, "{}{}", indent, line).ok();
@@ -84,7 +91,7 @@ impl OutOfBandDiagnosticRecorder {
             diagnostics: Vec::new(),
         }
     }
-    
+
     /// Record a missing pipe error.
     pub fn missing_pipe(&mut self, component: &str, pipe_name: &str) {
         self.diagnostics.push(TypeCheckError {
@@ -95,7 +102,7 @@ impl OutOfBandDiagnosticRecorder {
             length: None,
         });
     }
-    
+
     /// Record a missing directive error.
     pub fn missing_directive(&mut self, component: &str, selector: &str) {
         self.diagnostics.push(TypeCheckError {
@@ -106,7 +113,7 @@ impl OutOfBandDiagnosticRecorder {
             length: None,
         });
     }
-    
+
     /// Get all diagnostics.
     pub fn diagnostics(&self) -> &[TypeCheckError] {
         &self.diagnostics

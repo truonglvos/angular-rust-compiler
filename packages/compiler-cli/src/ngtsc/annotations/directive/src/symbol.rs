@@ -98,88 +98,96 @@ impl DirectiveSymbol {
             base_class: None,
         }
     }
-    
+
     pub fn with_inputs(mut self, inputs: Vec<InputMappingMeta>) -> Self {
         self.inputs = inputs;
         self
     }
-    
+
     pub fn with_outputs(mut self, outputs: Vec<InputOrOutput>) -> Self {
         self.outputs = outputs;
         self
     }
-    
+
     pub fn with_export_as(mut self, export_as: Vec<String>) -> Self {
         self.export_as = Some(export_as);
         self
     }
-    
+
     /// Check if the public API is affected compared to a previous symbol.
     pub fn is_public_api_affected(&self, previous: &DirectiveSymbol) -> bool {
         // Public API consists of: selector, input/output binding names, exportAs
         if self.selector != previous.selector {
             return true;
         }
-        
-        let self_input_names: Vec<_> = self.inputs.iter()
+
+        let self_input_names: Vec<_> = self
+            .inputs
+            .iter()
             .map(|i| &i.base.binding_property_name)
             .collect();
-        let prev_input_names: Vec<_> = previous.inputs.iter()
+        let prev_input_names: Vec<_> = previous
+            .inputs
+            .iter()
             .map(|i| &i.base.binding_property_name)
             .collect();
         if self_input_names != prev_input_names {
             return true;
         }
-        
-        let self_output_names: Vec<_> = self.outputs.iter()
+
+        let self_output_names: Vec<_> = self
+            .outputs
+            .iter()
             .map(|o| &o.binding_property_name)
             .collect();
-        let prev_output_names: Vec<_> = previous.outputs.iter()
+        let prev_output_names: Vec<_> = previous
+            .outputs
+            .iter()
             .map(|o| &o.binding_property_name)
             .collect();
         if self_output_names != prev_output_names {
             return true;
         }
-        
+
         if self.export_as != previous.export_as {
             return true;
         }
-        
+
         false
     }
-    
+
     /// Check if the type check API is affected compared to a previous symbol.
     pub fn is_type_check_api_affected(&self, previous: &DirectiveSymbol) -> bool {
         if self.is_public_api_affected(previous) {
             return true;
         }
-        
+
         // Check inputs/outputs in detail
         if self.inputs != previous.inputs || self.outputs != previous.outputs {
             return true;
         }
-        
+
         // Check type parameters
         if self.type_parameters != previous.type_parameters {
             return true;
         }
-        
+
         // Check type check metadata
         if !self.is_type_check_meta_equal(&previous.type_check_meta) {
             return true;
         }
-        
+
         // Check base class
         if self.base_class != previous.base_class {
             return true;
         }
-        
+
         false
     }
-    
+
     fn is_type_check_meta_equal(&self, other: &DirectiveTypeCheckMeta) -> bool {
         let meta = &self.type_check_meta;
-        
+
         meta.has_ng_template_context_guard == other.has_ng_template_context_guard
             && meta.is_generic == other.is_generic
             && meta.ng_template_guards == other.ng_template_guards

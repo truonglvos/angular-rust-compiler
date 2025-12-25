@@ -27,19 +27,19 @@ pub trait AstHost<TExpression: AstNode> {
 
     /// Return `true` if the given expression is a string literal.
     fn is_string_literal(&self, node: &TExpression) -> bool;
-    
+
     /// Parse the string value from the given expression, or throw if it is not a string literal.
     fn parse_string_literal(&self, str: &TExpression) -> Result<String, String>;
 
     /// Return `true` if the given expression is a numeric literal.
     fn is_numeric_literal(&self, node: &TExpression) -> bool;
-    
+
     /// Parse the numeric value from the given expression, or throw if it is not a numeric literal.
     fn parse_numeric_literal(&self, num: &TExpression) -> Result<f64, String>;
 
     /// Return `true` if the given expression is a boolean literal.
     fn is_boolean_literal(&self, node: &TExpression) -> bool;
-    
+
     /// Parse the boolean value from the given expression.
     fn parse_boolean_literal(&self, bool: &TExpression) -> Result<bool, String>;
 
@@ -48,19 +48,22 @@ pub trait AstHost<TExpression: AstNode> {
 
     /// Return `true` if the given expression is an array literal.
     fn is_array_literal(&self, node: &TExpression) -> bool;
-    
+
     /// Parse an array of expressions from the given expression.
     fn parse_array_literal(&self, array: &TExpression) -> Result<Vec<TExpression>, String>;
 
     /// Return `true` if the given expression is an object literal.
     fn is_object_literal(&self, node: &TExpression) -> bool;
-    
+
     /// Parse the given expression into a map of object property names to property expressions.
-    fn parse_object_literal(&self, obj: &TExpression) -> Result<std::collections::HashMap<String, TExpression>, String>;
+    fn parse_object_literal(
+        &self,
+        obj: &TExpression,
+    ) -> Result<std::collections::HashMap<String, TExpression>, String>;
 
     /// Return `true` if the given expression is a function.
     fn is_function_expression(&self, node: &TExpression) -> bool;
-    
+
     /// Compute the "value" of a function expression by parsing its body for a single `return` statement.
     fn parse_return_value(&self, fn_node: &TExpression) -> Result<TExpression, String>;
 
@@ -69,10 +72,10 @@ pub trait AstHost<TExpression: AstNode> {
 
     /// Return true if the given expression is a call expression.
     fn is_call_expression(&self, node: &TExpression) -> bool;
-    
+
     /// Returns the expression that is called.
     fn parse_callee(&self, call: &TExpression) -> Result<TExpression, String>;
-    
+
     /// Returns the argument expressions for the provided call expression.
     fn parse_arguments(&self, call: &TExpression) -> Result<Vec<TExpression>, String>;
 

@@ -6,12 +6,12 @@
 use crate::expression_parser::ast::ParseSpan;
 use crate::output::output_ast::{BinaryOperator, Expression};
 use crate::parse_util::ParseSourceSpan;
-use crate::template::pipeline::ir::Namespace;
 use crate::template::pipeline::ir::expression::{
     ContextExpr, EmptyExpr, LexicalReadExpr, PipeBindingExpr, SafeInvokeFunctionExpr,
     SafeKeyedReadExpr, SafePropertyReadExpr,
 };
 use crate::template::pipeline::ir::handle::SlotHandle;
+use crate::template::pipeline::ir::Namespace;
 use crate::template::pipeline::src::compilation::CompilationJob;
 
 /// Binary operator mappings from string to BinaryOperator
@@ -146,17 +146,17 @@ pub fn convert_source_span(
     base_source_span: Option<&ParseSourceSpan>,
 ) -> Option<ParseSourceSpan> {
     let base = base_source_span?;
-    
+
     let start = base.start.move_by(span.start as i32);
     let end = base.start.move_by(span.end as i32);
-    
+
     // Note: TypeScript also handles fullStart, but ParseSourceSpan in Rust
     // doesn't have a fullStart field, so we just use start/end
     Some(ParseSourceSpan::new(start, end))
 }
 
 /// Convert AST expression to Output Expression.
-/// 
+///
 /// This function converts template AST expressions into output AST expressions.
 /// IR expressions are returned directly when appropriate (e.g., LexicalReadExpr,
 /// ContextExpr, SafePropertyReadExpr, etc.).
@@ -167,10 +167,9 @@ pub fn convert_ast(
 ) -> Expression {
     use crate::expression_parser::ast::AST;
     use crate::output::output_ast::{
-        BinaryOperatorExpr, ConditionalExpr, InvokeFunctionExpr, LiteralArrayExpr,
-        LiteralExpr, LiteralMapExpr, LiteralMapEntry, LiteralValue, NotExpr, ReadKeyExpr,
-        ReadPropExpr, ReadVarExpr, TypeofExpr, UnaryOperatorExpr, VoidExpr, WriteKeyExpr,
-        WritePropExpr,
+        BinaryOperatorExpr, ConditionalExpr, InvokeFunctionExpr, LiteralArrayExpr, LiteralExpr,
+        LiteralMapEntry, LiteralMapExpr, LiteralValue, NotExpr, ReadKeyExpr, ReadPropExpr,
+        ReadVarExpr, TypeofExpr, UnaryOperatorExpr, VoidExpr, WriteKeyExpr, WritePropExpr,
     };
 
     match ast {
@@ -183,12 +182,8 @@ pub fn convert_ast(
                 LiteralPrimitive::Number { value, span, .. } => {
                     (LiteralValue::Number(*value), span)
                 }
-                LiteralPrimitive::Boolean { value, span, .. } => {
-                    (LiteralValue::Bool(*value), span)
-                }
-                LiteralPrimitive::Null { span, .. } => {
-                    (LiteralValue::Null, span)
-                }
+                LiteralPrimitive::Boolean { value, span, .. } => (LiteralValue::Bool(*value), span),
+                LiteralPrimitive::Null { span, .. } => (LiteralValue::Null, span),
                 LiteralPrimitive::Undefined { span, .. } => {
                     (LiteralValue::Null, span) // Treat undefined as null
                 }
@@ -226,7 +221,11 @@ pub fn convert_ast(
         AST::Conditional(cond) => Expression::Conditional(ConditionalExpr {
             condition: Box::new(convert_ast(&cond.condition, job, base_source_span)),
             true_case: Box::new(convert_ast(&cond.true_exp, job, base_source_span)),
-            false_case: Some(Box::new(convert_ast(&cond.false_exp, job, base_source_span))),
+            false_case: Some(Box::new(convert_ast(
+                &cond.false_exp,
+                job,
+                base_source_span,
+            ))),
             type_: None,
             source_span: convert_source_span(&cond.span, base_source_span),
         }),
@@ -251,7 +250,7 @@ pub fn convert_ast(
             // Whether this is an implicit receiver, *excluding* explicit reads of `this`.
             let is_implicit_receiver = matches!(*prop.receiver, AST::ImplicitReceiver(_))
                 && !matches!(*prop.receiver, AST::ThisReceiver(_));
-            
+
             if is_implicit_receiver {
                 // Return IR LexicalReadExpr as in TypeScript
                 let source_span = convert_source_span(&prop.span, base_source_span);
@@ -383,11 +382,20 @@ pub fn convert_ast(
             let xref_id = job.allocate_xref_id();
             let slot_handle = SlotHandle::new();
             let mut args = vec![convert_ast(&pipe.exp, job, base_source_span)];
-            args.extend(pipe.args.iter().map(|arg| convert_ast(arg, job, base_source_span)));
-            Expression::PipeBinding(PipeBindingExpr::new(xref_id, slot_handle, pipe.name.clone(), args))
+            args.extend(
+                pipe.args
+                    .iter()
+                    .map(|arg| convert_ast(arg, job, base_source_span)),
+            );
+            Expression::PipeBinding(PipeBindingExpr::new(
+                xref_id,
+                slot_handle,
+                pipe.name.clone(),
+                args,
+            ))
         }
         AST::TemplateLiteral(template) => {
-            use crate::output::output_ast::{TemplateLiteralExpr, TemplateLiteralElement};
+            use crate::output::output_ast::{TemplateLiteralElement, TemplateLiteralExpr};
             let elements: Vec<TemplateLiteralElement> = template
                 .elements
                 .iter()
@@ -408,10 +416,13 @@ pub fn convert_ast(
             })
         }
         AST::TaggedTemplateLiteral(tagged) => {
-            use crate::output::output_ast::{TaggedTemplateLiteralExpr, TemplateLiteral, TemplateLiteralElement};
+            use crate::output::output_ast::{
+                TaggedTemplateLiteralExpr, TemplateLiteral, TemplateLiteralElement,
+            };
             let tag_expr = convert_ast(&tagged.tag, job, base_source_span);
             // Convert template literal elements and expressions
-            let elements: Vec<TemplateLiteralElement> = tagged.template
+            let elements: Vec<TemplateLiteralElement> = tagged
+                .template
                 .elements
                 .iter()
                 .map(|el| TemplateLiteralElement {
@@ -420,7 +431,8 @@ pub fn convert_ast(
                     source_span: convert_source_span(&el.span, base_source_span),
                 })
                 .collect();
-            let expressions: Vec<Expression> = tagged.template
+            let expressions: Vec<Expression> = tagged
+                .template
                 .expressions
                 .iter()
                 .map(|expr| convert_ast(expr, job, base_source_span))
@@ -479,9 +491,7 @@ pub fn convert_ast(
             // RegularExpressionLiteralExpr doesn't exist in output_ast
             // In TypeScript, this returns RegularExpressionLiteralExpr(ast.body, ast.flags, baseSourceSpan)
             // For now, we use ExternalExpr as a placeholder
-            let flags_str = regex.flags.as_ref()
-                .map(|f| f.as_str())
-                .unwrap_or("");
+            let flags_str = regex.flags.as_ref().map(|f| f.as_str()).unwrap_or("");
             Expression::External(crate::output::output_ast::ExternalExpr {
                 value: crate::output::output_ast::ExternalReference {
                     name: Some(format!("/{}/{}", regex.body, flags_str)),

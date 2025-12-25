@@ -16,17 +16,17 @@ impl PrivateExportChecker {
             private_symbols: HashSet::new(),
         }
     }
-    
+
     /// Check if a symbol is private.
     pub fn is_private(&self, symbol: &str) -> bool {
         symbol.starts_with('_') || self.private_symbols.contains(symbol)
     }
-    
+
     /// Add a private symbol.
     pub fn add_private(&mut self, symbol: impl Into<String>) {
         self.private_symbols.insert(symbol.into());
     }
-    
+
     /// Check exports for private symbols.
     pub fn check_exports(&self, exports: &[String]) -> Vec<PrivateExportViolation> {
         exports

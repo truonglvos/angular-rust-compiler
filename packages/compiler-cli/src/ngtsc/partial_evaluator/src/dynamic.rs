@@ -31,14 +31,14 @@ impl DynamicValue {
             node: None,
         }
     }
-    
+
     pub fn requires_runtime() -> Self {
         Self {
             reason: DynamicReason::RequiresRuntime,
             node: None,
         }
     }
-    
+
     pub fn unknown(node: impl Into<String>) -> Self {
         Self {
             reason: DynamicReason::UnknownIdentifier,

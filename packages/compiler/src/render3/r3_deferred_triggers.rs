@@ -8,23 +8,23 @@ use regex::Regex;
 
 // Note: Unused imports removed - would be needed for full viewport trigger options parsing
 // use crate::expression_parser::ast::{AST, ASTWithSource, LiteralMap, LiteralPrimitive, LiteralArray, PropertyRead, ImplicitReceiver, ThisReceiver};
+use crate::chars;
 use crate::expression_parser::lexer::{Lexer, Token, TokenType};
 use crate::ml_parser::ast as html;
 use crate::parse_util::{ParseError, ParseSourceSpan};
 use crate::template_parser::binding_parser::BindingParser;
-use crate::chars;
 
 use super::r3_ast::{
-    DeferredBlockTriggers, DeferredTrigger, BoundDeferredTrigger,
-    NeverDeferredTrigger, IdleDeferredTrigger, ImmediateDeferredTrigger,
-    HoverDeferredTrigger, TimerDeferredTrigger, InteractionDeferredTrigger,
-    ViewportDeferredTrigger, DeferredBlockPlaceholder,
+    BoundDeferredTrigger, DeferredBlockPlaceholder, DeferredBlockTriggers, DeferredTrigger,
+    HoverDeferredTrigger, IdleDeferredTrigger, ImmediateDeferredTrigger,
+    InteractionDeferredTrigger, NeverDeferredTrigger, TimerDeferredTrigger,
+    ViewportDeferredTrigger,
 };
 
 lazy_static! {
     /// Pattern for a timing value in a trigger
     static ref TIME_PATTERN: Regex = Regex::new(r"^\d+\.?\d*(ms|s)?$").unwrap();
-    
+
     /// Pattern for a separator between keywords in a trigger expression
     static ref SEPARATOR_PATTERN: Regex = Regex::new(r"^\s$").unwrap();
 }
@@ -32,9 +32,9 @@ lazy_static! {
 /// Pairs of characters that form syntax that is comma-delimited
 fn comma_delimited_syntax() -> std::collections::HashMap<char, char> {
     let mut map = std::collections::HashMap::new();
-    map.insert(chars::LBRACE, chars::RBRACE);     // Object literals
+    map.insert(chars::LBRACE, chars::RBRACE); // Object literals
     map.insert(chars::LBRACKET, chars::RBRACKET); // Array literals
-    map.insert(chars::LPAREN, chars::RPAREN);     // Function calls
+    map.insert(chars::LPAREN, chars::RPAREN); // Function calls
     map
 }
 
@@ -62,7 +62,7 @@ impl OnTriggerType {
             OnTriggerType::Never => "never",
         }
     }
-    
+
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "idle" => Some(OnTriggerType::Idle),
@@ -94,7 +94,7 @@ pub fn parse_never_trigger(
 ) {
     let expression = &param.expression;
     let source_span = &param.source_span;
-    
+
     let never_index = expression.find("never");
     let prefetch_span = get_prefetch_span(expression, source_span);
     let hydrate_span = get_hydrate_span(expression, source_span);
@@ -133,7 +133,7 @@ pub fn parse_when_trigger(
 ) {
     let expression = &param.expression;
     let source_span = &param.source_span;
-    
+
     let when_index = expression.find("when");
     let prefetch_span = get_prefetch_span(expression, source_span);
     let hydrate_span = get_hydrate_span(expression, source_span);
@@ -143,7 +143,7 @@ pub fn parse_when_trigger(
             source_span.start.move_by(idx as i32),
             source_span.start.move_by((idx + "when".len()) as i32),
         );
-        
+
         let start = get_trigger_parameters_start(expression, idx + 1);
         if start > 0 {
             let parsed = binding_parser.parse_binding(
@@ -152,7 +152,7 @@ pub fn parse_when_trigger(
                 source_span.clone(),
                 source_span.start.offset + start,
             );
-            
+
             track_trigger(
                 "when",
                 triggers,
@@ -184,7 +184,7 @@ pub fn parse_on_trigger(
 ) {
     let expression = &param.expression;
     let source_span = &param.source_span;
-    
+
     let on_index = expression.find("on");
     let prefetch_span = get_prefetch_span(expression, source_span);
     let hydrate_span = get_hydrate_span(expression, source_span);
@@ -194,10 +194,10 @@ pub fn parse_on_trigger(
             source_span.start.move_by(idx as i32),
             source_span.start.move_by((idx + "on".len()) as i32),
         );
-        
+
         let start = get_trigger_parameters_start(expression, idx + 1);
         let is_hydration_trigger = expression.starts_with("hydrate");
-        
+
         let mut parser = OnTriggerParser::new(
             expression.clone(),
             binding_parser,
@@ -270,7 +270,7 @@ impl<'a> OnTriggerParser<'a> {
     ) -> Self {
         let lexer = Lexer::new();
         let tokens = lexer.tokenize(&expression[start..]);
-        
+
         OnTriggerParser {
             expression,
             binding_parser,
@@ -332,14 +332,16 @@ impl<'a> OnTriggerParser<'a> {
     }
 
     fn consume_trigger(&mut self, identifier: &Token, parameters: Vec<ParsedParameter>) {
-        let trigger_name_start_span = self.span.start.move_by(
-            (self.start + identifier.index - self.tokens[0].index) as i32,
-        );
+        let trigger_name_start_span = self
+            .span
+            .start
+            .move_by((self.start + identifier.index - self.tokens[0].index) as i32);
         let name_span = ParseSourceSpan::new(
             trigger_name_start_span.clone(),
             trigger_name_start_span.move_by(identifier.str_value.len() as i32),
         );
-        let end_span = trigger_name_start_span.move_by((self.token().end - identifier.index) as i32);
+        let end_span =
+            trigger_name_start_span.move_by((self.token().end - identifier.index) as i32);
 
         let is_first_trigger = identifier.index == 0;
         let on_source_span = if is_first_trigger {
@@ -367,40 +369,85 @@ impl<'a> OnTriggerParser<'a> {
         );
 
         let trigger_type = OnTriggerType::from_str(&identifier.str_value);
-        
+
         match trigger_type {
             Some(OnTriggerType::Idle) => {
-                if let Err(e) = self.create_idle_trigger(&parameters, name_span, source_span, prefetch_source_span, on_source_span, hydrate_source_span) {
+                if let Err(e) = self.create_idle_trigger(
+                    &parameters,
+                    name_span,
+                    source_span,
+                    prefetch_source_span,
+                    on_source_span,
+                    hydrate_source_span,
+                ) {
                     self.error(identifier, &e);
                 }
             }
             Some(OnTriggerType::Timer) => {
-                if let Err(e) = self.create_timer_trigger(&parameters, name_span, source_span, prefetch_source_span, on_source_span, hydrate_source_span) {
+                if let Err(e) = self.create_timer_trigger(
+                    &parameters,
+                    name_span,
+                    source_span,
+                    prefetch_source_span,
+                    on_source_span,
+                    hydrate_source_span,
+                ) {
                     self.error(identifier, &e);
                 }
             }
             Some(OnTriggerType::Immediate) => {
-                if let Err(e) = self.create_immediate_trigger(&parameters, name_span, source_span, prefetch_source_span, on_source_span, hydrate_source_span) {
+                if let Err(e) = self.create_immediate_trigger(
+                    &parameters,
+                    name_span,
+                    source_span,
+                    prefetch_source_span,
+                    on_source_span,
+                    hydrate_source_span,
+                ) {
                     self.error(identifier, &e);
                 }
             }
             Some(OnTriggerType::Hover) => {
-                if let Err(e) = self.create_hover_trigger(&parameters, name_span, source_span, prefetch_source_span, on_source_span, hydrate_source_span) {
+                if let Err(e) = self.create_hover_trigger(
+                    &parameters,
+                    name_span,
+                    source_span,
+                    prefetch_source_span,
+                    on_source_span,
+                    hydrate_source_span,
+                ) {
                     self.error(identifier, &e);
                 }
             }
             Some(OnTriggerType::Interaction) => {
-                if let Err(e) = self.create_interaction_trigger(&parameters, name_span, source_span, prefetch_source_span, on_source_span, hydrate_source_span) {
+                if let Err(e) = self.create_interaction_trigger(
+                    &parameters,
+                    name_span,
+                    source_span,
+                    prefetch_source_span,
+                    on_source_span,
+                    hydrate_source_span,
+                ) {
                     self.error(identifier, &e);
                 }
             }
             Some(OnTriggerType::Viewport) => {
-                if let Err(e) = self.create_viewport_trigger(&parameters, name_span, source_span, prefetch_source_span, on_source_span, hydrate_source_span) {
+                if let Err(e) = self.create_viewport_trigger(
+                    &parameters,
+                    name_span,
+                    source_span,
+                    prefetch_source_span,
+                    on_source_span,
+                    hydrate_source_span,
+                ) {
                     self.error(identifier, &e);
                 }
             }
             _ => {
-                self.error(identifier, &format!("Unrecognized trigger type \"{}\"", identifier.str_value));
+                self.error(
+                    identifier,
+                    &format!("Unrecognized trigger type \"{}\"", identifier.str_value),
+                );
             }
         }
     }
@@ -415,7 +462,10 @@ impl<'a> OnTriggerParser<'a> {
         hydrate_span: Option<ParseSourceSpan>,
     ) -> Result<(), String> {
         if !parameters.is_empty() {
-            return Err(format!("\"{}\" trigger cannot have parameters", OnTriggerType::Idle.as_str()));
+            return Err(format!(
+                "\"{}\" trigger cannot have parameters",
+                OnTriggerType::Idle.as_str()
+            ));
         }
 
         track_trigger(
@@ -443,11 +493,18 @@ impl<'a> OnTriggerParser<'a> {
         hydrate_span: Option<ParseSourceSpan>,
     ) -> Result<(), String> {
         if parameters.len() != 1 {
-            return Err(format!("\"{}\" trigger must have exactly one parameter", OnTriggerType::Timer.as_str()));
+            return Err(format!(
+                "\"{}\" trigger must have exactly one parameter",
+                OnTriggerType::Timer.as_str()
+            ));
         }
 
-        let delay = parse_deferred_time(&parameters[0].expression)
-            .ok_or_else(|| format!("Could not parse time value of trigger \"{}\"", OnTriggerType::Timer.as_str()))?;
+        let delay = parse_deferred_time(&parameters[0].expression).ok_or_else(|| {
+            format!(
+                "Could not parse time value of trigger \"{}\"",
+                OnTriggerType::Timer.as_str()
+            )
+        })?;
 
         track_trigger(
             "timer",
@@ -475,7 +532,10 @@ impl<'a> OnTriggerParser<'a> {
         hydrate_span: Option<ParseSourceSpan>,
     ) -> Result<(), String> {
         if !parameters.is_empty() {
-            return Err(format!("\"{}\" trigger cannot have parameters", OnTriggerType::Immediate.as_str()));
+            return Err(format!(
+                "\"{}\" trigger cannot have parameters",
+                OnTriggerType::Immediate.as_str()
+            ));
         }
 
         track_trigger(
@@ -503,7 +563,7 @@ impl<'a> OnTriggerParser<'a> {
         hydrate_span: Option<ParseSourceSpan>,
     ) -> Result<(), String> {
         self.validate_reference_trigger(OnTriggerType::Hover, parameters)?;
-        
+
         let reference = parameters.first().map(|p| p.expression.clone());
 
         track_trigger(
@@ -532,7 +592,7 @@ impl<'a> OnTriggerParser<'a> {
         hydrate_span: Option<ParseSourceSpan>,
     ) -> Result<(), String> {
         self.validate_reference_trigger(OnTriggerType::Interaction, parameters)?;
-        
+
         let reference = parameters.first().map(|p| p.expression.clone());
 
         track_trigger(
@@ -561,13 +621,13 @@ impl<'a> OnTriggerParser<'a> {
         hydrate_span: Option<ParseSourceSpan>,
     ) -> Result<(), String> {
         self.validate_reference_trigger(OnTriggerType::Viewport, parameters)?;
-        
+
         let reference = if parameters.is_empty() || parameters[0].expression.starts_with('{') {
             None
         } else {
             Some(parameters[0].expression.clone())
         };
-        
+
         // Note: Full options parsing for viewport trigger is simplified here
         let options = None;
 
@@ -677,9 +737,7 @@ impl<'a> OnTriggerParser<'a> {
             self.error(&token, "Unexpected end of expression");
         }
 
-        if self.index < self.tokens.len() - 1
-            && !self.tokens[self.index + 1].is_character(',')
-        {
+        if self.index < self.tokens.len() - 1 && !self.tokens[self.index + 1].is_character(',') {
             self.unexpected_token(&self.tokens[self.index + 1].clone());
         }
 
@@ -691,7 +749,8 @@ impl<'a> OnTriggerParser<'a> {
             return String::new();
         }
 
-        self.expression[self.start + tokens[0].index..self.start + tokens[tokens.len() - 1].end].to_string()
+        self.expression[self.start + tokens[0].index..self.start + tokens[tokens.len() - 1].end]
+            .to_string()
     }
 
     fn error(&mut self, token: &Token, message: &str) {
@@ -725,7 +784,7 @@ fn track_trigger(
         DeferredTrigger::Interaction(t) => t.source_span.clone(),
         DeferredTrigger::Viewport(t) => t.source_span.clone(),
     };
-    
+
     let already_exists = match name {
         "when" => triggers.when.is_some(),
         "idle" => triggers.idle.is_some(),
@@ -737,7 +796,7 @@ fn track_trigger(
         "never" => triggers.never.is_some(),
         _ => false,
     };
-    
+
     if already_exists {
         errors.push(ParseError::new(
             source_span,
@@ -777,7 +836,7 @@ pub fn get_trigger_parameters_start(value: &str, start_position: usize) -> usize
 /// Returns None if it cannot be parsed.
 pub fn parse_deferred_time(value: &str) -> Option<i64> {
     let trimmed = value.trim();
-    
+
     if !TIME_PATTERN.is_match(trimmed) {
         return None;
     }
@@ -785,7 +844,7 @@ pub fn parse_deferred_time(value: &str) -> Option<i64> {
     // Extract number and optional unit
     let mut num_str = String::new();
     let mut unit_str = String::new();
-    
+
     for c in trimmed.chars() {
         if c.is_ascii_digit() || c == '.' {
             num_str.push(c);
@@ -796,7 +855,6 @@ pub fn parse_deferred_time(value: &str) -> Option<i64> {
 
     let num: f64 = num_str.parse().ok()?;
     let multiplier = if unit_str == "s" { 1000.0 } else { 1.0 };
-    
+
     Some((num * multiplier) as i64)
 }
-

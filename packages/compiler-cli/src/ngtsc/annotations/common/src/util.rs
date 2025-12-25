@@ -38,7 +38,7 @@ impl Decorator {
             node: String::new(),
         }
     }
-    
+
     pub fn with_import(mut self, from: impl Into<String>) -> Self {
         self.import = Some(Import {
             name: self.name.clone(),
@@ -46,15 +46,17 @@ impl Decorator {
         });
         self
     }
-    
+
     pub fn with_args(mut self, args: Vec<String>) -> Self {
         self.args = Some(args);
         self
     }
-    
+
     /// Check if this is an Angular core decorator.
     pub fn is_angular_core(&self) -> bool {
-        self.import.as_ref().map_or(false, |i| i.from == CORE_MODULE)
+        self.import
+            .as_ref()
+            .map_or(false, |i| i.from == CORE_MODULE)
     }
 }
 
@@ -74,16 +76,16 @@ pub fn is_angular_core_reference_with_potential_aliasing(
     if is_core {
         return true;
     }
-    
+
     // Check if from @angular/core
     if ref_module != Some(CORE_MODULE) {
         return false;
     }
-    
+
     // Account for potential aliasing (internalXxx -> Xxx)
-    actual_name == symbol_name || 
-        actual_name == format!("internal{}", symbol_name) ||
-        actual_name == format!("ɵ{}", symbol_name)
+    actual_name == symbol_name
+        || actual_name == format!("internal{}", symbol_name)
+        || actual_name == format!("ɵ{}", symbol_name)
 }
 
 /// Find an Angular decorator by name.
@@ -92,7 +94,9 @@ pub fn find_angular_decorator<'a>(
     name: &str,
     is_core: bool,
 ) -> Option<&'a Decorator> {
-    decorators.iter().find(|d| is_angular_decorator(d, name, is_core))
+    decorators
+        .iter()
+        .find(|d| is_angular_decorator(d, name, is_core))
 }
 
 /// Check if a decorator matches the given name and is from Angular.
@@ -100,11 +104,11 @@ pub fn is_angular_decorator(decorator: &Decorator, name: &str, is_core: bool) ->
     if decorator.name != name {
         return false;
     }
-    
+
     if is_core {
         return true;
     }
-    
+
     decorator.is_angular_core()
 }
 
@@ -116,36 +120,40 @@ pub fn get_angular_decorators<'a>(
 ) -> Vec<&'a Decorator> {
     decorators
         .iter()
-        .filter(|d| names.iter().any(|name| is_angular_decorator(d, name, is_core)))
+        .filter(|d| {
+            names
+                .iter()
+                .any(|name| is_angular_decorator(d, name, is_core))
+        })
         .collect()
 }
 
 /// Unwrap an expression by removing type casts and parentheses.
 pub fn unwrap_expression(expr: &str) -> &str {
     let mut result = expr.trim();
-    
+
     // Remove outer parentheses
     while result.starts_with('(') && result.ends_with(')') {
-        result = result[1..result.len()-1].trim();
+        result = result[1..result.len() - 1].trim();
     }
-    
+
     // Remove "as Type" casts
     if let Some(idx) = result.find(" as ") {
         result = result[..idx].trim();
     }
-    
+
     result
 }
 
 /// Try to expand a forwardRef expression.
 pub fn expand_forward_ref(expr: &str) -> Option<&str> {
     let trimmed = expr.trim();
-    
+
     // Look for forwardRef(() => Xxx)
     if !trimmed.starts_with("forwardRef") {
         return None;
     }
-    
+
     // Extract inner expression
     if let Some(start) = trimmed.find("=>") {
         let after_arrow = &trimmed[start + 2..];
@@ -154,7 +162,7 @@ pub fn expand_forward_ref(expr: &str) -> Option<&str> {
             return Some(inner);
         }
     }
-    
+
     None
 }
 
@@ -189,7 +197,7 @@ impl R3Reference {
             type_: type_.into(),
         }
     }
-    
+
     pub fn same(expr: impl Into<String>) -> Self {
         let s = expr.into();
         Self {
@@ -200,15 +208,11 @@ impl R3Reference {
 }
 
 /// Convert a reference to an R3Reference.
-pub fn to_r3_reference(
-    ref_name: &str,
-    ref_module: Option<&str>,
-) -> R3Reference {
+pub fn to_r3_reference(ref_name: &str, ref_module: Option<&str>) -> R3Reference {
     match ref_module {
-        Some(module) => R3Reference::new(
-            format!("i0.importExpr({})", ref_name),
-            ref_name.to_string(),
-        ),
+        Some(module) => {
+            R3Reference::new(format!("i0.importExpr({})", ref_name), ref_name.to_string())
+        }
         None => R3Reference::same(ref_name),
     }
 }
@@ -219,9 +223,7 @@ pub fn wrap_type_reference(class_name: &str) -> R3Reference {
 }
 
 /// Resolve providers that require factory definitions.
-pub fn resolve_providers_requiring_factory(
-    provider_names: &[String],
-) -> HashSet<String> {
+pub fn resolve_providers_requiring_factory(provider_names: &[String]) -> HashSet<String> {
     // In full implementation, would analyze providers
     // For now, return empty set
     HashSet::new()

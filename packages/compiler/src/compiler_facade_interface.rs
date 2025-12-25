@@ -155,7 +155,7 @@ pub struct R3InjectableMetadataFacade {
 #[serde(untagged)]
 pub enum ProvidedIn {
     Type(TypeRef),
-    Scope(String),  // 'root', 'platform', 'any'
+    Scope(String), // 'root', 'platform', 'any'
 }
 
 /// Declare injectable metadata
@@ -315,7 +315,7 @@ pub struct R3ComponentMetadataFacade {
     pub is_standalone: bool,
     pub host_directives: Option<Vec<R3HostDirectiveMetadataFacade>>,
     pub is_signal: bool,
-    
+
     // Component-specific fields
     pub template: String,
     pub preserve_whitespaces: bool,
@@ -402,7 +402,7 @@ pub struct R3DeclareComponentFacade {
     pub is_signal: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub host_directives: Option<Vec<R3HostDirectiveMetadataFacade>>,
-    
+
     // Component-specific fields
     pub template: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -436,7 +436,7 @@ pub enum R3DeclareTemplateDependencyFacade {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R3DeclareDirectiveDependencyFacade {
-    pub kind: R3TemplateDependencyKind,  // Should be Directive
+    pub kind: R3TemplateDependencyKind, // Should be Directive
     #[serde(rename = "type")]
     pub type_ref: TypeRef,
     pub selector: String,
@@ -450,7 +450,7 @@ pub struct R3DeclareDirectiveDependencyFacade {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R3DeclarePipeDependencyFacade {
-    pub kind: R3TemplateDependencyKind,  // Should be Pipe
+    pub kind: R3TemplateDependencyKind, // Should be Pipe
     pub name: String,
     #[serde(rename = "type")]
     pub type_ref: TypeRef,
@@ -458,7 +458,7 @@ pub struct R3DeclarePipeDependencyFacade {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R3DeclareNgModuleDependencyFacade {
-    pub kind: R3TemplateDependencyKind,  // Should be NgModule
+    pub kind: R3TemplateDependencyKind, // Should be NgModule
     #[serde(rename = "type")]
     pub type_ref: TypeRef,
 }
@@ -507,98 +507,98 @@ pub trait CompilerFacade {
         source_map_url: String,
         meta: R3PipeMetadataFacade,
     ) -> Result<OpaqueValue, String>;
-    
+
     fn compile_pipe_declaration(
         &self,
         angular_core_env: CoreEnvironment,
         source_map_url: String,
         declaration: R3DeclarePipeFacade,
     ) -> Result<OpaqueValue, String>;
-    
+
     fn compile_injectable(
         &self,
         angular_core_env: CoreEnvironment,
         source_map_url: String,
         meta: R3InjectableMetadataFacade,
     ) -> Result<OpaqueValue, String>;
-    
+
     fn compile_injectable_declaration(
         &self,
         angular_core_env: CoreEnvironment,
         source_map_url: String,
         meta: R3DeclareInjectableFacade,
     ) -> Result<OpaqueValue, String>;
-    
+
     fn compile_injector(
         &self,
         angular_core_env: CoreEnvironment,
         source_map_url: String,
         meta: R3InjectorMetadataFacade,
     ) -> Result<OpaqueValue, String>;
-    
+
     fn compile_injector_declaration(
         &self,
         angular_core_env: CoreEnvironment,
         source_map_url: String,
         declaration: R3DeclareInjectorFacade,
     ) -> Result<OpaqueValue, String>;
-    
+
     fn compile_ng_module(
         &self,
         angular_core_env: CoreEnvironment,
         source_map_url: String,
         meta: R3NgModuleMetadataFacade,
     ) -> Result<OpaqueValue, String>;
-    
+
     fn compile_ng_module_declaration(
         &self,
         angular_core_env: CoreEnvironment,
         source_map_url: String,
         declaration: R3DeclareNgModuleFacade,
     ) -> Result<OpaqueValue, String>;
-    
+
     fn compile_directive(
         &self,
         angular_core_env: CoreEnvironment,
         source_map_url: String,
         meta: R3DirectiveMetadataFacade,
     ) -> Result<OpaqueValue, String>;
-    
+
     fn compile_directive_declaration(
         &self,
         angular_core_env: CoreEnvironment,
         source_map_url: String,
         declaration: R3DeclareDirectiveFacade,
     ) -> Result<OpaqueValue, String>;
-    
+
     fn compile_component(
         &self,
         angular_core_env: CoreEnvironment,
         source_map_url: String,
         meta: R3ComponentMetadataFacade,
     ) -> Result<OpaqueValue, String>;
-    
+
     fn compile_component_declaration(
         &self,
         angular_core_env: CoreEnvironment,
         source_map_url: String,
         declaration: R3DeclareComponentFacade,
     ) -> Result<OpaqueValue, String>;
-    
+
     fn compile_factory(
         &self,
         angular_core_env: CoreEnvironment,
         source_map_url: String,
         meta: R3FactoryDefMetadataFacade,
     ) -> Result<OpaqueValue, String>;
-    
+
     fn compile_factory_declaration(
         &self,
         angular_core_env: CoreEnvironment,
         source_map_url: String,
         meta: R3DeclareFactoryFacade,
     ) -> Result<OpaqueValue, String>;
-    
+
     fn create_parse_source_span(
         &self,
         kind: String,
@@ -636,10 +636,10 @@ mod tests {
             pure: true,
             is_standalone: false,
         };
-        
+
         let json = serde_json::to_string(&pipe).unwrap();
         assert!(json.contains("TestPipe"));
-        
+
         let deserialized: R3PipeMetadataFacade = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.name, "TestPipe");
     }

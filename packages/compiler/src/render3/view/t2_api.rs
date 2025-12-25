@@ -7,11 +7,10 @@ use std::collections::HashSet;
 
 use crate::expression_parser::ast::AST;
 use crate::render3::r3_ast::{
-    Content, DeferredBlock, DeferredBlockError,
-    DeferredBlockLoading, DeferredBlockPlaceholder, DeferredTrigger, Element,
-    ForLoopBlock, ForLoopBlockEmpty, IfBlockBranch, LetDeclaration, R3Node,
-    Reference, SwitchBlockCase, Template, Variable,
-    Component, Directive, HostElement,
+    Component, Content, DeferredBlock, DeferredBlockError, DeferredBlockLoading,
+    DeferredBlockPlaceholder, DeferredTrigger, Directive, Element, ForLoopBlock, ForLoopBlockEmpty,
+    HostElement, IfBlockBranch, LetDeclaration, R3Node, Reference, SwitchBlockCase, Template,
+    Variable,
 };
 
 /// Node that has a `Scope` associated with it.
@@ -52,9 +51,15 @@ pub enum TemplateEntity {
 impl PartialEq for TemplateEntity {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (TemplateEntity::Reference(a), TemplateEntity::Reference(b)) => a.name == b.name && a.value == b.value,
-            (TemplateEntity::Variable(a), TemplateEntity::Variable(b)) => a.name == b.name && a.value == b.value,
-            (TemplateEntity::LetDeclaration(a), TemplateEntity::LetDeclaration(b)) => a.name == b.name,
+            (TemplateEntity::Reference(a), TemplateEntity::Reference(b)) => {
+                a.name == b.name && a.value == b.value
+            }
+            (TemplateEntity::Variable(a), TemplateEntity::Variable(b)) => {
+                a.name == b.name && a.value == b.value
+            }
+            (TemplateEntity::LetDeclaration(a), TemplateEntity::LetDeclaration(b)) => {
+                a.name == b.name
+            }
             _ => false,
         }
     }
@@ -159,7 +164,10 @@ pub trait BoundTarget<DirectiveT: DirectiveMeta> {
     fn get_reference_target(&self, reference: &Reference) -> Option<ReferenceTarget<DirectiveT>>;
 
     /// For a given binding, get the entity to which the binding is being made.
-    fn get_consumer_of_binding(&self, binding: &dyn std::any::Any) -> Option<ConsumerOfBinding<DirectiveT>>;
+    fn get_consumer_of_binding(
+        &self,
+        binding: &dyn std::any::Any,
+    ) -> Option<ConsumerOfBinding<DirectiveT>>;
 
     /// If the given `AST` expression refers to a `Reference` or `Variable`, return that.
     fn get_expression_target(&self, expr: &AST) -> Option<TemplateEntity>;
@@ -189,7 +197,11 @@ pub trait BoundTarget<DirectiveT: DirectiveMeta> {
     fn get_defer_blocks(&self) -> Vec<DeferredBlock>;
 
     /// Gets the element that a specific deferred block trigger is targeting.
-    fn get_deferred_trigger_target(&self, block: &DeferredBlock, trigger: &DeferredTrigger) -> Option<Element>;
+    fn get_deferred_trigger_target(
+        &self,
+        block: &DeferredBlock,
+        trigger: &DeferredTrigger,
+    ) -> Option<Element>;
 
     /// Whether a given node is located in a `@defer` block.
     fn is_deferred(&self, node: &Element) -> bool;
@@ -205,4 +217,3 @@ pub enum ConsumerOfBinding<DirectiveT> {
     Element(Element),
     Template(Template),
 }
-

@@ -19,7 +19,7 @@ pub struct CompilationSetupResult {
 pub trait TscPlugin {
     /// Plugin name.
     fn name(&self) -> &str;
-    
+
     /// Wrap a compiler host with Angular-specific functionality.
     fn wrap_host(
         &mut self,
@@ -27,23 +27,23 @@ pub trait TscPlugin {
         input_files: Vec<String>,
         options: CompilerOptions,
     ) -> Box<dyn PluginCompilerHost>;
-    
+
     /// Setup the compilation.
     fn setup_compilation(
         &mut self,
         program: &Program,
         old_program: Option<&Program>,
     ) -> CompilationSetupResult;
-    
+
     /// Get diagnostics for a file (or all files if None).
     fn get_diagnostics(&self, file: Option<&str>) -> Vec<Diagnostic>;
-    
+
     /// Get option diagnostics.
     fn get_option_diagnostics(&self) -> Vec<Diagnostic>;
-    
+
     /// Get the next program after transformations.
     fn get_next_program(&self) -> &Program;
-    
+
     /// Create custom transformers for the emit phase.
     fn create_transformers(&self) -> CustomTransformers;
 }
@@ -158,12 +158,12 @@ impl NgTscPlugin {
             ignore_for_emit: HashSet::new(),
         }
     }
-    
+
     /// Get the compiler (panics if setupCompilation hasn't been called).
     pub fn compiler(&self) -> Result<&Program, String> {
-        self.program.as_ref().ok_or_else(|| {
-            "Lifecycle error: setupCompilation() must be called first.".to_string()
-        })
+        self.program
+            .as_ref()
+            .ok_or_else(|| "Lifecycle error: setupCompilation() must be called first.".to_string())
     }
 }
 
@@ -171,7 +171,7 @@ impl TscPlugin for NgTscPlugin {
     fn name(&self) -> &str {
         &self.name
     }
-    
+
     fn wrap_host(
         &mut self,
         host: Box<dyn PluginCompilerHost>,
@@ -179,13 +179,10 @@ impl TscPlugin for NgTscPlugin {
         options: CompilerOptions,
     ) -> Box<dyn PluginCompilerHost> {
         self.options = Some(options.clone());
-        
+
         // Wrap the host with Angular-specific functionality
-        let wrapped = SimplePluginCompilerHost::new(
-            input_files,
-            &host.get_current_directory(),
-        );
-        
+        let wrapped = SimplePluginCompilerHost::new(input_files, &host.get_current_directory());
+
         let boxed: Box<dyn PluginCompilerHost> = Box::new(wrapped);
         self.host = Some(Box::new(SimplePluginCompilerHost::new(
             host.input_files().to_vec(),
@@ -193,7 +190,7 @@ impl TscPlugin for NgTscPlugin {
         )));
         boxed
     }
-    
+
     fn setup_compilation(
         &mut self,
         program: &Program,
@@ -202,9 +199,9 @@ impl TscPlugin for NgTscPlugin {
         if self.host.is_none() || self.options.is_none() {
             panic!("Lifecycle error: setupCompilation() before wrapHost().");
         }
-        
+
         self.program = Some(program.clone());
-        
+
         // In the TS implementation, this would:
         // 1. Create a PerfRecorder
         // 2. Create a TsCreateProgramDriver
@@ -212,29 +209,31 @@ impl TscPlugin for NgTscPlugin {
         // 4. Determine modified resource files
         // 5. Create a fresh or incremental compilation ticket
         // 6. Create the NgCompiler from the ticket
-        
+
         // For now, return empty sets
         CompilationSetupResult {
             ignore_for_diagnostics: self.ignore_for_diagnostics.clone(),
             ignore_for_emit: self.ignore_for_emit.clone(),
         }
     }
-    
+
     fn get_diagnostics(&self, file: Option<&str>) -> Vec<Diagnostic> {
         // In the TS implementation, this delegates to compiler.getDiagnostics()
         // or compiler.getDiagnosticsForFile()
         Vec::new()
     }
-    
+
     fn get_option_diagnostics(&self) -> Vec<Diagnostic> {
         // In the TS implementation, this delegates to compiler.getOptionDiagnostics()
         Vec::new()
     }
-    
+
     fn get_next_program(&self) -> &Program {
-        self.program.as_ref().expect("setupCompilation() must be called first")
+        self.program
+            .as_ref()
+            .expect("setupCompilation() must be called first")
     }
-    
+
     fn create_transformers(&self) -> CustomTransformers {
         // In the TS implementation, this:
         // 1. Updates the perf recorder phase to TypeScriptEmit

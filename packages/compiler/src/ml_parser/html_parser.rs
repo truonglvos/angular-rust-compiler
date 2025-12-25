@@ -6,7 +6,7 @@
 
 use super::html_tags::get_html_tag_definition;
 use super::lexer::TokenizeOptions;
-use super::parser::{Parser, ParseTreeResult};
+use super::parser::{ParseTreeResult, Parser};
 use super::tags::TagDefinition;
 
 /// HTML parser (extends generic Parser with HTML tag definitions)
@@ -39,7 +39,12 @@ impl HtmlParser {
     ///
     /// # Returns
     /// ParseTreeResult with root nodes and errors
-    pub fn parse(&self, source: &str, url: &str, options: Option<TokenizeOptions>) -> ParseTreeResult {
+    pub fn parse(
+        &self,
+        source: &str,
+        url: &str,
+        options: Option<TokenizeOptions>,
+    ) -> ParseTreeResult {
         fn tag_def(name: &str) -> &'static dyn TagDefinition {
             get_html_tag_definition(name)
         }
@@ -54,4 +59,3 @@ impl Default for HtmlParser {
         Self::new()
     }
 }
-

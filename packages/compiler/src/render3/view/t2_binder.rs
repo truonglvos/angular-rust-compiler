@@ -6,21 +6,20 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::directive_matching::SelectorMatcher;
-use crate::expression_parser::ast::{AST, PropertyRead, SafePropertyRead};
-use crate::render3::r3_ast::{
-    self as t, DeferredBlock, Element, Reference, Template,
-};
+use crate::expression_parser::ast::{PropertyRead, SafePropertyRead, AST};
+use crate::render3::r3_ast::{self as t, DeferredBlock, Element, Reference, Template};
 
 use super::t2_api::{
-    BoundTarget, DirectiveMeta, DirectiveOwner, InputOutputPropertySet, LegacyAnimationTriggerNames,
-    ReferenceTarget, ScopedNode, Target, TargetBinder, TemplateEntity,
+    BoundTarget, DirectiveMeta, DirectiveOwner, InputOutputPropertySet,
+    LegacyAnimationTriggerNames, ReferenceTarget, ScopedNode, Target, TargetBinder, TemplateEntity,
 };
 use super::util::create_css_selector_from_node;
 
 /// Computes a difference between two lists.
 fn diff(full_list: &[String], items_to_exclude: &[String]) -> Vec<String> {
     let exclude: HashSet<&String> = items_to_exclude.iter().collect();
-    full_list.iter()
+    full_list
+        .iter()
         .filter(|item| !exclude.contains(item))
         .cloned()
         .collect()
@@ -107,9 +106,9 @@ pub fn find_matching_directives_and_pipes(
     template: &str,
     directive_selectors: &[String],
 ) -> MatchingDirectivesAndPipes {
-    use crate::directive_matching::CssSelector;
     use super::template::parse_template;
-    
+    use crate::directive_matching::CssSelector;
+
     // Create a SelectorMatcher and add fake directives for each selector
     let mut matcher = SelectorMatcher::<Vec<FakeDirectiveMeta>>::new();
     for selector in directive_selectors {
@@ -117,7 +116,7 @@ pub fn find_matching_directives_and_pipes(
         let fake_directive = FakeDirectiveMeta {
             selector_str: selector.clone(),
         };
-        
+
         // Parse the selector and add to matcher
         if let Ok(css_selectors) = CssSelector::parse(selector) {
             for css_selector in css_selectors {
@@ -125,34 +124,36 @@ pub fn find_matching_directives_and_pipes(
             }
         }
     }
-    
+
     // Parse the template
     let parsed_template = parse_template(template, "", Default::default());
-    
+
     // Create binder with matcher
     let binder = R3TargetBinder::new(Some(DirectiveMatcher::Selector(matcher)));
     let target = Target {
         template: Some(parsed_template.nodes),
         host: None,
     };
-    
+
     // Bind the template
     let bound = binder.bind(target);
-    
+
     // Extract directives and pipes
     let eager_directives = bound.get_eagerly_used_directives();
     let all_directives = bound.get_used_directives();
     let eager_pipes = bound.get_eagerly_used_pipes();
     let all_pipes = bound.get_used_pipes();
-    
+
     // Extract selector strings
-    let eager_directive_selectors: Vec<String> = eager_directives.iter()
+    let eager_directive_selectors: Vec<String> = eager_directives
+        .iter()
         .filter_map(|d| d.selector().map(String::from))
         .collect();
-    let all_directive_selectors: Vec<String> = all_directives.iter()
+    let all_directive_selectors: Vec<String> = all_directives
+        .iter()
         .filter_map(|d| d.selector().map(String::from))
         .collect();
-    
+
     MatchingDirectivesAndPipes {
         directives: MatchingResult {
             regular: eager_directive_selectors.clone(),
@@ -284,7 +285,12 @@ fn extract_pipes_from_ast(ast: &AST, pipes: &mut HashSet<String>) {
 }
 
 // Helper to extract pipes from R3Node
-fn extract_pipes_from_node(node: &t::R3Node, pipes: &mut HashSet<String>, is_deferred: bool, eager_pipes: &mut HashSet<String>) {
+fn extract_pipes_from_node(
+    node: &t::R3Node,
+    pipes: &mut HashSet<String>,
+    is_deferred: bool,
+    eager_pipes: &mut HashSet<String>,
+) {
     match node {
         t::R3Node::BoundAttribute(attr) => {
             extract_pipes_from_ast(&attr.value, pipes);
@@ -505,7 +511,9 @@ fn extract_defer_blocks(nodes: &[t::R3Node]) -> Vec<DeferredBlock> {
     blocks
 }
 
-impl<DirectiveT: DirectiveMeta + Clone + 'static> TargetBinder<DirectiveT> for R3TargetBinder<DirectiveT> {
+impl<DirectiveT: DirectiveMeta + Clone + 'static> TargetBinder<DirectiveT>
+    for R3TargetBinder<DirectiveT>
+{
     fn bind(&self, target: Target<DirectiveT>) -> Box<dyn BoundTarget<DirectiveT>> {
         if target.template.is_none() && target.host.is_none() {
             panic!("Empty bound targets are not supported");
@@ -515,8 +523,10 @@ impl<DirectiveT: DirectiveMeta + Clone + 'static> TargetBinder<DirectiveT> for R
         let mut eager_directives: Vec<DirectiveT> = vec![];
         let missing_directives: HashSet<String> = HashSet::new();
         let mut bindings: HashMap<BindingKey, BindingTarget<DirectiveT>> = HashMap::new();
-        let mut references_map: HashMap<ReferenceKey, ReferenceTargetInternal<DirectiveT>> = HashMap::new();
-        let mut scoped_node_entities: HashMap<ScopedNodeWrapper, Vec<TemplateEntity>> = HashMap::new();
+        let mut references_map: HashMap<ReferenceKey, ReferenceTargetInternal<DirectiveT>> =
+            HashMap::new();
+        let mut scoped_node_entities: HashMap<ScopedNodeWrapper, Vec<TemplateEntity>> =
+            HashMap::new();
         let mut expressions_map: HashMap<ExprKey, TemplateEntity> = HashMap::new();
         let mut symbols_map: HashMap<EntityKey, ScopedNodeWrapper> = HashMap::new();
         let mut nesting_level: HashMap<ScopedNodeWrapper, usize> = HashMap::new();
@@ -528,19 +538,35 @@ impl<DirectiveT: DirectiveMeta + Clone + 'static> TargetBinder<DirectiveT> for R
         // Extract defer blocks
         if let Some(ref template_nodes) = target.template {
             defer_blocks = extract_defer_blocks(template_nodes);
-            
+
             // Extract pipes
             for node in template_nodes {
                 extract_pipes_from_node(node, &mut used_pipes, false, &mut eager_pipes);
             }
-            
+
             // Build scope and match directives
             if let Some(ref matcher) = self.directive_matcher {
-                match_directives_in_template(template_nodes, matcher, &mut directives_map, &mut eager_directives, &mut bindings, &mut references_map, false);
+                match_directives_in_template(
+                    template_nodes,
+                    matcher,
+                    &mut directives_map,
+                    &mut eager_directives,
+                    &mut bindings,
+                    &mut references_map,
+                    false,
+                );
             }
-            
+
             // Extract entities from template
-            extract_entities_from_template(template_nodes, &mut scoped_node_entities, &mut expressions_map, &mut symbols_map, &mut nesting_level, &mut scoped_nodes_by_span, 0);
+            extract_entities_from_template(
+                template_nodes,
+                &mut scoped_node_entities,
+                &mut expressions_map,
+                &mut symbols_map,
+                &mut nesting_level,
+                &mut scoped_nodes_by_span,
+                0,
+            );
         }
 
         Box::new(R3BoundTarget {
@@ -571,10 +597,20 @@ struct DirectiveOwnerWrapper {
 impl DirectiveOwnerWrapper {
     fn from(owner: &DirectiveOwner) -> Self {
         let key = match owner {
-            DirectiveOwner::Element(el) => format!("Element:{}:{}", el.name, el.source_span.start.offset),
-            DirectiveOwner::Template(tmpl) => format!("Template:{:?}:{}", tmpl.tag_name, tmpl.source_span.start.offset),
-            DirectiveOwner::Component(comp) => format!("Component:{}:{}", comp.component_name, comp.source_span.start.offset),
-            DirectiveOwner::Directive(dir) => format!("Directive:{}:{}", dir.name, dir.source_span.start.offset),
+            DirectiveOwner::Element(el) => {
+                format!("Element:{}:{}", el.name, el.source_span.start.offset)
+            }
+            DirectiveOwner::Template(tmpl) => format!(
+                "Template:{:?}:{}",
+                tmpl.tag_name, tmpl.source_span.start.offset
+            ),
+            DirectiveOwner::Component(comp) => format!(
+                "Component:{}:{}",
+                comp.component_name, comp.source_span.start.offset
+            ),
+            DirectiveOwner::Directive(dir) => {
+                format!("Directive:{}:{}", dir.name, dir.source_span.start.offset)
+            }
             DirectiveOwner::HostElement(_host) => format!("HostElement"),
         };
         DirectiveOwnerWrapper { key }
@@ -622,18 +658,22 @@ fn match_directives_in_template<DirectiveT: DirectiveMeta + Clone>(
             t::R3Node::Element(el) => {
                 match matcher {
                     DirectiveMatcher::Selector(selector_matcher) => {
-                        if let Some(css_selector) = create_css_selector_from_node(&t::R3Node::Element(el.clone())) {
+                        if let Some(css_selector) =
+                            create_css_selector_from_node(&t::R3Node::Element(el.clone()))
+                        {
                             let mut matched_directives = vec![];
                             selector_matcher.match_selector(&css_selector, |_, results| {
                                 matched_directives.extend(results.clone());
                             });
                             if !matched_directives.is_empty() {
-                                let owner = DirectiveOwnerWrapper::from(&DirectiveOwner::Element(el.clone()));
+                                let owner = DirectiveOwnerWrapper::from(&DirectiveOwner::Element(
+                                    el.clone(),
+                                ));
                                 directives_map.insert(owner.clone(), matched_directives.clone());
                                 if !is_deferred {
                                     eager_directives.extend(matched_directives.clone());
                                 }
-                                
+
                                 // Track bindings for inputs/outputs/attributes
                                 track_element_bindings(
                                     &el.inputs,
@@ -652,24 +692,36 @@ fn match_directives_in_template<DirectiveT: DirectiveMeta + Clone>(
                 }
                 // Recursively process children
                 for child in &el.children {
-                    match_directives_in_template(&[child.clone()], matcher, directives_map, eager_directives, bindings, references_map, is_deferred);
+                    match_directives_in_template(
+                        &[child.clone()],
+                        matcher,
+                        directives_map,
+                        eager_directives,
+                        bindings,
+                        references_map,
+                        is_deferred,
+                    );
                 }
             }
             t::R3Node::Template(tmpl) => {
                 match matcher {
                     DirectiveMatcher::Selector(selector_matcher) => {
-                        if let Some(css_selector) = create_css_selector_from_node(&t::R3Node::Template(tmpl.clone())) {
+                        if let Some(css_selector) =
+                            create_css_selector_from_node(&t::R3Node::Template(tmpl.clone()))
+                        {
                             let mut matched_directives = vec![];
                             selector_matcher.match_selector(&css_selector, |_, results| {
                                 matched_directives.extend(results.clone());
                             });
                             if !matched_directives.is_empty() {
-                                let owner = DirectiveOwnerWrapper::from(&DirectiveOwner::Template(tmpl.clone()));
+                                let owner = DirectiveOwnerWrapper::from(&DirectiveOwner::Template(
+                                    tmpl.clone(),
+                                ));
                                 directives_map.insert(owner.clone(), matched_directives.clone());
                                 if !is_deferred {
                                     eager_directives.extend(matched_directives.clone());
                                 }
-                                
+
                                 // Track bindings
                                 track_element_bindings(
                                     &tmpl.inputs,
@@ -690,7 +742,8 @@ fn match_directives_in_template<DirectiveT: DirectiveMeta + Clone>(
                                 let key = ReferenceKey {
                                     key: format!("Reference:{}", ref_node.name),
                                 };
-                                references_map.insert(key, ReferenceTargetInternal::Template(0)); // TODO: Store template reference properly
+                                references_map.insert(key, ReferenceTargetInternal::Template(0));
+                                // TODO: Store template reference properly
                             }
                         }
                     }
@@ -698,7 +751,15 @@ fn match_directives_in_template<DirectiveT: DirectiveMeta + Clone>(
                 // Process directives on template (directives are handled in visitDirective)
                 // Recursively process children
                 for child in &tmpl.children {
-                    match_directives_in_template(&[child.clone()], matcher, directives_map, eager_directives, bindings, references_map, is_deferred);
+                    match_directives_in_template(
+                        &[child.clone()],
+                        matcher,
+                        directives_map,
+                        eager_directives,
+                        bindings,
+                        references_map,
+                        is_deferred,
+                    );
                 }
             }
             t::R3Node::Component(comp) => {
@@ -706,7 +767,9 @@ fn match_directives_in_template<DirectiveT: DirectiveMeta + Clone>(
                     DirectiveMatcher::Selectorless(selectorless_matcher) => {
                         let matched = selectorless_matcher.match_name(&comp.component_name);
                         if !matched.is_empty() {
-                            let owner = DirectiveOwnerWrapper::from(&DirectiveOwner::Component(comp.clone()));
+                            let owner = DirectiveOwnerWrapper::from(&DirectiveOwner::Component(
+                                comp.clone(),
+                            ));
                             directives_map.insert(owner, matched.clone());
                             if !is_deferred {
                                 eager_directives.extend(matched);
@@ -717,14 +780,23 @@ fn match_directives_in_template<DirectiveT: DirectiveMeta + Clone>(
                 }
                 // Recursively process children
                 for child in &comp.children {
-                    match_directives_in_template(&[child.clone()], matcher, directives_map, eager_directives, bindings, references_map, is_deferred);
+                    match_directives_in_template(
+                        &[child.clone()],
+                        matcher,
+                        directives_map,
+                        eager_directives,
+                        bindings,
+                        references_map,
+                        is_deferred,
+                    );
                 }
             }
             t::R3Node::Directive(dir) => {
                 if let DirectiveMatcher::Selectorless(selectorless_matcher) = matcher {
                     let matched = selectorless_matcher.match_name(&dir.name);
                     if !matched.is_empty() {
-                        let owner = DirectiveOwnerWrapper::from(&DirectiveOwner::Directive(dir.clone()));
+                        let owner =
+                            DirectiveOwnerWrapper::from(&DirectiveOwner::Directive(dir.clone()));
                         directives_map.insert(owner, matched.clone());
                         if !is_deferred {
                             eager_directives.extend(matched);
@@ -735,43 +807,131 @@ fn match_directives_in_template<DirectiveT: DirectiveMeta + Clone>(
             }
             t::R3Node::DeferredBlock(deferred) => {
                 // Explicitly handle DeferredBlock to avoid get_node_children re-wrapping
-                match_directives_in_template(&deferred.children, matcher, directives_map, eager_directives, bindings, references_map, true);
+                match_directives_in_template(
+                    &deferred.children,
+                    matcher,
+                    directives_map,
+                    eager_directives,
+                    bindings,
+                    references_map,
+                    true,
+                );
                 if let Some(ref placeholder) = deferred.placeholder {
-                    match_directives_in_template(&placeholder.children, matcher, directives_map, eager_directives, bindings, references_map, false);
+                    match_directives_in_template(
+                        &placeholder.children,
+                        matcher,
+                        directives_map,
+                        eager_directives,
+                        bindings,
+                        references_map,
+                        false,
+                    );
                 }
                 if let Some(ref loading) = deferred.loading {
-                    match_directives_in_template(&loading.children, matcher, directives_map, eager_directives, bindings, references_map, false);
+                    match_directives_in_template(
+                        &loading.children,
+                        matcher,
+                        directives_map,
+                        eager_directives,
+                        bindings,
+                        references_map,
+                        false,
+                    );
                 }
                 if let Some(ref error) = deferred.error {
-                    match_directives_in_template(&error.children, matcher, directives_map, eager_directives, bindings, references_map, false);
+                    match_directives_in_template(
+                        &error.children,
+                        matcher,
+                        directives_map,
+                        eager_directives,
+                        bindings,
+                        references_map,
+                        false,
+                    );
                 }
             }
             t::R3Node::DeferredBlockPlaceholder(placeholder) => {
-                match_directives_in_template(&placeholder.children, matcher, directives_map, eager_directives, bindings, references_map, false);
+                match_directives_in_template(
+                    &placeholder.children,
+                    matcher,
+                    directives_map,
+                    eager_directives,
+                    bindings,
+                    references_map,
+                    false,
+                );
             }
             t::R3Node::DeferredBlockLoading(loading) => {
-                match_directives_in_template(&loading.children, matcher, directives_map, eager_directives, bindings, references_map, false);
+                match_directives_in_template(
+                    &loading.children,
+                    matcher,
+                    directives_map,
+                    eager_directives,
+                    bindings,
+                    references_map,
+                    false,
+                );
             }
             t::R3Node::DeferredBlockError(error) => {
-                match_directives_in_template(&error.children, matcher, directives_map, eager_directives, bindings, references_map, false);
+                match_directives_in_template(
+                    &error.children,
+                    matcher,
+                    directives_map,
+                    eager_directives,
+                    bindings,
+                    references_map,
+                    false,
+                );
             }
             t::R3Node::IfBlock(if_block) => {
                 // Explicitly handle IfBlock to recurse into branches
                 for branch in &if_block.branches {
-                    match_directives_in_template(&branch.children, matcher, directives_map, eager_directives, bindings, references_map, is_deferred);
+                    match_directives_in_template(
+                        &branch.children,
+                        matcher,
+                        directives_map,
+                        eager_directives,
+                        bindings,
+                        references_map,
+                        is_deferred,
+                    );
                 }
             }
             t::R3Node::ForLoopBlock(for_block) => {
                 // Explicitly handle ForLoopBlock to recurse into main and empty blocks
-                match_directives_in_template(&for_block.children, matcher, directives_map, eager_directives, bindings, references_map, is_deferred);
+                match_directives_in_template(
+                    &for_block.children,
+                    matcher,
+                    directives_map,
+                    eager_directives,
+                    bindings,
+                    references_map,
+                    is_deferred,
+                );
                 if let Some(ref empty) = for_block.empty {
-                    match_directives_in_template(&empty.children, matcher, directives_map, eager_directives, bindings, references_map, is_deferred);
+                    match_directives_in_template(
+                        &empty.children,
+                        matcher,
+                        directives_map,
+                        eager_directives,
+                        bindings,
+                        references_map,
+                        is_deferred,
+                    );
                 }
             }
             t::R3Node::SwitchBlock(switch_block) => {
                 // Explicitly handle SwitchBlock to recurse into cases
                 for case in &switch_block.cases {
-                    match_directives_in_template(&case.children, matcher, directives_map, eager_directives, bindings, references_map, is_deferred);
+                    match_directives_in_template(
+                        &case.children,
+                        matcher,
+                        directives_map,
+                        eager_directives,
+                        bindings,
+                        references_map,
+                        is_deferred,
+                    );
                 }
             }
             _ => {
@@ -791,15 +951,19 @@ fn set_attribute_binding<DirectiveT: DirectiveMeta + Clone>(
     node: &DirectiveOwner,
 ) {
     let dir = if key_type == "BoundAttribute" {
-        directives.iter().find(|d| d.inputs().has_binding_property_name(attr_name))
+        directives
+            .iter()
+            .find(|d| d.inputs().has_binding_property_name(attr_name))
     } else {
-        directives.iter().find(|d| d.outputs().has_binding_property_name(attr_name))
+        directives
+            .iter()
+            .find(|d| d.outputs().has_binding_property_name(attr_name))
     };
-    
+
     let key = BindingKey {
         key: format!("{}:{}:{:?}", key_type, attr_name, source_span),
     };
-    
+
     if let Some(dir) = dir {
         bindings.insert(key, BindingTarget::Directive(dir.clone()));
     } else {
@@ -838,7 +1002,7 @@ fn track_element_bindings<DirectiveT: DirectiveMeta + Clone>(
             node,
         );
     }
-    
+
     // Track output bindings (bound events)
     for output in outputs {
         set_attribute_binding(
@@ -850,11 +1014,14 @@ fn track_element_bindings<DirectiveT: DirectiveMeta + Clone>(
             node,
         );
     }
-    
+
     // Track text attribute bindings (can be inputs)
     for attr in attributes {
         // Check if any directive claims this attribute as input
-        if let Some(dir) = directives.iter().find(|d| d.inputs().has_binding_property_name(&attr.name)) {
+        if let Some(dir) = directives
+            .iter()
+            .find(|d| d.inputs().has_binding_property_name(&attr.name))
+        {
             let key = BindingKey {
                 key: format!("TextAttribute:{}:{:?}", attr.name, attr.source_span),
             };
@@ -892,11 +1059,28 @@ fn extract_entities_from_template(
     let mut entities_vec = Vec::new();
     extract_entities_recursive(nodes, &mut entities_vec);
     // Store root scope entities (None represented as empty key)
-    scoped_node_entities.insert(ScopedNodeWrapper { key: "root".to_string() }, entities_vec);
-    
+    scoped_node_entities.insert(
+        ScopedNodeWrapper {
+            key: "root".to_string(),
+        },
+        entities_vec,
+    );
+
     // Visit all nodes and extract expressions, also populate nesting level and scoped node entities
-    let root_wrapper = ScopedNodeWrapper { key: "root".to_string() };
-    visit_expressions_in_template(nodes, &scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level, root_wrapper);
+    let root_wrapper = ScopedNodeWrapper {
+        key: "root".to_string(),
+    };
+    visit_expressions_in_template(
+        nodes,
+        &scope,
+        expressions_map,
+        symbols_map,
+        nesting_level,
+        scoped_nodes_by_span,
+        scoped_node_entities,
+        current_level,
+        root_wrapper,
+    );
 }
 
 // Visit expressions in template and map PropertyRead/SafePropertyRead to TemplateEntity
@@ -929,25 +1113,41 @@ fn visit_expressions_in_template(
                 for output in &el.outputs {
                     visit_ast_expressions(&output.handler, scope, expressions_map);
                 }
-                visit_expressions_in_template(&el.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level, current_scope.clone());
+                visit_expressions_in_template(
+                    &el.children,
+                    scope,
+                    expressions_map,
+                    symbols_map,
+                    nesting_level,
+                    scoped_nodes_by_span,
+                    scoped_node_entities,
+                    current_level,
+                    current_scope.clone(),
+                );
             }
             t::R3Node::Template(tmpl) => {
                 // Store Template as ScopedNode for nesting level and symbol mapping
                 let span_key = format!("{:?}", tmpl.source_span);
-                let wrapper = ScopedNodeWrapper { key: span_key.clone() };
+                let wrapper = ScopedNodeWrapper {
+                    key: span_key.clone(),
+                };
                 scoped_nodes_by_span.insert(span_key.clone(), ScopedNode::Template(tmpl.clone()));
                 nesting_level.insert(wrapper.clone(), current_level + 1);
-                
+
                 // Collect entities for this template scope
                 let mut template_entities = Vec::new();
                 for variable in &tmpl.variables {
                     template_entities.push(TemplateEntity::Variable(variable.clone()));
-                    let key = EntityKey { key: format!("Variable:{}", variable.name) };
+                    let key = EntityKey {
+                        key: format!("Variable:{}", variable.name),
+                    };
                     symbols_map.insert(key, wrapper.clone());
                 }
                 for reference in &tmpl.references {
                     template_entities.push(TemplateEntity::Reference(reference.clone()));
-                    let key = EntityKey { key: format!("Reference:{}", reference.name) };
+                    let key = EntityKey {
+                        key: format!("Reference:{}", reference.name),
+                    };
                     symbols_map.insert(key, wrapper.clone());
                 }
                 scoped_node_entities.insert(wrapper.clone(), template_entities);
@@ -957,13 +1157,25 @@ fn visit_expressions_in_template(
                 for output in &tmpl.outputs {
                     visit_ast_expressions(&output.handler, scope, expressions_map);
                 }
-                visit_expressions_in_template(&tmpl.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level + 1, wrapper);
+                visit_expressions_in_template(
+                    &tmpl.children,
+                    scope,
+                    expressions_map,
+                    symbols_map,
+                    nesting_level,
+                    scoped_nodes_by_span,
+                    scoped_node_entities,
+                    current_level + 1,
+                    wrapper,
+                );
             }
             t::R3Node::LetDeclaration(decl) => {
                 // Track let declaration as symbol - scoped to current scope
-                let key = EntityKey { key: format!("LetDeclaration:{}", decl.name) };
+                let key = EntityKey {
+                    key: format!("LetDeclaration:{}", decl.name),
+                };
                 symbols_map.insert(key, current_scope.clone());
-                
+
                 // Add to entities of current scope
                 if let Some(entities) = scoped_node_entities.get_mut(&current_scope) {
                     entities.push(TemplateEntity::LetDeclaration(decl.clone()));
@@ -973,7 +1185,10 @@ fn visit_expressions_in_template(
                     // But we init it when entering the node.
                     // EXCEPT: IfBlockBranch init logic was conditional on being non-empty.
                     // We must ensure it is initialized.
-                    scoped_node_entities.insert(current_scope.clone(), vec![TemplateEntity::LetDeclaration(decl.clone())]);
+                    scoped_node_entities.insert(
+                        current_scope.clone(),
+                        vec![TemplateEntity::LetDeclaration(decl.clone())],
+                    );
                 }
 
                 // Visit the value expression
@@ -982,102 +1197,164 @@ fn visit_expressions_in_template(
             t::R3Node::ForLoopBlock(for_loop) => {
                 // Store ForLoopBlock as ScopedNode
                 let span_key = format!("{:?}", for_loop.block.source_span);
-                let wrapper = ScopedNodeWrapper { key: span_key.clone() };
-                scoped_nodes_by_span.insert(span_key.clone(), ScopedNode::ForLoopBlock(for_loop.clone()));
+                let wrapper = ScopedNodeWrapper {
+                    key: span_key.clone(),
+                };
+                scoped_nodes_by_span
+                    .insert(span_key.clone(), ScopedNode::ForLoopBlock(for_loop.clone()));
                 nesting_level.insert(wrapper.clone(), current_level + 1);
-                
+
                 // Track item variable as symbol and entity
                 let variable_entity = TemplateEntity::Variable(for_loop.item.clone());
-                let key = EntityKey { key: format!("Variable:{}", for_loop.item.name) };
+                let key = EntityKey {
+                    key: format!("Variable:{}", for_loop.item.name),
+                };
                 symbols_map.insert(key, wrapper.clone());
-                
+
                 // Collect entities for this for loop scope
                 let for_loop_entities = vec![variable_entity];
                 scoped_node_entities.insert(wrapper.clone(), for_loop_entities);
-                
+
                 // Visit expression (ASTWithSource has .ast field)
                 visit_ast_expressions(&for_loop.expression.ast, scope, expressions_map);
-                visit_expressions_in_template(&for_loop.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level + 1, wrapper);
+                visit_expressions_in_template(
+                    &for_loop.children,
+                    scope,
+                    expressions_map,
+                    symbols_map,
+                    nesting_level,
+                    scoped_nodes_by_span,
+                    scoped_node_entities,
+                    current_level + 1,
+                    wrapper,
+                );
             }
             t::R3Node::IfBlockBranch(branch) => {
                 let span_key = format!("{:?}", branch.block.source_span);
-                let wrapper = ScopedNodeWrapper { key: span_key.clone() };
-                scoped_nodes_by_span.insert(span_key.clone(), ScopedNode::IfBlockBranch(branch.clone()));
+                let wrapper = ScopedNodeWrapper {
+                    key: span_key.clone(),
+                };
+                scoped_nodes_by_span
+                    .insert(span_key.clone(), ScopedNode::IfBlockBranch(branch.clone()));
                 nesting_level.insert(wrapper.clone(), current_level + 1);
-                
+
                 // Collect entities for this branch scope
                 let mut branch_entities = Vec::new();
-                
+
                 // Track expression alias if present
                 if let Some(ref alias) = branch.expression_alias {
                     branch_entities.push(TemplateEntity::Variable(alias.clone()));
-                    let key = EntityKey { key: format!("Variable:{}", alias.name) };
+                    let key = EntityKey {
+                        key: format!("Variable:{}", alias.name),
+                    };
                     symbols_map.insert(key, wrapper.clone());
                 }
-                
+
                 // Always insert entities, even if empty initially, so we can append LetDeclaration later
                 // Or insert if not present
-                scoped_node_entities.entry(wrapper.clone()).or_insert(branch_entities);
-                
-                // Visit expression if present - Wait, expression is on branch? 
+                scoped_node_entities
+                    .entry(wrapper.clone())
+                    .or_insert(branch_entities);
+
+                // Visit expression if present - Wait, expression is on branch?
                 // t::IfBlockBranch has expression.
                 if let Some(ref expr) = branch.expression {
                     visit_ast_expressions(expr, scope, expressions_map);
                 }
-                visit_expressions_in_template(&branch.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level + 1, wrapper);
+                visit_expressions_in_template(
+                    &branch.children,
+                    scope,
+                    expressions_map,
+                    symbols_map,
+                    nesting_level,
+                    scoped_nodes_by_span,
+                    scoped_node_entities,
+                    current_level + 1,
+                    wrapper,
+                );
             }
             t::R3Node::SwitchBlockCase(case) => {
                 // Store SwitchBlockCase as ScopedNode
                 let span_key = format!("{:?}", case.block.source_span);
-                let wrapper = ScopedNodeWrapper { key: span_key.clone() };
-                scoped_nodes_by_span.insert(span_key.clone(), ScopedNode::SwitchBlockCase(case.clone()));
+                let wrapper = ScopedNodeWrapper {
+                    key: span_key.clone(),
+                };
+                scoped_nodes_by_span
+                    .insert(span_key.clone(), ScopedNode::SwitchBlockCase(case.clone()));
                 nesting_level.insert(wrapper.clone(), current_level + 1);
-                
+
                 // Initialize entities
-                scoped_node_entities.entry(wrapper.clone()).or_insert(Vec::new());
-                
+                scoped_node_entities
+                    .entry(wrapper.clone())
+                    .or_insert(Vec::new());
+
                 // Visit expression if present
                 if let Some(ref expr) = case.expression {
                     visit_ast_expressions(expr, scope, expressions_map);
                 }
-                visit_expressions_in_template(&case.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level + 1, wrapper);
+                visit_expressions_in_template(
+                    &case.children,
+                    scope,
+                    expressions_map,
+                    symbols_map,
+                    nesting_level,
+                    scoped_nodes_by_span,
+                    scoped_node_entities,
+                    current_level + 1,
+                    wrapper,
+                );
             }
             t::R3Node::SwitchBlock(switch) => {
                 // Visit switch expression
                 visit_ast_expressions(&switch.expression, scope, expressions_map);
-                // Visit all cases - handled by SwitchBlockCase logic above? 
+                // Visit all cases - handled by SwitchBlockCase logic above?
                 // No, cases are children but they are R3Nodes::SwitchBlockCase
                 // And visit_expressions_in_template iterates them.
                 // WE MUST manually iterate and call recursively because SwitchBlockCase is an R3Node that handles itself.
                 // But current implementation loops.
                 for case in &switch.cases {
-                     // Wait, cases in switch.cases are structs, NOT R3Node enum?
-                     // r3_ast::SwitchBlock { cases: Vec<SwitchBlockCase>, ... }
-                     // SwitchBlockCase is a struct.
-                     // So we must manually handle them here as if they were nodes, OR wrap logic.
-                     
-                     // My previous view logic had:
-                     // for case in &switch.cases { ... visit_expressions_in_template(&case.children, ...) }
-                     // It did NOT recurse into 'case' node itself because 'case' is not a node variant in the loop?
-                     // Ah, R3Node::SwitchBlockCase IS a variant.
-                     // But R3Node::SwitchBlock has a Vec of SwitchBlockCase structs.
-                     // Are children of SwitchBlock R3Nodes or SwitchBlockCase structs?
-                     // They are structs.
-                     
-                     // So I must keep the manual logic for SwitchBlock, but simulate the node behavior or just inline.
-                     // I will INLINE logic for creating scope for case.
-                     
+                    // Wait, cases in switch.cases are structs, NOT R3Node enum?
+                    // r3_ast::SwitchBlock { cases: Vec<SwitchBlockCase>, ... }
+                    // SwitchBlockCase is a struct.
+                    // So we must manually handle them here as if they were nodes, OR wrap logic.
+
+                    // My previous view logic had:
+                    // for case in &switch.cases { ... visit_expressions_in_template(&case.children, ...) }
+                    // It did NOT recurse into 'case' node itself because 'case' is not a node variant in the loop?
+                    // Ah, R3Node::SwitchBlockCase IS a variant.
+                    // But R3Node::SwitchBlock has a Vec of SwitchBlockCase structs.
+                    // Are children of SwitchBlock R3Nodes or SwitchBlockCase structs?
+                    // They are structs.
+
+                    // So I must keep the manual logic for SwitchBlock, but simulate the node behavior or just inline.
+                    // I will INLINE logic for creating scope for case.
+
                     let span_key = format!("{:?}", case.block.source_span);
-                    let wrapper = ScopedNodeWrapper { key: span_key.clone() };
-                    scoped_nodes_by_span.insert(span_key.clone(), ScopedNode::SwitchBlockCase(case.clone()));
+                    let wrapper = ScopedNodeWrapper {
+                        key: span_key.clone(),
+                    };
+                    scoped_nodes_by_span
+                        .insert(span_key.clone(), ScopedNode::SwitchBlockCase(case.clone()));
                     nesting_level.insert(wrapper.clone(), current_level + 1);
-                    
-                    scoped_node_entities.entry(wrapper.clone()).or_insert(Vec::new());
+
+                    scoped_node_entities
+                        .entry(wrapper.clone())
+                        .or_insert(Vec::new());
 
                     if let Some(ref expr) = case.expression {
                         visit_ast_expressions(expr, scope, expressions_map);
                     }
-                    visit_expressions_in_template(&case.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level + 1, wrapper);
+                    visit_expressions_in_template(
+                        &case.children,
+                        scope,
+                        expressions_map,
+                        symbols_map,
+                        nesting_level,
+                        scoped_nodes_by_span,
+                        scoped_node_entities,
+                        current_level + 1,
+                        wrapper,
+                    );
                 }
             }
             t::R3Node::IfBlock(if_block) => {
@@ -1085,55 +1362,142 @@ fn visit_expressions_in_template(
                 for branch in &if_block.branches {
                     // Logic similar to SwitchBlock - iterate explicitly
                     // Branch is struct.
-                    
+
                     let span_key = format!("{:?}", branch.block.source_span);
-                    let wrapper = ScopedNodeWrapper { key: span_key.clone() };
-                    scoped_nodes_by_span.insert(span_key.clone(), ScopedNode::IfBlockBranch(branch.clone()));
+                    let wrapper = ScopedNodeWrapper {
+                        key: span_key.clone(),
+                    };
+                    scoped_nodes_by_span
+                        .insert(span_key.clone(), ScopedNode::IfBlockBranch(branch.clone()));
                     nesting_level.insert(wrapper.clone(), current_level + 1);
-                    
+
                     let mut branch_entities = Vec::new();
                     if let Some(ref alias) = branch.expression_alias {
                         branch_entities.push(TemplateEntity::Variable(alias.clone()));
-                        let key = EntityKey { key: format!("Variable:{}", alias.name) };
+                        let key = EntityKey {
+                            key: format!("Variable:{}", alias.name),
+                        };
                         symbols_map.insert(key, wrapper.clone());
                     }
-                    scoped_node_entities.entry(wrapper.clone()).or_insert(branch_entities);
+                    scoped_node_entities
+                        .entry(wrapper.clone())
+                        .or_insert(branch_entities);
 
                     if let Some(ref expr) = branch.expression {
                         visit_ast_expressions(expr, scope, expressions_map);
                     }
-                    visit_expressions_in_template(&branch.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level + 1, wrapper);
+                    visit_expressions_in_template(
+                        &branch.children,
+                        scope,
+                        expressions_map,
+                        symbols_map,
+                        nesting_level,
+                        scoped_nodes_by_span,
+                        scoped_node_entities,
+                        current_level + 1,
+                        wrapper,
+                    );
                 }
             }
             t::R3Node::DeferredBlock(deferred) => {
                 // Explicitly handle DeferredBlock to avoid get_node_children re-wrapping
                 if !deferred.children.is_empty() {
-                    visit_expressions_in_template(&deferred.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level, current_scope.clone());
+                    visit_expressions_in_template(
+                        &deferred.children,
+                        scope,
+                        expressions_map,
+                        symbols_map,
+                        nesting_level,
+                        scoped_nodes_by_span,
+                        scoped_node_entities,
+                        current_level,
+                        current_scope.clone(),
+                    );
                 }
                 if let Some(ref placeholder) = deferred.placeholder {
                     if !placeholder.children.is_empty() {
-                        visit_expressions_in_template(&placeholder.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level, current_scope.clone());
+                        visit_expressions_in_template(
+                            &placeholder.children,
+                            scope,
+                            expressions_map,
+                            symbols_map,
+                            nesting_level,
+                            scoped_nodes_by_span,
+                            scoped_node_entities,
+                            current_level,
+                            current_scope.clone(),
+                        );
                     }
                 }
                 if let Some(ref loading) = deferred.loading {
                     if !loading.children.is_empty() {
-                        visit_expressions_in_template(&loading.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level, current_scope.clone());
+                        visit_expressions_in_template(
+                            &loading.children,
+                            scope,
+                            expressions_map,
+                            symbols_map,
+                            nesting_level,
+                            scoped_nodes_by_span,
+                            scoped_node_entities,
+                            current_level,
+                            current_scope.clone(),
+                        );
                     }
                 }
                 if let Some(ref error) = deferred.error {
                     if !error.children.is_empty() {
-                        visit_expressions_in_template(&error.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level, current_scope.clone());
+                        visit_expressions_in_template(
+                            &error.children,
+                            scope,
+                            expressions_map,
+                            symbols_map,
+                            nesting_level,
+                            scoped_nodes_by_span,
+                            scoped_node_entities,
+                            current_level,
+                            current_scope.clone(),
+                        );
                     }
                 }
             }
             t::R3Node::DeferredBlockPlaceholder(placeholder) => {
-                visit_expressions_in_template(&placeholder.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level, current_scope.clone());
+                visit_expressions_in_template(
+                    &placeholder.children,
+                    scope,
+                    expressions_map,
+                    symbols_map,
+                    nesting_level,
+                    scoped_nodes_by_span,
+                    scoped_node_entities,
+                    current_level,
+                    current_scope.clone(),
+                );
             }
             t::R3Node::DeferredBlockLoading(loading) => {
-                visit_expressions_in_template(&loading.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level, current_scope.clone());
+                visit_expressions_in_template(
+                    &loading.children,
+                    scope,
+                    expressions_map,
+                    symbols_map,
+                    nesting_level,
+                    scoped_nodes_by_span,
+                    scoped_node_entities,
+                    current_level,
+                    current_scope.clone(),
+                );
             }
             t::R3Node::DeferredBlockError(error) => {
-                visit_expressions_in_template(&error.children, scope, expressions_map, symbols_map, nesting_level, scoped_nodes_by_span, scoped_node_entities, current_level, current_scope.clone());
+                visit_expressions_in_template(
+                    &error.children,
+                    scope,
+                    expressions_map,
+                    symbols_map,
+                    nesting_level,
+                    scoped_nodes_by_span,
+                    scoped_node_entities,
+                    current_level,
+                    current_scope.clone(),
+                );
             }
             _ => {
                 // For remaining node types, skip recursion to avoid issues
@@ -1289,7 +1653,10 @@ fn extract_entities_recursive(nodes: &[t::R3Node], entities: &mut Vec<TemplateEn
             t::R3Node::LetDeclaration(decl) => {
                 entities.push(TemplateEntity::LetDeclaration(decl.clone()));
             }
-            t::R3Node::IfBlock(_) | t::R3Node::ForLoopBlock(_) | t::R3Node::SwitchBlock(_) | t::R3Node::DeferredBlock(_) => {
+            t::R3Node::IfBlock(_)
+            | t::R3Node::ForLoopBlock(_)
+            | t::R3Node::SwitchBlock(_)
+            | t::R3Node::DeferredBlock(_) => {
                 // These create new scopes/views - DO NOT recurse
             }
             _ => {
@@ -1313,7 +1680,10 @@ pub enum BindingTarget<DirectiveT> {
 /// Internal representation of reference target.
 #[derive(Debug, Clone)]
 pub enum ReferenceTargetInternal<DirectiveT> {
-    Directive { directive: DirectiveT, node_id: usize },
+    Directive {
+        directive: DirectiveT,
+        node_id: usize,
+    },
     Element(usize),
     Template(usize),
 }
@@ -1337,7 +1707,9 @@ pub struct R3BoundTarget<DirectiveT: DirectiveMeta + Clone> {
     defer_blocks: Vec<DeferredBlock>,
 }
 
-impl<DirectiveT: DirectiveMeta + Clone + 'static> BoundTarget<DirectiveT> for R3BoundTarget<DirectiveT> {
+impl<DirectiveT: DirectiveMeta + Clone + 'static> BoundTarget<DirectiveT>
+    for R3BoundTarget<DirectiveT>
+{
     fn target(&self) -> &Target<DirectiveT> {
         &self.target
     }
@@ -1357,9 +1729,12 @@ impl<DirectiveT: DirectiveMeta + Clone + 'static> BoundTarget<DirectiveT> for R3
         }
     }
 
-    fn get_consumer_of_binding(&self, binding: &dyn std::any::Any) -> Option<super::t2_api::ConsumerOfBinding<DirectiveT>> {
+    fn get_consumer_of_binding(
+        &self,
+        binding: &dyn std::any::Any,
+    ) -> Option<super::t2_api::ConsumerOfBinding<DirectiveT>> {
         use crate::render3::r3_ast::{BoundAttribute, BoundEvent, TextAttribute};
-        
+
         // Try to downcast to specific binding types
         if let Some(attr) = binding.downcast_ref::<BoundAttribute>() {
             let key = BindingKey {
@@ -1367,9 +1742,15 @@ impl<DirectiveT: DirectiveMeta + Clone + 'static> BoundTarget<DirectiveT> for R3
             };
             if let Some(target) = self.bindings.get(&key) {
                 match target {
-                    BindingTarget::Directive(d) => Some(super::t2_api::ConsumerOfBinding::Directive(d.clone())),
-                    BindingTarget::Element(el) => Some(super::t2_api::ConsumerOfBinding::Element(el.clone())),
-                    BindingTarget::Template(tmpl) => Some(super::t2_api::ConsumerOfBinding::Template(tmpl.clone())),
+                    BindingTarget::Directive(d) => {
+                        Some(super::t2_api::ConsumerOfBinding::Directive(d.clone()))
+                    }
+                    BindingTarget::Element(el) => {
+                        Some(super::t2_api::ConsumerOfBinding::Element(el.clone()))
+                    }
+                    BindingTarget::Template(tmpl) => {
+                        Some(super::t2_api::ConsumerOfBinding::Template(tmpl.clone()))
+                    }
                 }
             } else {
                 None
@@ -1380,9 +1761,15 @@ impl<DirectiveT: DirectiveMeta + Clone + 'static> BoundTarget<DirectiveT> for R3
             };
             if let Some(target) = self.bindings.get(&key) {
                 match target {
-                    BindingTarget::Directive(d) => Some(super::t2_api::ConsumerOfBinding::Directive(d.clone())),
-                    BindingTarget::Element(el) => Some(super::t2_api::ConsumerOfBinding::Element(el.clone())),
-                    BindingTarget::Template(tmpl) => Some(super::t2_api::ConsumerOfBinding::Template(tmpl.clone())),
+                    BindingTarget::Directive(d) => {
+                        Some(super::t2_api::ConsumerOfBinding::Directive(d.clone()))
+                    }
+                    BindingTarget::Element(el) => {
+                        Some(super::t2_api::ConsumerOfBinding::Element(el.clone()))
+                    }
+                    BindingTarget::Template(tmpl) => {
+                        Some(super::t2_api::ConsumerOfBinding::Template(tmpl.clone()))
+                    }
                 }
             } else {
                 None
@@ -1393,9 +1780,15 @@ impl<DirectiveT: DirectiveMeta + Clone + 'static> BoundTarget<DirectiveT> for R3
             };
             if let Some(target) = self.bindings.get(&key) {
                 match target {
-                    BindingTarget::Directive(d) => Some(super::t2_api::ConsumerOfBinding::Directive(d.clone())),
-                    BindingTarget::Element(el) => Some(super::t2_api::ConsumerOfBinding::Element(el.clone())),
-                    BindingTarget::Template(tmpl) => Some(super::t2_api::ConsumerOfBinding::Template(tmpl.clone())),
+                    BindingTarget::Directive(d) => {
+                        Some(super::t2_api::ConsumerOfBinding::Directive(d.clone()))
+                    }
+                    BindingTarget::Element(el) => {
+                        Some(super::t2_api::ConsumerOfBinding::Element(el.clone()))
+                    }
+                    BindingTarget::Template(tmpl) => {
+                        Some(super::t2_api::ConsumerOfBinding::Template(tmpl.clone()))
+                    }
                 }
             } else {
                 None
@@ -1462,7 +1855,9 @@ impl<DirectiveT: DirectiveMeta + Clone + 'static> BoundTarget<DirectiveT> for R3
             ScopedNode::SwitchBlockCase(case) => format!("{:?}", case.block.source_span),
             ScopedNode::DeferredBlock(def) => format!("{:?}", def.block.source_span),
             ScopedNode::DeferredBlockLoading(loading) => format!("{:?}", loading.block.source_span),
-            ScopedNode::DeferredBlockPlaceholder(placeholder) => format!("{:?}", placeholder.block.source_span),
+            ScopedNode::DeferredBlockPlaceholder(placeholder) => {
+                format!("{:?}", placeholder.block.source_span)
+            }
             ScopedNode::DeferredBlockError(error) => format!("{:?}", error.block.source_span),
             ScopedNode::Content(content) => format!("{:?}", content.source_span),
             ScopedNode::HostElement(host) => format!("{:?}", host.source_span),
@@ -1478,12 +1873,18 @@ impl<DirectiveT: DirectiveMeta + Clone + 'static> BoundTarget<DirectiveT> for R3
             let span_key = match scoped_node {
                 ScopedNode::Template(tmpl) => format!("{:?}", tmpl.source_span),
                 ScopedNode::ForLoopBlock(fl) => format!("{:?}", fl.block.source_span),
-                ScopedNode::ForLoopBlockEmpty(fl_empty) => format!("{:?}", fl_empty.block.source_span),
+                ScopedNode::ForLoopBlockEmpty(fl_empty) => {
+                    format!("{:?}", fl_empty.block.source_span)
+                }
                 ScopedNode::IfBlockBranch(branch) => format!("{:?}", branch.block.source_span),
                 ScopedNode::SwitchBlockCase(case) => format!("{:?}", case.block.source_span),
                 ScopedNode::DeferredBlock(def) => format!("{:?}", def.block.source_span),
-                ScopedNode::DeferredBlockLoading(loading) => format!("{:?}", loading.block.source_span),
-                ScopedNode::DeferredBlockPlaceholder(placeholder) => format!("{:?}", placeholder.block.source_span),
+                ScopedNode::DeferredBlockLoading(loading) => {
+                    format!("{:?}", loading.block.source_span)
+                }
+                ScopedNode::DeferredBlockPlaceholder(placeholder) => {
+                    format!("{:?}", placeholder.block.source_span)
+                }
                 ScopedNode::DeferredBlockError(error) => format!("{:?}", error.block.source_span),
                 ScopedNode::Content(content) => format!("{:?}", content.source_span),
                 ScopedNode::HostElement(host) => format!("{:?}", host.source_span),
@@ -1491,9 +1892,11 @@ impl<DirectiveT: DirectiveMeta + Clone + 'static> BoundTarget<DirectiveT> for R3
             ScopedNodeWrapper { key: span_key }
         } else {
             // Root scope
-            ScopedNodeWrapper { key: "root".to_string() }
+            ScopedNodeWrapper {
+                key: "root".to_string(),
+            }
         };
-        
+
         if let Some(entities_vec) = self.scoped_node_entities.get(&wrapper) {
             entities_vec.iter().cloned().collect()
         } else {
@@ -1537,7 +1940,11 @@ impl<DirectiveT: DirectiveMeta + Clone + 'static> BoundTarget<DirectiveT> for R3
         self.defer_blocks.clone()
     }
 
-    fn get_deferred_trigger_target(&self, block: &DeferredBlock, trigger: &t::DeferredTrigger) -> Option<Element> {
+    fn get_deferred_trigger_target(
+        &self,
+        block: &DeferredBlock,
+        trigger: &t::DeferredTrigger,
+    ) -> Option<Element> {
         // Only triggers that refer to DOM nodes can be resolved
         let reference = match trigger {
             t::DeferredTrigger::Interaction(interaction) => &interaction.reference,
@@ -1545,7 +1952,7 @@ impl<DirectiveT: DirectiveMeta + Clone + 'static> BoundTarget<DirectiveT> for R3
             t::DeferredTrigger::Hover(hover) => &hover.reference,
             _ => return None,
         };
-        
+
         // If reference is None, try to infer from placeholder
         if reference.is_none() {
             if let Some(ref placeholder) = block.placeholder {
@@ -1567,10 +1974,10 @@ impl<DirectiveT: DirectiveMeta + Clone + 'static> BoundTarget<DirectiveT> for R3
             }
             return None;
         }
-        
+
         // Try to find reference in scope
         let ref_name = reference.as_ref().unwrap();
-        
+
         // Find element by reference in template
         if let Some(ref template_nodes) = self.target.template {
             if let Some(element) = find_element_by_reference(template_nodes, ref_name) {
@@ -1668,7 +2075,8 @@ fn find_element_by_reference(nodes: &[t::R3Node], ref_name: &str) -> Option<Elem
                     return Some(result);
                 }
                 if let Some(ref placeholder) = deferred.placeholder {
-                    if let Some(result) = find_element_by_reference(&placeholder.children, ref_name) {
+                    if let Some(result) = find_element_by_reference(&placeholder.children, ref_name)
+                    {
                         return Some(result);
                     }
                 }
@@ -1751,8 +2159,9 @@ fn is_element_in_nodes(nodes: &[t::R3Node], target_element: &Element) -> bool {
         match node {
             t::R3Node::Element(el) => {
                 // Compare by name and source span (simple comparison using start offset)
-                if el.name == target_element.name && 
-                   el.source_span.start.offset == target_element.source_span.start.offset {
+                if el.name == target_element.name
+                    && el.source_span.start.offset == target_element.source_span.start.offset
+                {
                     return true;
                 }
                 // Recursively check children
@@ -1876,45 +2285,56 @@ fn find_reference_target_in_nodes<DirectiveT: DirectiveMeta>(
                 }
             }
             t::R3Node::DeferredBlock(deferred) => {
-                if let Some(result) = find_reference_target_in_nodes(&deferred.children, reference) {
+                if let Some(result) = find_reference_target_in_nodes(&deferred.children, reference)
+                {
                     return Some(result);
                 }
                 if let Some(ref placeholder) = deferred.placeholder {
-                    if let Some(result) = find_reference_target_in_nodes(&placeholder.children, reference) {
+                    if let Some(result) =
+                        find_reference_target_in_nodes(&placeholder.children, reference)
+                    {
                         return Some(result);
                     }
                 }
                 if let Some(ref loading) = deferred.loading {
-                    if let Some(result) = find_reference_target_in_nodes(&loading.children, reference) {
+                    if let Some(result) =
+                        find_reference_target_in_nodes(&loading.children, reference)
+                    {
                         return Some(result);
                     }
                 }
                 if let Some(ref error) = deferred.error {
-                    if let Some(result) = find_reference_target_in_nodes(&error.children, reference) {
+                    if let Some(result) = find_reference_target_in_nodes(&error.children, reference)
+                    {
                         return Some(result);
                     }
                 }
             }
             t::R3Node::IfBlock(if_block) => {
                 for branch in &if_block.branches {
-                    if let Some(result) = find_reference_target_in_nodes(&branch.children, reference) {
+                    if let Some(result) =
+                        find_reference_target_in_nodes(&branch.children, reference)
+                    {
                         return Some(result);
                     }
                 }
             }
             t::R3Node::ForLoopBlock(for_loop) => {
-                if let Some(result) = find_reference_target_in_nodes(&for_loop.children, reference) {
+                if let Some(result) = find_reference_target_in_nodes(&for_loop.children, reference)
+                {
                     return Some(result);
                 }
                 if let Some(ref empty) = for_loop.empty {
-                    if let Some(result) = find_reference_target_in_nodes(&empty.children, reference) {
+                    if let Some(result) = find_reference_target_in_nodes(&empty.children, reference)
+                    {
                         return Some(result);
                     }
                 }
             }
             t::R3Node::SwitchBlock(switch) => {
                 for case in &switch.cases {
-                    if let Some(result) = find_reference_target_in_nodes(&case.children, reference) {
+                    if let Some(result) = find_reference_target_in_nodes(&case.children, reference)
+                    {
                         return Some(result);
                     }
                 }
@@ -2001,7 +2421,7 @@ impl Scope {
                         self.ingest_nodes(&branch.children);
                     }
                 }
-            t::R3Node::IfBlockBranch(branch) => {
+                t::R3Node::IfBlockBranch(branch) => {
                     // Expression alias is in branch scope
                     if let Some(ref alias) = branch.expression_alias {
                         self.maybe_declare(TemplateEntity::Variable(alias.clone()));

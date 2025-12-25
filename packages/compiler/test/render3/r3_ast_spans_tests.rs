@@ -2,9 +2,9 @@
 //!
 //! Mirrors angular/packages/compiler/test/render3/r3_ast_spans_spec.ts
 
-use angular_compiler::render3::r3_ast as t;
-use angular_compiler::render3::r3_ast::{Visitor, Node};
 use angular_compiler::parse_util::ParseSourceSpan;
+use angular_compiler::render3::r3_ast as t;
+use angular_compiler::render3::r3_ast::{Node, Visitor};
 // Include test utilities
 #[path = "view/util.rs"]
 mod view_util;
@@ -25,11 +25,9 @@ struct R3AstSourceSpans {
 
 impl R3AstSourceSpans {
     fn new() -> Self {
-        R3AstSourceSpans {
-            result: vec![],
-        }
+        R3AstSourceSpans { result: vec![] }
     }
-    
+
     fn visit_all(&mut self, nodes: &[t::R3Node]) {
         use t::visit_all;
         visit_all(self, nodes);
@@ -38,7 +36,7 @@ impl R3AstSourceSpans {
 
 impl Visitor for R3AstSourceSpans {
     type Result = ();
-    
+
     fn visit_element(&mut self, element: &t::Element) {
         self.result.push(vec![
             "Element".to_string(),
@@ -63,7 +61,7 @@ impl Visitor for R3AstSourceSpans {
         }
         self.visit_all(&element.children);
     }
-    
+
     fn visit_template(&mut self, template: &t::Template) {
         self.result.push(vec![
             "Template".to_string(),
@@ -97,7 +95,7 @@ impl Visitor for R3AstSourceSpans {
         }
         self.visit_all(&template.children);
     }
-    
+
     fn visit_content(&mut self, content: &t::Content) {
         self.result.push(vec![
             "Content".to_string(),
@@ -108,7 +106,7 @@ impl Visitor for R3AstSourceSpans {
         }
         self.visit_all(&content.children);
     }
-    
+
     fn visit_variable(&mut self, variable: &t::Variable) {
         self.result.push(vec![
             "Variable".to_string(),
@@ -117,7 +115,7 @@ impl Visitor for R3AstSourceSpans {
             humanize_span(&variable.value_span.as_ref().map(|s| s.clone())),
         ]);
     }
-    
+
     fn visit_reference(&mut self, reference: &t::Reference) {
         self.result.push(vec![
             "Reference".to_string(),
@@ -126,7 +124,7 @@ impl Visitor for R3AstSourceSpans {
             humanize_span(&reference.value_span.as_ref().map(|s| s.clone())),
         ]);
     }
-    
+
     fn visit_text_attribute(&mut self, attribute: &t::TextAttribute) {
         self.result.push(vec![
             "TextAttribute".to_string(),
@@ -135,7 +133,7 @@ impl Visitor for R3AstSourceSpans {
             humanize_span(&attribute.value_span.as_ref().map(|s| s.clone())),
         ]);
     }
-    
+
     fn visit_bound_attribute(&mut self, attribute: &t::BoundAttribute) {
         self.result.push(vec![
             "BoundAttribute".to_string(),
@@ -144,7 +142,7 @@ impl Visitor for R3AstSourceSpans {
             humanize_span(&attribute.value_span.as_ref().map(|s| s.clone())),
         ]);
     }
-    
+
     fn visit_bound_event(&mut self, event: &t::BoundEvent) {
         self.result.push(vec![
             "BoundEvent".to_string(),
@@ -153,21 +151,21 @@ impl Visitor for R3AstSourceSpans {
             humanize_span(&Some(event.handler_span.clone())),
         ]);
     }
-    
+
     fn visit_text(&mut self, text: &t::Text) {
         self.result.push(vec![
             "Text".to_string(),
             humanize_span(&Some(text.source_span.clone())),
         ]);
     }
-    
+
     fn visit_bound_text(&mut self, text: &t::BoundText) {
         self.result.push(vec![
             "BoundText".to_string(),
             humanize_span(&Some(text.source_span.clone())),
         ]);
     }
-    
+
     fn visit_icu(&mut self, icu: &t::Icu) {
         self.result.push(vec![
             "Icu".to_string(),
@@ -191,7 +189,7 @@ impl Visitor for R3AstSourceSpans {
             ]);
         }
     }
-    
+
     fn visit_deferred_block(&mut self, deferred: &t::DeferredBlock) {
         self.result.push(vec![
             "DeferredBlock".to_string(),
@@ -249,7 +247,7 @@ impl Visitor for R3AstSourceSpans {
             error.visit(self);
         }
     }
-    
+
     fn visit_deferred_trigger(&mut self, trigger: &t::DeferredTrigger) {
         let name = match trigger {
             t::DeferredTrigger::Bound(_) => "BoundDeferredTrigger",
@@ -266,17 +264,23 @@ impl Visitor for R3AstSourceSpans {
             humanize_span(&Some(trigger.source_span().clone())),
         ]);
     }
-    
+
     fn visit_deferred_block_placeholder(&mut self, placeholder: &t::DeferredBlockPlaceholder) {
         self.result.push(vec![
             "DeferredBlockPlaceholder".to_string(),
             humanize_span(&Some(placeholder.source_span().clone())),
             humanize_span(&Some(placeholder.block.start_source_span.clone())),
-            humanize_span(&placeholder.block.end_source_span.as_ref().map(|s| s.clone())),
+            humanize_span(
+                &placeholder
+                    .block
+                    .end_source_span
+                    .as_ref()
+                    .map(|s| s.clone()),
+            ),
         ]);
         self.visit_all(&placeholder.children);
     }
-    
+
     fn visit_deferred_block_loading(&mut self, loading: &t::DeferredBlockLoading) {
         self.result.push(vec![
             "DeferredBlockLoading".to_string(),
@@ -286,7 +290,7 @@ impl Visitor for R3AstSourceSpans {
         ]);
         self.visit_all(&loading.children);
     }
-    
+
     fn visit_deferred_block_error(&mut self, error: &t::DeferredBlockError) {
         self.result.push(vec![
             "DeferredBlockError".to_string(),
@@ -296,7 +300,7 @@ impl Visitor for R3AstSourceSpans {
         ]);
         self.visit_all(&error.children);
     }
-    
+
     fn visit_switch_block(&mut self, switch: &t::SwitchBlock) {
         self.result.push(vec![
             "SwitchBlock".to_string(),
@@ -308,7 +312,7 @@ impl Visitor for R3AstSourceSpans {
             case.visit(self);
         }
     }
-    
+
     fn visit_switch_block_case(&mut self, case: &t::SwitchBlockCase) {
         self.result.push(vec![
             "SwitchBlockCase".to_string(),
@@ -317,7 +321,7 @@ impl Visitor for R3AstSourceSpans {
         ]);
         self.visit_all(&case.children);
     }
-    
+
     fn visit_for_loop_block(&mut self, for_loop: &t::ForLoopBlock) {
         self.result.push(vec![
             "ForLoopBlock".to_string(),
@@ -334,7 +338,7 @@ impl Visitor for R3AstSourceSpans {
             empty.visit(self);
         }
     }
-    
+
     fn visit_for_loop_block_empty(&mut self, empty: &t::ForLoopBlockEmpty) {
         self.result.push(vec![
             "ForLoopBlockEmpty".to_string(),
@@ -343,7 +347,7 @@ impl Visitor for R3AstSourceSpans {
         ]);
         self.visit_all(&empty.children);
     }
-    
+
     fn visit_if_block(&mut self, if_block: &t::IfBlock) {
         self.result.push(vec![
             "IfBlock".to_string(),
@@ -355,7 +359,7 @@ impl Visitor for R3AstSourceSpans {
             branch.visit(self);
         }
     }
-    
+
     fn visit_if_block_branch(&mut self, branch: &t::IfBlockBranch) {
         self.result.push(vec![
             "IfBlockBranch".to_string(),
@@ -367,14 +371,14 @@ impl Visitor for R3AstSourceSpans {
         }
         self.visit_all(&branch.children);
     }
-    
+
     fn visit_unknown_block(&mut self, block: &t::UnknownBlock) {
         self.result.push(vec![
             "UnknownBlock".to_string(),
             humanize_span(&Some(block.source_span.clone())),
         ]);
     }
-    
+
     fn visit_let_declaration(&mut self, decl: &t::LetDeclaration) {
         self.result.push(vec![
             "LetDeclaration".to_string(),
@@ -383,7 +387,7 @@ impl Visitor for R3AstSourceSpans {
             humanize_span(&Some(decl.value_span.clone())),
         ]);
     }
-    
+
     fn visit_component(&mut self, component: &t::Component) {
         self.result.push(vec![
             "Component".to_string(),
@@ -408,7 +412,7 @@ impl Visitor for R3AstSourceSpans {
         }
         self.visit_all(&component.children);
     }
-    
+
     fn visit_directive(&mut self, directive: &t::Directive) {
         self.result.push(vec![
             "Directive".to_string(),
@@ -429,17 +433,23 @@ impl Visitor for R3AstSourceSpans {
             reference.visit(self);
         }
     }
-    
+
     fn visit_comment(&mut self, _comment: &t::Comment) {
         // Comments not included in spans test
     }
 }
 
 fn expect_from_html(html: &str, selectorless_enabled: bool) -> Vec<Vec<String>> {
-    expect_from_r3_nodes(&parse_r3(html, ParseR3Options {
-        selectorless_enabled: Some(selectorless_enabled),
-        ..Default::default()
-    }).nodes)
+    expect_from_r3_nodes(
+        &parse_r3(
+            html,
+            ParseR3Options {
+                selectorless_enabled: Some(selectorless_enabled),
+                ..Default::default()
+            },
+        )
+        .nodes,
+    )
 }
 
 fn expect_from_r3_nodes(nodes: &[t::R3Node]) -> Vec<Vec<String>> {
@@ -464,28 +474,67 @@ mod tests {
         #[test]
         fn is_correct_for_elements_with_attributes() {
             let result = expect_from_html("<div a=\"b\"></div>", false);
-            assert_eq!(result, vec![
-                vec!["Element".to_string(), "<div a=\"b\"></div>".to_string(), "<div a=\"b\">".to_string(), "</div>".to_string()],
-                vec!["TextAttribute".to_string(), "a=\"b\"".to_string(), "a".to_string(), "b".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "<div a=\"b\"></div>".to_string(),
+                        "<div a=\"b\">".to_string(),
+                        "</div>".to_string()
+                    ],
+                    vec![
+                        "TextAttribute".to_string(),
+                        "a=\"b\"".to_string(),
+                        "a".to_string(),
+                        "b".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_elements_with_attributes_without_value() {
             let result = expect_from_html("<div a></div>", false);
-            assert_eq!(result, vec![
-                vec!["Element".to_string(), "<div a></div>".to_string(), "<div a>".to_string(), "</div>".to_string()],
-                vec!["TextAttribute".to_string(), "a".to_string(), "a".to_string(), "<empty>".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "<div a></div>".to_string(),
+                        "<div a>".to_string(),
+                        "</div>".to_string()
+                    ],
+                    vec![
+                        "TextAttribute".to_string(),
+                        "a".to_string(),
+                        "a".to_string(),
+                        "<empty>".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_self_closing_elements_with_trailing_whitespace() {
             let result = expect_from_html("<input />\n  <span>\n</span>", false);
-            assert_eq!(result, vec![
-                vec!["Element".to_string(), "<input />".to_string(), "<input />".to_string(), "<input />".to_string()],
-                vec!["Element".to_string(), "<span>\n</span>".to_string(), "<span>".to_string(), "</span>".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "<input />".to_string(),
+                        "<input />".to_string(),
+                        "<input />".to_string()
+                    ],
+                    vec![
+                        "Element".to_string(),
+                        "<span>\n</span>".to_string(),
+                        "<span>".to_string(),
+                        "</span>".to_string()
+                    ],
+                ]
+            );
         }
     }
 
@@ -495,7 +544,10 @@ mod tests {
         #[test]
         fn is_correct_for_bound_text_nodes() {
             let result = expect_from_html("{{a}}", false);
-            assert_eq!(result, vec![vec!["BoundText".to_string(), "{{a}}".to_string()]]);
+            assert_eq!(
+                result,
+                vec![vec!["BoundText".to_string(), "{{a}}".to_string()]]
+            );
         }
     }
 
@@ -505,73 +557,177 @@ mod tests {
         #[test]
         fn is_correct_for_bound_properties() {
             let result = expect_from_html("<div [someProp]=\"v\"></div>", false);
-            assert_eq!(result, vec![
-                vec!["Element".to_string(), "<div [someProp]=\"v\"></div>".to_string(), "<div [someProp]=\"v\">".to_string(), "</div>".to_string()],
-                vec!["BoundAttribute".to_string(), "[someProp]=\"v\"".to_string(), "someProp".to_string(), "v".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "<div [someProp]=\"v\"></div>".to_string(),
+                        "<div [someProp]=\"v\">".to_string(),
+                        "</div>".to_string()
+                    ],
+                    vec![
+                        "BoundAttribute".to_string(),
+                        "[someProp]=\"v\"".to_string(),
+                        "someProp".to_string(),
+                        "v".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_bound_properties_without_value() {
             let result = expect_from_html("<div [someProp]></div>", false);
-            assert_eq!(result, vec![
-                vec!["Element".to_string(), "<div [someProp]></div>".to_string(), "<div [someProp]>".to_string(), "</div>".to_string()],
-                vec!["BoundAttribute".to_string(), "[someProp]".to_string(), "someProp".to_string(), "<empty>".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "<div [someProp]></div>".to_string(),
+                        "<div [someProp]>".to_string(),
+                        "</div>".to_string()
+                    ],
+                    vec![
+                        "BoundAttribute".to_string(),
+                        "[someProp]".to_string(),
+                        "someProp".to_string(),
+                        "<empty>".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_bound_properties_via_bind() {
             let result = expect_from_html("<div bind-prop=\"v\"></div>", false);
-            assert_eq!(result, vec![
-                vec!["Element".to_string(), "<div bind-prop=\"v\"></div>".to_string(), "<div bind-prop=\"v\">".to_string(), "</div>".to_string()],
-                vec!["BoundAttribute".to_string(), "bind-prop=\"v\"".to_string(), "prop".to_string(), "v".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "<div bind-prop=\"v\"></div>".to_string(),
+                        "<div bind-prop=\"v\">".to_string(),
+                        "</div>".to_string()
+                    ],
+                    vec![
+                        "BoundAttribute".to_string(),
+                        "bind-prop=\"v\"".to_string(),
+                        "prop".to_string(),
+                        "v".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_bound_properties_via_interpolation() {
             let result = expect_from_html("<div prop=\"{{v}}\"></div>", false);
-            assert_eq!(result, vec![
-                vec!["Element".to_string(), "<div prop=\"{{v}}\"></div>".to_string(), "<div prop=\"{{v}}\">".to_string(), "</div>".to_string()],
-                vec!["BoundAttribute".to_string(), "prop=\"{{v}}\"".to_string(), "prop".to_string(), "{{v}}".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "<div prop=\"{{v}}\"></div>".to_string(),
+                        "<div prop=\"{{v}}\">".to_string(),
+                        "</div>".to_string()
+                    ],
+                    vec![
+                        "BoundAttribute".to_string(),
+                        "prop=\"{{v}}\"".to_string(),
+                        "prop".to_string(),
+                        "{{v}}".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_bound_properties_via_data() {
             let result = expect_from_html("<div data-prop=\"{{v}}\"></div>", false);
-            assert_eq!(result, vec![
-                vec!["Element".to_string(), "<div data-prop=\"{{v}}\"></div>".to_string(), "<div data-prop=\"{{v}}\">".to_string(), "</div>".to_string()],
-                vec!["BoundAttribute".to_string(), "data-prop=\"{{v}}\"".to_string(), "prop".to_string(), "{{v}}".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "<div data-prop=\"{{v}}\"></div>".to_string(),
+                        "<div data-prop=\"{{v}}\">".to_string(),
+                        "</div>".to_string()
+                    ],
+                    vec![
+                        "BoundAttribute".to_string(),
+                        "data-prop=\"{{v}}\"".to_string(),
+                        "prop".to_string(),
+                        "{{v}}".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_bound_properties_via_at_symbol() {
             let result = expect_from_html("<div bind-@animation=\"v\"></div>", false);
-            assert_eq!(result, vec![
-                vec!["Element".to_string(), "<div bind-@animation=\"v\"></div>".to_string(), "<div bind-@animation=\"v\">".to_string(), "</div>".to_string()],
-                vec!["BoundAttribute".to_string(), "bind-@animation=\"v\"".to_string(), "animation".to_string(), "v".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "<div bind-@animation=\"v\"></div>".to_string(),
+                        "<div bind-@animation=\"v\">".to_string(),
+                        "</div>".to_string()
+                    ],
+                    vec![
+                        "BoundAttribute".to_string(),
+                        "bind-@animation=\"v\"".to_string(),
+                        "animation".to_string(),
+                        "v".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_bound_properties_via_animation_prefix() {
             let result = expect_from_html("<div bind-animate-animationName=\"v\"></div>", false);
-            assert_eq!(result, vec![
-                vec!["Element".to_string(), "<div bind-animate-animationName=\"v\"></div>".to_string(), "<div bind-animate-animationName=\"v\">".to_string(), "</div>".to_string()],
-                vec!["BoundAttribute".to_string(), "bind-animate-animationName=\"v\"".to_string(), "animationName".to_string(), "v".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "<div bind-animate-animationName=\"v\"></div>".to_string(),
+                        "<div bind-animate-animationName=\"v\">".to_string(),
+                        "</div>".to_string()
+                    ],
+                    vec![
+                        "BoundAttribute".to_string(),
+                        "bind-animate-animationName=\"v\"".to_string(),
+                        "animationName".to_string(),
+                        "v".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_bound_properties_via_at_without_value() {
             let result = expect_from_html("<div @animation></div>", false);
-            assert_eq!(result, vec![
-                vec!["Element".to_string(), "<div @animation></div>".to_string(), "<div @animation>".to_string(), "</div>".to_string()],
-                vec!["BoundAttribute".to_string(), "@animation".to_string(), "animation".to_string(), "<empty>".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "<div @animation></div>".to_string(),
+                        "<div @animation>".to_string(),
+                        "</div>".to_string()
+                    ],
+                    vec![
+                        "BoundAttribute".to_string(),
+                        "@animation".to_string(),
+                        "animation".to_string(),
+                        "<empty>".to_string()
+                    ],
+                ]
+            );
         }
     }
 
@@ -581,91 +737,219 @@ mod tests {
         #[test]
         fn is_correct_for_star_directives() {
             let result = expect_from_html("<div *ngIf></div>", false);
-            assert_eq!(result, vec![
-                vec!["Template".to_string(), "<div *ngIf></div>".to_string(), "<div *ngIf>".to_string(), "</div>".to_string()],
-                vec!["TextAttribute".to_string(), "ngIf".to_string(), "ngIf".to_string(), "<empty>".to_string()],
-                vec!["Element".to_string(), "<div *ngIf></div>".to_string(), "<div *ngIf>".to_string(), "</div>".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Template".to_string(),
+                        "<div *ngIf></div>".to_string(),
+                        "<div *ngIf>".to_string(),
+                        "</div>".to_string()
+                    ],
+                    vec![
+                        "TextAttribute".to_string(),
+                        "ngIf".to_string(),
+                        "ngIf".to_string(),
+                        "<empty>".to_string()
+                    ],
+                    vec![
+                        "Element".to_string(),
+                        "<div *ngIf></div>".to_string(),
+                        "<div *ngIf>".to_string(),
+                        "</div>".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_ng_template() {
             let result = expect_from_html("<ng-template></ng-template>", false);
-            assert_eq!(result, vec![
-                vec!["Template".to_string(), "<ng-template></ng-template>".to_string(), "<ng-template>".to_string(), "</ng-template>".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![vec![
+                    "Template".to_string(),
+                    "<ng-template></ng-template>".to_string(),
+                    "<ng-template>".to_string(),
+                    "</ng-template>".to_string()
+                ],]
+            );
         }
 
         #[test]
         fn is_correct_for_reference_via_hash() {
             let result = expect_from_html("<ng-template #a></ng-template>", false);
-            assert_eq!(result, vec![
-                vec!["Template".to_string(), "<ng-template #a></ng-template>".to_string(), "<ng-template #a>".to_string(), "</ng-template>".to_string()],
-                vec!["Reference".to_string(), "#a".to_string(), "a".to_string(), "<empty>".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Template".to_string(),
+                        "<ng-template #a></ng-template>".to_string(),
+                        "<ng-template #a>".to_string(),
+                        "</ng-template>".to_string()
+                    ],
+                    vec![
+                        "Reference".to_string(),
+                        "#a".to_string(),
+                        "a".to_string(),
+                        "<empty>".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_reference_with_name() {
             let result = expect_from_html("<ng-template #a=\"b\"></ng-template>", false);
-            assert_eq!(result, vec![
-                vec!["Template".to_string(), "<ng-template #a=\"b\"></ng-template>".to_string(), "<ng-template #a=\"b\">".to_string(), "</ng-template>".to_string()],
-                vec!["Reference".to_string(), "#a=\"b\"".to_string(), "a".to_string(), "b".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Template".to_string(),
+                        "<ng-template #a=\"b\"></ng-template>".to_string(),
+                        "<ng-template #a=\"b\">".to_string(),
+                        "</ng-template>".to_string()
+                    ],
+                    vec![
+                        "Reference".to_string(),
+                        "#a=\"b\"".to_string(),
+                        "a".to_string(),
+                        "b".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_reference_via_ref() {
             let result = expect_from_html("<ng-template ref-a></ng-template>", false);
-            assert_eq!(result, vec![
-                vec!["Template".to_string(), "<ng-template ref-a></ng-template>".to_string(), "<ng-template ref-a>".to_string(), "</ng-template>".to_string()],
-                vec!["Reference".to_string(), "ref-a".to_string(), "a".to_string(), "<empty>".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Template".to_string(),
+                        "<ng-template ref-a></ng-template>".to_string(),
+                        "<ng-template ref-a>".to_string(),
+                        "</ng-template>".to_string()
+                    ],
+                    vec![
+                        "Reference".to_string(),
+                        "ref-a".to_string(),
+                        "a".to_string(),
+                        "<empty>".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_reference_via_data_ref() {
             let result = expect_from_html("<ng-template data-ref-a></ng-template>", false);
-            assert_eq!(result, vec![
-                vec!["Template".to_string(), "<ng-template data-ref-a></ng-template>".to_string(), "<ng-template data-ref-a>".to_string(), "</ng-template>".to_string()],
-                vec!["Reference".to_string(), "data-ref-a".to_string(), "a".to_string(), "<empty>".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Template".to_string(),
+                        "<ng-template data-ref-a></ng-template>".to_string(),
+                        "<ng-template data-ref-a>".to_string(),
+                        "</ng-template>".to_string()
+                    ],
+                    vec![
+                        "Reference".to_string(),
+                        "data-ref-a".to_string(),
+                        "a".to_string(),
+                        "<empty>".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_variables_via_let() {
             let result = expect_from_html("<ng-template let-a=\"b\"></ng-template>", false);
-            assert_eq!(result, vec![
-                vec!["Template".to_string(), "<ng-template let-a=\"b\"></ng-template>".to_string(), "<ng-template let-a=\"b\">".to_string(), "</ng-template>".to_string()],
-                vec!["Variable".to_string(), "let-a=\"b\"".to_string(), "a".to_string(), "b".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Template".to_string(),
+                        "<ng-template let-a=\"b\"></ng-template>".to_string(),
+                        "<ng-template let-a=\"b\">".to_string(),
+                        "</ng-template>".to_string()
+                    ],
+                    vec![
+                        "Variable".to_string(),
+                        "let-a=\"b\"".to_string(),
+                        "a".to_string(),
+                        "b".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_variables_via_data_let() {
             let result = expect_from_html("<ng-template data-let-a=\"b\"></ng-template>", false);
-            assert_eq!(result, vec![
-                vec!["Template".to_string(), "<ng-template data-let-a=\"b\"></ng-template>".to_string(), "<ng-template data-let-a=\"b\">".to_string(), "</ng-template>".to_string()],
-                vec!["Variable".to_string(), "data-let-a=\"b\"".to_string(), "a".to_string(), "b".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Template".to_string(),
+                        "<ng-template data-let-a=\"b\"></ng-template>".to_string(),
+                        "<ng-template data-let-a=\"b\">".to_string(),
+                        "</ng-template>".to_string()
+                    ],
+                    vec![
+                        "Variable".to_string(),
+                        "data-let-a=\"b\"".to_string(),
+                        "a".to_string(),
+                        "b".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_attributes() {
             let result = expect_from_html("<ng-template k1=\"v1\"></ng-template>", false);
-            assert_eq!(result, vec![
-                vec!["Template".to_string(), "<ng-template k1=\"v1\"></ng-template>".to_string(), "<ng-template k1=\"v1\">".to_string(), "</ng-template>".to_string()],
-                vec!["TextAttribute".to_string(), "k1=\"v1\"".to_string(), "k1".to_string(), "v1".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Template".to_string(),
+                        "<ng-template k1=\"v1\"></ng-template>".to_string(),
+                        "<ng-template k1=\"v1\">".to_string(),
+                        "</ng-template>".to_string()
+                    ],
+                    vec![
+                        "TextAttribute".to_string(),
+                        "k1=\"v1\"".to_string(),
+                        "k1".to_string(),
+                        "v1".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_bound_attributes() {
             let result = expect_from_html("<ng-template [k1]=\"v1\"></ng-template>", false);
-            assert_eq!(result, vec![
-                vec!["Template".to_string(), "<ng-template [k1]=\"v1\"></ng-template>".to_string(), "<ng-template [k1]=\"v1\">".to_string(), "</ng-template>".to_string()],
-                vec!["BoundAttribute".to_string(), "[k1]=\"v1\"".to_string(), "k1".to_string(), "v1".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Template".to_string(),
+                        "<ng-template [k1]=\"v1\"></ng-template>".to_string(),
+                        "<ng-template [k1]=\"v1\">".to_string(),
+                        "</ng-template>".to_string()
+                    ],
+                    vec![
+                        "BoundAttribute".to_string(),
+                        "[k1]=\"v1\"".to_string(),
+                        "k1".to_string(),
+                        "v1".to_string()
+                    ],
+                ]
+            );
         }
     }
 
@@ -677,8 +961,12 @@ mod tests {
             let result = expect_from_html("<div *ngFor=\"let item of items\"></div>", false);
             // Note: Exact spans may vary, so we check key components
             assert!(result.iter().any(|v| v[0] == "Template"));
-            assert!(result.iter().any(|v| v[0] == "TextAttribute" && v[2] == "ngFor"));
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "of"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "TextAttribute" && v[2] == "ngFor"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "of"));
             assert!(result.iter().any(|v| v[0] == "Variable" && v[2] == "item"));
             assert!(result.iter().any(|v| v[0] == "Element"));
         }
@@ -690,35 +978,78 @@ mod tests {
         #[test]
         fn is_correct_for_event_names_case_sensitive() {
             let result = expect_from_html("<div (someEvent)=\"v\"></div>", false);
-            assert_eq!(result, vec![
-                vec!["Element".to_string(), "<div (someEvent)=\"v\"></div>".to_string(), "<div (someEvent)=\"v\">".to_string(), "</div>".to_string()],
-                vec!["BoundEvent".to_string(), "(someEvent)=\"v\"".to_string(), "someEvent".to_string(), "v".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "<div (someEvent)=\"v\"></div>".to_string(),
+                        "<div (someEvent)=\"v\">".to_string(),
+                        "</div>".to_string()
+                    ],
+                    vec![
+                        "BoundEvent".to_string(),
+                        "(someEvent)=\"v\"".to_string(),
+                        "someEvent".to_string(),
+                        "v".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_bound_events_via_on() {
             let result = expect_from_html("<div on-event=\"v\"></div>", false);
-            assert_eq!(result, vec![
-                vec!["Element".to_string(), "<div on-event=\"v\"></div>".to_string(), "<div on-event=\"v\">".to_string(), "</div>".to_string()],
-                vec!["BoundEvent".to_string(), "on-event=\"v\"".to_string(), "event".to_string(), "v".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "<div on-event=\"v\"></div>".to_string(),
+                        "<div on-event=\"v\">".to_string(),
+                        "</div>".to_string()
+                    ],
+                    vec![
+                        "BoundEvent".to_string(),
+                        "on-event=\"v\"".to_string(),
+                        "event".to_string(),
+                        "v".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_bound_events_via_data_on() {
             let result = expect_from_html("<div data-on-event=\"v\"></div>", false);
-            assert_eq!(result, vec![
-                vec!["Element".to_string(), "<div data-on-event=\"v\"></div>".to_string(), "<div data-on-event=\"v\">".to_string(), "</div>".to_string()],
-                vec!["BoundEvent".to_string(), "data-on-event=\"v\"".to_string(), "event".to_string(), "v".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "<div data-on-event=\"v\"></div>".to_string(),
+                        "<div data-on-event=\"v\">".to_string(),
+                        "</div>".to_string()
+                    ],
+                    vec![
+                        "BoundEvent".to_string(),
+                        "data-on-event=\"v\"".to_string(),
+                        "event".to_string(),
+                        "v".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_bound_events_and_properties_via_banana_box() {
             let result = expect_from_html("<div [(prop)]=\"v\"></div>", false);
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
-            assert!(result.iter().any(|v| v[0] == "BoundEvent" && v[2] == "prop"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundEvent" && v[2] == "prop"));
         }
 
         #[test]
@@ -734,28 +1065,67 @@ mod tests {
         #[test]
         fn is_correct_for_references_via_hash() {
             let result = expect_from_html("<div #a></div>", false);
-            assert_eq!(result, vec![
-                vec!["Element".to_string(), "<div #a></div>".to_string(), "<div #a>".to_string(), "</div>".to_string()],
-                vec!["Reference".to_string(), "#a".to_string(), "a".to_string(), "<empty>".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "<div #a></div>".to_string(),
+                        "<div #a>".to_string(),
+                        "</div>".to_string()
+                    ],
+                    vec![
+                        "Reference".to_string(),
+                        "#a".to_string(),
+                        "a".to_string(),
+                        "<empty>".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_references_with_name() {
             let result = expect_from_html("<div #a=\"b\"></div>", false);
-            assert_eq!(result, vec![
-                vec!["Element".to_string(), "<div #a=\"b\"></div>".to_string(), "<div #a=\"b\">".to_string(), "</div>".to_string()],
-                vec!["Reference".to_string(), "#a=\"b\"".to_string(), "a".to_string(), "b".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "<div #a=\"b\"></div>".to_string(),
+                        "<div #a=\"b\">".to_string(),
+                        "</div>".to_string()
+                    ],
+                    vec![
+                        "Reference".to_string(),
+                        "#a=\"b\"".to_string(),
+                        "a".to_string(),
+                        "b".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
         fn is_correct_for_references_via_ref() {
             let result = expect_from_html("<div ref-a></div>", false);
-            assert_eq!(result, vec![
-                vec!["Element".to_string(), "<div ref-a></div>".to_string(), "<div ref-a>".to_string(), "</div>".to_string()],
-                vec!["Reference".to_string(), "ref-a".to_string(), "a".to_string(), "<empty>".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "<div ref-a></div>".to_string(),
+                        "<div ref-a>".to_string(),
+                        "</div>".to_string()
+                    ],
+                    vec![
+                        "Reference".to_string(),
+                        "ref-a".to_string(),
+                        "a".to_string(),
+                        "<empty>".to_string()
+                    ],
+                ]
+            );
         }
     }
 
@@ -766,7 +1136,7 @@ mod tests {
         fn is_correct_for_variables_and_placeholders() {
             let result = expect_from_html(
                 "<span i18n>{item.var, plural, other { {{item.placeholder}} items } }</span>",
-                false
+                false,
             );
             assert!(result.iter().any(|v| v[0] == "Icu"));
             assert!(result.iter().any(|v| v[0] == "Icu:Var"));
@@ -796,12 +1166,18 @@ mod tests {
                 @loading (minimum 1s; after 100ms) {Loading...}\
                 @placeholder (minimum 500) {Placeholder content!}\
                 @error {Loading failed :(}";
-            
+
             let result = expect_from_html(html, false);
             // Check that DeferredBlock exists
             assert!(result.iter().any(|v| v[0] == "DeferredBlock"));
             // Check triggers exist
-            assert!(result.iter().any(|v| v[0] == "BoundDeferredTrigger" || v[0] == "HoverDeferredTrigger" || v[0] == "TimerDeferredTrigger" || v[0] == "IdleDeferredTrigger" || v[0] == "ImmediateDeferredTrigger" || v[0] == "InteractionDeferredTrigger" || v[0] == "ViewportDeferredTrigger"));
+            assert!(result.iter().any(|v| v[0] == "BoundDeferredTrigger"
+                || v[0] == "HoverDeferredTrigger"
+                || v[0] == "TimerDeferredTrigger"
+                || v[0] == "IdleDeferredTrigger"
+                || v[0] == "ImmediateDeferredTrigger"
+                || v[0] == "InteractionDeferredTrigger"
+                || v[0] == "ViewportDeferredTrigger"));
             // Check placeholder, loading, error blocks exist
             assert!(result.iter().any(|v| v[0] == "DeferredBlockPlaceholder"));
             assert!(result.iter().any(|v| v[0] == "DeferredBlockLoading"));
@@ -820,7 +1196,7 @@ mod tests {
                 @case (42) {Z case}\
                 @default {No case matched}\
                 }";
-            
+
             let result = expect_from_html(html, false);
             assert!(result.iter().any(|v| v[0] == "SwitchBlock"));
             assert!(result.iter().filter(|v| v[0] == "SwitchBlockCase").count() >= 4);
@@ -834,7 +1210,7 @@ mod tests {
         fn is_correct_for_loop_blocks() {
             let html = "@for (item of items.foo.bar; track item.id; let i = $index, _o_d_d_ = $odd) {<h1>{{ item }}</h1>}\
                 @empty {There were no items in the list.}";
-            
+
             let result = expect_from_html(html, false);
             assert!(result.iter().any(|v| v[0] == "ForLoopBlock"));
             assert!(result.iter().any(|v| v[0] == "ForLoopBlockEmpty"));
@@ -850,7 +1226,7 @@ mod tests {
             let html = "@if (cond.expr; as foo) {Main case was true!}\
                 @else if (other.expr) {Extra case was true!}\
                 @else {False case!}";
-            
+
             let result = expect_from_html(html, false);
             assert!(result.iter().any(|v| v[0] == "IfBlock"));
             assert!(result.iter().filter(|v| v[0] == "IfBlockBranch").count() >= 3);
@@ -902,7 +1278,7 @@ mod tests {
         fn is_correct_for_a_component_nested_inside_other_markup() {
             let result = expect_from_html(
                 "@if (expr) {<div>Hello: <MyComp><span><OtherComp/></span></MyComp></div>}",
-                true
+                true,
             );
             assert!(result.iter().any(|v| v[0] == "Component"));
         }
@@ -919,7 +1295,8 @@ mod tests {
 
         #[test]
         fn is_correct_for_a_directive_with_attributes() {
-            let result = expect_from_html("<div @Dir(a=\"1\" [b]=\"two\" (c)=\"c()\")></div>", true);
+            let result =
+                expect_from_html("<div @Dir(a=\"1\" [b]=\"two\" (c)=\"c()\")></div>", true);
             assert!(result.iter().any(|v| v[0] == "Directive"));
         }
 
@@ -933,4 +1310,3 @@ mod tests {
         }
     }
 }
-

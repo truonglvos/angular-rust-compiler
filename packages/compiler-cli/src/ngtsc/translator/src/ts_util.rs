@@ -13,12 +13,26 @@ pub fn ts_numeric_expression<'a>(builder: &AstBuilder<'a>, value: f64) -> Expres
     if value < 0.0 {
         let abs_value = value.abs();
         let raw = builder.allocator.alloc_str(&abs_value.to_string());
-        let literal = builder.alloc_numeric_literal(Span::default(), abs_value, Some(Atom::from(raw)), NumberBase::Decimal);
+        let literal = builder.alloc_numeric_literal(
+            Span::default(),
+            abs_value,
+            Some(Atom::from(raw)),
+            NumberBase::Decimal,
+        );
         let operand = Expression::NumericLiteral(literal);
-        oxc_ast::ast::Expression::UnaryExpression(builder.alloc(builder.unary_expression(Span::default(), UnaryOperator::UnaryNegation, operand)))
+        oxc_ast::ast::Expression::UnaryExpression(builder.alloc(builder.unary_expression(
+            Span::default(),
+            UnaryOperator::UnaryNegation,
+            operand,
+        )))
     } else {
         let raw = builder.allocator.alloc_str(&value.to_string());
-        let literal = builder.alloc_numeric_literal(Span::default(), value, Some(Atom::from(raw)), NumberBase::Decimal);
+        let literal = builder.alloc_numeric_literal(
+            Span::default(),
+            value,
+            Some(Atom::from(raw)),
+            NumberBase::Decimal,
+        );
         Expression::NumericLiteral(literal)
     }
 }

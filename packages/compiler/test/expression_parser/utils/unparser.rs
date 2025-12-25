@@ -3,10 +3,9 @@
  *
  * Converts an AST back to a string representation.
  * This is used for testing the parser.
- * 
+ *
  * Mirrors angular/packages/compiler/test/expression_parser/utils/unparser.ts
  */
-
 use angular_compiler::expression_parser::ast::*;
 
 /// Quote regular expression pattern for escaping
@@ -55,7 +54,7 @@ impl Unparser {
             AST::ThisReceiver(_) => self.visit_this_receiver(),
             AST::TypeofExpression(node) => self.visit_typeof_expression(node),
             AST::VoidExpression(node) => self.visit_void_expression(node),
-            AST::EmptyExpr(_) => {},
+            AST::EmptyExpr(_) => {}
             AST::TemplateLiteral(node) => self.visit_template_literal(node),
             AST::TaggedTemplateLiteral(node) => self.visit_tagged_template_literal(node),
             AST::ParenthesizedExpression(node) => self.visit_parenthesized_expression(node),

@@ -3,13 +3,13 @@
 // These tests verify the behavior of the TraitCompiler across different
 // compilation modes and handler configurations.
 
-use std::sync::Arc;
+use crate::ngtsc::reflection::ClassDeclaration;
 use crate::ngtsc::transform::src::api::{
-    AnalysisOutput, CompilationMode, CompileResult, ConstantPool, DecoratorHandler,
-    DetectResult, HandlerPrecedence, ResolveResult,
+    AnalysisOutput, CompilationMode, CompileResult, ConstantPool, DecoratorHandler, DetectResult,
+    HandlerPrecedence, ResolveResult,
 };
 use crate::ngtsc::transform::src::compilation::TraitCompiler;
-use crate::ngtsc::reflection::ClassDeclaration;
+use std::sync::Arc;
 
 // ============================================================================
 // Mock Decorator Handlers
@@ -62,7 +62,11 @@ impl DecoratorHandler<String, String, (), ()> for FullDecoratorHandler {
         HandlerPrecedence::Primary
     }
 
-    fn detect(&self, _node: &ClassDeclaration, decorators: &[String]) -> Option<DetectResult<String>> {
+    fn detect(
+        &self,
+        _node: &ClassDeclaration,
+        decorators: &[String],
+    ) -> Option<DetectResult<String>> {
         if decorators.contains(&"Full".to_string()) {
             Some(DetectResult {
                 trigger: Some("Full".to_string()),
@@ -105,7 +109,11 @@ impl DecoratorHandler<String, String, (), ()> for PartialDecoratorHandler {
         HandlerPrecedence::Primary
     }
 
-    fn detect(&self, _node: &ClassDeclaration, decorators: &[String]) -> Option<DetectResult<String>> {
+    fn detect(
+        &self,
+        _node: &ClassDeclaration,
+        decorators: &[String],
+    ) -> Option<DetectResult<String>> {
         if decorators.contains(&"Partial".to_string()) {
             Some(DetectResult {
                 trigger: Some("Partial".to_string()),
@@ -157,7 +165,11 @@ impl DecoratorHandler<String, String, (), ()> for LocalDecoratorHandler {
         HandlerPrecedence::Primary
     }
 
-    fn detect(&self, _node: &ClassDeclaration, decorators: &[String]) -> Option<DetectResult<String>> {
+    fn detect(
+        &self,
+        _node: &ClassDeclaration,
+        decorators: &[String],
+    ) -> Option<DetectResult<String>> {
         if decorators.contains(&"Local".to_string()) {
             Some(DetectResult {
                 trigger: Some("Local".to_string()),
@@ -211,29 +223,27 @@ mod tests {
         // Test that TraitCompiler can be created with empty handlers
         let handlers: Vec<Arc<dyn DecoratorHandler<(), (), (), ()>>> = vec![];
         let compiler = TraitCompiler::new(handlers, CompilationMode::Full);
-        
+
         // Should not panic and should be empty
         assert!(compiler.diagnostics().is_empty());
     }
 
     #[test]
     fn test_trait_compiler_with_never_match_handler() {
-        let handlers: Vec<Arc<dyn DecoratorHandler<(), (), (), ()>>> = vec![
-            Arc::new(NeverMatchHandler),
-        ];
+        let handlers: Vec<Arc<dyn DecoratorHandler<(), (), (), ()>>> =
+            vec![Arc::new(NeverMatchHandler)];
         let compiler = TraitCompiler::new(handlers, CompilationMode::Full);
-        
+
         // The handler never matches, so no classes should be recorded
         assert!(compiler.record_for("NonexistentClass").is_none());
     }
 
     #[test]
     fn test_compilation_mode_full() {
-        let handlers: Vec<Arc<dyn DecoratorHandler<String, String, (), ()>>> = vec![
-            Arc::new(FullDecoratorHandler),
-        ];
+        let handlers: Vec<Arc<dyn DecoratorHandler<String, String, (), ()>>> =
+            vec![Arc::new(FullDecoratorHandler)];
         let compiler = TraitCompiler::new(handlers, CompilationMode::Full);
-        
+
         // In Full mode, compile_full should be called
         // (This test verifies the compiler is in Full mode)
         let analyzed_records = compiler.get_analyzed_records();
@@ -242,11 +252,10 @@ mod tests {
 
     #[test]
     fn test_compilation_mode_partial() {
-        let handlers: Vec<Arc<dyn DecoratorHandler<String, String, (), ()>>> = vec![
-            Arc::new(PartialDecoratorHandler),
-        ];
+        let handlers: Vec<Arc<dyn DecoratorHandler<String, String, (), ()>>> =
+            vec![Arc::new(PartialDecoratorHandler)];
         let compiler = TraitCompiler::new(handlers, CompilationMode::Partial);
-        
+
         // In Partial mode, compile_partial should be called when available
         let analyzed_records = compiler.get_analyzed_records();
         assert!(analyzed_records.is_empty());
@@ -254,11 +263,10 @@ mod tests {
 
     #[test]
     fn test_compilation_mode_local() {
-        let handlers: Vec<Arc<dyn DecoratorHandler<String, String, (), ()>>> = vec![
-            Arc::new(LocalDecoratorHandler),
-        ];
+        let handlers: Vec<Arc<dyn DecoratorHandler<String, String, (), ()>>> =
+            vec![Arc::new(LocalDecoratorHandler)];
         let compiler = TraitCompiler::new(handlers, CompilationMode::Local);
-        
+
         // In Local mode, compile_local should be called
         let analyzed_records = compiler.get_analyzed_records();
         assert!(analyzed_records.is_empty());
@@ -267,7 +275,7 @@ mod tests {
     #[test]
     fn test_compile_result_creation() {
         let result = CompileResult::new("testField", "TestType");
-        
+
         assert_eq!(result.name, "testField");
         assert_eq!(result.type_desc, "TestType");
         assert!(result.initializer.is_none());
@@ -278,7 +286,7 @@ mod tests {
     #[test]
     fn test_analysis_output_of() {
         let output: AnalysisOutput<String> = AnalysisOutput::of("test".to_string());
-        
+
         assert!(output.analysis.is_some());
         assert_eq!(output.analysis.unwrap(), "test");
         assert!(output.diagnostics.is_none());
@@ -287,7 +295,7 @@ mod tests {
     #[test]
     fn test_analysis_output_empty() {
         let output: AnalysisOutput<String> = AnalysisOutput::empty();
-        
+
         assert!(output.analysis.is_none());
         assert!(output.diagnostics.is_none());
     }
@@ -295,7 +303,7 @@ mod tests {
     #[test]
     fn test_resolve_result_of() {
         let result: ResolveResult<String> = ResolveResult::of("resolved".to_string());
-        
+
         assert!(result.data.is_some());
         assert_eq!(result.data.unwrap(), "resolved");
         assert!(result.diagnostics.is_none());
@@ -305,7 +313,7 @@ mod tests {
     #[test]
     fn test_resolve_result_empty() {
         let result: ResolveResult<String> = ResolveResult::empty();
-        
+
         assert!(result.data.is_none());
         assert!(result.diagnostics.is_none());
         assert!(result.reexports.is_none());
@@ -326,7 +334,7 @@ mod tests {
             decorator: Some("Component".to_string()),
             metadata: "test metadata".to_string(),
         };
-        
+
         assert_eq!(result.trigger, Some("Component".to_string()));
         assert_eq!(result.decorator, Some("Component".to_string()));
         assert_eq!(result.metadata, "test metadata");

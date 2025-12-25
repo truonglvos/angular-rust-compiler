@@ -3,9 +3,7 @@
 //! Corresponds to packages/compiler/src/render3/partial/pipe.ts
 //! Contains pipe declaration compilation for partial/linking mode
 
-use crate::output::output_ast::{
-    Expression, LiteralExpr, LiteralValue, ExternalExpr,
-};
+use crate::output::output_ast::{Expression, ExternalExpr, LiteralExpr, LiteralValue};
 use crate::render3::r3_identifiers::Identifiers as R3;
 use crate::render3::r3_pipe_compiler::R3PipeMetadata;
 use crate::render3::util::R3CompiledExpression;
@@ -38,7 +36,7 @@ pub fn compile_declare_pipe_from_metadata(meta: &R3PipeMetadata) -> R3CompiledEx
 
     let declare_pipe_ref = R3::declare_pipe();
     let declare_pipe_expr = external_expr(declare_pipe_ref);
-    
+
     let expression = Expression::InvokeFn(crate::output::output_ast::InvokeFunctionExpr {
         fn_: Box::new(declare_pipe_expr),
         args: vec![Expression::LiteralMap(definition_map.to_literal_map())],
@@ -57,9 +55,19 @@ pub fn compile_declare_pipe_from_metadata(meta: &R3PipeMetadata) -> R3CompiledEx
 pub fn create_pipe_definition_map(meta: &R3PipeMetadata) -> DefinitionMap {
     let mut definition_map = DefinitionMap::new();
 
-    definition_map.set("minVersion", Some(literal(LiteralValue::String(MINIMUM_PARTIAL_LINKER_VERSION.to_string()))));
-    definition_map.set("version", Some(literal(LiteralValue::String("0.0.0-PLACEHOLDER".to_string()))));
-    
+    definition_map.set(
+        "minVersion",
+        Some(literal(LiteralValue::String(
+            MINIMUM_PARTIAL_LINKER_VERSION.to_string(),
+        ))),
+    );
+    definition_map.set(
+        "version",
+        Some(literal(LiteralValue::String(
+            "0.0.0-PLACEHOLDER".to_string(),
+        ))),
+    );
+
     // ngImport: import("@angular/core")
     let core_ref = R3::core();
     let ng_import_expr = external_expr(core_ref);

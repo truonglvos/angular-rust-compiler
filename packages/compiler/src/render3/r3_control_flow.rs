@@ -13,30 +13,30 @@ use crate::parse_util::{ParseError, ParseSourceSpan};
 use crate::template_parser::binding_parser::BindingParser;
 
 use super::r3_ast::{
-    ForLoopBlock, ForLoopBlockEmpty, IfBlock, SwitchBlock,
-    SwitchBlockCase, UnknownBlock, Variable, BlockNode,
+    BlockNode, ForLoopBlock, ForLoopBlockEmpty, IfBlock, SwitchBlock, SwitchBlockCase,
+    UnknownBlock, Variable,
 };
 
 lazy_static! {
     /// Pattern for the expression in a for loop block
     static ref FOR_LOOP_EXPRESSION_PATTERN: Regex =
         Regex::new(r"^\s*([0-9A-Za-z_$]*)\s+of\s+([\S\s]*)").unwrap();
-    
+
     /// Pattern for the tracking expression in a for loop block
     static ref FOR_LOOP_TRACK_PATTERN: Regex = Regex::new(r"^track\s+([\S\s]*)").unwrap();
-    
+
     /// Pattern for the `as` expression in a conditional block
     static ref CONDITIONAL_ALIAS_PATTERN: Regex = Regex::new(r"^(as\s+)(.*)").unwrap();
-    
+
     /// Pattern used to identify an `else if` block
     static ref ELSE_IF_PATTERN: Regex = Regex::new(r"^else[^\S\r\n]+if").unwrap();
-    
+
     /// Pattern used to identify a `let` parameter
     static ref FOR_LOOP_LET_PATTERN: Regex = Regex::new(r"^let\s+([\S\s]*)").unwrap();
-    
+
     /// Pattern used to validate a JavaScript identifier
     static ref IDENTIFIER_PATTERN: Regex = Regex::new(r"^[$a-zA-Z_][0-9a-zA-Z_$]*$").unwrap();
-    
+
     /// Pattern to group a string into leading whitespace, non whitespace, and trailing whitespace
     static ref CHARACTERS_IN_SURROUNDING_WHITESPACE_PATTERN: Regex =
         Regex::new(r"(\s*)(\S+)(\s*)").unwrap();
@@ -171,7 +171,9 @@ pub fn preprocess_if_block<'a>(
     };
 
     let if_block_end_source_span = if !branches.is_empty() {
-        branches.last().and_then(|b| b.block.end_source_span.clone())
+        branches
+            .last()
+            .and_then(|b| b.block.end_source_span.clone())
     } else {
         ast.end_source_span.clone()
     };
@@ -251,7 +253,7 @@ pub fn create_for_loop(
             ));
         } else {
             let track_by = params.track_by.unwrap();
-            
+
             // Validate track by expression
             validate_track_by_expression(&track_by.expression, &track_by.keyword_span, &mut errors);
 
@@ -303,7 +305,7 @@ pub fn create_switch_block(
     binding_parser: &mut BindingParser,
 ) -> CreateSwitchBlockResult {
     let errors = validate_switch_block(ast);
-    
+
     let primary_expression = if !ast.parameters.is_empty() {
         parse_block_parameter_to_binding(&ast.parameters[0], binding_parser, None)
     } else {
@@ -327,11 +329,10 @@ pub fn create_switch_block(
 
             let is_default = block.name != "case";
             let expression = if !is_default {
-                Some(*parse_block_parameter_to_binding(
-                    &block.parameters[0],
-                    binding_parser,
-                    None,
-                ).ast)
+                Some(
+                    *parse_block_parameter_to_binding(&block.parameters[0], binding_parser, None)
+                        .ast,
+                )
             } else {
                 None
             };
@@ -504,7 +505,7 @@ fn parse_for_loop_parameters(
                 let track_match = track_captures.get(1).map(|m| m.as_str()).unwrap_or("");
                 let expression =
                     parse_block_parameter_to_binding(param, binding_parser, Some(track_match));
-                
+
                 if matches!(*expression.ast, AST::EmptyExpr(_)) {
                     errors.push(ParseError::new(
                         block.start_source_span.clone(),
@@ -804,7 +805,10 @@ fn parse_conditional_block_parameters(
         } else {
             errors.push(ParseError::new(
                 param.source_span.clone(),
-                format!("Unrecognized conditional parameter \"{}\"", param.expression),
+                format!(
+                    "Unrecognized conditional parameter \"{}\"",
+                    param.expression
+                ),
             ));
         }
     }
@@ -876,7 +880,9 @@ fn contains_pipe(ast: &AST) -> bool {
         AST::Binary(b) => contains_pipe(&*b.left) || contains_pipe(&*b.right),
         AST::Chain(c) => c.expressions.iter().any(|e| contains_pipe(&**e)),
         AST::Conditional(c) => {
-            contains_pipe(&*c.condition) || contains_pipe(&*c.true_exp) || contains_pipe(&*c.false_exp)
+            contains_pipe(&*c.condition)
+                || contains_pipe(&*c.true_exp)
+                || contains_pipe(&*c.false_exp)
         }
         AST::PropertyRead(p) => contains_pipe(&*p.receiver),
         AST::SafePropertyRead(p) => contains_pipe(&*p.receiver),
@@ -886,7 +892,9 @@ fn contains_pipe(ast: &AST) -> bool {
         AST::LiteralMap(m) => m.values.iter().any(|e| contains_pipe(&**e)),
         AST::Interpolation(i) => i.expressions.iter().any(|e| contains_pipe(&**e)),
         AST::Call(c) => contains_pipe(&*c.receiver) || c.args.iter().any(|e| contains_pipe(&**e)),
-        AST::SafeCall(c) => contains_pipe(&*c.receiver) || c.args.iter().any(|e| contains_pipe(&**e)),
+        AST::SafeCall(c) => {
+            contains_pipe(&*c.receiver) || c.args.iter().any(|e| contains_pipe(&**e))
+        }
         AST::PrefixNot(p) => contains_pipe(&*p.expression),
         AST::Unary(u) => contains_pipe(&*u.expr),
         AST::TypeofExpression(t) => contains_pipe(&*t.expression),
@@ -894,9 +902,13 @@ fn contains_pipe(ast: &AST) -> bool {
         AST::NonNullAssert(n) => contains_pipe(&*n.expression),
         AST::ParenthesizedExpression(p) => contains_pipe(&*p.expression),
         AST::PropertyWrite(p) => contains_pipe(&*p.receiver) || contains_pipe(&*p.value),
-        AST::KeyedWrite(k) => contains_pipe(&*k.receiver) || contains_pipe(&*k.key) || contains_pipe(&*k.value),
+        AST::KeyedWrite(k) => {
+            contains_pipe(&*k.receiver) || contains_pipe(&*k.key) || contains_pipe(&*k.value)
+        }
         AST::TemplateLiteral(t) => t.expressions.iter().any(|e| contains_pipe(&**e)),
-        AST::TaggedTemplateLiteral(t) => contains_pipe(&*t.tag) || t.template.expressions.iter().any(|e| contains_pipe(&**e)),
+        AST::TaggedTemplateLiteral(t) => {
+            contains_pipe(&*t.tag) || t.template.expressions.iter().any(|e| contains_pipe(&**e))
+        }
         _ => false, // Leaf nodes
     }
 }

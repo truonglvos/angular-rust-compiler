@@ -27,7 +27,7 @@ pub struct InputTransform {
 /// Generates additional fields for inputs with transform functions.
 pub fn compile_input_transform_fields(inputs: &[InputMapping]) -> Vec<CompileResult> {
     let mut extra_fields = Vec::new();
-    
+
     for input in inputs {
         // Signal inputs capture transform in InputSignal, no coercion member needed.
         if let Some(transform) = &input.transform {
@@ -40,6 +40,6 @@ pub fn compile_input_transform_fields(inputs: &[InputMapping]) -> Vec<CompileRes
             });
         }
     }
-    
+
     extra_fields
 }

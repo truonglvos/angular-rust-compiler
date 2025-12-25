@@ -3,14 +3,18 @@
 //! Corresponds to packages/compiler/src/ml_parser/ast.ts (302 lines)
 //! HTML/XML Abstract Syntax Tree node definitions
 
+use super::tokens::{InterpolatedAttributeToken, InterpolatedTextToken};
 use crate::i18n::I18nMeta;
 use crate::parse_util::ParseSourceSpan;
-use super::tokens::{InterpolatedTextToken, InterpolatedAttributeToken};
 
 /// Base trait for all AST nodes
 pub trait BaseNode {
     fn source_span(&self) -> &ParseSourceSpan;
-    fn visit(&self, visitor: &mut dyn Visitor, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>>;
+    fn visit(
+        &self,
+        visitor: &mut dyn Visitor,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>>;
 }
 
 /// Node type union
@@ -58,7 +62,12 @@ impl Text {
         tokens: Vec<InterpolatedTextToken>,
         i18n: Option<I18nMeta>,
     ) -> Self {
-        Text { value, source_span, tokens, i18n }
+        Text {
+            value,
+            source_span,
+            tokens,
+            i18n,
+        }
     }
 }
 
@@ -128,7 +137,7 @@ impl Comment {
 pub struct Block {
     pub name: String,
     pub parameters: Vec<BlockParameter>,
-    pub has_opening_brace: bool,  // Track if block received { token
+    pub has_opening_brace: bool, // Track if block received { token
     pub children: Vec<Node>,
     pub source_span: ParseSourceSpan,
     pub name_span: ParseSourceSpan,
@@ -172,7 +181,10 @@ pub struct BlockParameter {
 
 impl BlockParameter {
     pub fn new(expression: String, source_span: ParseSourceSpan) -> Self {
-        BlockParameter { expression, source_span }
+        BlockParameter {
+            expression,
+            source_span,
+        }
     }
 }
 
@@ -188,25 +200,77 @@ pub struct LetDeclaration {
 
 /// Visitor trait for traversing AST
 pub trait Visitor {
-    fn visit(&mut self, _node: &Node, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit(
+        &mut self,
+        _node: &Node,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         None
     }
 
-    fn visit_element(&mut self, element: &Element, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>>;
-    fn visit_attribute(&mut self, attribute: &Attribute, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>>;
-    fn visit_text(&mut self, text: &Text, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>>;
-    fn visit_comment(&mut self, comment: &Comment, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>>;
-    fn visit_expansion(&mut self, expansion: &Expansion, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>>;
-    fn visit_expansion_case(&mut self, expansion_case: &ExpansionCase, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>>;
-    fn visit_block(&mut self, block: &Block, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>>;
-    fn visit_block_parameter(&mut self, parameter: &BlockParameter, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>>;
-    fn visit_let_declaration(&mut self, decl: &LetDeclaration, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>>;
-    fn visit_component(&mut self, component: &Component, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>>;
-    fn visit_directive(&mut self, directive: &Directive, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>>;
+    fn visit_element(
+        &mut self,
+        element: &Element,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>>;
+    fn visit_attribute(
+        &mut self,
+        attribute: &Attribute,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>>;
+    fn visit_text(
+        &mut self,
+        text: &Text,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>>;
+    fn visit_comment(
+        &mut self,
+        comment: &Comment,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>>;
+    fn visit_expansion(
+        &mut self,
+        expansion: &Expansion,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>>;
+    fn visit_expansion_case(
+        &mut self,
+        expansion_case: &ExpansionCase,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>>;
+    fn visit_block(
+        &mut self,
+        block: &Block,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>>;
+    fn visit_block_parameter(
+        &mut self,
+        parameter: &BlockParameter,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>>;
+    fn visit_let_declaration(
+        &mut self,
+        decl: &LetDeclaration,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>>;
+    fn visit_component(
+        &mut self,
+        component: &Component,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>>;
+    fn visit_directive(
+        &mut self,
+        directive: &Directive,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>>;
 }
 
 /// Visit all nodes in array
-pub fn visit_all(visitor: &mut dyn Visitor, nodes: &[Node], context: &mut dyn std::any::Any) -> Vec<Box<dyn std::any::Any>> {
+pub fn visit_all(
+    visitor: &mut dyn Visitor,
+    nodes: &[Node],
+    context: &mut dyn std::any::Any,
+) -> Vec<Box<dyn std::any::Any>> {
     let mut result = Vec::new();
 
     for node in nodes {
@@ -242,54 +306,98 @@ impl RecursiveVisitor {
 }
 
 impl Visitor for RecursiveVisitor {
-    fn visit_element(&mut self, element: &Element, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_element(
+        &mut self,
+        element: &Element,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         visit_all(self, &element.children, context);
         None
     }
 
-    fn visit_attribute(&mut self, _attribute: &Attribute, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_attribute(
+        &mut self,
+        _attribute: &Attribute,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         None
     }
 
-    fn visit_text(&mut self, _text: &Text, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_text(
+        &mut self,
+        _text: &Text,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         None
     }
 
-    fn visit_comment(&mut self, _comment: &Comment, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_comment(
+        &mut self,
+        _comment: &Comment,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         None
     }
 
-    fn visit_expansion(&mut self, expansion: &Expansion, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_expansion(
+        &mut self,
+        expansion: &Expansion,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         for case in &expansion.cases {
             self.visit_expansion_case(case, context);
         }
         None
     }
 
-    fn visit_expansion_case(&mut self, expansion_case: &ExpansionCase, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_expansion_case(
+        &mut self,
+        expansion_case: &ExpansionCase,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         visit_all(self, &expansion_case.expression, context);
         None
     }
 
-    fn visit_block(&mut self, block: &Block, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_block(
+        &mut self,
+        block: &Block,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         visit_all(self, &block.children, context);
         None
     }
 
-    fn visit_block_parameter(&mut self, _parameter: &BlockParameter, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_block_parameter(
+        &mut self,
+        _parameter: &BlockParameter,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         None
     }
 
-    fn visit_let_declaration(&mut self, _decl: &LetDeclaration, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_let_declaration(
+        &mut self,
+        _decl: &LetDeclaration,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         None
     }
 
-    fn visit_component(&mut self, component: &Component, context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_component(
+        &mut self,
+        component: &Component,
+        context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         visit_all(self, &component.children, context);
         None
     }
 
-    fn visit_directive(&mut self, _directive: &Directive, _context: &mut dyn std::any::Any) -> Option<Box<dyn std::any::Any>> {
+    fn visit_directive(
+        &mut self,
+        _directive: &Directive,
+        _context: &mut dyn std::any::Any,
+    ) -> Option<Box<dyn std::any::Any>> {
         None
     }
 }
@@ -299,4 +407,3 @@ impl Default for RecursiveVisitor {
         Self::new()
     }
 }
-

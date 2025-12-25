@@ -31,14 +31,14 @@ impl ModelFunctionMetadata {
             is_signal: true,
         }
     }
-    
+
     pub fn with_alias(mut self, alias: impl Into<String>) -> Self {
         let a = alias.into();
         self.output_name = format!("{}Change", a);
         self.input_name = a;
         self
     }
-    
+
     pub fn with_required(mut self, required: bool) -> Self {
         self.required = required;
         self
@@ -52,13 +52,13 @@ pub fn try_parse_model_function(
     is_required: bool,
 ) -> ModelFunctionMetadata {
     let alias = options.and_then(|o| o.alias.clone());
-    
+
     let mut model = ModelFunctionMetadata::new(member_name);
     model.required = is_required;
-    
+
     if let Some(a) = alias {
         model = model.with_alias(a);
     }
-    
+
     model
 }

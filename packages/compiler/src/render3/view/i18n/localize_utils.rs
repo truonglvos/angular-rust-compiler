@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 
 use crate::i18n::i18n_ast as i18n;
-use crate::output::output_ast::{Expression, Statement, ReadVarExpr};
+use crate::output::output_ast::{Expression, ReadVarExpr, Statement};
 use crate::parse_util::{ParseLocation, ParseSourceSpan};
 
 use super::icu_serializer::serialize_icu_node;
@@ -41,8 +41,16 @@ pub struct PlaceholderPiece {
 }
 
 impl PlaceholderPiece {
-    pub fn new(text: String, source_span: ParseSourceSpan, associated_message: Option<i18n::Message>) -> Self {
-        PlaceholderPiece { text, source_span, associated_message }
+    pub fn new(
+        text: String,
+        source_span: ParseSourceSpan,
+        associated_message: Option<i18n::Message>,
+    ) -> Self {
+        PlaceholderPiece {
+            text,
+            source_span,
+            associated_message,
+        }
     }
 }
 
@@ -80,7 +88,11 @@ impl From<LocalizedString> for Expression {
         // TODO: Implement proper TaggedTemplateExpr
         Expression::Literal(crate::output::output_ast::LiteralExpr {
             value: crate::output::output_ast::LiteralValue::String(
-                val.message_parts.iter().map(|p| p.text.clone()).collect::<Vec<_>>().join("")
+                val.message_parts
+                    .iter()
+                    .map(|p| p.text.clone())
+                    .collect::<Vec<_>>()
+                    .join(""),
             ),
             type_: None,
             source_span: None,
@@ -96,16 +108,18 @@ pub fn create_localize_statements(
 ) -> Vec<Statement> {
     let (_message_parts, placeholders) = serialize_i18n_message_for_localize(message);
     let _source_span = get_source_span(message);
-    
+
     let _expressions: Vec<Expression> = placeholders
         .iter()
-        .map(|ph| params.get(&ph.text).cloned().unwrap_or_else(|| {
-            Expression::Literal(crate::output::output_ast::LiteralExpr {
-                value: crate::output::output_ast::LiteralValue::String(ph.text.clone()),
-                type_: None,
-                source_span: None,
+        .map(|ph| {
+            params.get(&ph.text).cloned().unwrap_or_else(|| {
+                Expression::Literal(crate::output::output_ast::LiteralExpr {
+                    value: crate::output::output_ast::LiteralValue::String(ph.text.clone()),
+                    type_: None,
+                    source_span: None,
+                })
             })
-        }))
+        })
         .collect();
 
     // TODO: Implement LocalizedString in output_ast
@@ -121,10 +135,12 @@ pub fn create_localize_statements(
         type_: None,
         source_span: None,
     });
-    vec![Statement::Expression(crate::output::output_ast::ExpressionStatement {
-        expr: Box::new(write_expr),
-        source_span: None,
-    })]
+    vec![Statement::Expression(
+        crate::output::output_ast::ExpressionStatement {
+            expr: Box::new(write_expr),
+            source_span: None,
+        },
+    )]
 }
 
 /// Localize serializer visitor
@@ -145,11 +161,12 @@ impl LocalizeSerializerVisitor {
         if let Some(MessagePiece::Literal(ref mut piece)) = self.pieces.last_mut() {
             piece.text.push_str(&text.value);
         } else {
-            let source_span = ParseSourceSpan::new(
-                text.source_span.start.clone(),
-                text.source_span.end.clone(),
-            );
-            self.pieces.push(MessagePiece::Literal(LiteralPiece::new(text.value.clone(), source_span)));
+            let source_span =
+                ParseSourceSpan::new(text.source_span.start.clone(), text.source_span.end.clone());
+            self.pieces.push(MessagePiece::Literal(LiteralPiece::new(
+                text.value.clone(),
+                source_span,
+            )));
         }
     }
 
@@ -167,46 +184,67 @@ impl LocalizeSerializerVisitor {
     }
 
     pub fn visit_tag_placeholder(&mut self, ph: &i18n::TagPlaceholder) {
-        self.pieces.push(MessagePiece::Placeholder(
-            self.create_placeholder_piece(&ph.start_name, &ph.source_span, None)
-        ));
-        
+        self.pieces
+            .push(MessagePiece::Placeholder(self.create_placeholder_piece(
+                &ph.start_name,
+                &ph.source_span,
+                None,
+            )));
+
         if !ph.is_void {
             for child in &ph.children {
                 self.visit_node(child);
             }
-            self.pieces.push(MessagePiece::Placeholder(
-                self.create_placeholder_piece(&ph.close_name, &ph.source_span, None)
-            ));
+            self.pieces
+                .push(MessagePiece::Placeholder(self.create_placeholder_piece(
+                    &ph.close_name,
+                    &ph.source_span,
+                    None,
+                )));
         }
     }
 
     pub fn visit_placeholder(&mut self, ph: &i18n::Placeholder) {
-        self.pieces.push(MessagePiece::Placeholder(
-            self.create_placeholder_piece(&ph.name, &ph.source_span, None)
-        ));
+        self.pieces
+            .push(MessagePiece::Placeholder(self.create_placeholder_piece(
+                &ph.name,
+                &ph.source_span,
+                None,
+            )));
     }
 
     pub fn visit_block_placeholder(&mut self, ph: &i18n::BlockPlaceholder) {
-        self.pieces.push(MessagePiece::Placeholder(
-            self.create_placeholder_piece(&ph.start_name, &ph.source_span, None)
-        ));
-        
+        self.pieces
+            .push(MessagePiece::Placeholder(self.create_placeholder_piece(
+                &ph.start_name,
+                &ph.source_span,
+                None,
+            )));
+
         for child in &ph.children {
             self.visit_node(child);
         }
-        
-        self.pieces.push(MessagePiece::Placeholder(
-            self.create_placeholder_piece(&ph.close_name, &ph.source_span, None)
-        ));
+
+        self.pieces
+            .push(MessagePiece::Placeholder(self.create_placeholder_piece(
+                &ph.close_name,
+                &ph.source_span,
+                None,
+            )));
     }
 
     pub fn visit_icu_placeholder(&mut self, ph: &i18n::IcuPlaceholder) {
         // Dereference Box<Message> to Message (m is &Box<Message>, *m is Box<Message>, **m is Message)
-        let associated_message = self.placeholder_to_message.get(&ph.name).map(|m| (**m).clone());
-        self.pieces.push(MessagePiece::Placeholder(
-            self.create_placeholder_piece(&ph.name, &ph.source_span, associated_message)
-        ));
+        let associated_message = self
+            .placeholder_to_message
+            .get(&ph.name)
+            .map(|m| (**m).clone());
+        self.pieces
+            .push(MessagePiece::Placeholder(self.create_placeholder_piece(
+                &ph.name,
+                &ph.source_span,
+                associated_message,
+            )));
     }
 
     pub fn visit_node(&mut self, node: &i18n::Node) {
@@ -240,13 +278,15 @@ impl LocalizeSerializerVisitor {
 }
 
 /// Serialize an i18n message for $localize
-pub fn serialize_i18n_message_for_localize(message: &i18n::Message) -> (Vec<LiteralPiece>, Vec<PlaceholderPiece>) {
+pub fn serialize_i18n_message_for_localize(
+    message: &i18n::Message,
+) -> (Vec<LiteralPiece>, Vec<PlaceholderPiece>) {
     let mut visitor = LocalizeSerializerVisitor::new(message.placeholder_to_message.clone());
-    
+
     for node in &message.nodes {
         visitor.visit_node(node);
     }
-    
+
     process_message_pieces(visitor.into_pieces())
 }
 
@@ -261,10 +301,10 @@ fn get_source_span(message: &i18n::Message) -> ParseSourceSpan {
         );
         return ParseSourceSpan::new(empty_location.clone(), empty_location);
     }
-    
+
     let start_node = &message.nodes[0];
     let end_node = &message.nodes[message.nodes.len() - 1];
-    
+
     ParseSourceSpan::new(
         start_node.source_span().start.clone(),
         end_node.source_span().end.clone(),
@@ -314,6 +354,8 @@ fn process_message_pieces(pieces: Vec<MessagePiece>) -> (Vec<LiteralPiece>, Vec<
 }
 
 fn create_empty_message_part(location: &ParseLocation) -> LiteralPiece {
-    LiteralPiece::new(String::new(), ParseSourceSpan::new(location.clone(), location.clone()))
+    LiteralPiece::new(
+        String::new(),
+        ParseSourceSpan::new(location.clone(), location.clone()),
+    )
 }
-

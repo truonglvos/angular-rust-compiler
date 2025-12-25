@@ -70,12 +70,12 @@ impl R3ComponentMetadata {
             defer_blocks: Vec::new(),
         }
     }
-    
+
     pub fn with_selector(mut self, selector: impl Into<String>) -> Self {
         self.selector = Some(selector.into());
         self
     }
-    
+
     pub fn with_template(mut self, template: impl Into<String>) -> Self {
         self.template.content = Some(template.into());
         self

@@ -84,7 +84,9 @@ impl SourceMapGenerator {
         }
 
         if source_url.is_some() && (source_line0.is_none() || source_col0.is_none()) {
-            return Err("The source location must be provided when a source url is provided".to_string());
+            return Err(
+                "The source location must be provided when a source url is provided".to_string(),
+            );
         }
 
         self.has_mappings = true;
@@ -151,11 +153,15 @@ impl SourceMapGenerator {
                         last_source_index = source_idx;
 
                         // the zero-based starting line in the original source
-                        seg_as_str += &to_base64_vlq(segment.source_line0.unwrap() as i32 - last_source_line0 as i32);
+                        seg_as_str += &to_base64_vlq(
+                            segment.source_line0.unwrap() as i32 - last_source_line0 as i32,
+                        );
                         last_source_line0 = segment.source_line0.unwrap();
 
                         // the zero-based starting column in the original source
-                        seg_as_str += &to_base64_vlq(segment.source_col0.unwrap() as i32 - last_source_col0 as i32);
+                        seg_as_str += &to_base64_vlq(
+                            segment.source_col0.unwrap() as i32 - last_source_col0 as i32,
+                        );
                         last_source_col0 = segment.source_col0.unwrap();
                     }
 
@@ -199,19 +205,25 @@ pub fn to_base64_string(value: &str) -> String {
     while i < encoded.len() {
         let i1 = encoded[i];
         i += 1;
-        let i2 = if i < encoded.len() { Some(encoded[i]) } else { None };
+        let i2 = if i < encoded.len() {
+            Some(encoded[i])
+        } else {
+            None
+        };
         if i2.is_some() {
             i += 1;
         }
-        let i3 = if i < encoded.len() { Some(encoded[i]) } else { None };
+        let i3 = if i < encoded.len() {
+            Some(encoded[i])
+        } else {
+            None
+        };
         if i3.is_some() {
             i += 1;
         }
 
         b64.push(to_base64_digit(i1 >> 2));
-        b64.push(to_base64_digit(
-            ((i1 & 3) << 4) | (i2.unwrap_or(0) >> 4),
-        ));
+        b64.push(to_base64_digit(((i1 & 3) << 4) | (i2.unwrap_or(0) >> 4)));
         b64.push(if i2.is_none() {
             '='
         } else {
@@ -259,8 +271,3 @@ fn to_base64_digit(value: u8) -> char {
     }
     B64_DIGITS.chars().nth(value as usize).unwrap()
 }
-
-
-
-
-

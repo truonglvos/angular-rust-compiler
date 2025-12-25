@@ -28,7 +28,7 @@ impl ImportedSymbolsTracker {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Register a named import for a file.
     ///
     /// # Arguments
@@ -43,44 +43,41 @@ impl ImportedSymbolsTracker {
         exported_name: &str,
         local_name: &str,
     ) {
-        let file_imports = self.file_to_named_imports
+        let file_imports = self
+            .file_to_named_imports
             .entry(file.to_string())
             .or_insert_with(HashMap::new);
-        
+
         let module_imports = file_imports
             .entry(module_name.to_string())
             .or_insert_with(HashMap::new);
-        
+
         let local_names = module_imports
             .entry(exported_name.to_string())
             .or_insert_with(HashSet::new);
-        
+
         local_names.insert(local_name.to_string());
     }
-    
+
     /// Register a namespace import for a file.
     ///
     /// # Arguments
     /// * `file` - The source file path  
     /// * `module_name` - The module being imported from
     /// * `local_name` - The local namespace name
-    pub fn register_namespace_import(
-        &mut self,
-        file: &str,
-        module_name: &str,
-        local_name: &str,
-    ) {
-        let namespaces = self.file_to_namespace_imports
+    pub fn register_namespace_import(&mut self, file: &str, module_name: &str, local_name: &str) {
+        let namespaces = self
+            .file_to_namespace_imports
             .entry(file.to_string())
             .or_insert_with(HashMap::new);
-        
+
         let module_namespaces = namespaces
             .entry(module_name.to_string())
             .or_insert_with(HashSet::new);
-        
+
         module_namespaces.insert(local_name.to_string());
     }
-    
+
     /// Checks if an identifier is a potential reference to a specific named import.
     ///
     /// # Arguments
@@ -104,7 +101,7 @@ impl ImportedSymbolsTracker {
         }
         false
     }
-    
+
     /// Checks if an identifier is a potential reference to a namespace import.
     ///
     /// # Arguments
@@ -124,7 +121,7 @@ impl ImportedSymbolsTracker {
         }
         false
     }
-    
+
     /// Checks if a file has a named import of a certain symbol.
     ///
     /// # Arguments
@@ -139,7 +136,7 @@ impl ImportedSymbolsTracker {
         }
         false
     }
-    
+
     /// Checks if a file has namespace imports of a module.
     ///
     /// # Arguments
@@ -151,7 +148,7 @@ impl ImportedSymbolsTracker {
         }
         false
     }
-    
+
     /// Check if a symbol is imported from a specific module (simplified API).
     pub fn is_imported(&self, symbol: &str, from: &str) -> bool {
         for file_imports in self.file_to_named_imports.values() {

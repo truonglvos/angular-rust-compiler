@@ -7,9 +7,11 @@ use crate::parse_util::ParseSourceSpan;
 use crate::render3::r3_ast::Variable;
 use crate::template::pipeline::ir::enums::ExpressionKind;
 use crate::template::pipeline::ir::handle::{SlotHandle, XrefId};
-use crate::template::pipeline::ir::traits::{ConsumesVarsTrait, DependsOnSlotContextOpTrait, UsesVarOffsetTrait};
 use crate::template::pipeline::ir::operations::{CreateOp, UpdateOp};
 use crate::template::pipeline::ir::ops::shared::VariableOp;
+use crate::template::pipeline::ir::traits::{
+    ConsumesVarsTrait, DependsOnSlotContextOpTrait, UsesVarOffsetTrait,
+};
 use bitflags::bitflags;
 
 /// An `Expression` subtype representing a logical expression in the intermediate representation.
@@ -101,7 +103,9 @@ pub fn as_ir_expression(expr: &Expression) -> Option<IRExpression> {
         Expression::ResetView(e) => Some(IRExpression::ResetView(e.clone())),
         Expression::ReadVariable(e) => Some(IRExpression::ReadVariable(e.clone())),
         Expression::PureFunction(e) => Some(IRExpression::PureFunction(e.clone())),
-        Expression::PureFunctionParameter(e) => Some(IRExpression::PureFunctionParameter(e.clone())),
+        Expression::PureFunctionParameter(e) => {
+            Some(IRExpression::PureFunctionParameter(e.clone()))
+        }
         Expression::PipeBinding(e) => Some(IRExpression::PipeBinding(e.clone())),
         Expression::PipeBindingVariadic(e) => Some(IRExpression::PipeBindingVariadic(e.clone())),
         Expression::SafePropertyRead(e) => Some(IRExpression::SafePropertyRead(e.clone())),
@@ -126,7 +130,7 @@ pub fn as_ir_expression(expr: &Expression) -> Option<IRExpression> {
 pub trait IRExpressionTrait {
     fn kind(&self) -> ExpressionKind;
     fn source_span(&self) -> Option<&ParseSourceSpan>;
-    
+
     /// Run the transformer against any nested expressions which may be present in this IR expression
     /// subtype.
     fn transform_internal_expressions(
@@ -161,7 +165,11 @@ impl IRExpressionTrait for LexicalReadExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, _flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        _flags: VisitorContextFlag,
+    ) {
         // No nested expressions
     }
 }
@@ -195,7 +203,11 @@ impl IRExpressionTrait for ReferenceExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, _flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        _flags: VisitorContextFlag,
+    ) {
         // No nested expressions
     }
 }
@@ -225,7 +237,11 @@ impl IRExpressionTrait for ContextExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, _flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        _flags: VisitorContextFlag,
+    ) {
         // No nested expressions
     }
 }
@@ -255,7 +271,11 @@ impl IRExpressionTrait for TrackContextExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, _flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        _flags: VisitorContextFlag,
+    ) {
         // No nested expressions
     }
 }
@@ -291,7 +311,11 @@ impl IRExpressionTrait for NextContextExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, _flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        _flags: VisitorContextFlag,
+    ) {
         // No nested expressions
     }
 }
@@ -306,9 +330,7 @@ pub struct GetCurrentViewExpr {
 
 impl GetCurrentViewExpr {
     pub fn new() -> Self {
-        GetCurrentViewExpr {
-            source_span: None,
-        }
+        GetCurrentViewExpr { source_span: None }
     }
 }
 
@@ -327,7 +349,11 @@ impl IRExpressionTrait for GetCurrentViewExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, _flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        _flags: VisitorContextFlag,
+    ) {
         // No nested expressions
     }
 }
@@ -366,7 +392,11 @@ impl IRExpressionTrait for RestoreViewExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        flags: VisitorContextFlag,
+    ) {
         if let EitherXrefIdOrExpression::Expression(ref mut expr) = self.view {
             *expr = Box::new(transform(*expr.clone(), flags));
         }
@@ -398,7 +428,11 @@ impl IRExpressionTrait for ResetViewExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        flags: VisitorContextFlag,
+    ) {
         self.expr = Box::new(transform(*self.expr.clone(), flags));
     }
 }
@@ -430,7 +464,11 @@ impl IRExpressionTrait for ReadVariableExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, _flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        _flags: VisitorContextFlag,
+    ) {
         // No nested expressions
     }
 }
@@ -473,13 +511,20 @@ impl IRExpressionTrait for PureFunctionExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        flags: VisitorContextFlag,
+    ) {
         if let Some(ref mut body) = self.body {
-            *body = Box::new(transform(*body.clone(), flags | VisitorContextFlag::IN_CHILD_OPERATION));
+            *body = Box::new(transform(
+                *body.clone(),
+                flags | VisitorContextFlag::IN_CHILD_OPERATION,
+            ));
         } else if let Some(ref mut fn_) = self.fn_ {
             *fn_ = Box::new(transform(*fn_.clone(), flags));
         }
-        
+
         for arg in &mut self.args {
             *arg = transform(arg.clone(), flags);
         }
@@ -491,7 +536,7 @@ impl UsesVarOffsetTrait for PureFunctionExpr {
     fn var_offset(&self) -> Option<usize> {
         self.var_offset
     }
-    
+
     fn set_var_offset(&mut self, offset: Option<usize>) {
         self.var_offset = offset;
     }
@@ -522,7 +567,11 @@ impl IRExpressionTrait for PureFunctionParameterExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, _flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        _flags: VisitorContextFlag,
+    ) {
         // No nested expressions
     }
 }
@@ -539,7 +588,12 @@ pub struct PipeBindingExpr {
 }
 
 impl PipeBindingExpr {
-    pub fn new(target: XrefId, target_slot: SlotHandle, name: String, args: Vec<Expression>) -> Self {
+    pub fn new(
+        target: XrefId,
+        target_slot: SlotHandle,
+        name: String,
+        args: Vec<Expression>,
+    ) -> Self {
         PipeBindingExpr {
             var_offset: None,
             target,
@@ -560,7 +614,11 @@ impl IRExpressionTrait for PipeBindingExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        flags: VisitorContextFlag,
+    ) {
         for arg in &mut self.args {
             *arg = transform(arg.clone(), flags);
         }
@@ -572,7 +630,7 @@ impl UsesVarOffsetTrait for PipeBindingExpr {
     fn var_offset(&self) -> Option<usize> {
         self.var_offset
     }
-    
+
     fn set_var_offset(&mut self, offset: Option<usize>) {
         self.var_offset = offset;
     }
@@ -591,7 +649,13 @@ pub struct PipeBindingVariadicExpr {
 }
 
 impl PipeBindingVariadicExpr {
-    pub fn new(target: XrefId, target_slot: SlotHandle, name: String, args: Box<Expression>, num_args: usize) -> Self {
+    pub fn new(
+        target: XrefId,
+        target_slot: SlotHandle,
+        name: String,
+        args: Box<Expression>,
+        num_args: usize,
+    ) -> Self {
         PipeBindingVariadicExpr {
             var_offset: None,
             target,
@@ -613,7 +677,11 @@ impl IRExpressionTrait for PipeBindingVariadicExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        flags: VisitorContextFlag,
+    ) {
         self.args = Box::new(transform(*self.args.clone(), flags));
     }
 }
@@ -623,7 +691,7 @@ impl UsesVarOffsetTrait for PipeBindingVariadicExpr {
     fn var_offset(&self) -> Option<usize> {
         self.var_offset
     }
-    
+
     fn set_var_offset(&mut self, offset: Option<usize>) {
         self.var_offset = offset;
     }
@@ -645,7 +713,7 @@ impl SafePropertyReadExpr {
             source_span: None,
         }
     }
-    
+
     /// An alias for name, which allows other logic to handle property reads and keyed reads together.
     pub fn index(&self) -> &str {
         &self.name
@@ -661,7 +729,11 @@ impl IRExpressionTrait for SafePropertyReadExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        flags: VisitorContextFlag,
+    ) {
         self.receiver = Box::new(transform(*self.receiver.clone(), flags));
     }
 }
@@ -675,7 +747,11 @@ pub struct SafeKeyedReadExpr {
 }
 
 impl SafeKeyedReadExpr {
-    pub fn new(receiver: Box<Expression>, index: Box<Expression>, source_span: Option<ParseSourceSpan>) -> Self {
+    pub fn new(
+        receiver: Box<Expression>,
+        index: Box<Expression>,
+        source_span: Option<ParseSourceSpan>,
+    ) -> Self {
         SafeKeyedReadExpr {
             receiver,
             index,
@@ -693,7 +769,11 @@ impl IRExpressionTrait for SafeKeyedReadExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        flags: VisitorContextFlag,
+    ) {
         self.receiver = Box::new(transform(*self.receiver.clone(), flags));
         self.index = Box::new(transform(*self.index.clone(), flags));
     }
@@ -726,7 +806,11 @@ impl IRExpressionTrait for SafeInvokeFunctionExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        flags: VisitorContextFlag,
+    ) {
         self.receiver = Box::new(transform(*self.receiver.clone(), flags));
         for arg in &mut self.args {
             *arg = transform(arg.clone(), flags);
@@ -761,7 +845,11 @@ impl IRExpressionTrait for SafeTernaryExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        flags: VisitorContextFlag,
+    ) {
         self.guard = Box::new(transform(*self.guard.clone(), flags));
         self.expr = Box::new(transform(*self.expr.clone(), flags));
     }
@@ -775,9 +863,7 @@ pub struct EmptyExpr {
 
 impl EmptyExpr {
     pub fn new() -> Self {
-        EmptyExpr {
-            source_span: None,
-        }
+        EmptyExpr { source_span: None }
     }
 }
 
@@ -796,7 +882,11 @@ impl IRExpressionTrait for EmptyExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, _flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        _flags: VisitorContextFlag,
+    ) {
         // No nested expressions
     }
 }
@@ -830,7 +920,11 @@ impl IRExpressionTrait for AssignTemporaryExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        flags: VisitorContextFlag,
+    ) {
         self.expr = Box::new(transform(*self.expr.clone(), flags));
     }
 }
@@ -862,7 +956,11 @@ impl IRExpressionTrait for ReadTemporaryExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, _flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        _flags: VisitorContextFlag,
+    ) {
         // No nested expressions
     }
 }
@@ -892,7 +990,11 @@ impl IRExpressionTrait for SlotLiteralExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, _flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        _flags: VisitorContextFlag,
+    ) {
         // No nested expressions
     }
 }
@@ -938,7 +1040,11 @@ impl IRExpressionTrait for ConditionalCaseExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        flags: VisitorContextFlag,
+    ) {
         if let Some(ref mut expr) = self.expr {
             *expr = Box::new(transform(*expr.clone(), flags));
         }
@@ -970,7 +1076,11 @@ impl IRExpressionTrait for ConstCollectedExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        flags: VisitorContextFlag,
+    ) {
         self.expr = Box::new(transform(*self.expr.clone(), flags));
     }
 }
@@ -1002,7 +1112,11 @@ impl IRExpressionTrait for TwoWayBindingSetExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        flags: VisitorContextFlag,
+    ) {
         self.target = Box::new(transform(*self.target.clone(), flags));
         self.value = Box::new(transform(*self.value.clone(), flags));
     }
@@ -1035,7 +1149,11 @@ impl IRExpressionTrait for ContextLetReferenceExpr {
         self.source_span.as_ref()
     }
 
-    fn transform_internal_expressions(&mut self, _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, _flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        _transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        _flags: VisitorContextFlag,
+    ) {
         // No nested expressions
     }
 }
@@ -1067,7 +1185,11 @@ impl IRExpressionTrait for StoreLetExpr {
         Some(&self.source_span)
     }
 
-    fn transform_internal_expressions(&mut self, transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression, flags: VisitorContextFlag) {
+    fn transform_internal_expressions(
+        &mut self,
+        transform: &mut dyn FnMut(Expression, VisitorContextFlag) -> Expression,
+        flags: VisitorContextFlag,
+    ) {
         self.value = Box::new(transform(*self.value.clone(), flags));
     }
 }
@@ -1077,7 +1199,7 @@ impl DependsOnSlotContextOpTrait for StoreLetExpr {
     fn target(&self) -> XrefId {
         self.target
     }
-    
+
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
@@ -1107,37 +1229,73 @@ pub fn transform_expressions_in_expression(
     flags: VisitorContextFlag,
 ) -> Expression {
     use crate::output::output_ast::Expression as OutputExpr;
-    
+
     // Transform nested expressions first
     // println!("DEBUG: transform visiting {:?}", expr);
     match &mut expr {
         OutputExpr::ReadProp(prop) => {
-             // println!("DEBUG: traversing ReadProp {:?}", prop.name);
-            prop.receiver = Box::new(transform_expressions_in_expression(*prop.receiver.clone(), transform, flags));
+            // println!("DEBUG: traversing ReadProp {:?}", prop.name);
+            prop.receiver = Box::new(transform_expressions_in_expression(
+                *prop.receiver.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::InvokeFn(invoke) => {
-             // InvokeFn - traverse fn_ and args
-            invoke.fn_ = Box::new(transform_expressions_in_expression(*invoke.fn_.clone(), transform, flags));
+            // InvokeFn - traverse fn_ and args
+            invoke.fn_ = Box::new(transform_expressions_in_expression(
+                *invoke.fn_.clone(),
+                transform,
+                flags,
+            ));
             for arg in &mut invoke.args {
                 *arg = transform_expressions_in_expression(arg.clone(), transform, flags);
             }
         }
         OutputExpr::BinaryOp(bin) => {
-            bin.lhs = Box::new(transform_expressions_in_expression(*bin.lhs.clone(), transform, flags));
-            bin.rhs = Box::new(transform_expressions_in_expression(*bin.rhs.clone(), transform, flags));
+            bin.lhs = Box::new(transform_expressions_in_expression(
+                *bin.lhs.clone(),
+                transform,
+                flags,
+            ));
+            bin.rhs = Box::new(transform_expressions_in_expression(
+                *bin.rhs.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::Unary(un) => {
-            un.expr = Box::new(transform_expressions_in_expression(*un.expr.clone(), transform, flags));
+            un.expr = Box::new(transform_expressions_in_expression(
+                *un.expr.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::ReadProp(prop) => {
-            prop.receiver = Box::new(transform_expressions_in_expression(*prop.receiver.clone(), transform, flags));
+            prop.receiver = Box::new(transform_expressions_in_expression(
+                *prop.receiver.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::ReadKey(key) => {
-            key.receiver = Box::new(transform_expressions_in_expression(*key.receiver.clone(), transform, flags));
-            key.index = Box::new(transform_expressions_in_expression(*key.index.clone(), transform, flags));
+            key.receiver = Box::new(transform_expressions_in_expression(
+                *key.receiver.clone(),
+                transform,
+                flags,
+            ));
+            key.index = Box::new(transform_expressions_in_expression(
+                *key.index.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::InvokeFn(invoke) => {
-            invoke.fn_ = Box::new(transform_expressions_in_expression(*invoke.fn_.clone(), transform, flags));
+            invoke.fn_ = Box::new(transform_expressions_in_expression(
+                *invoke.fn_.clone(),
+                transform,
+                flags,
+            ));
             for arg in &mut invoke.args {
                 *arg = transform_expressions_in_expression(arg.clone(), transform, flags);
             }
@@ -1149,46 +1307,84 @@ pub fn transform_expressions_in_expression(
         }
         OutputExpr::LiteralMap(map) => {
             for entry in &mut map.entries {
-                entry.value = Box::new(transform_expressions_in_expression(*entry.value.clone(), transform, flags));
+                entry.value = Box::new(transform_expressions_in_expression(
+                    *entry.value.clone(),
+                    transform,
+                    flags,
+                ));
             }
         }
         OutputExpr::Conditional(cond) => {
-            cond.condition = Box::new(transform_expressions_in_expression(*cond.condition.clone(), transform, flags));
-            cond.true_case = Box::new(transform_expressions_in_expression(*cond.true_case.clone(), transform, flags));
+            cond.condition = Box::new(transform_expressions_in_expression(
+                *cond.condition.clone(),
+                transform,
+                flags,
+            ));
+            cond.true_case = Box::new(transform_expressions_in_expression(
+                *cond.true_case.clone(),
+                transform,
+                flags,
+            ));
             if let Some(ref mut false_case) = cond.false_case {
-                *false_case = Box::new(transform_expressions_in_expression(*false_case.clone(), transform, flags));
+                *false_case = Box::new(transform_expressions_in_expression(
+                    *false_case.clone(),
+                    transform,
+                    flags,
+                ));
             }
         }
         OutputExpr::TypeOf(ty) => {
-            ty.expr = Box::new(transform_expressions_in_expression(*ty.expr.clone(), transform, flags));
+            ty.expr = Box::new(transform_expressions_in_expression(
+                *ty.expr.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::Void(void) => {
-            void.expr = Box::new(transform_expressions_in_expression(*void.expr.clone(), transform, flags));
+            void.expr = Box::new(transform_expressions_in_expression(
+                *void.expr.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::Parens(parens) => {
-            parens.expr = Box::new(transform_expressions_in_expression(*parens.expr.clone(), transform, flags));
+            parens.expr = Box::new(transform_expressions_in_expression(
+                *parens.expr.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::NotExpr(not) => {
-            not.condition = Box::new(transform_expressions_in_expression(*not.condition.clone(), transform, flags));
+            not.condition = Box::new(transform_expressions_in_expression(
+                *not.condition.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::TaggedTemplate(tagged) => {
-            tagged.tag = Box::new(transform_expressions_in_expression(*tagged.tag.clone(), transform, flags));
+            tagged.tag = Box::new(transform_expressions_in_expression(
+                *tagged.tag.clone(),
+                transform,
+                flags,
+            ));
             for expr in &mut tagged.template.expressions {
                 *expr = transform_expressions_in_expression(expr.clone(), transform, flags);
             }
         }
-        OutputExpr::ArrowFn(arrow) => {
-            match &mut arrow.body {
-                crate::output::output_ast::ArrowFunctionBody::Expression(expr) => {
-                    *expr = Box::new(transform_expressions_in_expression(*expr.clone(), transform, flags));
-                }
-                crate::output::output_ast::ArrowFunctionBody::Statements(stmts) => {
-                    for stmt in stmts {
-                        transform_expressions_in_statement(stmt, transform, flags);
-                    }
+        OutputExpr::ArrowFn(arrow) => match &mut arrow.body {
+            crate::output::output_ast::ArrowFunctionBody::Expression(expr) => {
+                *expr = Box::new(transform_expressions_in_expression(
+                    *expr.clone(),
+                    transform,
+                    flags,
+                ));
+            }
+            crate::output::output_ast::ArrowFunctionBody::Statements(stmts) => {
+                for stmt in stmts {
+                    transform_expressions_in_statement(stmt, transform, flags);
                 }
             }
-        }
+        },
         OutputExpr::TemplateLiteral(tmpl) => {
             for expr in &mut tmpl.expressions {
                 *expr = transform_expressions_in_expression(expr.clone(), transform, flags);
@@ -1201,21 +1397,45 @@ pub fn transform_expressions_in_expression(
         }
         // IR Expression variants with nested expressions
         OutputExpr::SafePropertyRead(ir_expr) => {
-            ir_expr.receiver = Box::new(transform_expressions_in_expression(*ir_expr.receiver.clone(), transform, flags));
+            ir_expr.receiver = Box::new(transform_expressions_in_expression(
+                *ir_expr.receiver.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::SafeKeyedRead(ir_expr) => {
-            ir_expr.receiver = Box::new(transform_expressions_in_expression(*ir_expr.receiver.clone(), transform, flags));
-            ir_expr.index = Box::new(transform_expressions_in_expression(*ir_expr.index.clone(), transform, flags));
+            ir_expr.receiver = Box::new(transform_expressions_in_expression(
+                *ir_expr.receiver.clone(),
+                transform,
+                flags,
+            ));
+            ir_expr.index = Box::new(transform_expressions_in_expression(
+                *ir_expr.index.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::SafeInvokeFunction(ir_expr) => {
-            ir_expr.receiver = Box::new(transform_expressions_in_expression(*ir_expr.receiver.clone(), transform, flags));
+            ir_expr.receiver = Box::new(transform_expressions_in_expression(
+                *ir_expr.receiver.clone(),
+                transform,
+                flags,
+            ));
             for arg in &mut ir_expr.args {
                 *arg = transform_expressions_in_expression(arg.clone(), transform, flags);
             }
         }
         OutputExpr::SafeTernary(ir_expr) => {
-            ir_expr.guard = Box::new(transform_expressions_in_expression(*ir_expr.guard.clone(), transform, flags));
-            ir_expr.expr = Box::new(transform_expressions_in_expression(*ir_expr.expr.clone(), transform, flags));
+            ir_expr.guard = Box::new(transform_expressions_in_expression(
+                *ir_expr.guard.clone(),
+                transform,
+                flags,
+            ));
+            ir_expr.expr = Box::new(transform_expressions_in_expression(
+                *ir_expr.expr.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::PipeBinding(ir_expr) => {
             for arg in &mut ir_expr.args {
@@ -1223,144 +1443,297 @@ pub fn transform_expressions_in_expression(
             }
         }
         OutputExpr::PipeBindingVariadic(ir_expr) => {
-            ir_expr.args = Box::new(transform_expressions_in_expression(*ir_expr.args.clone(), transform, flags));
+            ir_expr.args = Box::new(transform_expressions_in_expression(
+                *ir_expr.args.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::AssignTemporary(ir_expr) => {
-            ir_expr.expr = Box::new(transform_expressions_in_expression(*ir_expr.expr.clone(), transform, flags));
+            ir_expr.expr = Box::new(transform_expressions_in_expression(
+                *ir_expr.expr.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::StoreLet(ir_expr) => {
-            ir_expr.value = Box::new(transform_expressions_in_expression(*ir_expr.value.clone(), transform, flags));
+            ir_expr.value = Box::new(transform_expressions_in_expression(
+                *ir_expr.value.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::PureFunction(pf) => {
             if let Some(ref mut fn_) = pf.fn_ {
-                *fn_ = Box::new(transform_expressions_in_expression(*fn_.clone(), transform, flags));
+                *fn_ = Box::new(transform_expressions_in_expression(
+                    *fn_.clone(),
+                    transform,
+                    flags,
+                ));
             }
             for arg in &mut pf.args {
                 *arg = transform_expressions_in_expression(arg.clone(), transform, flags);
             }
             if let Some(ref mut body) = pf.body {
-                *body = Box::new(transform_expressions_in_expression(*body.clone(), transform, flags));
+                *body = Box::new(transform_expressions_in_expression(
+                    *body.clone(),
+                    transform,
+                    flags,
+                ));
             }
         }
         OutputExpr::ConditionalCase(ir_expr) => {
             if let Some(ref mut expr) = ir_expr.expr {
-                *expr = Box::new(transform_expressions_in_expression(*expr.clone(), transform, flags));
+                *expr = Box::new(transform_expressions_in_expression(
+                    *expr.clone(),
+                    transform,
+                    flags,
+                ));
             }
         }
         // Output AST variants that need traversal
         OutputExpr::WriteVar(var) => {
-            var.value = Box::new(transform_expressions_in_expression(*var.value.clone(), transform, flags));
+            var.value = Box::new(transform_expressions_in_expression(
+                *var.value.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::WriteKey(key) => {
-             key.receiver = Box::new(transform_expressions_in_expression(*key.receiver.clone(), transform, flags));
-             key.index = Box::new(transform_expressions_in_expression(*key.index.clone(), transform, flags));
-             key.value = Box::new(transform_expressions_in_expression(*key.value.clone(), transform, flags));
+            key.receiver = Box::new(transform_expressions_in_expression(
+                *key.receiver.clone(),
+                transform,
+                flags,
+            ));
+            key.index = Box::new(transform_expressions_in_expression(
+                *key.index.clone(),
+                transform,
+                flags,
+            ));
+            key.value = Box::new(transform_expressions_in_expression(
+                *key.value.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::WriteProp(prop) => {
-             prop.receiver = Box::new(transform_expressions_in_expression(*prop.receiver.clone(), transform, flags));
-             prop.value = Box::new(transform_expressions_in_expression(*prop.value.clone(), transform, flags));
+            prop.receiver = Box::new(transform_expressions_in_expression(
+                *prop.receiver.clone(),
+                transform,
+                flags,
+            ));
+            prop.value = Box::new(transform_expressions_in_expression(
+                *prop.value.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::Instantiate(inst) => {
-             inst.class_expr = Box::new(transform_expressions_in_expression(*inst.class_expr.clone(), transform, flags));
-             for arg in &mut inst.args {
-                 *arg = transform_expressions_in_expression(arg.clone(), transform, flags);
-             }
+            inst.class_expr = Box::new(transform_expressions_in_expression(
+                *inst.class_expr.clone(),
+                transform,
+                flags,
+            ));
+            for arg in &mut inst.args {
+                *arg = transform_expressions_in_expression(arg.clone(), transform, flags);
+            }
         }
         OutputExpr::CommaExpr(comma) => {
-             for part in &mut comma.parts {
-                 *part = transform_expressions_in_expression(part.clone(), transform, flags);
-             }
+            for part in &mut comma.parts {
+                *part = transform_expressions_in_expression(part.clone(), transform, flags);
+            }
         }
         // Leaf nodes or handled above
         OutputExpr::InvokeFn(expr) => {
-            expr.fn_ = Box::new(transform_expressions_in_expression(*expr.fn_.clone(), transform, flags));
+            expr.fn_ = Box::new(transform_expressions_in_expression(
+                *expr.fn_.clone(),
+                transform,
+                flags,
+            ));
             for arg in &mut expr.args {
                 *arg = transform_expressions_in_expression(arg.clone(), transform, flags);
             }
         }
         OutputExpr::BinaryOp(expr) => {
-             expr.lhs = Box::new(transform_expressions_in_expression(*expr.lhs.clone(), transform, flags));
-             expr.rhs = Box::new(transform_expressions_in_expression(*expr.rhs.clone(), transform, flags));
+            expr.lhs = Box::new(transform_expressions_in_expression(
+                *expr.lhs.clone(),
+                transform,
+                flags,
+            ));
+            expr.rhs = Box::new(transform_expressions_in_expression(
+                *expr.rhs.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::ReadProp(expr) => {
-             expr.receiver = Box::new(transform_expressions_in_expression(*expr.receiver.clone(), transform, flags));
+            expr.receiver = Box::new(transform_expressions_in_expression(
+                *expr.receiver.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::ReadKey(expr) => {
-             expr.receiver = Box::new(transform_expressions_in_expression(*expr.receiver.clone(), transform, flags));
-             expr.index = Box::new(transform_expressions_in_expression(*expr.index.clone(), transform, flags));
+            expr.receiver = Box::new(transform_expressions_in_expression(
+                *expr.receiver.clone(),
+                transform,
+                flags,
+            ));
+            expr.index = Box::new(transform_expressions_in_expression(
+                *expr.index.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::Parens(expr) => {
-             expr.expr = Box::new(transform_expressions_in_expression(*expr.expr.clone(), transform, flags));
+            expr.expr = Box::new(transform_expressions_in_expression(
+                *expr.expr.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::NotExpr(expr) => {
-             expr.condition = Box::new(transform_expressions_in_expression(*expr.condition.clone(), transform, flags));
+            expr.condition = Box::new(transform_expressions_in_expression(
+                *expr.condition.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::Conditional(expr) => {
-             expr.condition = Box::new(transform_expressions_in_expression(*expr.condition.clone(), transform, flags));
-             expr.true_case = Box::new(transform_expressions_in_expression(*expr.true_case.clone(), transform, flags));
-             if let Some(ref mut false_case) = expr.false_case {
-                 *false_case = Box::new(transform_expressions_in_expression(*false_case.clone(), transform, flags));
-             }
+            expr.condition = Box::new(transform_expressions_in_expression(
+                *expr.condition.clone(),
+                transform,
+                flags,
+            ));
+            expr.true_case = Box::new(transform_expressions_in_expression(
+                *expr.true_case.clone(),
+                transform,
+                flags,
+            ));
+            if let Some(ref mut false_case) = expr.false_case {
+                *false_case = Box::new(transform_expressions_in_expression(
+                    *false_case.clone(),
+                    transform,
+                    flags,
+                ));
+            }
         }
         OutputExpr::IfNull(expr) => {
-             expr.condition = Box::new(transform_expressions_in_expression(*expr.condition.clone(), transform, flags));
-             expr.null_case = Box::new(transform_expressions_in_expression(*expr.null_case.clone(), transform, flags));
+            expr.condition = Box::new(transform_expressions_in_expression(
+                *expr.condition.clone(),
+                transform,
+                flags,
+            ));
+            expr.null_case = Box::new(transform_expressions_in_expression(
+                *expr.null_case.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::AssertNotNull(expr) => {
-             expr.condition = Box::new(transform_expressions_in_expression(*expr.condition.clone(), transform, flags));
+            expr.condition = Box::new(transform_expressions_in_expression(
+                *expr.condition.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::Cast(expr) => {
-             expr.value = Box::new(transform_expressions_in_expression(*expr.value.clone(), transform, flags));
+            expr.value = Box::new(transform_expressions_in_expression(
+                *expr.value.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::TypeOf(expr) => {
-             expr.expr = Box::new(transform_expressions_in_expression(*expr.expr.clone(), transform, flags));
+            expr.expr = Box::new(transform_expressions_in_expression(
+                *expr.expr.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::Void(expr) => {
-             expr.expr = Box::new(transform_expressions_in_expression(*expr.expr.clone(), transform, flags));
+            expr.expr = Box::new(transform_expressions_in_expression(
+                *expr.expr.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::Unary(expr) => {
-             expr.expr = Box::new(transform_expressions_in_expression(*expr.expr.clone(), transform, flags));
+            expr.expr = Box::new(transform_expressions_in_expression(
+                *expr.expr.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::ConstCollected(expr) => {
-             expr.expr = Box::new(transform_expressions_in_expression(*expr.expr.clone(), transform, flags));
+            expr.expr = Box::new(transform_expressions_in_expression(
+                *expr.expr.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::TwoWayBindingSet(expr) => {
-             expr.target = Box::new(transform_expressions_in_expression(*expr.target.clone(), transform, flags));
-             expr.value = Box::new(transform_expressions_in_expression(*expr.value.clone(), transform, flags));
+            expr.target = Box::new(transform_expressions_in_expression(
+                *expr.target.clone(),
+                transform,
+                flags,
+            ));
+            expr.value = Box::new(transform_expressions_in_expression(
+                *expr.value.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::ResetView(expr) => {
-             // ResetView wraps an expression - need to traverse the nested expr to visit LexicalReads
-             expr.expr = Box::new(transform_expressions_in_expression(*expr.expr.clone(), transform, flags));
+            // ResetView wraps an expression - need to traverse the nested expr to visit LexicalReads
+            expr.expr = Box::new(transform_expressions_in_expression(
+                *expr.expr.clone(),
+                transform,
+                flags,
+            ));
         }
         OutputExpr::RestoreView(expr) => {
-             // RestoreView may have nested view expression
-             if let EitherXrefIdOrExpression::Expression(ref mut view_expr) = expr.view {
-                 *view_expr = Box::new(transform_expressions_in_expression(*view_expr.clone(), transform, flags));
-             }
+            // RestoreView may have nested view expression
+            if let EitherXrefIdOrExpression::Expression(ref mut view_expr) = expr.view {
+                *view_expr = Box::new(transform_expressions_in_expression(
+                    *view_expr.clone(),
+                    transform,
+                    flags,
+                ));
+            }
         }
 
-
         OutputExpr::ArrowFn(expr) => {
-             // Handle arrow function body if it is an expression
-             if let crate::output::output_ast::ArrowFunctionBody::Expression(ref mut body_expr) = expr.body {
-                 *body_expr = Box::new(transform_expressions_in_expression(*body_expr.clone(), transform, flags));
-             }
+            // Handle arrow function body if it is an expression
+            if let crate::output::output_ast::ArrowFunctionBody::Expression(ref mut body_expr) =
+                expr.body
+            {
+                *body_expr = Box::new(transform_expressions_in_expression(
+                    *body_expr.clone(),
+                    transform,
+                    flags,
+                ));
+            }
         }
 
         OutputExpr::LiteralArray(expr) => {
-             for entry in &mut expr.entries {
-                 *entry = transform_expressions_in_expression(entry.clone(), transform, flags);
-             }
+            for entry in &mut expr.entries {
+                *entry = transform_expressions_in_expression(entry.clone(), transform, flags);
+            }
         }
         OutputExpr::LiteralMap(expr) => {
-             for entry in &mut expr.entries {
-                 entry.value = Box::new(transform_expressions_in_expression(*entry.value.clone(), transform, flags));
-             }
+            for entry in &mut expr.entries {
+                entry.value = Box::new(transform_expressions_in_expression(
+                    *entry.value.clone(),
+                    transform,
+                    flags,
+                ));
+            }
         }
 
         // Leaf nodes or unhandled
         OutputExpr::LexicalRead(l) => {
-             // LexicalRead - leaf node
+            // LexicalRead - leaf node
         }
         OutputExpr::WrappedNode(_)
         | OutputExpr::Literal(_)
@@ -1368,12 +1741,12 @@ pub fn transform_expressions_in_expression(
         | OutputExpr::ExternalRef(_)
         | OutputExpr::FnParam(_)
         | OutputExpr::DynamicImport(_)
-        | OutputExpr::Fn(_) 
+        | OutputExpr::Fn(_)
         | OutputExpr::RegularExpressionLiteral(_)
         | OutputExpr::RawCode(_)
         | _ => {}
     }
-    
+
     // Apply the transform function to the expression itself
     transform(expr, flags)
 }
@@ -1387,21 +1760,37 @@ pub fn transform_expressions_in_statement(
     flags: VisitorContextFlag,
 ) {
     use crate::output::output_ast::Statement;
-    
+
     match stmt {
         Statement::Expression(expr_stmt) => {
-            expr_stmt.expr = Box::new(transform_expressions_in_expression(*expr_stmt.expr.clone(), transform, flags));
+            expr_stmt.expr = Box::new(transform_expressions_in_expression(
+                *expr_stmt.expr.clone(),
+                transform,
+                flags,
+            ));
         }
         Statement::Return(return_stmt) => {
-            return_stmt.value = Box::new(transform_expressions_in_expression(*return_stmt.value.clone(), transform, flags));
+            return_stmt.value = Box::new(transform_expressions_in_expression(
+                *return_stmt.value.clone(),
+                transform,
+                flags,
+            ));
         }
         Statement::DeclareVar(declare_var) => {
             if let Some(ref mut value) = declare_var.value {
-                *value = Box::new(transform_expressions_in_expression(*value.clone(), transform, flags));
+                *value = Box::new(transform_expressions_in_expression(
+                    *value.clone(),
+                    transform,
+                    flags,
+                ));
             }
         }
         Statement::IfStmt(if_stmt) => {
-            if_stmt.condition = Box::new(transform_expressions_in_expression(*if_stmt.condition.clone(), transform, flags));
+            if_stmt.condition = Box::new(transform_expressions_in_expression(
+                *if_stmt.condition.clone(),
+                transform,
+                flags,
+            ));
             for case_stmt in &mut if_stmt.true_case {
                 transform_expressions_in_statement(case_stmt, transform, flags);
             }
@@ -1426,18 +1815,22 @@ pub fn visit_expressions_in_op(
     // 1. Match on op.kind() to determine the concrete type
     // 2. Downcast to the appropriate struct
     // 3. Visit expressions in that struct
-    // 
+    //
     // For now, we'll use transform_expressions_in_op with an identity transform
-    transform_expressions_in_op(op, &mut |expr, flags| {
-        visitor(&expr, flags);
-        expr
-    }, VisitorContextFlag::NONE);
+    transform_expressions_in_op(
+        op,
+        &mut |expr, flags| {
+            visitor(&expr, flags);
+            expr
+        },
+        VisitorContextFlag::NONE,
+    );
 }
 
 /// Transform all `Expression`s in the AST of `op` with the `transform` function.
 /// All such operations will be replaced with the result of applying `transform`, which may be an
 /// identity transformation.
-/// 
+///
 /// Note: This function operates on trait objects, which makes it complex. In practice, you may want
 /// to call this through concrete op types rather than through the Op trait.
 pub fn transform_expressions_in_op(
@@ -1446,19 +1839,22 @@ pub fn transform_expressions_in_op(
     flags: VisitorContextFlag,
 ) {
     use crate::template::pipeline::ir::enums::OpKind;
-    
+
     // This is a simplified implementation that works with trait objects
     // In practice, you'd want to match on concrete op types and transform their fields
     // For now, this is a placeholder that can be extended
-    
+
     match op.kind() {
-        OpKind::Binding 
-        | OpKind::StyleMap 
-        | OpKind::ClassMap 
-        | OpKind::AnimationString 
+        OpKind::Binding
+        | OpKind::StyleMap
+        | OpKind::ClassMap
+        | OpKind::AnimationString
         | OpKind::AnimationBinding => {
-            if let Some(op) = op.as_any_mut().downcast_mut::<crate::template::pipeline::ir::ops::update::BindingOp>() {
-                 match &mut op.expression {
+            if let Some(op) = op
+                .as_any_mut()
+                .downcast_mut::<crate::template::pipeline::ir::ops::update::BindingOp>()
+            {
+                match &mut op.expression {
                      crate::template::pipeline::ir::ops::update::BindingExpression::Expression(expr) => {
                          *expr = transform_expressions_in_expression(expr.clone(), transform, flags);
                      }
@@ -1472,13 +1868,20 @@ pub fn transform_expressions_in_op(
         }
         OpKind::ClassProp => {
             // ClassPropOp has Expression (not BindingExpression)
-            if let Some(op) = op.as_any_mut().downcast_mut::<crate::template::pipeline::ir::ops::update::ClassPropOp>() {
-                op.expression = transform_expressions_in_expression(op.expression.clone(), transform, flags);
+            if let Some(op) = op
+                .as_any_mut()
+                .downcast_mut::<crate::template::pipeline::ir::ops::update::ClassPropOp>()
+            {
+                op.expression =
+                    transform_expressions_in_expression(op.expression.clone(), transform, flags);
             }
         }
         OpKind::StyleProp => {
             // StylePropOp has BindingExpression
-            if let Some(op) = op.as_any_mut().downcast_mut::<crate::template::pipeline::ir::ops::update::StylePropOp>() {
+            if let Some(op) = op
+                .as_any_mut()
+                .downcast_mut::<crate::template::pipeline::ir::ops::update::StylePropOp>()
+            {
                 match &mut op.expression {
                     crate::template::pipeline::ir::ops::update::BindingExpression::Expression(expr) => {
                         *expr = transform_expressions_in_expression(expr.clone(), transform, flags);
@@ -1491,11 +1894,11 @@ pub fn transform_expressions_in_op(
                 }
             }
         }
-        OpKind::Property 
-        | OpKind::DomProperty 
-        | OpKind::Attribute 
-        | OpKind::Control => {
-            if let Some(op) = op.as_any_mut().downcast_mut::<crate::template::pipeline::ir::ops::update::PropertyOp>() {
+        OpKind::Property | OpKind::DomProperty | OpKind::Attribute | OpKind::Control => {
+            if let Some(op) = op
+                .as_any_mut()
+                .downcast_mut::<crate::template::pipeline::ir::ops::update::PropertyOp>()
+            {
                 match &mut op.expression {
                      crate::template::pipeline::ir::ops::update::BindingExpression::Expression(expr) => {
                          *expr = transform_expressions_in_expression(expr.clone(), transform, flags);
@@ -1507,10 +1910,14 @@ pub fn transform_expressions_in_op(
                      }
                  }
                 if let Some(ref mut sanitizer) = op.sanitizer {
-                    *sanitizer = transform_expressions_in_expression(sanitizer.clone(), transform, flags);
+                    *sanitizer =
+                        transform_expressions_in_expression(sanitizer.clone(), transform, flags);
                 }
-            } else if let Some(op) = op.as_any_mut().downcast_mut::<crate::template::pipeline::ir::ops::update::AttributeOp>() {
-                 match &mut op.expression {
+            } else if let Some(op) =
+                op.as_any_mut()
+                    .downcast_mut::<crate::template::pipeline::ir::ops::update::AttributeOp>()
+            {
+                match &mut op.expression {
                      crate::template::pipeline::ir::ops::update::BindingExpression::Expression(expr) => {
                          *expr = transform_expressions_in_expression(expr.clone(), transform, flags);
                      }
@@ -1521,144 +1928,230 @@ pub fn transform_expressions_in_op(
                      }
                  }
                 if let Some(ref mut sanitizer) = op.sanitizer {
-                    *sanitizer = transform_expressions_in_expression(sanitizer.clone(), transform, flags);
+                    *sanitizer =
+                        transform_expressions_in_expression(sanitizer.clone(), transform, flags);
                 }
             }
         }
         OpKind::TwoWayProperty => {
-             if let Some(op) = op.as_any_mut().downcast_mut::<crate::template::pipeline::ir::ops::update::TwoWayPropertyOp>() {
-                 op.expression = transform_expressions_in_expression(op.expression.clone(), transform, flags);
-                 if let Some(ref mut sanitizer) = op.sanitizer {
-                    *sanitizer = transform_expressions_in_expression(sanitizer.clone(), transform, flags);
+            if let Some(op) =
+                op.as_any_mut()
+                    .downcast_mut::<crate::template::pipeline::ir::ops::update::TwoWayPropertyOp>()
+            {
+                op.expression =
+                    transform_expressions_in_expression(op.expression.clone(), transform, flags);
+                if let Some(ref mut sanitizer) = op.sanitizer {
+                    *sanitizer =
+                        transform_expressions_in_expression(sanitizer.clone(), transform, flags);
                 }
-             }
+            }
         }
         OpKind::I18nExpression => {
-             if let Some(op) = op.as_any_mut().downcast_mut::<crate::template::pipeline::ir::ops::update::I18nExpressionOp>() {
-                 op.expression = transform_expressions_in_expression(op.expression.clone(), transform, flags);
-             }
+            if let Some(op) =
+                op.as_any_mut()
+                    .downcast_mut::<crate::template::pipeline::ir::ops::update::I18nExpressionOp>()
+            {
+                op.expression =
+                    transform_expressions_in_expression(op.expression.clone(), transform, flags);
+            }
         }
         OpKind::InterpolateText => {
-            if let Some(op) = op.as_any_mut().downcast_mut::<crate::template::pipeline::ir::ops::update::InterpolateTextOp>() {
+            if let Some(op) =
+                op.as_any_mut()
+                    .downcast_mut::<crate::template::pipeline::ir::ops::update::InterpolateTextOp>()
+            {
                 for expr in &mut op.interpolation.expressions {
                     *expr = transform_expressions_in_expression(expr.clone(), transform, flags);
                 }
             }
         }
         OpKind::Statement => {
-             // StatementOp - wraps a statement
-             use crate::template::pipeline::ir::ops::StatementOp;
-             use crate::template::pipeline::ir::CreateOp;
-             use crate::template::pipeline::ir::UpdateOp;
+            // StatementOp - wraps a statement
+            use crate::template::pipeline::ir::ops::StatementOp;
+            use crate::template::pipeline::ir::CreateOp;
+            use crate::template::pipeline::ir::UpdateOp;
 
-             // Try CreateOp version
-             if let Some(op) = op.as_any_mut().downcast_mut::<StatementOp<Box<dyn CreateOp + Send + Sync>>>() {
-                 println!("DEBUG transform_expressions_in_op: StatementOp CreateOp downcast success");
-                 // CreateOp StatementOp - transform statement expressions
-                 transform_expressions_in_statement(&mut op.statement, transform, flags);
-             }
-             // Try UpdateOp version
-             else if let Some(op) = op.as_any_mut().downcast_mut::<StatementOp<Box<dyn UpdateOp + Send + Sync>>>() {
-                 println!("DEBUG transform_expressions_in_op: StatementOp UpdateOp downcast success");
-                 // UpdateOp StatementOp - transform statement expressions
-                 transform_expressions_in_statement(&mut op.statement, transform, flags);
-             }
+            // Try CreateOp version
+            if let Some(op) = op
+                .as_any_mut()
+                .downcast_mut::<StatementOp<Box<dyn CreateOp + Send + Sync>>>()
+            {
+                println!(
+                    "DEBUG transform_expressions_in_op: StatementOp CreateOp downcast success"
+                );
+                // CreateOp StatementOp - transform statement expressions
+                transform_expressions_in_statement(&mut op.statement, transform, flags);
+            }
+            // Try UpdateOp version
+            else if let Some(op) = op
+                .as_any_mut()
+                .downcast_mut::<StatementOp<Box<dyn UpdateOp + Send + Sync>>>()
+            {
+                println!(
+                    "DEBUG transform_expressions_in_op: StatementOp UpdateOp downcast success"
+                );
+                // UpdateOp StatementOp - transform statement expressions
+                transform_expressions_in_statement(&mut op.statement, transform, flags);
+            }
         }
 
         OpKind::Conditional => {
-            if let Some(op) = op.as_any_mut().downcast_mut::<crate::template::pipeline::ir::ops::update::ConditionalOp>() {
+            if let Some(op) =
+                op.as_any_mut()
+                    .downcast_mut::<crate::template::pipeline::ir::ops::update::ConditionalOp>()
+            {
                 if let Some(ref mut test) = op.test {
                     *test = transform_expressions_in_expression(test.clone(), transform, flags);
                 }
                 for condition in &mut op.conditions {
                     if let Some(ref mut expr) = condition.expr {
-                        *expr = Box::new(transform_expressions_in_expression(*expr.clone(), transform, flags));
+                        *expr = Box::new(transform_expressions_in_expression(
+                            *expr.clone(),
+                            transform,
+                            flags,
+                        ));
                     }
                 }
-                 if let Some(ref mut processed) = op.processed {
-                    *processed = transform_expressions_in_expression(processed.clone(), transform, flags);
+                if let Some(ref mut processed) = op.processed {
+                    *processed =
+                        transform_expressions_in_expression(processed.clone(), transform, flags);
                 }
-                 if let Some(ref mut context_value) = op.context_value {
-                    *context_value = transform_expressions_in_expression(context_value.clone(), transform, flags);
+                if let Some(ref mut context_value) = op.context_value {
+                    *context_value = transform_expressions_in_expression(
+                        context_value.clone(),
+                        transform,
+                        flags,
+                    );
                 }
             }
         }
         OpKind::RepeaterCreate => {
-            if let Some(op) = op.as_any_mut().downcast_mut::<crate::template::pipeline::ir::ops::create::RepeaterCreateOp>() {
-                *op.track = transform_expressions_in_expression(*op.track.clone(), transform, flags);
-                 if let Some(ref mut track_by_fn) = op.track_by_fn {
-                    *track_by_fn = Box::new(transform_expressions_in_expression(*track_by_fn.clone(), transform, flags));
+            if let Some(op) =
+                op.as_any_mut()
+                    .downcast_mut::<crate::template::pipeline::ir::ops::create::RepeaterCreateOp>()
+            {
+                *op.track =
+                    transform_expressions_in_expression(*op.track.clone(), transform, flags);
+                if let Some(ref mut track_by_fn) = op.track_by_fn {
+                    *track_by_fn = Box::new(transform_expressions_in_expression(
+                        *track_by_fn.clone(),
+                        transform,
+                        flags,
+                    ));
                 }
             }
         }
         OpKind::Listener => {
-             if let Some(op) = op.as_any_mut().downcast_mut::<crate::template::pipeline::ir::ops::create::ListenerOp>() {
-                 for handler_op in &mut op.handler_ops {
-                     transform_expressions_in_op(&mut **handler_op, transform, flags);
-                 }
-             }
+            if let Some(op) = op
+                .as_any_mut()
+                .downcast_mut::<crate::template::pipeline::ir::ops::create::ListenerOp>()
+            {
+                for handler_op in &mut op.handler_ops {
+                    transform_expressions_in_op(&mut **handler_op, transform, flags);
+                }
+            }
         }
         OpKind::AnimationListener => {
-             use crate::template::pipeline::ir::ops::create::AnimationListenerOp;
-             if let Some(op) = op.as_any_mut().downcast_mut::<AnimationListenerOp>() {
-                 for handler_op in &mut op.handler_ops {
-                     transform_expressions_in_op(&mut **handler_op, transform, flags);
-                 }
-             }
+            use crate::template::pipeline::ir::ops::create::AnimationListenerOp;
+            if let Some(op) = op.as_any_mut().downcast_mut::<AnimationListenerOp>() {
+                for handler_op in &mut op.handler_ops {
+                    transform_expressions_in_op(&mut **handler_op, transform, flags);
+                }
+            }
         }
         OpKind::TwoWayListener => {
-             use crate::template::pipeline::ir::ops::create::TwoWayListenerOp;
-             if let Some(op) = op.as_any_mut().downcast_mut::<TwoWayListenerOp>() {
-                 for handler_op in &mut op.handler_ops {
-                     transform_expressions_in_op(&mut **handler_op, transform, flags);
-                 }
-             }
+            use crate::template::pipeline::ir::ops::create::TwoWayListenerOp;
+            if let Some(op) = op.as_any_mut().downcast_mut::<TwoWayListenerOp>() {
+                for handler_op in &mut op.handler_ops {
+                    transform_expressions_in_op(&mut **handler_op, transform, flags);
+                }
+            }
         }
         OpKind::Variable => {
-             // Try CreateOp version
-             if let Some(op) = op.as_any_mut().downcast_mut::<VariableOp<Box<dyn CreateOp + Send + Sync>>>() {
-                 println!("DEBUG transform_expressions_in_op: VariableOp CreateOp downcast success");
-                 op.initializer = Box::new(transform_expressions_in_expression(*op.initializer.clone(), transform, flags));
-             } 
-             // Try UpdateOp version
-             else if let Some(op) = op.as_any_mut().downcast_mut::<VariableOp<Box<dyn UpdateOp + Send + Sync>>>() {
-                 println!("DEBUG transform_expressions_in_op: VariableOp UpdateOp downcast success");
-                 op.initializer = Box::new(transform_expressions_in_expression(*op.initializer.clone(), transform, flags));
-             } else {
-                 println!("DEBUG transform_expressions_in_op: VariableOp downcast FAILED for op kind={:?}", op.kind());
-             }
+            // Try CreateOp version
+            if let Some(op) = op
+                .as_any_mut()
+                .downcast_mut::<VariableOp<Box<dyn CreateOp + Send + Sync>>>()
+            {
+                println!("DEBUG transform_expressions_in_op: VariableOp CreateOp downcast success");
+                op.initializer = Box::new(transform_expressions_in_expression(
+                    *op.initializer.clone(),
+                    transform,
+                    flags,
+                ));
+            }
+            // Try UpdateOp version
+            else if let Some(op) = op
+                .as_any_mut()
+                .downcast_mut::<VariableOp<Box<dyn UpdateOp + Send + Sync>>>()
+            {
+                println!("DEBUG transform_expressions_in_op: VariableOp UpdateOp downcast success");
+                op.initializer = Box::new(transform_expressions_in_expression(
+                    *op.initializer.clone(),
+                    transform,
+                    flags,
+                ));
+            } else {
+                println!("DEBUG transform_expressions_in_op: VariableOp downcast FAILED for op kind={:?}", op.kind());
+            }
         }
 
         OpKind::Repeater => {
-            if let Some(op) = op.as_any_mut().downcast_mut::<crate::template::pipeline::ir::ops::update::RepeaterOp>() {
-                op.collection = transform_expressions_in_expression(op.collection.clone(), transform, flags);
+            if let Some(op) = op
+                .as_any_mut()
+                .downcast_mut::<crate::template::pipeline::ir::ops::update::RepeaterOp>()
+            {
+                op.collection =
+                    transform_expressions_in_expression(op.collection.clone(), transform, flags);
             }
         }
         OpKind::Defer => {
-            if let Some(op) = op.as_any_mut().downcast_mut::<crate::template::pipeline::ir::ops::create::DeferOp>() {
+            if let Some(op) = op
+                .as_any_mut()
+                .downcast_mut::<crate::template::pipeline::ir::ops::create::DeferOp>()
+            {
                 if let Some(ref mut loading_config) = op.loading_config {
-                    *loading_config = transform_expressions_in_expression(loading_config.clone(), transform, flags);
+                    *loading_config = transform_expressions_in_expression(
+                        loading_config.clone(),
+                        transform,
+                        flags,
+                    );
                 }
                 if let Some(ref mut placeholder_config) = op.placeholder_config {
-                     *placeholder_config = transform_expressions_in_expression(placeholder_config.clone(), transform, flags);
+                    *placeholder_config = transform_expressions_in_expression(
+                        placeholder_config.clone(),
+                        transform,
+                        flags,
+                    );
                 }
                 if let Some(ref mut resolver_fn) = op.resolver_fn {
-                    *resolver_fn = transform_expressions_in_expression(resolver_fn.clone(), transform, flags);
+                    *resolver_fn =
+                        transform_expressions_in_expression(resolver_fn.clone(), transform, flags);
                 }
-                 if let Some(ref mut own_resolver_fn) = op.own_resolver_fn {
-                    *own_resolver_fn = transform_expressions_in_expression(own_resolver_fn.clone(), transform, flags);
+                if let Some(ref mut own_resolver_fn) = op.own_resolver_fn {
+                    *own_resolver_fn = transform_expressions_in_expression(
+                        own_resolver_fn.clone(),
+                        transform,
+                        flags,
+                    );
                 }
             }
         }
         OpKind::DeferWhen => {
-             if let Some(op) = op.as_any_mut().downcast_mut::<crate::template::pipeline::ir::ops::update::DeferWhenOp>() {
-                 op.expr = transform_expressions_in_expression(op.expr.clone(), transform, flags);
-             }
+            if let Some(op) = op
+                .as_any_mut()
+                .downcast_mut::<crate::template::pipeline::ir::ops::update::DeferWhenOp>()
+            {
+                op.expr = transform_expressions_in_expression(op.expr.clone(), transform, flags);
+            }
         }
         OpKind::StoreLet => {
-             if let Some(op) = op.as_any_mut().downcast_mut::<crate::template::pipeline::ir::ops::update::StoreLetOp>() {
-                 op.value = transform_expressions_in_expression(op.value.clone(), transform, flags);
-             }
+            if let Some(op) = op
+                .as_any_mut()
+                .downcast_mut::<crate::template::pipeline::ir::ops::update::StoreLetOp>()
+            {
+                op.value = transform_expressions_in_expression(op.value.clone(), transform, flags);
+            }
         }
         OpKind::I18nMessage => {
             // This op has params map
@@ -1697,12 +2190,10 @@ pub fn transform_expressions_in_op(
         | OpKind::ControlCreate
         | OpKind::Animation
         | OpKind::ListEnd
-        | OpKind::ExtractedAttribute
-
- => {
-             // These operations contain no expressions or are handled separately
-             // Note: Some of these (Binding, StyleProp, etc.) actually have expressions
-             // but are handled in the first match arm above
+        | OpKind::ExtractedAttribute => {
+            // These operations contain no expressions or are handled separately
+            // Note: Some of these (Binding, StyleProp, etc.) actually have expressions
+            // but are handled in the first match arm above
         }
     }
 }
@@ -1710,7 +2201,7 @@ pub fn transform_expressions_in_op(
 /// Checks whether the given expression is a string literal.
 pub fn is_string_literal(expr: &Expression) -> bool {
     use crate::output::output_ast::{Expression as OutputExpr, LiteralValue};
-    
+
     if let OutputExpr::Literal(lit) = expr {
         matches!(lit.value, LiteralValue::String(_))
     } else {

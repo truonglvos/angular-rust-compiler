@@ -57,12 +57,12 @@ impl ParsedComponentTemplate {
             errors: Vec::new(),
         }
     }
-    
+
     pub fn with_file(mut self, file: ParseSourceFile) -> Self {
         self.file = Some(file);
         self
     }
-    
+
     pub fn with_errors(mut self, errors: Vec<String>) -> Self {
         self.errors = errors;
         self
@@ -120,7 +120,7 @@ impl TemplateDeclaration {
             resolved_template_url: String::new(),
         }
     }
-    
+
     pub fn external(template_url: impl Into<String>, resolved: impl Into<String>) -> Self {
         Self {
             is_inline: false,
@@ -151,7 +151,7 @@ pub fn extract_template(
     options: &ExtractTemplateOptions,
 ) -> ParsedTemplateWithSource {
     let parsed = ParsedComponentTemplate::new(template_content);
-    
+
     ParsedTemplateWithSource {
         content: template_content.to_string(),
         source_mapping: if declaration.is_inline {

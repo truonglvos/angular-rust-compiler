@@ -3,8 +3,8 @@
 //! Corresponds to packages/compiler/src/render3/view/api.ts
 //! Contains API definitions for view compilation
 
-use std::collections::HashMap;
 use indexmap::IndexMap;
+use std::collections::HashMap;
 
 use crate::core::{ChangeDetectionStrategy, ViewEncapsulation};
 use crate::output::output_ast::Expression;
@@ -313,4 +313,3 @@ pub struct R3DeferPerComponentDependency {
     /// Whether the symbol is the default export.
     pub is_default_import: bool,
 }
-

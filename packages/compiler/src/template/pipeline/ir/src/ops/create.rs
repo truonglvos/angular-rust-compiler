@@ -5,17 +5,17 @@
 
 use crate::core::SecurityContext;
 use crate::i18n::i18n_ast::TagPlaceholder;
+use crate::output::output_ast::Expression as OutputExpression;
 use crate::parse_util::ParseSourceSpan;
 use crate::template::pipeline::ir::enums::{
-    AnimationKind, BindingKind, DeferOpModifierKind, I18nContextKind,
-    I18nParamValueFlags, Namespace, OpKind, TemplateKind,
+    AnimationKind, BindingKind, DeferOpModifierKind, I18nContextKind, I18nParamValueFlags,
+    Namespace, OpKind, TemplateKind,
 };
 use crate::template::pipeline::ir::handle::{ConstIndex, SlotHandle, XrefId};
 use crate::template::pipeline::ir::operations::{CreateOp, Op, OpList as IrOpList, UpdateOp};
-use crate::template::pipeline::ir::traits::ConsumesSlotOpTrait;
 use crate::template::pipeline::ir::ops::update::BindingExpression;
+use crate::template::pipeline::ir::traits::ConsumesSlotOpTrait;
 use crate::template::pipeline::ir::traits::ConsumesVarsTrait;
-use crate::output::output_ast::Expression as OutputExpression;
 use std::collections::HashMap;
 
 /// Local reference on an element
@@ -816,18 +816,18 @@ pub fn create_container_start_op(
     start_source_span: ParseSourceSpan,
     whole_source_span: ParseSourceSpan,
 ) -> Box<dyn CreateOp + Send + Sync> {
-    Box::new(ContainerStartOp::new(xref, start_source_span, whole_source_span))
+    Box::new(ContainerStartOp::new(
+        xref,
+        start_source_span,
+        whole_source_span,
+    ))
 }
 
-pub fn create_disable_bindings_op(
-    xref: XrefId,
-) -> Box<dyn CreateOp + Send + Sync> {
+pub fn create_disable_bindings_op(xref: XrefId) -> Box<dyn CreateOp + Send + Sync> {
     Box::new(DisableBindingsOp::new(xref))
 }
 
-pub fn create_enable_bindings_op(
-    xref: XrefId,
-) -> Box<dyn CreateOp + Send + Sync> {
+pub fn create_enable_bindings_op(xref: XrefId) -> Box<dyn CreateOp + Send + Sync> {
     Box::new(EnableBindingsOp::new(xref))
 }
 
@@ -837,7 +837,12 @@ pub fn create_text_op(
     icu_placeholder: Option<String>,
     source_span: Option<ParseSourceSpan>,
 ) -> Box<dyn CreateOp + Send + Sync> {
-    Box::new(TextOp::new(xref, initial_value, icu_placeholder, source_span))
+    Box::new(TextOp::new(
+        xref,
+        initial_value,
+        icu_placeholder,
+        source_span,
+    ))
 }
 
 pub fn create_i18n_start_op(
@@ -976,7 +981,11 @@ impl ConsumesSlotOpTrait for RepeaterCreateOp {
     }
 
     fn num_slots_used(&self) -> usize {
-        if self.empty_view.is_some() { 3 } else { 2 }
+        if self.empty_view.is_some() {
+            3
+        } else {
+            2
+        }
     }
 
     fn xref(&self) -> XrefId {
@@ -1250,7 +1259,11 @@ impl ConsumesSlotOpTrait for ProjectionOp {
     }
 
     fn num_slots_used(&self) -> usize {
-        if self.fallback_view.is_some() { 2 } else { 1 }
+        if self.fallback_view.is_some() {
+            2
+        } else {
+            1
+        }
     }
 
     fn xref(&self) -> XrefId {
@@ -1424,7 +1437,13 @@ pub fn create_projection_op(
     source_span: ParseSourceSpan,
 ) -> Box<dyn CreateOp + Send + Sync> {
     // ProjectionOp does not contain Expression, so it's safe
-    Box::new(ProjectionOp::new(xref, selector, i18n_placeholder, fallback_view, source_span))
+    Box::new(ProjectionOp::new(
+        xref,
+        selector,
+        i18n_placeholder,
+        fallback_view,
+        source_span,
+    ))
 }
 
 pub fn create_listener_op(
@@ -1577,7 +1596,14 @@ pub fn create_defer_op(
     resolver_fn: Option<OutputExpression>,
     source_span: ParseSourceSpan,
 ) -> Box<dyn CreateOp + Send + Sync> {
-    Box::new(DeferOp::new(xref, main_view, main_slot, own_resolver_fn, resolver_fn, source_span))
+    Box::new(DeferOp::new(
+        xref,
+        main_view,
+        main_slot,
+        own_resolver_fn,
+        resolver_fn,
+        source_span,
+    ))
 }
 
 /// ICU Start operation
@@ -1643,7 +1669,12 @@ pub fn create_icu_start_op(
     message_placeholder: String,
     source_span: ParseSourceSpan,
 ) -> Box<dyn CreateOp + Send + Sync> {
-    Box::new(IcuStartOp::new(xref, message, message_placeholder, source_span))
+    Box::new(IcuStartOp::new(
+        xref,
+        message,
+        message_placeholder,
+        source_span,
+    ))
 }
 
 /// ICU End operation
@@ -1814,8 +1845,6 @@ impl Op for TwoWayListenerOp {
         self
     }
 
-
-
     fn source_span(&self) -> Option<&ParseSourceSpan> {
         Some(&self.source_span)
     }
@@ -1839,7 +1868,14 @@ pub fn create_two_way_listener_op(
     handler_ops: IrOpList<Box<dyn UpdateOp + Send + Sync>>,
     source_span: ParseSourceSpan,
 ) -> Box<dyn CreateOp + Send + Sync> {
-    Box::new(TwoWayListenerOp::new(target, target_slot, name, tag, handler_ops, source_span))
+    Box::new(TwoWayListenerOp::new(
+        target,
+        target_slot,
+        name,
+        tag,
+        handler_ops,
+        source_span,
+    ))
 }
 
 /// PipeOp - An operation to instantiate a pipe
@@ -1900,7 +1936,6 @@ impl ConsumesSlotOpTrait for PipeOp {
         self.xref
     }
 }
-
 
 /// NamespaceOp - An op corresponding to a namespace instruction, for switching between HTML, SVG, and MathML
 #[derive(Debug, Clone)]
@@ -2000,7 +2035,9 @@ pub enum DeferTrigger {
     Idle,
     Immediate,
     Never,
-    Timer { delay: f64 },
+    Timer {
+        delay: f64,
+    },
     Hover {
         target_name: Option<String>,
         target_xref: Option<XrefId>,
@@ -2479,7 +2516,7 @@ impl I18nContextOp {
         if i18n_block.is_none() && context_kind != I18nContextKind::Attr {
             panic!("AssertionError: i18nBlock must be provided for non-attribute contexts.");
         }
-        
+
         I18nContextOp {
             context_kind,
             xref,
@@ -2527,7 +2564,13 @@ pub fn create_i18n_context_op(
     message: I18nMessage,
     source_span: ParseSourceSpan,
 ) -> Box<dyn CreateOp + Send + Sync> {
-    Box::new(I18nContextOp::new(context_kind, xref, i18n_block, message, source_span))
+    Box::new(I18nContextOp::new(
+        context_kind,
+        xref,
+        i18n_block,
+        message,
+        source_span,
+    ))
 }
 
 /// I18nAttributesOp - An op that creates i18n attributes configuration
@@ -2871,7 +2914,13 @@ pub fn create_animation_op(
     handler_ops: IrOpList<Box<dyn UpdateOp + Send + Sync>>,
     source_span: ParseSourceSpan,
 ) -> Box<dyn CreateOp + Send + Sync> {
-    Box::new(AnimationOp::new(name, target, animation_kind, handler_ops, source_span))
+    Box::new(AnimationOp::new(
+        name,
+        target,
+        animation_kind,
+        handler_ops,
+        source_span,
+    ))
 }
 
 /// ElementSourceLocation - Describes a location at which an element is defined within a template
@@ -3000,11 +3049,7 @@ pub struct CreatePipeOp {
 
 impl CreatePipeOp {
     pub fn new(xref: XrefId, handle: SlotHandle, name: String) -> Self {
-        CreatePipeOp {
-            xref,
-            handle,
-            name,
-        }
+        CreatePipeOp { xref, handle, name }
     }
 }
 
@@ -3049,6 +3094,10 @@ impl ConsumesSlotOpTrait for CreatePipeOp {
 unsafe impl Send for CreatePipeOp {}
 unsafe impl Sync for CreatePipeOp {}
 
-pub fn create_pipe_op(xref: XrefId, handle: SlotHandle, name: String) -> Box<dyn CreateOp + Send + Sync> {
+pub fn create_pipe_op(
+    xref: XrefId,
+    handle: SlotHandle,
+    name: String,
+) -> Box<dyn CreateOp + Send + Sync> {
     Box::new(CreatePipeOp::new(xref, handle, name))
 }

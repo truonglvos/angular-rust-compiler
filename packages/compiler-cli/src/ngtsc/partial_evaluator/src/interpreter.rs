@@ -11,14 +11,14 @@ impl Interpreter {
     pub fn new() -> Self {
         Self
     }
-    
+
     /// Evaluate a literal.
     pub fn evaluate_literal(&self, value: &str) -> ResolvedValue {
         // Try parsing as number
         if let Ok(n) = value.parse::<f64>() {
             return ResolvedValue::Number(n);
         }
-        
+
         // Try parsing as boolean
         match value {
             "true" => return ResolvedValue::Boolean(true),
@@ -27,18 +27,24 @@ impl Interpreter {
             "undefined" => return ResolvedValue::Undefined,
             _ => {}
         }
-        
+
         // String literal
-        if (value.starts_with('"') && value.ends_with('"')) ||
-           (value.starts_with('\'') && value.ends_with('\'')) {
-            return ResolvedValue::String(value[1..value.len()-1].to_string());
+        if (value.starts_with('"') && value.ends_with('"'))
+            || (value.starts_with('\'') && value.ends_with('\''))
+        {
+            return ResolvedValue::String(value[1..value.len() - 1].to_string());
         }
-        
+
         ResolvedValue::Unknown
     }
-    
+
     /// Evaluate binary expression.
-    pub fn evaluate_binary(&self, left: &ResolvedValue, op: &str, right: &ResolvedValue) -> ResolvedValue {
+    pub fn evaluate_binary(
+        &self,
+        left: &ResolvedValue,
+        op: &str,
+        right: &ResolvedValue,
+    ) -> ResolvedValue {
         match (left, op, right) {
             (ResolvedValue::Number(l), "+", ResolvedValue::Number(r)) => {
                 ResolvedValue::Number(l + r)

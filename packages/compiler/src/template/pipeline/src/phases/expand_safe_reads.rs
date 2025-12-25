@@ -7,13 +7,17 @@
 //! reads, guarded by null checks. We generate temporaries as needed, to avoid re-evaluating the same
 //! sub-expression multiple times.
 
-use crate::template::pipeline::ir as ir;
-use crate::template::pipeline::ir::enums::CompatibilityMode;
-use crate::template::pipeline::ir::expression::{transform_expressions_in_op, transform_expressions_in_expression};
-use crate::template::pipeline::ir::expression::{SafeTernaryExpr};
-use crate::template::pipeline::ir::expression::{AssignTemporaryExpr, ReadTemporaryExpr};
-use crate::template::pipeline::src::compilation::{CompilationJob, ComponentCompilationJob, CompilationJobKind, CompilationUnit};
 use crate::output::output_ast::Expression;
+use crate::template::pipeline::ir;
+use crate::template::pipeline::ir::enums::CompatibilityMode;
+use crate::template::pipeline::ir::expression::SafeTernaryExpr;
+use crate::template::pipeline::ir::expression::{
+    transform_expressions_in_expression, transform_expressions_in_op,
+};
+use crate::template::pipeline::ir::expression::{AssignTemporaryExpr, ReadTemporaryExpr};
+use crate::template::pipeline::src::compilation::{
+    CompilationJob, CompilationJobKind, CompilationUnit, ComponentCompilationJob,
+};
 
 struct SafeTransformContext {
     job_ptr: *mut dyn CompilationJob,
@@ -25,22 +29,25 @@ struct SafeTransformContext {
 /// reads, guarded by null checks.
 pub fn expand_safe_reads(job: &mut dyn CompilationJob) {
     let job_kind = job.kind();
-    
-    if matches!(job_kind, CompilationJobKind::Tmpl | CompilationJobKind::Both) {
+
+    if matches!(
+        job_kind,
+        CompilationJobKind::Tmpl | CompilationJobKind::Both
+    ) {
         let component_job = unsafe {
             let job_ptr = job as *mut dyn CompilationJob;
             let job_ptr = job_ptr as *mut ComponentCompilationJob;
             &mut *job_ptr
         };
-        
+
         let job_ptr = component_job as *mut ComponentCompilationJob;
-        
+
         // Process root unit
         {
             let root = &mut component_job.root;
             process_unit(root, job_ptr);
         }
-        
+
         // Process all view units
         let view_keys: Vec<_> = component_job.views.keys().cloned().collect();
         for key in view_keys {
@@ -51,11 +58,14 @@ pub fn expand_safe_reads(job: &mut dyn CompilationJob) {
     }
 }
 
-fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewCompilationUnit, job_ptr: *mut ComponentCompilationJob) {
+fn process_unit(
+    unit: &mut crate::template::pipeline::src::compilation::ViewCompilationUnit,
+    job_ptr: *mut ComponentCompilationJob,
+) {
     let ctx = SafeTransformContext {
         job_ptr: job_ptr as *mut dyn CompilationJob,
     };
-    
+
     // First pass: transform safe reads into SafeTernaryExpr
     // Process create ops
     for op in unit.create_mut().iter_mut() {
@@ -65,7 +75,7 @@ fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewComp
             ir::VisitorContextFlag::NONE,
         );
     }
-    
+
     // Process update ops
     for op in unit.update_mut().iter_mut() {
         transform_expressions_in_op(
@@ -74,7 +84,7 @@ fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewComp
             ir::VisitorContextFlag::NONE,
         );
     }
-    
+
     // Second pass: transform SafeTernaryExpr into ConditionalExpr
     // Process create ops
     for op in unit.create_mut().iter_mut() {
@@ -84,7 +94,7 @@ fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewComp
             ir::VisitorContextFlag::NONE,
         );
     }
-    
+
     // Process update ops
     for op in unit.update_mut().iter_mut() {
         transform_expressions_in_op(
@@ -102,22 +112,28 @@ fn transform_expressions_in_create_op(
     flags: ir::VisitorContextFlag,
 ) {
     use crate::template::pipeline::ir::enums::OpKind;
-    use crate::template::pipeline::ir::ops::create::{RepeaterCreateOp, ExtractedAttributeOp, ProjectionDefOp, DeferOp};
     use crate::template::pipeline::ir::expression::transform_expressions_in_expression;
-    
+    use crate::template::pipeline::ir::ops::create::{
+        DeferOp, ExtractedAttributeOp, ProjectionDefOp, RepeaterCreateOp,
+    };
+
     unsafe {
         let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
-        
+
         match op.kind() {
             OpKind::RepeaterCreate => {
                 let repeater_create_op_ptr = op_ptr as *mut RepeaterCreateOp;
                 let repeater_create_op = &mut *repeater_create_op_ptr;
-                
+
                 // Transform track expression if track_by_ops is None
                 if repeater_create_op.track_by_ops.is_none() {
                     let track_expr = (*repeater_create_op.track).clone();
                     let transformed = transform(track_expr, flags);
-                    repeater_create_op.track = Box::new(transform_expressions_in_expression(transformed, transform, flags));
+                    repeater_create_op.track = Box::new(transform_expressions_in_expression(
+                        transformed,
+                        transform,
+                        flags,
+                    ));
                 } else {
                     // Transform expressions in track_by_ops
                     if let Some(ref mut track_by_ops) = repeater_create_op.track_by_ops {
@@ -126,36 +142,41 @@ fn transform_expressions_in_create_op(
                         }
                     }
                 }
-                
+
                 // Transform track_by_fn if present
                 if let Some(ref mut track_by_fn) = repeater_create_op.track_by_fn {
                     let fn_expr = (**track_by_fn).clone();
                     let transformed = transform(fn_expr, flags);
-                    *track_by_fn = Box::new(transform_expressions_in_expression(transformed, transform, flags));
+                    *track_by_fn = Box::new(transform_expressions_in_expression(
+                        transformed,
+                        transform,
+                        flags,
+                    ));
                 }
             }
             OpKind::ExtractedAttribute => {
                 let extracted_attr_op_ptr = op_ptr as *mut ExtractedAttributeOp;
                 let extracted_attr_op = &mut *extracted_attr_op_ptr;
-                
+
                 // Transform expression if present
                 if let Some(ref mut expr) = extracted_attr_op.expression {
                     let expr_clone = (*expr).clone();
                     let transformed = transform(expr_clone, flags);
                     *expr = transform_expressions_in_expression(transformed, transform, flags);
                 }
-                
+
                 // Transform trusted_value_fn if present
                 if let Some(ref mut trusted_fn) = extracted_attr_op.trusted_value_fn {
                     let fn_expr = (*trusted_fn).clone();
                     let transformed = transform(fn_expr, flags);
-                    *trusted_fn = transform_expressions_in_expression(transformed, transform, flags);
+                    *trusted_fn =
+                        transform_expressions_in_expression(transformed, transform, flags);
                 }
             }
             OpKind::ProjectionDef => {
                 let projection_def_op_ptr = op_ptr as *mut ProjectionDefOp;
                 let projection_def_op = &mut *projection_def_op_ptr;
-                
+
                 // Transform def expression if present
                 if let Some(ref mut def) = projection_def_op.def {
                     let def_expr = (*def).clone();
@@ -166,33 +187,37 @@ fn transform_expressions_in_create_op(
             OpKind::Defer => {
                 let defer_op_ptr = op_ptr as *mut DeferOp;
                 let defer_op = &mut *defer_op_ptr;
-                
+
                 // Transform loading_config if present
                 if let Some(ref mut loading_config) = defer_op.loading_config {
                     let expr = loading_config.clone();
                     let transformed = transform(expr, flags);
-                    *loading_config = transform_expressions_in_expression(transformed, transform, flags);
+                    *loading_config =
+                        transform_expressions_in_expression(transformed, transform, flags);
                 }
-                
+
                 // Transform placeholder_config if present
                 if let Some(ref mut placeholder_config) = defer_op.placeholder_config {
                     let expr = placeholder_config.clone();
                     let transformed = transform(expr, flags);
-                    *placeholder_config = transform_expressions_in_expression(transformed, transform, flags);
+                    *placeholder_config =
+                        transform_expressions_in_expression(transformed, transform, flags);
                 }
-                
+
                 // Transform resolver_fn if present
                 if let Some(ref mut resolver_fn) = defer_op.resolver_fn {
                     let expr = resolver_fn.clone();
                     let transformed = transform(expr, flags);
-                    *resolver_fn = transform_expressions_in_expression(transformed, transform, flags);
+                    *resolver_fn =
+                        transform_expressions_in_expression(transformed, transform, flags);
                 }
-                
+
                 // Transform own_resolver_fn if present
                 if let Some(ref mut own_resolver_fn) = defer_op.own_resolver_fn {
                     let expr = own_resolver_fn.clone();
                     let transformed = transform(expr, flags);
-                    *own_resolver_fn = transform_expressions_in_expression(transformed, transform, flags);
+                    *own_resolver_fn =
+                        transform_expressions_in_expression(transformed, transform, flags);
                 }
             }
             _ => {
@@ -206,7 +231,8 @@ fn needs_temporary_in_safe_access(e: &Expression) -> bool {
     match e {
         Expression::Unary(unary) => needs_temporary_in_safe_access(&unary.expr),
         Expression::BinaryOp(binary) => {
-            needs_temporary_in_safe_access(&binary.lhs) || needs_temporary_in_safe_access(&binary.rhs)
+            needs_temporary_in_safe_access(&binary.lhs)
+                || needs_temporary_in_safe_access(&binary.rhs)
         }
         Expression::Conditional(cond) => {
             if let Some(ref false_case) = cond.false_case {
@@ -214,13 +240,15 @@ fn needs_temporary_in_safe_access(e: &Expression) -> bool {
                     return true;
                 }
             }
-            needs_temporary_in_safe_access(&cond.condition) || needs_temporary_in_safe_access(&cond.true_case)
+            needs_temporary_in_safe_access(&cond.condition)
+                || needs_temporary_in_safe_access(&cond.true_case)
         }
         Expression::NotExpr(not) => needs_temporary_in_safe_access(&not.condition),
         Expression::AssignTemporary(assign) => needs_temporary_in_safe_access(&assign.expr),
         Expression::ReadProp(read_prop) => needs_temporary_in_safe_access(&read_prop.receiver),
         Expression::ReadKey(read_key) => {
-            needs_temporary_in_safe_access(&read_key.receiver) || needs_temporary_in_safe_access(&read_key.index)
+            needs_temporary_in_safe_access(&read_key.receiver)
+                || needs_temporary_in_safe_access(&read_key.index)
         }
         // Note: ParenthesizedExpr is not in output_ast Rust version
         // We can skip it for now
@@ -264,9 +292,14 @@ fn eliminate_temporary_assignments(
                     // temporary refers to, possibly through nested temporaries, has a function call. We copy that
                     // behavior here.
                     unsafe {
-                        if (&*ctx.job_ptr).compatibility() == CompatibilityMode::TemplateDefinitionBuilder {
+                        if (&*ctx.job_ptr).compatibility()
+                            == CompatibilityMode::TemplateDefinitionBuilder
+                        {
                             let xref = (&mut *ctx.job_ptr).allocate_xref_id();
-                            return Expression::AssignTemporary(AssignTemporaryExpr::new(Box::new(read.clone()), xref));
+                            return Expression::AssignTemporary(AssignTemporaryExpr::new(
+                                Box::new(read.clone()),
+                                xref,
+                            ));
                         }
                     }
                     return read;
@@ -289,7 +322,10 @@ fn safe_ternary_with_temporary(
             let xref = (&mut *ctx.job_ptr).allocate_xref_id();
             let read = Expression::ReadTemporary(ReadTemporaryExpr::new(xref));
             result = (
-                Expression::AssignTemporary(AssignTemporaryExpr::new(Box::new(guard.clone()), xref)),
+                Expression::AssignTemporary(AssignTemporaryExpr::new(
+                    Box::new(guard.clone()),
+                    xref,
+                )),
                 read,
             );
         }
@@ -299,16 +335,15 @@ fn safe_ternary_with_temporary(
         let guard_clone_eliminated = eliminate_temporary_assignments(guard_clone, &tmps, ctx);
         result = (guard.clone(), guard_clone_eliminated);
     }
-    Expression::SafeTernary(SafeTernaryExpr::new(
-        Box::new(result.0),
-        body(result.1),
-    ))
+    Expression::SafeTernary(SafeTernaryExpr::new(Box::new(result.0), body(result.1)))
 }
 
 fn is_safe_access_expression(e: &Expression) -> bool {
     matches!(
         e,
-        Expression::SafePropertyRead(_) | Expression::SafeKeyedRead(_) | Expression::SafeInvokeFunction(_)
+        Expression::SafePropertyRead(_)
+            | Expression::SafeKeyedRead(_)
+            | Expression::SafeInvokeFunction(_)
     )
 }
 
@@ -340,12 +375,12 @@ fn deepest_safe_ternary(e: &Expression) -> Option<Box<SafeTernaryExpr>> {
         if let Expression::SafeTernary(st) = receiver.as_ref() {
             // Clone the SafeTernaryExpr so we can work with it
             let mut current = st.clone();
-            
+
             // Navigate to deepest SafeTernary
             while let Expression::SafeTernary(nested_st) = current.expr.as_ref() {
                 current = nested_st.clone();
             }
-            
+
             return Some(Box::new(current));
         }
     }
@@ -369,27 +404,33 @@ fn safe_transform(e: Expression, ctx: &SafeTransformContext) -> Expression {
 
     // No nested SafeTernary - handle normally
     match e {
-        Expression::SafeInvokeFunction(safe_invoke) => {
-            safe_ternary_with_temporary(
-                *safe_invoke.receiver,
-                |r| r.call_fn(safe_invoke.args.clone(), safe_invoke.source_span.clone(), None),
-                ctx,
-            )
-        }
-        Expression::SafePropertyRead(safe_prop) => {
-            safe_ternary_with_temporary(
-                *safe_prop.receiver,
-                |r| r.prop(safe_prop.name.clone(), safe_prop.source_span.clone()),
-                ctx,
-            )
-        }
-        Expression::SafeKeyedRead(safe_keyed) => {
-            safe_ternary_with_temporary(
-                *safe_keyed.receiver,
-                |r| r.key(safe_keyed.index.clone(), None, safe_keyed.source_span.clone()),
-                ctx,
-            )
-        }
+        Expression::SafeInvokeFunction(safe_invoke) => safe_ternary_with_temporary(
+            *safe_invoke.receiver,
+            |r| {
+                r.call_fn(
+                    safe_invoke.args.clone(),
+                    safe_invoke.source_span.clone(),
+                    None,
+                )
+            },
+            ctx,
+        ),
+        Expression::SafePropertyRead(safe_prop) => safe_ternary_with_temporary(
+            *safe_prop.receiver,
+            |r| r.prop(safe_prop.name.clone(), safe_prop.source_span.clone()),
+            ctx,
+        ),
+        Expression::SafeKeyedRead(safe_keyed) => safe_ternary_with_temporary(
+            *safe_keyed.receiver,
+            |r| {
+                r.key(
+                    safe_keyed.index.clone(),
+                    None,
+                    safe_keyed.source_span.clone(),
+                )
+            },
+            ctx,
+        ),
         _ => e,
     }
 }
@@ -403,7 +444,7 @@ fn ternary_transform(e: Expression) -> Expression {
             type_: None,
             source_span: None,
         });
-        
+
         let condition = Expression::BinaryOp(crate::output::output_ast::BinaryOperatorExpr {
             operator: crate::output::output_ast::BinaryOperator::Equals,
             lhs: st.guard.clone(),
@@ -411,7 +452,7 @@ fn ternary_transform(e: Expression) -> Expression {
             type_: None,
             source_span: st.source_span.clone(),
         });
-        
+
         Expression::Conditional(crate::output::output_ast::ConditionalExpr {
             condition: Box::new(condition),
             true_case: Box::new(null_expr),

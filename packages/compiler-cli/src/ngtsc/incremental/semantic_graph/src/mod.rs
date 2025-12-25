@@ -5,6 +5,6 @@ pub mod graph;
 pub mod util;
 
 // Re-exports
-pub use api::{SemanticSymbol, SemanticReference, SemanticDependencyGraph, SymbolData};
+pub use api::{SemanticDependencyGraph, SemanticReference, SemanticSymbol, SymbolData};
 pub use graph::SemanticGraph;
-pub use util::{references_equal, has_dependency_changes};
+pub use util::{has_dependency_changes, references_equal};

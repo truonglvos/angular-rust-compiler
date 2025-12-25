@@ -12,7 +12,7 @@ use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
 #[cfg(feature = "napi-bindings")]
-use crate::expression_parser::{Lexer, Parser as ExprParser, serialize};
+use crate::expression_parser::{serialize, Lexer, Parser as ExprParser};
 
 // Core modules (root level - mirrors packages/compiler/src/*.ts)
 mod assertions;
@@ -37,13 +37,13 @@ mod version;
 // Parser modules (mirrors Angular structure)
 pub mod expression_parser;
 pub mod ml_parser;
-pub mod template_parser;
-pub mod template;  // Template compilation pipeline
+pub mod template;
+pub mod template_parser; // Template compilation pipeline
 
 // Compilation modules
-pub mod render3;
 pub mod i18n;
 pub mod output;
+pub mod render3;
 pub mod schema;
 
 // Re-exports
@@ -52,7 +52,6 @@ pub use util::Version;
 pub use version::VERSION;
 
 use error::Result as CompilerResult;
-
 
 /// Compiler configuration
 #[cfg_attr(feature = "napi-bindings", napi(object))]
@@ -113,8 +112,8 @@ pub fn parse_template(template: String) -> Result<String> {
     let start = std::time::Instant::now();
 
     // Use real HTML parser
-    use ml_parser::parser::Parser;
     use ml_parser::html_tags::get_html_tag_definition;
+    use ml_parser::parser::Parser;
     use ml_parser::tags::TagDefinition;
 
     fn tag_def(name: &str) -> &'static dyn TagDefinition {
@@ -144,8 +143,8 @@ pub fn parse_template_full(template: String) -> Result<String> {
     let start = std::time::Instant::now();
 
     // Use real HTML parser
-    use ml_parser::parser::Parser;
     use ml_parser::html_tags::get_html_tag_definition;
+    use ml_parser::parser::Parser;
     use ml_parser::tags::TagDefinition;
 
     fn tag_def(name: &str) -> &'static dyn TagDefinition {
@@ -159,19 +158,25 @@ pub fn parse_template_full(template: String) -> Result<String> {
 
     // Serialize nodes to simplified format (limited to prevent overflow)
     let node_count = parse_result.root_nodes.len();
-    let nodes_json: Vec<serde_json::Value> = parse_result.root_nodes.iter()
+    let nodes_json: Vec<serde_json::Value> = parse_result
+        .root_nodes
+        .iter()
         .take(10) // Limit to first 10 root nodes
         .map(|node| node_to_json(node))
         .collect();
 
-    let errors_json: Vec<serde_json::Value> = parse_result.errors.iter().map(|err| {
-        serde_json::json!({
-            "message": err.msg.clone(),
-            "line": err.span.start.line,
-            "col": err.span.start.col,
-            "offset": err.span.start.offset
+    let errors_json: Vec<serde_json::Value> = parse_result
+        .errors
+        .iter()
+        .map(|err| {
+            serde_json::json!({
+                "message": err.msg.clone(),
+                "line": err.span.start.line,
+                "col": err.span.start.col,
+                "offset": err.span.start.offset
+            })
         })
-    }).collect();
+        .collect();
 
     let result = serde_json::json!({
         "success": parse_result.errors.is_empty(),
@@ -189,7 +194,11 @@ fn node_to_json(node: &ml_parser::ast::Node) -> serde_json::Value {
     node_to_json_depth(node, 0, 10) // Max depth 10
 }
 
-fn node_to_json_depth(node: &ml_parser::ast::Node, depth: usize, max_depth: usize) -> serde_json::Value {
+fn node_to_json_depth(
+    node: &ml_parser::ast::Node,
+    depth: usize,
+    max_depth: usize,
+) -> serde_json::Value {
     use ml_parser::ast::Node;
 
     if depth >= max_depth {
@@ -200,7 +209,8 @@ fn node_to_json_depth(node: &ml_parser::ast::Node, depth: usize, max_depth: usiz
         Node::Element(el) => {
             // Limit children serialization to prevent stack overflow
             let children = if depth < max_depth - 1 && el.children.len() < 20 {
-                el.children.iter()
+                el.children
+                    .iter()
                     .take(10) // Only serialize first 10 children
                     .map(|c| node_to_json_depth(c, depth + 1, max_depth))
                     .collect()
@@ -252,7 +262,9 @@ fn node_to_json_depth(node: &ml_parser::ast::Node, depth: usize, max_depth: usiz
         Node::Block(block) => {
             // Limit children serialization
             let children = if depth < max_depth - 1 && block.children.len() < 20 {
-                block.children.iter()
+                block
+                    .children
+                    .iter()
                     .take(10)
                     .map(|c| node_to_json_depth(c, depth + 1, max_depth))
                     .collect()
@@ -428,7 +440,10 @@ pub fn process_pipeline(template_ast: String) -> Result<String> {
 
     let elapsed = start.elapsed().as_micros() as f64 / 1000.0;
 
-    Ok(format!("{{\"ir\": \"{}\", \"time\": {}ms}}", result, elapsed))
+    Ok(format!(
+        "{{\"ir\": \"{}\", \"time\": {}ms}}",
+        result, elapsed
+    ))
 }
 
 /// Generate JavaScript code
@@ -442,13 +457,19 @@ pub fn generate_code(ir: String) -> Result<String> {
 
     let elapsed = start.elapsed().as_micros() as f64 / 1000.0;
 
-    Ok(format!("{{\"code\": \"{}\", \"time\": {}ms}}", result, elapsed))
+    Ok(format!(
+        "{{\"code\": \"{}\", \"time\": {}ms}}",
+        result, elapsed
+    ))
 }
 
 /// Compile component (full pipeline)
 #[cfg(feature = "napi-bindings")]
 #[napi]
-pub fn compile_component(metadata: ComponentMetadata, config: Option<CompilerConfig>) -> Result<CompilationResult> {
+pub fn compile_component(
+    metadata: ComponentMetadata,
+    config: Option<CompilerConfig>,
+) -> Result<CompilationResult> {
     let start = std::time::Instant::now();
 
     let _config = config.unwrap_or(CompilerConfig {
@@ -519,12 +540,18 @@ pub fn is_available() -> bool {
 // Internal implementations
 fn parse_template_internal(template: &str) -> CompilerResult<String> {
     // TODO: Implement real HTML parser
-    Ok(format!("{{\"type\":\"template\",\"content\":\"{}\"}}", template))
+    Ok(format!(
+        "{{\"type\":\"template\",\"content\":\"{}\"}}",
+        template
+    ))
 }
 
 fn parse_expressions_internal(template_ast: &str) -> CompilerResult<String> {
     // TODO: Implement real expression parser
-    Ok(format!("{{\"type\":\"expressions\",\"ast\":{}}}", template_ast))
+    Ok(format!(
+        "{{\"type\":\"expressions\",\"ast\":{}}}",
+        template_ast
+    ))
 }
 
 fn process_pipeline_internal(expressions: &str) -> CompilerResult<String> {
@@ -563,7 +590,6 @@ impl Clone for ComponentMetadata {
 
 #[cfg(test)]
 mod tests {
-
 
     #[cfg(feature = "napi-bindings")]
     #[test]

@@ -3,13 +3,13 @@
 //! Corresponds to packages/compiler/src/render3/r3_pipe_compiler.ts
 //! Contains pipe definition compilation
 
-use crate::output::output_ast::{
-    Expression, Type, ExpressionType, LiteralExpr, LiteralValue, LiteralMapExpr, LiteralMapEntry,
-    InvokeFunctionExpr, ExternalExpr, TypeModifier,
-};
 use super::r3_factory::R3DependencyMetadata;
 use super::r3_identifiers::Identifiers as R3;
-use super::util::{R3CompiledExpression, R3Reference, type_with_parameters};
+use super::util::{type_with_parameters, R3CompiledExpression, R3Reference};
+use crate::output::output_ast::{
+    Expression, ExpressionType, ExternalExpr, InvokeFunctionExpr, LiteralExpr, LiteralMapEntry,
+    LiteralMapExpr, LiteralValue, Type, TypeModifier,
+};
 
 /// Metadata for pipe compilation
 #[derive(Debug, Clone)]
@@ -35,7 +35,10 @@ pub fn compile_pipe_from_metadata(metadata: &R3PipeMetadata) -> R3CompiledExpres
     let mut definition_map_values: Vec<LiteralMapEntry> = Vec::new();
 
     // e.g. `name: 'myPipe'`
-    let pipe_name = metadata.pipe_name.clone().unwrap_or_else(|| metadata.name.clone());
+    let pipe_name = metadata
+        .pipe_name
+        .clone()
+        .unwrap_or_else(|| metadata.name.clone());
     definition_map_values.push(LiteralMapEntry {
         key: "name".to_string(),
         value: Box::new(Expression::Literal(LiteralExpr {
@@ -99,8 +102,11 @@ pub fn compile_pipe_from_metadata(metadata: &R3PipeMetadata) -> R3CompiledExpres
 
 /// Create the type for a pipe
 pub fn create_pipe_type(metadata: &R3PipeMetadata) -> Type {
-    let pipe_name = metadata.pipe_name.clone().unwrap_or_else(|| metadata.name.clone());
-    
+    let pipe_name = metadata
+        .pipe_name
+        .clone()
+        .unwrap_or_else(|| metadata.name.clone());
+
     Type::Expression(ExpressionType {
         value: Box::new(Expression::External(ExternalExpr {
             value: R3::pipe_declaration(),
@@ -109,7 +115,10 @@ pub fn create_pipe_type(metadata: &R3PipeMetadata) -> Type {
         })),
         modifiers: TypeModifier::None,
         type_params: Some(vec![
-            type_with_parameters(metadata.type_.type_expr.clone(), metadata.type_argument_count),
+            type_with_parameters(
+                metadata.type_.type_expr.clone(),
+                metadata.type_argument_count,
+            ),
             Type::Expression(ExpressionType {
                 value: Box::new(Expression::Literal(LiteralExpr {
                     value: LiteralValue::String(pipe_name),

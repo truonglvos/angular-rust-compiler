@@ -21,27 +21,27 @@ impl ShimGenerator {
             base_content: String::new(),
         }
     }
-    
+
     pub fn base_content(&self) -> &str {
         &self.base_content
     }
-    
+
     pub fn generate(&self, original_file: &str, shim_type: ShimType) -> ShimFile {
         let suffix = match shim_type {
             ShimType::Factory => ".ngfactory",
             ShimType::Summary => ".ngsummary",
             ShimType::Ngsummary => ".ngsummary",
         };
-        
+
         let file_name = original_file.replace(".ts", &format!("{}.ts", suffix));
-        
+
         ShimFile {
             file_name,
             content: self.generate_content(original_file, shim_type),
             shim_type,
         }
     }
-    
+
     fn generate_content(&self, _original: &str, shim_type: ShimType) -> String {
         match shim_type {
             ShimType::Factory => "// Factory shim\nexport {};\n".to_string(),

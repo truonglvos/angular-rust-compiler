@@ -17,4 +17,3 @@ pub fn set_enable_template_source_locations(value: bool) {
 pub fn get_template_source_locations_enabled() -> bool {
     ENABLE_TEMPLATE_SOURCE_LOCATIONS.load(Ordering::SeqCst)
 }
-

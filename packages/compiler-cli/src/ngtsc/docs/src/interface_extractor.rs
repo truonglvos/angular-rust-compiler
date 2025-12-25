@@ -9,11 +9,7 @@ pub struct InterfaceExtractor;
 
 impl InterfaceExtractor {
     /// Extract interface entry.
-    pub fn extract(
-        name: &str,
-        members: Vec<MemberEntry>,
-        extends: Vec<String>,
-    ) -> ClassEntry {
+    pub fn extract(name: &str, members: Vec<MemberEntry>, extends: Vec<String>) -> ClassEntry {
         ClassEntry {
             base: DocEntry::new(name, EntryType::Interface),
             members,
@@ -23,13 +19,9 @@ impl InterfaceExtractor {
             type_params: Vec::new(),
         }
     }
-    
+
     /// Extract interface member.
-    pub fn extract_member(
-        name: &str,
-        type_annotation: &str,
-        optional: bool,
-    ) -> MemberEntry {
+    pub fn extract_member(name: &str, type_annotation: &str, optional: bool) -> MemberEntry {
         MemberEntry {
             name: name.to_string(),
             member_type: MemberType::Property,

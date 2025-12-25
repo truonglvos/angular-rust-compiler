@@ -24,12 +24,12 @@ impl SegmentMarker {
             name_index: None,
         }
     }
-    
+
     pub fn with_source(mut self, source_index: u32) -> Self {
         self.source_index = Some(source_index);
         self
     }
-    
+
     pub fn with_name(mut self, name_index: u32) -> Self {
         self.name_index = Some(name_index);
         self

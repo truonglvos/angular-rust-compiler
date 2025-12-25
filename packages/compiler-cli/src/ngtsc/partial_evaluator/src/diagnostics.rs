@@ -18,7 +18,7 @@ impl PartialEvalDiagnostic {
             is_error: false,
         }
     }
-    
+
     pub fn invalid_expression(context: &str) -> Self {
         Self {
             message: format!("Invalid expression: {}", context),

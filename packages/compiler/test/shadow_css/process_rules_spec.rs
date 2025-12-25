@@ -50,25 +50,17 @@ fn should_capture_multiple_rules_where_some_have_no_body() {
 
 #[test]
 fn should_allow_to_change_the_selector_while_preserving_whitespaces() {
-    let result = process_rules(
-        "@import a; b {c {d}} e {f}",
-        |css_rule: CssRule| CssRule::new(
-            format!("{}2", css_rule.selector),
-            css_rule.content,
-        ),
-    );
+    let result = process_rules("@import a; b {c {d}} e {f}", |css_rule: CssRule| {
+        CssRule::new(format!("{}2", css_rule.selector), css_rule.content)
+    });
     assert_eq!(result, "@import a2; b2 {c {d}} e2 {f}");
 }
 
 #[test]
 fn should_allow_to_change_the_content() {
-    let result = process_rules(
-        "a {b}",
-        |css_rule: CssRule| CssRule::new(
-            css_rule.selector,
-            format!("{}2", css_rule.content),
-        ),
-    );
+    let result = process_rules("a {b}", |css_rule: CssRule| {
+        CssRule::new(css_rule.selector, format!("{}2", css_rule.content))
+    });
     assert_eq!(result, "a {b2}");
 }
 
@@ -80,4 +72,3 @@ fn capture_rules(input: &str) -> Vec<CssRule> {
     });
     result.into_inner()
 }
-

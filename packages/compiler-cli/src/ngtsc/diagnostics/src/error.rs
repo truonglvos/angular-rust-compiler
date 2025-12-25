@@ -2,28 +2,24 @@ use super::error_code::ErrorCode;
 use super::util::ng_error_code;
 use std::fmt;
 use ts::{
-    DiagnosticMessageChain, 
-    DiagnosticRelatedInformation, 
-    DiagnosticWithLocation, 
-    DiagnosticCategory,
-    Node,
-    make_diagnostic_chain as ts_make_diagnostic_chain,
+    make_diagnostic_chain as ts_make_diagnostic_chain, DiagnosticCategory, DiagnosticMessageChain,
+    DiagnosticRelatedInformation, DiagnosticWithLocation, Node,
 };
 
 #[derive(Debug)]
 pub struct FatalDiagnosticError {
     pub code: ErrorCode,
-    pub node: Box<dyn Node>, 
+    pub node: Box<dyn Node>,
     pub diagnostic_message: DiagnosticMessageChain,
     pub related_information: Option<Vec<DiagnosticRelatedInformation>>,
 }
 
 impl FatalDiagnosticError {
     pub fn new(
-        code: ErrorCode, 
-        node: Box<dyn Node>, 
-        diagnostic_message: impl Into<DiagnosticMessageChain>, 
-        related_information: Option<Vec<DiagnosticRelatedInformation>>
+        code: ErrorCode,
+        node: Box<dyn Node>,
+        diagnostic_message: impl Into<DiagnosticMessageChain>,
+        related_information: Option<Vec<DiagnosticRelatedInformation>>,
     ) -> Self {
         Self {
             code,
@@ -34,13 +30,23 @@ impl FatalDiagnosticError {
     }
 
     pub fn to_diagnostic(&self) -> DiagnosticWithLocation {
-        make_diagnostic(self.code, &*self.node, self.diagnostic_message.clone(), self.related_information.clone(), DiagnosticCategory::Error)
+        make_diagnostic(
+            self.code,
+            &*self.node,
+            self.diagnostic_message.clone(),
+            self.related_information.clone(),
+            DiagnosticCategory::Error,
+        )
     }
 }
 
 impl fmt::Display for FatalDiagnosticError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "FatalDiagnosticError: Code: {:?}, Message: {}", self.code, self.diagnostic_message)
+        write!(
+            f,
+            "FatalDiagnosticError: Code: {:?}, Message: {}",
+            self.code, self.diagnostic_message
+        )
     }
 }
 

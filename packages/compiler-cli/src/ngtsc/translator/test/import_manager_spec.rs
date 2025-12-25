@@ -1,10 +1,9 @@
-
 #[cfg(test)]
 mod tests {
     use crate::ngtsc::translator::src::import_manager::import_manager::ImportManagerConfig;
     // use crate::ngtsc::translator::src::import_manager::import_manager::ImportManager;
     // Need AST Factory mock or real implementation
-    
+
     #[test]
     fn test_import_manager_creation() {
         let config = ImportManagerConfig {

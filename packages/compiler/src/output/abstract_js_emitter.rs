@@ -3,7 +3,9 @@
 //! Corresponds to packages/compiler/src/output/abstract_js_emitter.ts
 //! JavaScript-specific emitter functionality
 
-use crate::output::abstract_emitter::{AbstractEmitterVisitor, EmitterVisitorContext, escape_identifier, BINARY_OPERATORS};
+use crate::output::abstract_emitter::{
+    escape_identifier, AbstractEmitterVisitor, EmitterVisitorContext, BINARY_OPERATORS,
+};
 use crate::output::output_ast as o;
 use crate::output::output_ast::ExpressionTrait;
 use std::any::Any;
@@ -50,7 +52,11 @@ impl AbstractJsEmitterVisitor {
         }
     }
 
-    pub fn visit_all_statements(&mut self, statements: &[o::Statement], ctx: &mut EmitterVisitorContext) {
+    pub fn visit_all_statements(
+        &mut self,
+        statements: &[o::Statement],
+        ctx: &mut EmitterVisitorContext,
+    ) {
         let context: &mut dyn Any = ctx;
         for statement in statements {
             statement.visit_statement(self, context);
@@ -59,14 +65,26 @@ impl AbstractJsEmitterVisitor {
 }
 
 impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
-    fn visit_raw_code_expr(&mut self, expr: &o::RawCodeExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_raw_code_expr(
+        &mut self,
+        expr: &o::RawCodeExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_raw_code_expr(expr, context)
     }
-    fn visit_read_var_expr(&mut self, expr: &o::ReadVarExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_read_var_expr(
+        &mut self,
+        expr: &o::ReadVarExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_read_var_expr(expr, context)
     }
 
-    fn visit_write_var_expr(&mut self, expr: &o::WriteVarExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_write_var_expr(
+        &mut self,
+        expr: &o::WriteVarExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             let name = escape_identifier(&expr.name, false, false);
@@ -77,7 +95,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_write_key_expr(&mut self, expr: &o::WriteKeyExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_write_key_expr(
+        &mut self,
+        expr: &o::WriteKeyExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         expr.receiver.as_ref().visit_expression(self, context);
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
@@ -92,7 +114,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_write_prop_expr(&mut self, expr: &o::WritePropExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_write_prop_expr(
+        &mut self,
+        expr: &o::WritePropExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         expr.receiver.as_ref().visit_expression(self, context);
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
@@ -105,7 +131,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_invoke_function_expr(&mut self, expr: &o::InvokeFunctionExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_invoke_function_expr(
+        &mut self,
+        expr: &o::InvokeFunctionExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         match &*expr.fn_ {
             o::Expression::ArrowFn(_) | o::Expression::Fn(_) => {
                 {
@@ -142,7 +172,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_tagged_template_expr(&mut self, expr: &o::TaggedTemplateLiteralExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_tagged_template_expr(
+        &mut self,
+        expr: &o::TaggedTemplateLiteralExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         // Tagged template: tag`template`
         expr.tag.as_ref().visit_expression(self, context);
         {
@@ -174,7 +208,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_instantiate_expr(&mut self, expr: &o::InstantiateExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_instantiate_expr(
+        &mut self,
+        expr: &o::InstantiateExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             ctx.print(Some(expr), "new ", false);
@@ -218,11 +256,19 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         self.base.visit_literal_expr(expr, context)
     }
 
-    fn visit_localized_string(&mut self, expr: &o::LocalizedString, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_localized_string(
+        &mut self,
+        expr: &o::LocalizedString,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_localized_string(expr, context)
     }
 
-    fn visit_external_expr(&mut self, expr: &o::ExternalExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_external_expr(
+        &mut self,
+        expr: &o::ExternalExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
         let ref_expr = &expr.value;
         // Handle common Angular imports aliasing
@@ -234,14 +280,18 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
                 ctx.print(Some(expr), ".", false);
             }
         }
-        
+
         if let Some(name) = &ref_expr.name {
             ctx.print(Some(expr), name, false);
         }
         Box::new(())
     }
 
-    fn visit_binary_operator_expr(&mut self, expr: &o::BinaryOperatorExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_binary_operator_expr(
+        &mut self,
+        expr: &o::BinaryOperatorExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         expr.lhs.as_ref().visit_expression(self, context);
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
@@ -255,7 +305,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_read_prop_expr(&mut self, expr: &o::ReadPropExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_read_prop_expr(
+        &mut self,
+        expr: &o::ReadPropExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         expr.receiver.as_ref().visit_expression(self, context);
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
@@ -266,7 +320,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_read_key_expr(&mut self, expr: &o::ReadKeyExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_read_key_expr(
+        &mut self,
+        expr: &o::ReadKeyExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         expr.receiver.as_ref().visit_expression(self, context);
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
@@ -280,7 +338,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_conditional_expr(&mut self, expr: &o::ConditionalExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_conditional_expr(
+        &mut self,
+        expr: &o::ConditionalExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             ctx.print(Some(expr), "(", false);
@@ -305,7 +367,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_unary_operator_expr(&mut self, expr: &o::UnaryOperatorExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_unary_operator_expr(
+        &mut self,
+        expr: &o::UnaryOperatorExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             let op_str = match expr.operator {
@@ -318,7 +384,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_parenthesized_expr(&mut self, expr: &o::ParenthesizedExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_parenthesized_expr(
+        &mut self,
+        expr: &o::ParenthesizedExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             ctx.print(Some(expr), "(", false);
@@ -331,7 +401,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_function_expr(&mut self, expr: &o::FunctionExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_function_expr(
+        &mut self,
+        expr: &o::FunctionExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             if let Some(name) = &expr.name {
@@ -363,7 +437,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_arrow_function_expr(&mut self, expr: &o::ArrowFunctionExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_arrow_function_expr(
+        &mut self,
+        expr: &o::ArrowFunctionExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             ctx.print(Some(expr), "(", false);
@@ -408,7 +486,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_literal_array_expr(&mut self, expr: &o::LiteralArrayExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_literal_array_expr(
+        &mut self,
+        expr: &o::LiteralArrayExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             ctx.print(Some(expr), "[", false);
@@ -429,7 +511,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_literal_map_expr(&mut self, expr: &o::LiteralMapExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_literal_map_expr(
+        &mut self,
+        expr: &o::LiteralMapExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             ctx.print(Some(expr), "{", false);
@@ -507,7 +593,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_assert_not_null_expr(&mut self, expr: &o::AssertNotNullExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_assert_not_null_expr(
+        &mut self,
+        expr: &o::AssertNotNullExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         expr.condition.as_ref().visit_expression(self, context);
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
@@ -522,7 +612,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_dynamic_import_expr(&mut self, expr: &o::DynamicImportExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_dynamic_import_expr(
+        &mut self,
+        expr: &o::DynamicImportExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             ctx.print(Some(expr), "import(", false);
@@ -533,7 +627,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_template_literal_expr(&mut self, expr: &o::TemplateLiteralExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_template_literal_expr(
+        &mut self,
+        expr: &o::TemplateLiteralExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             ctx.print(Some(expr), "`", false);
@@ -562,137 +660,256 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_regular_expression_literal(&mut self, expr: &o::RegularExpressionLiteralExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_regular_expression_literal(
+        &mut self,
+        expr: &o::RegularExpressionLiteralExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
         ctx.print(Some(expr), "/", false);
         ctx.print(Some(expr), &expr.pattern, false);
         ctx.print(Some(expr), "/", false);
         if !expr.flags.is_empty() {
-             ctx.print(Some(expr), &expr.flags, false);
+            ctx.print(Some(expr), &expr.flags, false);
         }
         Box::new(())
     }
 
-    fn visit_wrapped_node_expr(&mut self, expr: &o::WrappedNodeExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_wrapped_node_expr(
+        &mut self,
+        expr: &o::WrappedNodeExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         if let Some(s) = expr.node.downcast_ref::<String>() {
-             println!("DEBUG: visit_wrapped_node_expr found string: {}", s);
-             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
-             ctx.print(None, s, false);
-             return Box::new(());
+            println!("DEBUG: visit_wrapped_node_expr found string: {}", s);
+            let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
+            ctx.print(None, s, false);
+            return Box::new(());
         }
         println!("DEBUG: visit_wrapped_node_expr failed to downcast");
         // WrappedNodeExpr should throw error in JavaScript emitter if not valid
-        panic!("Cannot emit a wrapped node expression as JavaScript code: {:?}", expr);
+        panic!(
+            "Cannot emit a wrapped node expression as JavaScript code: {:?}",
+            expr
+        );
     }
-    
+
     // IR Expression visitor methods - delegate to base emitter
-    fn visit_lexical_read_expr(&mut self, expr: &crate::template::pipeline::ir::expression::LexicalReadExpr, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_lexical_read_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::LexicalReadExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_lexical_read_expr(expr, context)
     }
-    
-    fn visit_reference_expr(&mut self, expr: &crate::template::pipeline::ir::expression::ReferenceExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_reference_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::ReferenceExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_reference_expr(expr, context)
     }
-    
-    fn visit_context_expr(&mut self, expr: &crate::template::pipeline::ir::expression::ContextExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_context_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::ContextExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_context_expr(expr, context)
     }
-    
-    fn visit_next_context_expr(&mut self, expr: &crate::template::pipeline::ir::expression::NextContextExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_next_context_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::NextContextExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_next_context_expr(expr, context)
     }
-    
-    fn visit_get_current_view_expr(&mut self, expr: &crate::template::pipeline::ir::expression::GetCurrentViewExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_get_current_view_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::GetCurrentViewExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_get_current_view_expr(expr, context)
     }
-    
-    fn visit_restore_view_expr(&mut self, expr: &crate::template::pipeline::ir::expression::RestoreViewExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_restore_view_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::RestoreViewExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_restore_view_expr(expr, context)
     }
-    
-    fn visit_reset_view_expr(&mut self, expr: &crate::template::pipeline::ir::expression::ResetViewExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_reset_view_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::ResetViewExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_reset_view_expr(expr, context)
     }
-    
-    fn visit_read_variable_expr(&mut self, expr: &crate::template::pipeline::ir::expression::ReadVariableExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_read_variable_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::ReadVariableExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_read_variable_expr(expr, context)
     }
-    
-    fn visit_pure_function_expr(&mut self, expr: &crate::template::pipeline::ir::expression::PureFunctionExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_pure_function_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::PureFunctionExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_pure_function_expr(expr, context)
     }
-    
-    fn visit_pure_function_parameter_expr(&mut self, expr: &crate::template::pipeline::ir::expression::PureFunctionParameterExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_pure_function_parameter_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::PureFunctionParameterExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_pure_function_parameter_expr(expr, context)
     }
-    
-    fn visit_pipe_binding_expr(&mut self, expr: &crate::template::pipeline::ir::expression::PipeBindingExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_pipe_binding_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::PipeBindingExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_pipe_binding_expr(expr, context)
     }
-    
-    fn visit_pipe_binding_variadic_expr(&mut self, expr: &crate::template::pipeline::ir::expression::PipeBindingVariadicExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_pipe_binding_variadic_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::PipeBindingVariadicExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_pipe_binding_variadic_expr(expr, context)
     }
-    
-    fn visit_safe_property_read_expr(&mut self, expr: &crate::template::pipeline::ir::expression::SafePropertyReadExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_safe_property_read_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::SafePropertyReadExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_safe_property_read_expr(expr, context)
     }
-    
-    fn visit_safe_keyed_read_expr(&mut self, expr: &crate::template::pipeline::ir::expression::SafeKeyedReadExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_safe_keyed_read_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::SafeKeyedReadExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_safe_keyed_read_expr(expr, context)
     }
-    
-    fn visit_safe_invoke_function_expr(&mut self, expr: &crate::template::pipeline::ir::expression::SafeInvokeFunctionExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_safe_invoke_function_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::SafeInvokeFunctionExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_safe_invoke_function_expr(expr, context)
     }
-    
-    fn visit_safe_ternary_expr(&mut self, expr: &crate::template::pipeline::ir::expression::SafeTernaryExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_safe_ternary_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::SafeTernaryExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_safe_ternary_expr(expr, context)
     }
-    
-    fn visit_empty_expr(&mut self, expr: &crate::template::pipeline::ir::expression::EmptyExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_empty_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::EmptyExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_empty_expr(expr, context)
     }
-    
-    fn visit_assign_temporary_expr(&mut self, expr: &crate::template::pipeline::ir::expression::AssignTemporaryExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_assign_temporary_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::AssignTemporaryExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_assign_temporary_expr(expr, context)
     }
-    
-    fn visit_read_temporary_expr(&mut self, expr: &crate::template::pipeline::ir::expression::ReadTemporaryExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_read_temporary_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::ReadTemporaryExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_read_temporary_expr(expr, context)
     }
-    
-    fn visit_slot_literal_expr(&mut self, expr: &crate::template::pipeline::ir::expression::SlotLiteralExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_slot_literal_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::SlotLiteralExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_slot_literal_expr(expr, context)
     }
-    
-    fn visit_conditional_case_expr(&mut self, expr: &crate::template::pipeline::ir::expression::ConditionalCaseExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_conditional_case_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::ConditionalCaseExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_conditional_case_expr(expr, context)
     }
-    
-    fn visit_const_collected_expr(&mut self, expr: &crate::template::pipeline::ir::expression::ConstCollectedExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_const_collected_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::ConstCollectedExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_const_collected_expr(expr, context)
     }
-    
-    fn visit_two_way_binding_set_expr(&mut self, expr: &crate::template::pipeline::ir::expression::TwoWayBindingSetExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_two_way_binding_set_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::TwoWayBindingSetExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_two_way_binding_set_expr(expr, context)
     }
-    
-    fn visit_context_let_reference_expr(&mut self, expr: &crate::template::pipeline::ir::expression::ContextLetReferenceExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_context_let_reference_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::ContextLetReferenceExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_context_let_reference_expr(expr, context)
     }
-    
-    fn visit_store_let_expr(&mut self, expr: &crate::template::pipeline::ir::expression::StoreLetExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_store_let_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::StoreLetExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_store_let_expr(expr, context)
     }
-    
-    fn visit_track_context_expr(&mut self, expr: &crate::template::pipeline::ir::expression::TrackContextExpr, context: &mut dyn Any) -> Box<dyn Any> {
+
+    fn visit_track_context_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::TrackContextExpr,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         self.base.visit_track_context_expr(expr, context)
     }
 }
 
 impl o::StatementVisitor for AbstractJsEmitterVisitor {
-    fn visit_declare_var_stmt(&mut self, stmt: &o::DeclareVarStmt, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_declare_var_stmt(
+        &mut self,
+        stmt: &o::DeclareVarStmt,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         // Use 'const' for Final modifier, otherwise 'var'
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
@@ -717,7 +934,11 @@ impl o::StatementVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_declare_function_stmt(&mut self, stmt: &o::DeclareFunctionStmt, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_declare_function_stmt(
+        &mut self,
+        stmt: &o::DeclareFunctionStmt,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             ctx.print(Some(stmt), "function ", false);
@@ -746,7 +967,11 @@ impl o::StatementVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_expression_stmt(&mut self, stmt: &o::ExpressionStatement, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_expression_stmt(
+        &mut self,
+        stmt: &o::ExpressionStatement,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         stmt.expr.visit_expression(self, context);
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
@@ -755,7 +980,11 @@ impl o::StatementVisitor for AbstractJsEmitterVisitor {
         Box::new(())
     }
 
-    fn visit_return_stmt(&mut self, stmt: &o::ReturnStatement, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_return_stmt(
+        &mut self,
+        stmt: &o::ReturnStatement,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             ctx.print(Some(stmt), "return ", false);
@@ -809,8 +1038,3 @@ impl Default for AbstractJsEmitterVisitor {
         Self::new()
     }
 }
-
-
-
-
-

@@ -4,7 +4,7 @@
 //! Contains utility functions for partial compilation
 
 use crate::output::output_ast::{
-    Expression, LiteralExpr, LiteralValue, LiteralArrayExpr, LiteralMapExpr, LiteralMapEntry,
+    Expression, LiteralArrayExpr, LiteralExpr, LiteralMapEntry, LiteralMapExpr, LiteralValue,
 };
 use crate::render3::r3_factory::R3DependencyMetadata;
 use crate::render3::view::util::DefinitionMap;

@@ -3,13 +3,13 @@
 //! Corresponds to packages/compiler/src/render3/r3_hmr_compiler.ts
 //! Contains Hot Module Replacement (HMR) compilation
 
-use crate::output::output_ast::{
-    Expression, Statement, ArrowFunctionExpr, ArrowFunctionBody, InvokeFunctionExpr, FnParam,
-    LiteralExpr, LiteralValue, LiteralArrayExpr, DynamicImportExpr, ReadPropExpr, ReadVarExpr,
-    DeclareVarStmt, DeclareFunctionStmt, ExternalExpr, ExternalReference, StmtModifier,
-    BinaryOperatorExpr, BinaryOperator, WritePropExpr,
-};
 use crate::output::output_ast::dynamic_type;
+use crate::output::output_ast::{
+    ArrowFunctionBody, ArrowFunctionExpr, BinaryOperator, BinaryOperatorExpr, DeclareFunctionStmt,
+    DeclareVarStmt, DynamicImportExpr, Expression, ExternalExpr, ExternalReference, FnParam,
+    InvokeFunctionExpr, LiteralArrayExpr, LiteralExpr, LiteralValue, ReadPropExpr, ReadVarExpr,
+    Statement, StmtModifier, WritePropExpr,
+};
 
 use super::r3_identifiers::Identifiers as R3;
 use super::util::dev_only_guarded_expression;
@@ -27,8 +27,21 @@ fn external_expr(reference: ExternalReference) -> Expression {
 fn encode_uri_component(s: &str) -> String {
     s.chars()
         .map(|c| match c {
-            'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '!' | '~' | '*' | '\'' | '(' | ')' => c.to_string(),
-            c => c.encode_utf8(&mut [0; 4]).bytes()
+            'A'..='Z'
+            | 'a'..='z'
+            | '0'..='9'
+            | '-'
+            | '_'
+            | '.'
+            | '!'
+            | '~'
+            | '*'
+            | '\''
+            | '('
+            | ')' => c.to_string(),
+            c => c
+                .encode_utf8(&mut [0; 4])
+                .bytes()
                 .map(|b| format!("%{:02X}", b))
                 .collect::<String>(),
         })
@@ -73,8 +86,9 @@ pub fn compile_hmr_initializer(meta: &R3HmrMetadata) -> Expression {
     let timestamp_name = "t";
     let id_name = "id";
     let import_callback_name = format!("{}_HmrLoad", meta.class_name);
-    
-    let namespaces: Vec<Expression> = meta.namespace_dependencies
+
+    let namespaces: Vec<Expression> = meta
+        .namespace_dependencies
         .iter()
         .map(|dep| {
             Expression::External(ExternalExpr {
@@ -102,7 +116,8 @@ pub fn compile_hmr_initializer(meta: &R3HmrMetadata) -> Expression {
     });
 
     // Build locals array
-    let locals_arr: Vec<Expression> = meta.local_dependencies
+    let locals_arr: Vec<Expression> = meta
+        .local_dependencies
         .iter()
         .map(|l| l.runtime_representation.clone())
         .collect();
@@ -110,7 +125,7 @@ pub fn compile_hmr_initializer(meta: &R3HmrMetadata) -> Expression {
     // ɵɵreplaceMetadata(Comp, m.default, [...namespaces], [...locals], import.meta, id)
     let replace_metadata_ref = R3::replace_metadata();
     let replace_metadata_expr = external_expr(replace_metadata_ref);
-    
+
     let replace_call = Expression::InvokeFn(InvokeFunctionExpr {
         fn_: Box::new(replace_metadata_expr),
         args: vec![
@@ -153,15 +168,13 @@ pub fn compile_hmr_initializer(meta: &R3HmrMetadata) -> Expression {
             name: module_name.to_string(),
             type_: None,
         }],
-        body: ArrowFunctionBody::Expression(Box::new(
-            Expression::BinaryOp(BinaryOperatorExpr {
-                operator: BinaryOperator::And,
-                lhs: Box::new(default_read.clone()),
-                rhs: Box::new(replace_call),
-                type_: None,
-                source_span: None,
-            })
-        )),
+        body: ArrowFunctionBody::Expression(Box::new(Expression::BinaryOp(BinaryOperatorExpr {
+            operator: BinaryOperator::And,
+            lhs: Box::new(default_read.clone()),
+            rhs: Box::new(replace_call),
+            type_: None,
+            source_span: None,
+        }))),
         type_: None,
         source_span: None,
     });
@@ -169,7 +182,7 @@ pub fn compile_hmr_initializer(meta: &R3HmrMetadata) -> Expression {
     // getReplaceMetadataURL(id, timestamp, import.meta.url)
     let get_replace_metadata_url_ref = R3::get_replace_metadata_url();
     let get_replace_metadata_url_expr = external_expr(get_replace_metadata_url_ref);
-    
+
     let _url_expr = Expression::InvokeFn(InvokeFunctionExpr {
         fn_: Box::new(get_replace_metadata_url_expr),
         args: vec![
@@ -213,7 +226,7 @@ pub fn compile_hmr_initializer(meta: &R3HmrMetadata) -> Expression {
         url: "/* @vite-ignore */ import(url)".to_string(), // This will need proper stringification of url_expr
         source_span: None,
     });
-    
+
     let import_then = Expression::InvokeFn(InvokeFunctionExpr {
         fn_: Box::new(Expression::ReadProp(ReadPropExpr {
             receiver: Box::new(dynamic_import),
@@ -272,31 +285,29 @@ pub fn compile_hmr_initializer(meta: &R3HmrMetadata) -> Expression {
         source_span: None,
         pure: false,
     });
-    
+
     let update_callback = Expression::ArrowFn(ArrowFunctionExpr {
         params: vec![FnParam {
             name: data_name.to_string(),
             type_: None,
         }],
-        body: ArrowFunctionBody::Expression(Box::new(
-            Expression::BinaryOp(BinaryOperatorExpr {
-                operator: BinaryOperator::And,
-                lhs: Box::new(Expression::BinaryOp(BinaryOperatorExpr {
-                    operator: BinaryOperator::Identical,
-                    lhs: Box::new(d_id),
-                    rhs: Box::new(Expression::ReadVar(ReadVarExpr {
-                        name: id_name.to_string(),
-                        type_: None,
-                        source_span: None,
-                    })),
+        body: ArrowFunctionBody::Expression(Box::new(Expression::BinaryOp(BinaryOperatorExpr {
+            operator: BinaryOperator::And,
+            lhs: Box::new(Expression::BinaryOp(BinaryOperatorExpr {
+                operator: BinaryOperator::Identical,
+                lhs: Box::new(d_id),
+                rhs: Box::new(Expression::ReadVar(ReadVarExpr {
+                    name: id_name.to_string(),
                     type_: None,
                     source_span: None,
                 })),
-                rhs: Box::new(hmr_load_call),
                 type_: None,
                 source_span: None,
-            })
-        )),
+            })),
+            rhs: Box::new(hmr_load_call),
+            type_: None,
+            source_span: None,
+        }))),
         type_: None,
         source_span: None,
     });
@@ -390,15 +401,14 @@ pub fn compile_hmr_initializer(meta: &R3HmrMetadata) -> Expression {
         // ngDevMode && Cmp_HmrLoad(Date.now())
         dev_only_guarded_expression(initial_call).to_stmt(),
         // ngDevMode && import.meta.hot && import.meta.hot.on(...)
-        dev_only_guarded_expression(
-            Expression::BinaryOp(BinaryOperatorExpr {
-                operator: BinaryOperator::And,
-                lhs: Box::new(hot_read),
-                rhs: Box::new(hot_listener),
-                type_: None,
-                source_span: None,
-            })
-        ).to_stmt(),
+        dev_only_guarded_expression(Expression::BinaryOp(BinaryOperatorExpr {
+            operator: BinaryOperator::And,
+            lhs: Box::new(hot_read),
+            rhs: Box::new(hot_listener),
+            type_: None,
+            source_span: None,
+        }))
+        .to_stmt(),
     ];
 
     let iife = Expression::ArrowFn(ArrowFunctionExpr {

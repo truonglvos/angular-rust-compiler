@@ -5,15 +5,20 @@
 
 use crate::output::output_ast::{Expression, Statement};
 use crate::template::pipeline::ir;
-use crate::template::pipeline::ir::enums::{OpKind, CompatibilityMode, VariableFlags, SemanticVariableKind};
-use crate::template::pipeline::ir::expression::{is_ir_expression, as_ir_expression, transform_expressions_in_op, visit_expressions_in_op, VisitorContextFlag};
+use crate::template::pipeline::ir::enums::{
+    CompatibilityMode, OpKind, SemanticVariableKind, VariableFlags,
+};
+use crate::template::pipeline::ir::expression::{
+    as_ir_expression, is_ir_expression, transform_expressions_in_op, visit_expressions_in_op,
+    VisitorContextFlag,
+};
 use crate::template::pipeline::ir::handle::XrefId;
-use crate::template::pipeline::ir::ops::shared::{VariableOp, create_statement_op};
 use crate::template::pipeline::ir::operations::OpList;
+use crate::template::pipeline::ir::ops::shared::{create_statement_op, VariableOp};
 use crate::template::pipeline::src::compilation::{CompilationJob, CompilationUnit};
-use std::collections::HashSet;
-use indexmap::IndexMap;
 use bitflags::bitflags;
+use indexmap::IndexMap;
+use std::collections::HashSet;
 
 bitflags! {
     /// A [fence](https://en.wikipedia.org/wiki/Memory_barrier) flag for an expression which indicates
@@ -75,25 +80,29 @@ struct OpInfo {
 /// which optimizations are safe to perform.
 pub fn optimize_variables(job: &mut dyn CompilationJob) {
     let compatibility = job.compatibility();
-    let component_job = job.as_any_mut().downcast_mut::<crate::template::pipeline::src::compilation::ComponentCompilationJob>().expect("Only ComponentCompilationJob is supported");
+    let component_job = job
+        .as_any_mut()
+        .downcast_mut::<crate::template::pipeline::src::compilation::ComponentCompilationJob>()
+        .expect("Only ComponentCompilationJob is supported");
 
     // Optimize the root unit
     optimize_unit(&mut component_job.root, compatibility);
-    
+
     // Optimize each unit
     for view in component_job.views.values_mut() {
         optimize_unit(view, compatibility);
     }
 }
 
-
 /// Helper to process handler ops in a create operation
 fn process_handler_ops_create<F>(op: &mut Box<dyn ir::CreateOp + Send + Sync>, mut f: F)
 where
     F: FnMut(&mut OpList<Box<dyn ir::UpdateOp + Send + Sync>>),
 {
-    use crate::template::pipeline::ir::ops::create::{ListenerOp, AnimationListenerOp, TwoWayListenerOp, RepeaterCreateOp};
-    
+    use crate::template::pipeline::ir::ops::create::{
+        AnimationListenerOp, ListenerOp, RepeaterCreateOp, TwoWayListenerOp,
+    };
+
     // Safe downcasting using as_any_mut()
     if let Some(listener) = op.as_any_mut().downcast_mut::<ListenerOp>() {
         f(&mut listener.handler_ops);
@@ -113,7 +122,7 @@ where
 fn collect_remote_usages_for_unit(unit: &dyn CompilationUnit) -> HashSet<XrefId> {
     let mut remote_usages = HashSet::new();
     let mut dummy_usages = IndexMap::new();
-    
+
     for op in unit.create().iter() {
         count_variable_usages(op.as_ref(), &mut dummy_usages, &mut remote_usages, false);
     }
@@ -126,7 +135,7 @@ fn collect_remote_usages_for_unit(unit: &dyn CompilationUnit) -> HashSet<XrefId>
 fn optimize_unit(unit: &mut dyn CompilationUnit, compatibility: CompatibilityMode) {
     inline_always_inline_variables_create(unit.create_mut());
     inline_always_inline_variables_update(unit.update_mut());
-    
+
     // Process handler ops (listeners)
     // First, always-inline in handlers
     for op in unit.create_mut().iter_mut() {
@@ -134,25 +143,39 @@ fn optimize_unit(unit: &mut dyn CompilationUnit, compatibility: CompatibilityMod
             inline_always_inline_variables_update(handler_ops);
         });
     }
-    
+
     // Collect ALL remote usages from the WHOLE unit (including all listeners)
     let remote_usages = collect_remote_usages_for_unit(unit);
 
     let unit_xref = unit.xref();
-    
+
     // Optimize main lists
-    optimize_variables_in_op_list_create(unit.create_mut(), compatibility, &remote_usages, unit_xref);
-    optimize_variables_in_op_list_update(unit.update_mut(), compatibility, &remote_usages, unit_xref);
-    
+    optimize_variables_in_op_list_create(
+        unit.create_mut(),
+        compatibility,
+        &remote_usages,
+        unit_xref,
+    );
+    optimize_variables_in_op_list_update(
+        unit.update_mut(),
+        compatibility,
+        &remote_usages,
+        unit_xref,
+    );
+
     // Optimize listeners
     let empty_remote = HashSet::new();
     for op in unit.create_mut().iter_mut() {
         process_handler_ops_create(op, |handler_ops| {
-            optimize_variables_in_op_list_update(handler_ops, compatibility, &empty_remote, unit_xref);
+            optimize_variables_in_op_list_update(
+                handler_ops,
+                compatibility,
+                &empty_remote,
+                unit_xref,
+            );
         });
     }
 }
-
 
 /// Inline variables marked with AlwaysInline flag for CreateOp list.
 fn inline_always_inline_variables_create(ops: &mut OpList<Box<dyn ir::CreateOp + Send + Sync>>) {
@@ -165,14 +188,19 @@ fn inline_always_inline_variables_update(ops: &mut OpList<Box<dyn ir::UpdateOp +
 }
 
 /// Implementation for CreateOp list
-fn inline_always_inline_variables_impl_create(ops: &mut OpList<Box<dyn ir::CreateOp + Send + Sync>>) {
+fn inline_always_inline_variables_impl_create(
+    ops: &mut OpList<Box<dyn ir::CreateOp + Send + Sync>>,
+) {
     let mut vars: IndexMap<XrefId, usize> = IndexMap::new(); // xref -> index
-    
+
     // First pass: collect AlwaysInline variables
     for (index, op) in ops.iter_mut().enumerate() {
         if op.kind() == OpKind::Variable {
             // Safe downcast and extract info to avoid borrow conflict
-            let info = if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
+            let info = if let Some(var_op) = op
+                .as_any()
+                .downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>()
+            {
                 Some((var_op.xref, var_op.flags))
             } else {
                 None
@@ -180,36 +208,36 @@ fn inline_always_inline_variables_impl_create(ops: &mut OpList<Box<dyn ir::Creat
 
             if let Some((xref, flags)) = info {
                 if flags.contains(VariableFlags::ALWAYS_INLINE) {
-                     // Check context sensitivity
-                     visit_expressions_in_op(
-                        op.as_mut(),
-                        &mut |expr: &Expression, _flags| {
-                            if is_ir_expression(expr) {
-                                if let Some(ir_expr) = as_ir_expression(expr) {
-                                    if fences_for_ir_expression(&ir_expr) != Fence::NONE {
-                                        panic!("AssertionError: A context-sensitive variable was marked AlwaysInline");
-                                    }
+                    // Check context sensitivity
+                    visit_expressions_in_op(op.as_mut(), &mut |expr: &Expression, _flags| {
+                        if is_ir_expression(expr) {
+                            if let Some(ir_expr) = as_ir_expression(expr) {
+                                if fences_for_ir_expression(&ir_expr) != Fence::NONE {
+                                    panic!("AssertionError: A context-sensitive variable was marked AlwaysInline");
                                 }
                             }
-                        },
-                    );
+                        }
+                    });
                     vars.insert(xref, index);
                 }
             }
         }
     }
-    
+
     // Collect initializers
     let mut initializers: IndexMap<XrefId, Expression> = IndexMap::new();
     // We can't iterate ops again while modifying or borrowing.
     // Iterating ops is fine if we just read.
     for index in vars.values() {
         let op = ops.get(*index).unwrap();
-        if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
+        if let Some(var_op) = op
+            .as_any()
+            .downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>()
+        {
             initializers.insert(var_op.xref, (*var_op.initializer).clone());
         }
     }
-    
+
     // Second pass: inline the variables
     for op in ops.iter_mut() {
         transform_expressions_in_op(
@@ -229,59 +257,64 @@ fn inline_always_inline_variables_impl_create(ops: &mut OpList<Box<dyn ir::Creat
             VisitorContextFlag::NONE,
         );
     }
-    
+
     // Third pass: remove the AlwaysInline variable declarations
     let mut indices_to_remove: Vec<usize> = vars.values().copied().collect();
     indices_to_remove.sort();
     indices_to_remove.reverse();
-    
+
     for &index in &indices_to_remove {
         ops.remove_at(index);
     }
 }
 
 /// Implementation for UpdateOp list
-fn inline_always_inline_variables_impl_update(ops: &mut OpList<Box<dyn ir::UpdateOp + Send + Sync>>) {
-    let mut vars: IndexMap<XrefId, usize> = IndexMap::new(); 
-    
+fn inline_always_inline_variables_impl_update(
+    ops: &mut OpList<Box<dyn ir::UpdateOp + Send + Sync>>,
+) {
+    let mut vars: IndexMap<XrefId, usize> = IndexMap::new();
+
     // First pass: collect AlwaysInline variables
     for (index, op) in ops.iter_mut().enumerate() {
         if op.kind() == OpKind::Variable {
-            let info = if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
+            let info = if let Some(var_op) = op
+                .as_any()
+                .downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>()
+            {
                 Some((var_op.xref, var_op.flags))
             } else {
                 None
             };
-            
+
             if let Some((xref, flags)) = info {
                 if flags.contains(VariableFlags::ALWAYS_INLINE) {
-                     visit_expressions_in_op(
-                        op.as_mut(),
-                        &mut |expr: &Expression, _flags| {
-                            if is_ir_expression(expr) {
-                                if let Some(ir_expr) = as_ir_expression(expr) {
-                                    if fences_for_ir_expression(&ir_expr) != Fence::NONE {
-                                        panic!("AssertionError: A context-sensitive variable was marked AlwaysInline");
-                                    }
+                    visit_expressions_in_op(op.as_mut(), &mut |expr: &Expression, _flags| {
+                        if is_ir_expression(expr) {
+                            if let Some(ir_expr) = as_ir_expression(expr) {
+                                if fences_for_ir_expression(&ir_expr) != Fence::NONE {
+                                    panic!("AssertionError: A context-sensitive variable was marked AlwaysInline");
                                 }
                             }
-                        },
-                    );
+                        }
+                    });
                     vars.insert(xref, index);
                 }
             }
         }
     }
-    
+
     // Collect initializers
     let mut initializers: IndexMap<XrefId, Expression> = IndexMap::new();
     for index in vars.values() {
         let op = ops.get(*index).unwrap();
-        if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
+        if let Some(var_op) = op
+            .as_any()
+            .downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>()
+        {
             initializers.insert(var_op.xref, (*var_op.initializer).clone());
         }
     }
-    
+
     // Second pass: inline the variables
     for op in ops.iter_mut() {
         transform_expressions_in_op(
@@ -301,12 +334,12 @@ fn inline_always_inline_variables_impl_update(ops: &mut OpList<Box<dyn ir::Updat
             VisitorContextFlag::NONE,
         );
     }
-    
+
     // Third pass: remove the AlwaysInline variable declarations
     let mut indices_to_remove: Vec<usize> = vars.values().copied().collect();
     indices_to_remove.sort();
     indices_to_remove.reverse();
-    
+
     for &index in &indices_to_remove {
         ops.remove_at(index);
     }
@@ -339,29 +372,36 @@ fn optimize_variables_in_op_list_impl_create(
     extra_remote_usages: &HashSet<XrefId>,
     _unit_xref: ir::XrefId,
 ) {
-     loop {
+    loop {
         let mut did_change = false;
 
-        let mut var_decls: IndexMap<XrefId, usize> = IndexMap::new(); 
-        let mut var_usages: IndexMap<XrefId, usize> = IndexMap::new(); 
+        let mut var_decls: IndexMap<XrefId, usize> = IndexMap::new();
+        let mut var_usages: IndexMap<XrefId, usize> = IndexMap::new();
         let mut var_remote_usages: HashSet<XrefId> = extra_remote_usages.clone();
-        let mut op_map: IndexMap<usize, OpInfo> = IndexMap::new(); 
-        
+        let mut op_map: IndexMap<usize, OpInfo> = IndexMap::new();
+
         // First pass
         for (index, op) in ops.iter().enumerate() {
             if op.kind() == OpKind::Variable {
-                if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
-                    if var_decls.contains_key(&var_op.xref) || var_usages.contains_key(&var_op.xref) {
-                        panic!("Should not see two declarations of the same variable: {}", var_op.xref.as_usize());
+                if let Some(var_op) = op
+                    .as_any()
+                    .downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>()
+                {
+                    if var_decls.contains_key(&var_op.xref) || var_usages.contains_key(&var_op.xref)
+                    {
+                        panic!(
+                            "Should not see two declarations of the same variable: {}",
+                            var_op.xref.as_usize()
+                        );
                     }
                     var_decls.insert(var_op.xref, index);
                     var_usages.insert(var_op.xref, 0);
                 }
             }
-            
+
             op_map.insert(index, collect_op_info(op.as_ref()));
             count_variable_usages(op.as_ref(), &mut var_usages, &mut var_remote_usages, false);
-    
+
             // Count usages in child ops (handlers)
             if let Some(listener) = op.as_any().downcast_ref::<crate::template::pipeline::ir::ops::create::ListenerOp>() {
                  for handler_op in &listener.handler_ops {
@@ -383,19 +423,22 @@ fn optimize_variables_in_op_list_impl_create(
                  }
             }
         }
-        
+
         // Second pass
         let mut context_is_used = false;
         let mut indices_to_remove: Vec<usize> = Vec::new();
-        let mut indices_to_replace: Vec<(usize, Statement)> = Vec::new(); 
-        
+        let mut indices_to_replace: Vec<(usize, Statement)> = Vec::new();
+
         for index in (0..ops.len()).rev() {
             let op = ops.get(index).unwrap();
-            
+
             if op.kind() == OpKind::Variable {
-                if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
+                if let Some(var_op) = op
+                    .as_any()
+                    .downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>()
+                {
                     let usage_count = var_usages.get(&var_op.xref).copied().unwrap_or(0);
-                    
+
                     if usage_count == 0 && !var_remote_usages.contains(&var_op.xref) {
                         let op_info = op_map.get(&index).unwrap();
                         if (context_is_used && op_info.fences.contains(Fence::VIEW_CONTEXT_WRITE))
@@ -408,7 +451,7 @@ fn optimize_variables_in_op_list_impl_create(
                             uncount_variable_usages(op.as_ref(), &mut var_usages);
                             op_map.swap_remove(&index);
                         }
-                        
+
                         var_decls.shift_remove(&var_op.xref);
                         var_usages.shift_remove(&var_op.xref);
                         // Optimization occurred, so continue loop
@@ -417,22 +460,23 @@ fn optimize_variables_in_op_list_impl_create(
                     }
                 }
             }
-            
+
             if let Some(op_info) = op_map.get(&index) {
                 if op_info.fences.contains(Fence::VIEW_CONTEXT_READ) {
                     context_is_used = true;
                 }
             }
         }
-        
+
         for (index, stmt) in indices_to_replace {
-            let stmt_op = create_statement_op::<Box<dyn ir::CreateOp + Send + Sync>>(Box::new(stmt));
+            let stmt_op =
+                create_statement_op::<Box<dyn ir::CreateOp + Send + Sync>>(Box::new(stmt));
             let op_info = op_map.shift_remove(&index).unwrap();
             ops.replace_at(index, Box::new(stmt_op));
             op_map.insert(index, op_info);
             did_change = true;
         }
-        
+
         for &index in indices_to_remove.iter() {
             ops.remove_at(index);
             let mut new_op_map = IndexMap::new();
@@ -445,60 +489,77 @@ fn optimize_variables_in_op_list_impl_create(
             }
             op_map = new_op_map;
         }
-        
+
         // Third pass
         let mut to_inline: Vec<XrefId> = Vec::new();
         for (xref, &count) in &var_usages {
             let &decl_index = var_decls.get(xref).unwrap();
             let decl_op = ops.get(decl_index).unwrap();
-            
-            if let Some(var_op) = decl_op.as_any().downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
-                 let is_always_inline = var_op.flags.contains(VariableFlags::ALWAYS_INLINE);
-                 if count != 1 || is_always_inline { continue; }
-                 if var_remote_usages.contains(xref) { continue; }
-                 to_inline.push(*xref);
+
+            if let Some(var_op) = decl_op
+                .as_any()
+                .downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>()
+            {
+                let is_always_inline = var_op.flags.contains(VariableFlags::ALWAYS_INLINE);
+                if count != 1 || is_always_inline {
+                    continue;
+                }
+                if var_remote_usages.contains(xref) {
+                    continue;
+                }
+                to_inline.push(*xref);
             }
         }
-        
+
         while let Some(candidate) = to_inline.pop() {
             let decl_index = *var_decls.get(&candidate).unwrap();
             let decl_op = ops.get(decl_index).unwrap();
-            
+
             let (initializer, is_always_inline, var_kind) = {
-                 let op = ops.get(decl_index).unwrap();
-                 if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
-                     ((*var_op.initializer).clone(), var_op.flags.contains(VariableFlags::ALWAYS_INLINE), var_op.variable.kind())
-                 } else {
-                     panic!("Expected VariableOp");
-                 }
+                let op = ops.get(decl_index).unwrap();
+                if let Some(var_op) = op
+                    .as_any()
+                    .downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>()
+                {
+                    (
+                        (*var_op.initializer).clone(),
+                        var_op.flags.contains(VariableFlags::ALWAYS_INLINE),
+                        var_op.variable.kind(),
+                    )
+                } else {
+                    panic!("Expected VariableOp");
+                }
             };
-            
+
             if is_always_inline {
-                 panic!("AssertionError: Found an 'AlwaysInline' variable after the always inlining pass.");
+                panic!("AssertionError: Found an 'AlwaysInline' variable after the always inlining pass.");
             }
-            
+
             let var_info = op_map.get(&decl_index).unwrap().clone();
-            
+
             for target_index in (decl_index + 1)..ops.len() {
-                 let target_info_ref = op_map.get(&target_index).unwrap();
-                 if target_info_ref.variables_used.contains(&candidate) {
-                     let mut allowed = true;
-                     if compatibility == CompatibilityMode::TemplateDefinitionBuilder {
-                          let target_op = ops.get(target_index).unwrap(); 
-                          if !allow_conservative_inlining(&initializer, target_op.as_ref(), var_kind) {
-                              allowed = false;
-                          }
-                     }
-                     if !allowed { break; }
-                     
-                     let target_op_mut = ops.get_mut(target_index).unwrap(); 
-                     if try_inline_variable_initializer(
-                         candidate,
-                         initializer.clone(),
-                         target_op_mut.as_mut(),
-                         var_info.fences.clone(),
-                     ) {
-                         let mut new_target_info = OpInfo {
+                let target_info_ref = op_map.get(&target_index).unwrap();
+                if target_info_ref.variables_used.contains(&candidate) {
+                    let mut allowed = true;
+                    if compatibility == CompatibilityMode::TemplateDefinitionBuilder {
+                        let target_op = ops.get(target_index).unwrap();
+                        if !allow_conservative_inlining(&initializer, target_op.as_ref(), var_kind)
+                        {
+                            allowed = false;
+                        }
+                    }
+                    if !allowed {
+                        break;
+                    }
+
+                    let target_op_mut = ops.get_mut(target_index).unwrap();
+                    if try_inline_variable_initializer(
+                        candidate,
+                        initializer.clone(),
+                        target_op_mut.as_mut(),
+                        var_info.fences.clone(),
+                    ) {
+                        let mut new_target_info = OpInfo {
                             variables_used: target_info_ref.variables_used.clone(),
                             fences: target_info_ref.fences,
                         };
@@ -508,13 +569,13 @@ fn optimize_variables_in_op_list_impl_create(
                         }
                         new_target_info.fences |= var_info.fences.clone();
                         op_map.insert(target_index, new_target_info);
-                        
+
                         var_decls.swap_remove(&candidate);
                         var_usages.swap_remove(&candidate);
-                        
+
                         op_map.shift_remove(&decl_index);
                         ops.remove_at(decl_index);
-                        
+
                         let mut new_op_map = IndexMap::new();
                         for (old_idx, info) in op_map {
                             if old_idx > decl_index {
@@ -524,30 +585,30 @@ fn optimize_variables_in_op_list_impl_create(
                             }
                         }
                         op_map = new_op_map;
-                        
+
                         for index_ref in var_decls.values_mut() {
                             if *index_ref > decl_index {
                                 *index_ref -= 1;
                             }
                         }
-    
+
                         did_change = true;
                         break;
-                     } else {
-                         break;
-                     }
-                 }
-                 
-                 if !safe_to_inline_past_fences(target_info_ref.fences, var_info.fences) {
-                     break;
-                 }
+                    } else {
+                        break;
+                    }
+                }
+
+                if !safe_to_inline_past_fences(target_info_ref.fences, var_info.fences) {
+                    break;
+                }
             }
         }
-        
+
         if !did_change {
             break;
         }
-     }
+    }
 }
 
 /// Implementation for UpdateOp list (Safe duplication)
@@ -560,44 +621,55 @@ fn optimize_variables_in_op_list_impl_update(
     loop {
         let mut did_change = false;
 
-        let mut var_decls: IndexMap<XrefId, usize> = IndexMap::new(); 
-        let mut var_usages: IndexMap<XrefId, usize> = IndexMap::new(); 
+        let mut var_decls: IndexMap<XrefId, usize> = IndexMap::new();
+        let mut var_usages: IndexMap<XrefId, usize> = IndexMap::new();
         let mut var_remote_usages: HashSet<XrefId> = extra_remote_usages.clone();
-        let mut op_map: IndexMap<usize, OpInfo> = IndexMap::new(); 
-        
+        let mut op_map: IndexMap<usize, OpInfo> = IndexMap::new();
+
         // First pass
         for (index, op) in ops.iter().enumerate() {
             if op.kind() == OpKind::Variable {
-                if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
-                    if var_decls.contains_key(&var_op.xref) || var_usages.contains_key(&var_op.xref) {
-                        panic!("Should not see two declarations of the same variable: {}", var_op.xref.as_usize());
+                if let Some(var_op) = op
+                    .as_any()
+                    .downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>()
+                {
+                    if var_decls.contains_key(&var_op.xref) || var_usages.contains_key(&var_op.xref)
+                    {
+                        panic!(
+                            "Should not see two declarations of the same variable: {}",
+                            var_op.xref.as_usize()
+                        );
                     }
                     var_decls.insert(var_op.xref, index);
                     var_usages.insert(var_op.xref, 0);
                 }
             }
-            
+
             op_map.insert(index, collect_op_info(op.as_ref()));
             count_variable_usages(op.as_ref(), &mut var_usages, &mut var_remote_usages, false);
         }
-        
+
         // Second pass
         let mut context_is_used = false;
         let mut indices_to_remove: Vec<usize> = Vec::new();
-        let mut indices_to_replace: Vec<(usize, Statement)> = Vec::new(); 
-        
+        let mut indices_to_replace: Vec<(usize, Statement)> = Vec::new();
+
         for index in (0..ops.len()).rev() {
             let op = ops.get(index).unwrap();
-            
+
             if op.kind() == OpKind::Variable {
-                if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
+                if let Some(var_op) = op
+                    .as_any()
+                    .downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>()
+                {
                     let usage_count = var_usages.get(&var_op.xref).copied().unwrap_or(0);
 
                     if usage_count == 0 && !var_remote_usages.contains(&var_op.xref) {
                         let op_info = op_map.get(&index).unwrap();
-                        let keep_for_side_effects = (context_is_used && op_info.fences.contains(Fence::VIEW_CONTEXT_WRITE))
+                        let keep_for_side_effects = (context_is_used
+                            && op_info.fences.contains(Fence::VIEW_CONTEXT_WRITE))
                             || op_info.fences.contains(Fence::SIDE_EFFECTFUL);
-    
+
                         if keep_for_side_effects {
                             let stmt = (*var_op.initializer).clone().to_stmt();
                             indices_to_replace.push((index, stmt));
@@ -606,8 +678,8 @@ fn optimize_variables_in_op_list_impl_update(
                             uncount_variable_usages(op.as_ref(), &mut var_usages);
                             op_map.swap_remove(&index);
                         }
-                       
-                        var_decls.shift_remove(&var_op.xref); 
+
+                        var_decls.shift_remove(&var_op.xref);
                         var_usages.shift_remove(&var_op.xref);
 
                         did_change = true;
@@ -615,22 +687,23 @@ fn optimize_variables_in_op_list_impl_update(
                     }
                 }
             }
-            
+
             if let Some(op_info) = op_map.get(&index) {
                 if op_info.fences.contains(Fence::VIEW_CONTEXT_READ) {
                     context_is_used = true;
                 }
             }
         }
-        
+
         for (index, stmt) in indices_to_replace {
-            let stmt_op = create_statement_op::<Box<dyn ir::UpdateOp + Send + Sync>>(Box::new(stmt));
+            let stmt_op =
+                create_statement_op::<Box<dyn ir::UpdateOp + Send + Sync>>(Box::new(stmt));
             let op_info = op_map.shift_remove(&index).unwrap();
             ops.replace_at(index, Box::new(stmt_op));
             op_map.insert(index, op_info);
             did_change = true;
         }
-        
+
         for &index in indices_to_remove.iter() {
             // Update var_decls indices because ops removal shifts indices
             for decl_idx in var_decls.values_mut() {
@@ -649,53 +722,70 @@ fn optimize_variables_in_op_list_impl_update(
             }
             op_map = new_op_map;
         }
-        
+
         // Third pass
         let mut to_inline: Vec<XrefId> = Vec::new();
         // Explicitly iterate in insertion order because vars_usages is now an IndexMap
         for (xref, &count) in &var_usages {
             let &decl_index = var_decls.get(xref).unwrap();
             let decl_op = ops.get(decl_index).unwrap();
-            
-            if let Some(var_op) = decl_op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
-                 let is_always_inline = var_op.flags.contains(VariableFlags::ALWAYS_INLINE);
-                 if count != 1 || is_always_inline { continue; }
-                 if var_remote_usages.contains(xref) { continue; }
-                 to_inline.push(*xref);
+
+            if let Some(var_op) = decl_op
+                .as_any()
+                .downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>()
+            {
+                let is_always_inline = var_op.flags.contains(VariableFlags::ALWAYS_INLINE);
+                if count != 1 || is_always_inline {
+                    continue;
+                }
+                if var_remote_usages.contains(xref) {
+                    continue;
+                }
+                to_inline.push(*xref);
             }
         }
-        
+
         while let Some(candidate) = to_inline.pop() {
             let decl_index = *var_decls.get(&candidate).unwrap();
-            
+
             let (initializer, is_always_inline, var_kind) = {
-                 let op = ops.get(decl_index).unwrap();
-                 if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
-                     ((*var_op.initializer).clone(), var_op.flags.contains(VariableFlags::ALWAYS_INLINE), var_op.variable.kind())
-                 } else {
-                     panic!("Expected VariableOp");
-                 }
+                let op = ops.get(decl_index).unwrap();
+                if let Some(var_op) = op
+                    .as_any()
+                    .downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>()
+                {
+                    (
+                        (*var_op.initializer).clone(),
+                        var_op.flags.contains(VariableFlags::ALWAYS_INLINE),
+                        var_op.variable.kind(),
+                    )
+                } else {
+                    panic!("Expected VariableOp");
+                }
             };
-            
+
             if is_always_inline {
-                 panic!("AssertionError: Found an 'AlwaysInline' variable after the always inlining pass.");
+                panic!("AssertionError: Found an 'AlwaysInline' variable after the always inlining pass.");
             }
-            
+
             let var_info = op_map.get(&decl_index).unwrap().clone();
-            
+
             for target_index in (decl_index + 1)..ops.len() {
                 let target_info_ref = op_map.get(&target_index).unwrap();
                 if target_info_ref.variables_used.contains(&candidate) {
                     let mut allowed = true;
                     if compatibility == CompatibilityMode::TemplateDefinitionBuilder {
-                        let target_op = ops.get(target_index).unwrap(); 
-                        if !allow_conservative_inlining(&initializer, target_op.as_ref(), var_kind) {
+                        let target_op = ops.get(target_index).unwrap();
+                        if !allow_conservative_inlining(&initializer, target_op.as_ref(), var_kind)
+                        {
                             allowed = false;
                         }
                     }
-                    if !allowed { break; }
-                     
-                    let target_op_mut = ops.get_mut(target_index).unwrap(); 
+                    if !allowed {
+                        break;
+                    }
+
+                    let target_op_mut = ops.get_mut(target_index).unwrap();
                     if try_inline_variable_initializer(
                         candidate,
                         initializer.clone(),
@@ -712,13 +802,13 @@ fn optimize_variables_in_op_list_impl_update(
                         }
                         new_target_info.fences |= var_info.fences.clone();
                         op_map.insert(target_index, new_target_info);
-                        
-                        var_decls.shift_remove(&candidate); 
+
+                        var_decls.shift_remove(&candidate);
                         var_usages.shift_remove(&candidate);
-                        
+
                         op_map.shift_remove(&decl_index);
                         ops.remove_at(decl_index);
-                        
+
                         let mut new_op_map = IndexMap::new();
                         for (old_idx, info) in op_map {
                             if old_idx > decl_index {
@@ -728,26 +818,26 @@ fn optimize_variables_in_op_list_impl_update(
                             }
                         }
                         op_map = new_op_map;
-                        
+
                         for index_ref in var_decls.values_mut() {
                             if *index_ref > decl_index {
                                 *index_ref -= 1;
                             }
                         }
-                        
+
                         did_change = true;
                         break;
                     } else {
                         break;
                     }
                 }
-                  
+
                 if !safe_to_inline_past_fences(target_info_ref.fences, var_info.fences) {
                     break;
                 }
             }
         }
-        
+
         if !did_change {
             break;
         }
@@ -761,31 +851,43 @@ fn visit_expressions_in_op_readonly(
     visitor: &mut dyn FnMut(&Expression, VisitorContextFlag),
     flags: VisitorContextFlag,
 ) {
-    use crate::template::pipeline::ir::ops::update::*;
-    use crate::template::pipeline::ir::ops::shared::*;
     use crate::template::pipeline::ir::ops::create::*;
-    
+    use crate::template::pipeline::ir::ops::shared::*;
+    use crate::template::pipeline::ir::ops::update::*;
+
     // helper to visit binding ops
-    let visit_binding_op = |binding: &BindingOp, visitor: &mut dyn FnMut(&Expression, VisitorContextFlag), flags| {
-        match &binding.expression {
-            BindingExpression::Expression(expr) => visit_expressions_recursive(expr, visitor, flags),
-            BindingExpression::Interpolation(interp) => {
-                for expr in &interp.expressions {
-                    visit_expressions_recursive(expr, visitor, flags);
+    let visit_binding_op =
+        |binding: &BindingOp, visitor: &mut dyn FnMut(&Expression, VisitorContextFlag), flags| {
+            match &binding.expression {
+                BindingExpression::Expression(expr) => {
+                    visit_expressions_recursive(expr, visitor, flags)
+                }
+                BindingExpression::Interpolation(interp) => {
+                    for expr in &interp.expressions {
+                        visit_expressions_recursive(expr, visitor, flags);
+                    }
                 }
             }
-        }
-    };
+        };
 
     match op.kind() {
         OpKind::Variable => {
-            if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
+            if let Some(var_op) = op
+                .as_any()
+                .downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>()
+            {
                 visit_expressions_recursive(&var_op.initializer, visitor, flags);
-            } else if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
+            } else if let Some(var_op) = op
+                .as_any()
+                .downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>()
+            {
                 visit_expressions_recursive(&var_op.initializer, visitor, flags);
-            } else if let Some(var_op) = op.as_any().downcast_ref::<VariableOp<Box<dyn ir::Op + Send + Sync>>>() {
+            } else if let Some(var_op) = op
+                .as_any()
+                .downcast_ref::<VariableOp<Box<dyn ir::Op + Send + Sync>>>()
+            {
                 // Fallback for when we don't know the exact type but it matches Op
-                 visit_expressions_recursive(&var_op.initializer, visitor, flags);
+                visit_expressions_recursive(&var_op.initializer, visitor, flags);
             }
         }
         OpKind::Binding => {
@@ -796,182 +898,265 @@ fn visit_expressions_in_op_readonly(
         OpKind::Property => {
             if let Some(prop) = op.as_any().downcast_ref::<PropertyOp>() {
                 match &prop.expression {
-                    BindingExpression::Expression(expr) => visit_expressions_recursive(expr, visitor, flags),
+                    BindingExpression::Expression(expr) => {
+                        visit_expressions_recursive(expr, visitor, flags)
+                    }
                     BindingExpression::Interpolation(interp) => {
-                         for e in &interp.expressions { visit_expressions_recursive(e, visitor, flags); }
+                        for e in &interp.expressions {
+                            visit_expressions_recursive(e, visitor, flags);
+                        }
                     }
                 }
-                if let Some(ref s) = prop.sanitizer { visit_expressions_recursive(s, visitor, flags); }
+                if let Some(ref s) = prop.sanitizer {
+                    visit_expressions_recursive(s, visitor, flags);
+                }
             }
         }
         OpKind::DomProperty => {
-             if let Some(p) = op.as_any().downcast_ref::<crate::template::pipeline::ir::ops::host::DomPropertyOp>() {
-                 match &p.expression {
-                    BindingExpression::Expression(expr) => visit_expressions_recursive(expr, visitor, flags),
+            if let Some(p) = op
+                .as_any()
+                .downcast_ref::<crate::template::pipeline::ir::ops::host::DomPropertyOp>()
+            {
+                match &p.expression {
+                    BindingExpression::Expression(expr) => {
+                        visit_expressions_recursive(expr, visitor, flags)
+                    }
                     BindingExpression::Interpolation(interp) => {
-                         for e in &interp.expressions { visit_expressions_recursive(e, visitor, flags); }
+                        for e in &interp.expressions {
+                            visit_expressions_recursive(e, visitor, flags);
+                        }
                     }
                 }
-                if let Some(ref s) = p.sanitizer { visit_expressions_recursive(s, visitor, flags); }
-             }
+                if let Some(ref s) = p.sanitizer {
+                    visit_expressions_recursive(s, visitor, flags);
+                }
+            }
         }
         OpKind::Statement => {
             use crate::template::pipeline::ir::ops::StatementOp;
             // StatementOp is usually UpdateOp
-            if let Some(stmt_op) = op.as_any().downcast_ref::<StatementOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
-                 visit_expressions_in_statement(&stmt_op.statement, visitor, flags);
+            if let Some(stmt_op) = op
+                .as_any()
+                .downcast_ref::<StatementOp<Box<dyn ir::UpdateOp + Send + Sync>>>()
+            {
+                visit_expressions_in_statement(&stmt_op.statement, visitor, flags);
             } else {
-                 // Try CreateOp?
-                 if let Some(stmt_op) = op.as_any().downcast_ref::<StatementOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
-                     visit_expressions_in_statement(&stmt_op.statement, visitor, flags);
-                 }
+                // Try CreateOp?
+                if let Some(stmt_op) = op
+                    .as_any()
+                    .downcast_ref::<StatementOp<Box<dyn ir::CreateOp + Send + Sync>>>()
+                {
+                    visit_expressions_in_statement(&stmt_op.statement, visitor, flags);
+                }
             }
         }
         OpKind::Attribute => {
             if let Some(attr) = op.as_any().downcast_ref::<AttributeOp>() {
-                 match &attr.expression {
-                    BindingExpression::Expression(expr) => visit_expressions_recursive(expr, visitor, flags),
+                match &attr.expression {
+                    BindingExpression::Expression(expr) => {
+                        visit_expressions_recursive(expr, visitor, flags)
+                    }
                     BindingExpression::Interpolation(interp) => {
-                         for e in &interp.expressions { visit_expressions_recursive(e, visitor, flags); }
+                        for e in &interp.expressions {
+                            visit_expressions_recursive(e, visitor, flags);
+                        }
                     }
                 }
-                if let Some(ref s) = attr.sanitizer { visit_expressions_recursive(s, visitor, flags); }
+                if let Some(ref s) = attr.sanitizer {
+                    visit_expressions_recursive(s, visitor, flags);
+                }
             }
         }
         OpKind::Control => {
-             if let Some(c) = op.as_any().downcast_ref::<ControlOp>() {
-                 match &c.expression {
-                    BindingExpression::Expression(expr) => visit_expressions_recursive(expr, visitor, flags),
+            if let Some(c) = op.as_any().downcast_ref::<ControlOp>() {
+                match &c.expression {
+                    BindingExpression::Expression(expr) => {
+                        visit_expressions_recursive(expr, visitor, flags)
+                    }
                     BindingExpression::Interpolation(interp) => {
-                         for e in &interp.expressions { visit_expressions_recursive(e, visitor, flags); }
+                        for e in &interp.expressions {
+                            visit_expressions_recursive(e, visitor, flags);
+                        }
                     }
                 }
-                if let Some(ref s) = c.sanitizer { visit_expressions_recursive(s, visitor, flags); }
-             }
+                if let Some(ref s) = c.sanitizer {
+                    visit_expressions_recursive(s, visitor, flags);
+                }
+            }
         }
         OpKind::StyleProp => {
             if let Some(p) = op.as_any().downcast_ref::<StylePropOp>() {
-                 match &p.expression {
-                    BindingExpression::Expression(expr) => visit_expressions_recursive(expr, visitor, flags),
+                match &p.expression {
+                    BindingExpression::Expression(expr) => {
+                        visit_expressions_recursive(expr, visitor, flags)
+                    }
                     BindingExpression::Interpolation(interp) => {
-                         for e in &interp.expressions { visit_expressions_recursive(e, visitor, flags); }
+                        for e in &interp.expressions {
+                            visit_expressions_recursive(e, visitor, flags);
+                        }
                     }
                 }
             }
         }
         OpKind::ClassProp => {
-             if let Some(p) = op.as_any().downcast_ref::<ClassPropOp>() {
-                 visit_expressions_recursive(&p.expression, visitor, flags);
-             }
+            if let Some(p) = op.as_any().downcast_ref::<ClassPropOp>() {
+                visit_expressions_recursive(&p.expression, visitor, flags);
+            }
         }
         OpKind::StyleMap => {
-             if let Some(p) = op.as_any().downcast_ref::<StyleMapOp>() {
-                 match &p.expression {
-                    BindingExpression::Expression(expr) => visit_expressions_recursive(expr, visitor, flags),
+            if let Some(p) = op.as_any().downcast_ref::<StyleMapOp>() {
+                match &p.expression {
+                    BindingExpression::Expression(expr) => {
+                        visit_expressions_recursive(expr, visitor, flags)
+                    }
                     BindingExpression::Interpolation(interp) => {
-                         for e in &interp.expressions { visit_expressions_recursive(e, visitor, flags); }
+                        for e in &interp.expressions {
+                            visit_expressions_recursive(e, visitor, flags);
+                        }
                     }
                 }
-             }
+            }
         }
         OpKind::ClassMap => {
-             if let Some(p) = op.as_any().downcast_ref::<ClassMapOp>() {
-                 match &p.expression {
-                    BindingExpression::Expression(expr) => visit_expressions_recursive(expr, visitor, flags),
+            if let Some(p) = op.as_any().downcast_ref::<ClassMapOp>() {
+                match &p.expression {
+                    BindingExpression::Expression(expr) => {
+                        visit_expressions_recursive(expr, visitor, flags)
+                    }
                     BindingExpression::Interpolation(interp) => {
-                         for e in &interp.expressions { visit_expressions_recursive(e, visitor, flags); }
+                        for e in &interp.expressions {
+                            visit_expressions_recursive(e, visitor, flags);
+                        }
                     }
                 }
-             }
+            }
         }
         OpKind::InterpolateText => {
             if let Some(i) = op.as_any().downcast_ref::<InterpolateTextOp>() {
-                 for e in &i.interpolation.expressions { visit_expressions_recursive(e, visitor, flags); }
+                for e in &i.interpolation.expressions {
+                    visit_expressions_recursive(e, visitor, flags);
+                }
             }
         }
         OpKind::Statement => {
-            if let Some(stmt) = op.as_any().downcast_ref::<StatementOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
-                 visit_expressions_in_statement(&stmt.statement, visitor, flags);
-            } else if let Some(stmt) = op.as_any().downcast_ref::<StatementOp<Box<dyn ir::CreateOp + Send + Sync>>>() {
-                 visit_expressions_in_statement(&stmt.statement, visitor, flags);
+            if let Some(stmt) = op
+                .as_any()
+                .downcast_ref::<StatementOp<Box<dyn ir::UpdateOp + Send + Sync>>>()
+            {
+                visit_expressions_in_statement(&stmt.statement, visitor, flags);
+            } else if let Some(stmt) = op
+                .as_any()
+                .downcast_ref::<StatementOp<Box<dyn ir::CreateOp + Send + Sync>>>()
+            {
+                visit_expressions_in_statement(&stmt.statement, visitor, flags);
             }
         }
         OpKind::StoreLet => {
-             if let Some(s) = op.as_any().downcast_ref::<StoreLetOp>() {
-                 visit_expressions_recursive(&s.value, visitor, flags);
-             }
+            if let Some(s) = op.as_any().downcast_ref::<StoreLetOp>() {
+                visit_expressions_recursive(&s.value, visitor, flags);
+            }
         }
         OpKind::I18nExpression => {
-             if let Some(i) = op.as_any().downcast_ref::<I18nExpressionOp>() {
-                 visit_expressions_recursive(&i.expression, visitor, flags);
-             }
+            if let Some(i) = op.as_any().downcast_ref::<I18nExpressionOp>() {
+                visit_expressions_recursive(&i.expression, visitor, flags);
+            }
         }
         OpKind::DeferWhen => {
-             if let Some(d) = op.as_any().downcast_ref::<DeferWhenOp>() {
-                 visit_expressions_recursive(&d.expr, visitor, flags);
-             }
+            if let Some(d) = op.as_any().downcast_ref::<DeferWhenOp>() {
+                visit_expressions_recursive(&d.expr, visitor, flags);
+            }
         }
         OpKind::AnimationString => {
-             if let Some(a) = op.as_any().downcast_ref::<AnimationStringOp>() {
-                 match &a.expression {
-                    BindingExpression::Expression(expr) => visit_expressions_recursive(expr, visitor, flags),
+            if let Some(a) = op.as_any().downcast_ref::<AnimationStringOp>() {
+                match &a.expression {
+                    BindingExpression::Expression(expr) => {
+                        visit_expressions_recursive(expr, visitor, flags)
+                    }
                     BindingExpression::Interpolation(interp) => {
-                         for e in &interp.expressions { visit_expressions_recursive(e, visitor, flags); }
+                        for e in &interp.expressions {
+                            visit_expressions_recursive(e, visitor, flags);
+                        }
                     }
                 }
-             }
+            }
         }
         OpKind::AnimationBinding => {
-             if let Some(a) = op.as_any().downcast_ref::<AnimationBindingOp>() {
-                 match &a.expression {
-                    BindingExpression::Expression(expr) => visit_expressions_recursive(expr, visitor, flags),
+            if let Some(a) = op.as_any().downcast_ref::<AnimationBindingOp>() {
+                match &a.expression {
+                    BindingExpression::Expression(expr) => {
+                        visit_expressions_recursive(expr, visitor, flags)
+                    }
                     BindingExpression::Interpolation(interp) => {
-                         for e in &interp.expressions { visit_expressions_recursive(e, visitor, flags); }
+                        for e in &interp.expressions {
+                            visit_expressions_recursive(e, visitor, flags);
+                        }
                     }
                 }
-             }
+            }
         }
         OpKind::Listener => {
             if let Some(listener) = op.as_any().downcast_ref::<ListenerOp>() {
                 for handler_op in &listener.handler_ops {
-                    visit_expressions_in_op_readonly(handler_op.as_ref(), visitor, flags | VisitorContextFlag::IN_CHILD_OPERATION);
+                    visit_expressions_in_op_readonly(
+                        handler_op.as_ref(),
+                        visitor,
+                        flags | VisitorContextFlag::IN_CHILD_OPERATION,
+                    );
                 }
             }
         }
         OpKind::AnimationListener => {
             if let Some(listener) = op.as_any().downcast_ref::<AnimationListenerOp>() {
                 for handler_op in &listener.handler_ops {
-                    visit_expressions_in_op_readonly(handler_op.as_ref(), visitor, flags | VisitorContextFlag::IN_CHILD_OPERATION);
+                    visit_expressions_in_op_readonly(
+                        handler_op.as_ref(),
+                        visitor,
+                        flags | VisitorContextFlag::IN_CHILD_OPERATION,
+                    );
                 }
             }
         }
         OpKind::TwoWayListener => {
             if let Some(listener) = op.as_any().downcast_ref::<TwoWayListenerOp>() {
                 for handler_op in &listener.handler_ops {
-                    visit_expressions_in_op_readonly(handler_op.as_ref(), visitor, flags | VisitorContextFlag::IN_CHILD_OPERATION);
+                    visit_expressions_in_op_readonly(
+                        handler_op.as_ref(),
+                        visitor,
+                        flags | VisitorContextFlag::IN_CHILD_OPERATION,
+                    );
                 }
             }
         }
         OpKind::TwoWayProperty => {
-             if let Some(t) = op.as_any().downcast_ref::<TwoWayPropertyOp>() {
-                 visit_expressions_recursive(&t.expression, visitor, flags);
-                 if let Some(ref s) = t.sanitizer { visit_expressions_recursive(s, visitor, flags); }
-             }
+            if let Some(t) = op.as_any().downcast_ref::<TwoWayPropertyOp>() {
+                visit_expressions_recursive(&t.expression, visitor, flags);
+                if let Some(ref s) = t.sanitizer {
+                    visit_expressions_recursive(s, visitor, flags);
+                }
+            }
         }
         OpKind::Conditional => {
-             if let Some(c) = op.as_any().downcast_ref::<ConditionalOp>() {
-                 if let Some(ref test) = c.test { visit_expressions_recursive(test, visitor, flags); }
-                 for case in &c.conditions {
-                     if let Some(ref expr) = case.expr { visit_expressions_recursive(expr, visitor, flags); }
-                 }
-                 if let Some(ref p) = c.processed { visit_expressions_recursive(p, visitor, flags); }
-                 if let Some(ref v) = c.context_value { visit_expressions_recursive(v, visitor, flags); }
-             }
+            if let Some(c) = op.as_any().downcast_ref::<ConditionalOp>() {
+                if let Some(ref test) = c.test {
+                    visit_expressions_recursive(test, visitor, flags);
+                }
+                for case in &c.conditions {
+                    if let Some(ref expr) = case.expr {
+                        visit_expressions_recursive(expr, visitor, flags);
+                    }
+                }
+                if let Some(ref p) = c.processed {
+                    visit_expressions_recursive(p, visitor, flags);
+                }
+                if let Some(ref v) = c.context_value {
+                    visit_expressions_recursive(v, visitor, flags);
+                }
+            }
         }
         OpKind::Repeater => {
-             if let Some(r) = op.as_any().downcast_ref::<RepeaterOp>() {
-                 visit_expressions_recursive(&r.collection, visitor, flags);
-             }
+            if let Some(r) = op.as_any().downcast_ref::<RepeaterOp>() {
+                visit_expressions_recursive(&r.collection, visitor, flags);
+            }
         }
         _ => {}
     }
@@ -986,10 +1171,7 @@ fn visit_expressions_recursive(
     visitor(expr, flags);
     use crate::output::output_ast::Expression as OutputExpr;
     match expr {
-        OutputExpr::ReadVariable(read_var) => {
-            if read_var.xref.0 == 134 {
-            }
-        }
+        OutputExpr::ReadVariable(read_var) => if read_var.xref.0 == 134 {},
         OutputExpr::BinaryOp(bin) => {
             visit_expressions_recursive(&bin.lhs, visitor, flags);
             visit_expressions_recursive(&bin.rhs, visitor, flags);
@@ -1006,13 +1188,19 @@ fn visit_expressions_recursive(
         }
         OutputExpr::InvokeFn(invoke) => {
             visit_expressions_recursive(&invoke.fn_, visitor, flags);
-            for arg in &invoke.args { visit_expressions_recursive(arg, visitor, flags); }
+            for arg in &invoke.args {
+                visit_expressions_recursive(arg, visitor, flags);
+            }
         }
         OutputExpr::LiteralArray(arr) => {
-            for entry in &arr.entries { visit_expressions_recursive(entry, visitor, flags); }
+            for entry in &arr.entries {
+                visit_expressions_recursive(entry, visitor, flags);
+            }
         }
         OutputExpr::LiteralMap(map) => {
-            for entry in &map.entries { visit_expressions_recursive(&entry.value, visitor, flags); }
+            for entry in &map.entries {
+                visit_expressions_recursive(&entry.value, visitor, flags);
+            }
         }
         OutputExpr::Conditional(cond) => {
             visit_expressions_recursive(&cond.condition, visitor, flags);
@@ -1030,14 +1218,18 @@ fn visit_expressions_recursive(
         }
         OutputExpr::SafeInvokeFunction(ir_expr) => {
             visit_expressions_recursive(&ir_expr.receiver, visitor, flags);
-            for arg in &ir_expr.args { visit_expressions_recursive(arg, visitor, flags); }
+            for arg in &ir_expr.args {
+                visit_expressions_recursive(arg, visitor, flags);
+            }
         }
         OutputExpr::SafeTernary(ir_expr) => {
             visit_expressions_recursive(&ir_expr.guard, visitor, flags);
             visit_expressions_recursive(&ir_expr.expr, visitor, flags);
         }
         OutputExpr::PipeBinding(ir_expr) => {
-            for arg in &ir_expr.args { visit_expressions_recursive(arg, visitor, flags); }
+            for arg in &ir_expr.args {
+                visit_expressions_recursive(arg, visitor, flags);
+            }
         }
         OutputExpr::PipeBindingVariadic(ir_expr) => {
             visit_expressions_recursive(&ir_expr.args, visitor, flags);
@@ -1049,7 +1241,9 @@ fn visit_expressions_recursive(
             visit_expressions_recursive(&ir_expr.value, visitor, flags);
         }
         OutputExpr::ConditionalCase(ir_expr) => {
-            if let Some(ref expr) = ir_expr.expr { visit_expressions_recursive(expr, visitor, flags); }
+            if let Some(ref expr) = ir_expr.expr {
+                visit_expressions_recursive(expr, visitor, flags);
+            }
         }
         OutputExpr::ResetView(ir_expr) => {
             visit_expressions_recursive(&ir_expr.expr, visitor, flags);
@@ -1065,7 +1259,8 @@ fn visit_expressions_recursive(
             }
         }
         OutputExpr::ArrowFn(ir_expr) => {
-            if let crate::output::output_ast::ArrowFunctionBody::Expression(ref expr) = ir_expr.body {
+            if let crate::output::output_ast::ArrowFunctionBody::Expression(ref expr) = ir_expr.body
+            {
                 visit_expressions_recursive(expr, visitor, flags);
             }
         }
@@ -1080,8 +1275,7 @@ fn visit_expressions_recursive(
                 visit_expressions_recursive(arg, visitor, flags);
             }
         }
-        _ => {
-        }
+        _ => {}
     }
 }
 
@@ -1106,11 +1300,17 @@ fn visit_expressions_in_statement(
         }
         Statement::IfStmt(if_stmt) => {
             visit_expressions_recursive(&if_stmt.condition, visitor, flags);
-            for case_stmt in &if_stmt.true_case { visit_expressions_in_statement(case_stmt, visitor, flags); }
-            for case_stmt in &if_stmt.false_case { visit_expressions_in_statement(case_stmt, visitor, flags); }
+            for case_stmt in &if_stmt.true_case {
+                visit_expressions_in_statement(case_stmt, visitor, flags);
+            }
+            for case_stmt in &if_stmt.false_case {
+                visit_expressions_in_statement(case_stmt, visitor, flags);
+            }
         }
         Statement::DeclareFn(declare_fn) => {
-            for stmt in &declare_fn.statements { visit_expressions_in_statement(stmt, visitor, flags); }
+            for stmt in &declare_fn.statements {
+                visit_expressions_in_statement(stmt, visitor, flags);
+            }
         }
     }
 }
@@ -1119,7 +1319,7 @@ fn visit_expressions_in_statement(
 fn collect_op_info(op: &dyn ir::Op) -> OpInfo {
     let mut fences = Fence::NONE;
     let mut variables_used = HashSet::new();
-    
+
     // Use read-only visitor to collect info
     visit_expressions_in_op_readonly(
         op,
@@ -1131,7 +1331,9 @@ fn collect_op_info(op: &dyn ir::Op) -> OpInfo {
                             variables_used.insert(read_var.xref);
                         }
                         ir::IRExpression::RestoreView(ref restore) => {
-                            if let ir::expression::EitherXrefIdOrExpression::XrefId(xref) = restore.view {
+                            if let ir::expression::EitherXrefIdOrExpression::XrefId(xref) =
+                                restore.view
+                            {
                                 variables_used.insert(xref);
                             }
                             fences |= fences_for_ir_expression(&ir_expr);
@@ -1145,7 +1347,7 @@ fn collect_op_info(op: &dyn ir::Op) -> OpInfo {
         },
         VisitorContextFlag::NONE,
     );
-    
+
     OpInfo {
         variables_used,
         fences,
@@ -1163,27 +1365,24 @@ fn count_variable_usages(
     visit_expressions_in_op_readonly(
         op,
         &mut |expr: &Expression, flags| {
-             let expr_debug = format!("{:?}", expr);
-             if expr_debug.contains("134") {
-             }
+            let expr_debug = format!("{:?}", expr);
+            if expr_debug.contains("134") {}
 
-             // 1. Handle regular ReadVariable usage
-             if let Expression::ReadVariable(read_var) = expr {
-                 if read_var.xref.0 == 134 {
-                 }
-                 if let Some(count) = var_usages.get_mut(&read_var.xref) {
-                     *count += 1;
-                     if read_var.xref.0 == 134 {
-                     }
-                 }
-                 
-                 // If we are in a child operation (like a listener) or if is_remote_context is set,
-                 // we must mark this variable as having remote usage, even if it's not declared
-                 // in the current list being optimized.
-                 if flags.contains(VisitorContextFlag::IN_CHILD_OPERATION) || is_remote_context {
-                     var_remote_usage.insert(read_var.xref);
-                 }
-             }
+            // 1. Handle regular ReadVariable usage
+            if let Expression::ReadVariable(read_var) = expr {
+                if read_var.xref.0 == 134 {}
+                if let Some(count) = var_usages.get_mut(&read_var.xref) {
+                    *count += 1;
+                    if read_var.xref.0 == 134 {}
+                }
+
+                // If we are in a child operation (like a listener) or if is_remote_context is set,
+                // we must mark this variable as having remote usage, even if it's not declared
+                // in the current list being optimized.
+                if flags.contains(VisitorContextFlag::IN_CHILD_OPERATION) || is_remote_context {
+                    var_remote_usage.insert(read_var.xref);
+                }
+            }
 
             if is_ir_expression(expr) {
                 if let Some(ir_expr) = as_ir_expression(expr) {
@@ -1192,18 +1391,22 @@ fn count_variable_usages(
                             if let Some(count) = var_usages.get_mut(&read_var.xref) {
                                 *count += 1;
                             }
-                            
-                            if flags.contains(VisitorContextFlag::IN_CHILD_OPERATION) || is_remote_context {
+
+                            if flags.contains(VisitorContextFlag::IN_CHILD_OPERATION)
+                                || is_remote_context
+                            {
                                 var_remote_usage.insert(read_var.xref);
                             }
                         }
                         ir::IRExpression::RestoreView(ref restore) => {
                             match &restore.view {
-                                 ir::expression::EitherXrefIdOrExpression::XrefId(xref) => {
+                                ir::expression::EitherXrefIdOrExpression::XrefId(xref) => {
                                     if let Some(count) = var_usages.get_mut(xref) {
                                         *count += 1;
                                     }
-                                    if flags.contains(VisitorContextFlag::IN_CHILD_OPERATION) || is_remote_context {
+                                    if flags.contains(VisitorContextFlag::IN_CHILD_OPERATION)
+                                        || is_remote_context
+                                    {
                                         var_remote_usage.insert(*xref);
                                     }
                                 }
@@ -1222,10 +1425,7 @@ fn count_variable_usages(
 }
 
 /// Remove usages of a variable in `op` from the `var_usages` tracking.
-fn uncount_variable_usages(
-    op: &dyn ir::Op,
-    var_usages: &mut IndexMap<XrefId, usize>,
-) {
+fn uncount_variable_usages(op: &dyn ir::Op, var_usages: &mut IndexMap<XrefId, usize>) {
     visit_expressions_in_op_readonly(
         op,
         &mut |expr: &Expression, _flags| {
@@ -1244,7 +1444,9 @@ fn uncount_variable_usages(
                             }
                         }
                         ir::IRExpression::RestoreView(ref restore) => {
-                            if let ir::expression::EitherXrefIdOrExpression::XrefId(xref) = restore.view {
+                            if let ir::expression::EitherXrefIdOrExpression::XrefId(xref) =
+                                restore.view
+                            {
                                 if let Some(count) = var_usages.get_mut(&xref) {
                                     if *count == 0 {
                                         panic!(
@@ -1288,18 +1490,18 @@ fn try_inline_variable_initializer(
 ) -> bool {
     let mut inlined = false;
     let mut inlining_allowed = true;
-    
+
     transform_expressions_in_op(
         target,
         &mut |expr: Expression, flags| {
             if inlined || !inlining_allowed {
                 return expr;
             }
-            
+
             if !is_ir_expression(&expr) {
                 return expr;
             }
-            
+
             if let Some(ir_expr) = as_ir_expression(&expr) {
                 if flags.contains(VisitorContextFlag::IN_CHILD_OPERATION)
                     && decl_fences.contains(Fence::VIEW_CONTEXT_READ)
@@ -1307,7 +1509,7 @@ fn try_inline_variable_initializer(
                     // Cannot inline context-sensitive variables across operation boundaries
                     return expr;
                 }
-                
+
                 match ir_expr {
                     ir::IRExpression::ReadVariable(read_var) => {
                         if read_var.xref == id {
@@ -1319,20 +1521,19 @@ fn try_inline_variable_initializer(
                     _ => {
                         // Check fences for this expression
                         let expr_fences = fences_for_ir_expression(&ir_expr);
-                        inlining_allowed = inlining_allowed && safe_to_inline_past_fences(expr_fences, decl_fences);
+                        inlining_allowed = inlining_allowed
+                            && safe_to_inline_past_fences(expr_fences, decl_fences);
                     }
                 }
             }
-            
+
             expr
         },
         VisitorContextFlag::NONE,
     );
-    
+
     inlined
 }
-
-
 
 /// Safe alternative to check conservative inlining without requiring generic VariableOp
 /// Safe check for conservative inlining that matches TS logic
@@ -1350,13 +1551,10 @@ fn allow_conservative_inlining(
             }
             false
         }
-        SemanticVariableKind::Context => {
-            target.kind() == OpKind::Variable
-        }
-        _ => true
+        SemanticVariableKind::Context => target.kind() == OpKind::Variable,
+        _ => true,
     }
 }
-
 
 /// Given an `ir.Expression`, returns the `Fence` flags for that expression type.
 fn fences_for_ir_expression(expr: &ir::IRExpression) -> Fence {
@@ -1369,9 +1567,7 @@ fn fences_for_ir_expression(expr: &ir::IRExpression) -> Fence {
         ir::IRExpression::RestoreView(_) => {
             Fence::VIEW_CONTEXT_READ | Fence::VIEW_CONTEXT_WRITE | Fence::SIDE_EFFECTFUL
         }
-        ir::IRExpression::StoreLet(_) => {
-            Fence::SIDE_EFFECTFUL
-        }
+        ir::IRExpression::StoreLet(_) => Fence::SIDE_EFFECTFUL,
         ir::IRExpression::Reference(_) | ir::IRExpression::ContextLetReference(_) => {
             Fence::VIEW_CONTEXT_READ
         }

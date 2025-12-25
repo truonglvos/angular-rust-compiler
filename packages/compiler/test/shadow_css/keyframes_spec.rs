@@ -4,8 +4,8 @@
 //! All test cases match exactly with TypeScript version
 
 mod utils;
-use utils::{assert_contains, assert_not_contains, shim};
 use regex::Regex;
+use utils::{assert_contains, assert_not_contains, shim};
 
 #[test]
 fn should_scope_keyframes_rules() {
@@ -17,7 +17,8 @@ fn should_scope_keyframes_rules() {
 #[test]
 fn should_scope_webkit_keyframes_rules() {
     let css = "@-webkit-keyframes foo {0% {-webkit-transform:translate(-50%) scaleX(0);}} ";
-    let expected = "@-webkit-keyframes host-a_foo {0% {-webkit-transform:translate(-50%) scaleX(0);}}";
+    let expected =
+        "@-webkit-keyframes host-a_foo {0% {-webkit-transform:translate(-50%) scaleX(0);}}";
     assert_eq!(shim(css, "host-a", ""), expected);
 }
 
@@ -117,7 +118,8 @@ fn should_handle_scope_or_not_multiple_animation_names_defined_over_multiple_lin
 }
 
 #[test]
-fn should_handle_scope_or_not_animation_definition_containing_some_names_which_do_not_have_a_preceding_space() {
+fn should_handle_scope_or_not_animation_definition_containing_some_names_which_do_not_have_a_preceding_space(
+) {
     let component_variable = "%COMP%";
     let host_attr = format!("_nghost-{}", component_variable);
     let content_attr = format!("_ngcontent-{}", component_variable);
@@ -211,7 +213,10 @@ fn should_handle_scope_or_not_multiple_animation_definitions_in_a_single_declara
         @keyframes quux {}
         @keyframes \"baz'\" {}";
     let result = shim(css, "host-a", "");
-    assert_contains(&result, "animation: 1s ease foo, 2s host-a_bar infinite, forwards baz 3s;");
+    assert_contains(
+        &result,
+        "animation: 1s ease foo, 2s host-a_bar infinite, forwards baz 3s;",
+    );
     assert_contains(&result, "animation: 1s \"foo\", 2s \"host-a_bar\";");
     assert_contains(
         &result,
@@ -229,7 +234,8 @@ fn should_handle_scope_or_not_multiple_animation_definitions_in_a_single_declara
 }
 
 #[test]
-fn should_not_modify_css_variables_ending_with_animation_even_if_they_reference_a_local_keyframes_identifier() {
+fn should_not_modify_css_variables_ending_with_animation_even_if_they_reference_a_local_keyframes_identifier(
+) {
     let css = "
         button {
             --variable-animation: foo;
@@ -240,7 +246,8 @@ fn should_not_modify_css_variables_ending_with_animation_even_if_they_reference_
 }
 
 #[test]
-fn should_not_modify_css_variables_ending_with_animation_name_even_if_they_reference_a_local_keyframes_identifier() {
+fn should_not_modify_css_variables_ending_with_animation_name_even_if_they_reference_a_local_keyframes_identifier(
+) {
     let css = "
         button {
             --variable-animation-name: foo;
@@ -272,19 +279,23 @@ fn should_maintain_the_spacing_when_handling_scoping_or_not_keyframes_and_animat
     assert_contains(&result, "animation-name:host-a_foobar ;");
     assert_contains(&result, "@-webkit-keyframes  host-a_bar {}");
     assert_contains(&result, "@keyframes host-a_foobar  {}");
-    assert_contains(&result, "animation:1s \"foo\" ,   2s \"host-a_bar\",3s \"host-a_quux\"");
+    assert_contains(
+        &result,
+        "animation:1s \"foo\" ,   2s \"host-a_bar\",3s \"host-a_quux\"",
+    );
 }
 
 #[test]
 fn should_correctly_process_animations_defined_without_any_prefixed_space() {
     let css = ".test{display: flex;animation:foo 1s forwards;} @keyframes foo {}";
-    let expected = ".test[host-a]{display: flex;animation:host-a_foo 1s forwards;} @keyframes host-a_foo {}";
+    let expected =
+        ".test[host-a]{display: flex;animation:host-a_foo 1s forwards;} @keyframes host-a_foo {}";
     assert_eq!(shim(css, "host-a", ""), expected);
-    
+
     let css = ".test{animation:foo 2s forwards;} @keyframes foo {}";
     let expected = ".test[host-a]{animation:host-a_foo 2s forwards;} @keyframes host-a_foo {}";
     assert_eq!(shim(css, "host-a", ""), expected);
-    
+
     let css = "button {display: block;animation-name: foobar;} @keyframes foobar {}";
     let expected = "button[host-a] {display: block;animation-name: host-a_foobar;} @keyframes host-a_foobar {}";
     assert_eq!(shim(css, "host-a", ""), expected);
@@ -293,11 +304,13 @@ fn should_correctly_process_animations_defined_without_any_prefixed_space() {
 #[test]
 fn should_correctly_process_keyframes_defined_without_any_prefixed_space() {
     let css = ".test{display: flex;animation:bar 1s forwards;}@keyframes bar {}";
-    let expected = ".test[host-a]{display: flex;animation:host-a_bar 1s forwards;}@keyframes host-a_bar {}";
+    let expected =
+        ".test[host-a]{display: flex;animation:host-a_bar 1s forwards;}@keyframes host-a_bar {}";
     assert_eq!(shim(css, "host-a", ""), expected);
-    
+
     let css = ".test{animation:bar 2s forwards;}@-webkit-keyframes bar {}";
-    let expected = ".test[host-a]{animation:host-a_bar 2s forwards;}@-webkit-keyframes host-a_bar {}";
+    let expected =
+        ".test[host-a]{animation:host-a_bar 2s forwards;}@-webkit-keyframes host-a_bar {}";
     assert_eq!(shim(css, "host-a", ""), expected);
 }
 
@@ -342,10 +355,19 @@ fn should_ignore_keywords_values_when_scoping_local_animations() {
     assert_contains(&result, "animation: none 1s host-a_foo;");
     assert_contains(&result, "animation: .5s host-a_foo paused;");
     assert_contains(&result, "animation: 1s running host-a_foo;");
-    assert_contains(&result, "animation: 3s linear 1s infinite running host-a_foo;");
+    assert_contains(
+        &result,
+        "animation: 3s linear 1s infinite running host-a_foo;",
+    );
     assert_contains(&result, "animation: 5s host-a_foo ease;");
-    assert_contains(&result, "animation: 3s .5s infinite steps(3,end) host-a_foo;");
-    assert_contains(&result, "animation: 5s steps(9, jump-start) host-a_jump .5s;");
+    assert_contains(
+        &result,
+        "animation: 3s .5s infinite steps(3,end) host-a_foo;",
+    );
+    assert_contains(
+        &result,
+        "animation: 5s steps(9, jump-start) host-a_jump .5s;",
+    );
     assert_contains(&result, "animation: 1s step-end host-a_steps;");
 }
 
@@ -423,8 +445,14 @@ fn should_handle_the_usage_of_commas_in_multiple_animation_definitions_in_a_sing
     let result = shim(css, "host-a", "");
     assert_contains(&result, "@keyframes \"host-a_qux quux\" {}");
     assert_contains(&result, "@keyframes \"host-a_bar, baz\" {}");
-    assert_contains(&result, "animation: 1s \"foo bar, baz\", 2s 'host-a_qux quux';");
-    assert_contains(&result, "animation: 500ms foo, 1s 'host-a_bar, baz', 1500ms bar;");
+    assert_contains(
+        &result,
+        "animation: 1s \"foo bar, baz\", 2s 'host-a_qux quux';",
+    );
+    assert_contains(
+        &result,
+        "animation: 500ms foo, 1s 'host-a_bar, baz', 1500ms bar;",
+    );
     assert_contains(
         &result,
         "animation: 3s \"host-a_bar, baz\", 3s 'foo, bar' 1s, 3s \"host-a_qux quux\";",
@@ -432,7 +460,8 @@ fn should_handle_the_usage_of_commas_in_multiple_animation_definitions_in_a_sing
 }
 
 #[test]
-fn should_handle_the_usage_of_double_quotes_escaping_in_multiple_animation_definitions_in_a_single_declaration() {
+fn should_handle_the_usage_of_double_quotes_escaping_in_multiple_animation_definitions_in_a_single_declaration(
+) {
     let css = "
         div {
             animation: 1s \"foo\", 1.5s \"bar\";
@@ -458,13 +487,22 @@ fn should_handle_the_usage_of_double_quotes_escaping_in_multiple_animation_defin
     assert_contains(&result, "@keyframes host-a_bar {}");
     assert_contains(&result, "@keyframes \"host-a_ba\\\"r\" {}");
     assert_contains(&result, "@keyframes \"host-a_fo\\\\\\\"o\"");
-    assert_contains(&result, "animation: 1s \"host-a_foo\", 1.5s \"host-a_bar\";");
-    assert_contains(&result, "animation: 2s \"host-a_fo\\\"o\", 2.5s \"host-a_bar\";");
+    assert_contains(
+        &result,
+        "animation: 1s \"host-a_foo\", 1.5s \"host-a_bar\";",
+    );
+    assert_contains(
+        &result,
+        "animation: 2s \"host-a_fo\\\"o\", 2.5s \"host-a_bar\";",
+    );
     assert_contains(
         &result,
         "animation: 3s \"host-a_foo\\\"\", 3.5s \"host-a_bar\", 3.7s \"host-a_ba\\\"r\";",
     );
-    assert_contains(&result, "animation: 4s \"host-a_foo\\\\\", 4.5s \"host-a_bar\", 4.7s \"baz\\\"\";");
+    assert_contains(
+        &result,
+        "animation: 4s \"host-a_foo\\\\\", 4.5s \"host-a_bar\", 4.7s \"baz\\\"\";",
+    );
     assert_contains(
         &result,
         "animation: 5s \"host-a_fo\\\\\\\"o\", 5.5s \"host-a_bar\", 5.7s \"baz\\\"\";",
@@ -472,7 +510,8 @@ fn should_handle_the_usage_of_double_quotes_escaping_in_multiple_animation_defin
 }
 
 #[test]
-fn should_handle_the_usage_of_single_quotes_escaping_in_multiple_animation_definitions_in_a_single_declaration() {
+fn should_handle_the_usage_of_single_quotes_escaping_in_multiple_animation_definitions_in_a_single_declaration(
+) {
     let css = "
         div {
             animation: 1s 'foo', 1.5s 'bar';
@@ -504,12 +543,19 @@ fn should_handle_the_usage_of_single_quotes_escaping_in_multiple_animation_defin
         &result,
         "animation: 3s 'host-a_foo\\'', 3.5s 'host-a_bar', 3.7s 'host-a_ba\\'r';",
     );
-    assert_contains(&result, "animation: 4s 'host-a_foo\\\\', 4.5s 'host-a_bar', 4.7s 'baz\\'';");
-    assert_contains(&result, "animation: 5s 'host-a_fo\\\\\\'o', 5.5s 'host-a_bar', 5.7s 'baz\\''");
+    assert_contains(
+        &result,
+        "animation: 4s 'host-a_foo\\\\', 4.5s 'host-a_bar', 4.7s 'baz\\'';",
+    );
+    assert_contains(
+        &result,
+        "animation: 5s 'host-a_fo\\\\\\'o', 5.5s 'host-a_bar', 5.7s 'baz\\''",
+    );
 }
 
 #[test]
-fn should_handle_the_usage_of_mixed_single_and_double_quotes_escaping_in_multiple_animation_definitions_in_a_single_declaration() {
+fn should_handle_the_usage_of_mixed_single_and_double_quotes_escaping_in_multiple_animation_definitions_in_a_single_declaration(
+) {
     let css = "
         div {
             animation: 1s 'f\\\"oo', 1.5s \"ba\\'r\";
@@ -538,8 +584,14 @@ fn should_handle_the_usage_of_mixed_single_and_double_quotes_escaping_in_multipl
     assert_contains(&result, "@keyframes 'host-a_b\\\\\\\"ar' {}");
     assert_contains(&result, "@keyframes 'host-a_b\"ar\"' {}");
     assert_contains(&result, "@keyframes 'host-a_ba\\'\\\"\\'r' {}");
-    assert_contains(&result, "animation: 1s 'host-a_f\\\"oo', 1.5s \"host-a_ba\\'r\";");
-    assert_contains(&result, "animation: 2s \"host-a_fo\\\"\\\"o\", 2.5s 'host-a_b\\\\\"ar';");
+    assert_contains(
+        &result,
+        "animation: 1s 'host-a_f\\\"oo', 1.5s \"host-a_ba\\'r\";",
+    );
+    assert_contains(
+        &result,
+        "animation: 2s \"host-a_fo\\\"\\\"o\", 2.5s 'host-a_b\\\\\"ar';",
+    );
     assert_contains(
         &result,
         "animation: 3s 'host-a_foo\\\\', 3.5s \"host-a_b\\\\\\\"ar\", 3.7s 'host-a_ba\\'\\\"\\'r';",
@@ -619,4 +671,3 @@ fn should_handle_css_functions_correctly() {
     );
     assert_contains(&result, "animation: calc(2s / 2) host-a_calc;");
 }
-

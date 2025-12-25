@@ -5,7 +5,6 @@
 
 use crate::i18n::i18n_ast::{self as i18n, Message, Node, Visitor};
 
-
 /// Return the message id or compute it using the XLIFF1 digest.
 pub fn digest(message: &Message) -> String {
     if !message.id.is_empty() {
@@ -61,11 +60,19 @@ pub fn serialize_nodes(nodes: &[Node]) -> Vec<String> {
 struct SerializerVisitor;
 
 impl Visitor for SerializerVisitor {
-    fn visit_text(&mut self, text: &i18n::Text, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_text(
+        &mut self,
+        text: &i18n::Text,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         Box::new(text.value.clone())
     }
 
-    fn visit_container(&mut self, container: &i18n::Container, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_container(
+        &mut self,
+        container: &i18n::Container,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let children: Vec<String> = container
             .children
             .iter()
@@ -77,7 +84,11 @@ impl Visitor for SerializerVisitor {
         Box::new(format!("[{}]", children.join(", ")))
     }
 
-    fn visit_icu(&mut self, icu: &i18n::Icu, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_icu(
+        &mut self,
+        icu: &i18n::Icu,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let mut str_cases = Vec::new();
         for (k, v) in &icu.cases {
             let case_result = v.visit(self, None);
@@ -92,7 +103,11 @@ impl Visitor for SerializerVisitor {
         ))
     }
 
-    fn visit_tag_placeholder(&mut self, ph: &i18n::TagPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_tag_placeholder(
+        &mut self,
+        ph: &i18n::TagPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         if ph.is_void {
             Box::new(format!("<ph tag name=\"{}\"/>", ph.start_name))
         } else {
@@ -113,7 +128,11 @@ impl Visitor for SerializerVisitor {
         }
     }
 
-    fn visit_placeholder(&mut self, ph: &i18n::Placeholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_placeholder(
+        &mut self,
+        ph: &i18n::Placeholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         if !ph.value.is_empty() {
             Box::new(format!("<ph name=\"{}\">{}</ph>", ph.name, ph.value))
         } else {
@@ -121,13 +140,21 @@ impl Visitor for SerializerVisitor {
         }
     }
 
-    fn visit_icu_placeholder(&mut self, ph: &i18n::IcuPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_icu_placeholder(
+        &mut self,
+        ph: &i18n::IcuPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let icu_result = i18n::Node::Icu(ph.value.clone()).visit(self, None);
         let icu_str = *icu_result.downcast::<String>().unwrap();
         Box::new(format!("<ph icu name=\"{}\">{}</ph>", ph.name, icu_str))
     }
 
-    fn visit_block_placeholder(&mut self, ph: &i18n::BlockPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_block_placeholder(
+        &mut self,
+        ph: &i18n::BlockPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let children: Vec<String> = ph
             .children
             .iter()
@@ -149,11 +176,19 @@ impl Visitor for SerializerVisitor {
 struct SerializerIgnoreIcuExpVisitor;
 
 impl Visitor for SerializerIgnoreIcuExpVisitor {
-    fn visit_text(&mut self, text: &i18n::Text, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_text(
+        &mut self,
+        text: &i18n::Text,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         Box::new(text.value.clone())
     }
 
-    fn visit_container(&mut self, container: &i18n::Container, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_container(
+        &mut self,
+        container: &i18n::Container,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let children: Vec<String> = container
             .children
             .iter()
@@ -165,7 +200,11 @@ impl Visitor for SerializerIgnoreIcuExpVisitor {
         Box::new(format!("[{}]", children.join(", ")))
     }
 
-    fn visit_icu(&mut self, icu: &i18n::Icu, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_icu(
+        &mut self,
+        icu: &i18n::Icu,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let mut str_cases = Vec::new();
         for (k, v) in &icu.cases {
             let case_result = v.visit(self, None);
@@ -176,7 +215,11 @@ impl Visitor for SerializerIgnoreIcuExpVisitor {
         Box::new(format!("{{{}, {}}}", icu.type_, str_cases.join(", ")))
     }
 
-    fn visit_tag_placeholder(&mut self, ph: &i18n::TagPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_tag_placeholder(
+        &mut self,
+        ph: &i18n::TagPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         if ph.is_void {
             Box::new(format!("<ph tag name=\"{}\"/>", ph.start_name))
         } else {
@@ -197,7 +240,11 @@ impl Visitor for SerializerIgnoreIcuExpVisitor {
         }
     }
 
-    fn visit_placeholder(&mut self, ph: &i18n::Placeholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_placeholder(
+        &mut self,
+        ph: &i18n::Placeholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         if !ph.value.is_empty() {
             Box::new(format!("<ph name=\"{}\">{}</ph>", ph.name, ph.value))
         } else {
@@ -205,13 +252,21 @@ impl Visitor for SerializerIgnoreIcuExpVisitor {
         }
     }
 
-    fn visit_icu_placeholder(&mut self, ph: &i18n::IcuPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_icu_placeholder(
+        &mut self,
+        ph: &i18n::IcuPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let icu_result = i18n::Node::Icu(ph.value.clone()).visit(self, None);
         let icu_str = *icu_result.downcast::<String>().unwrap();
         Box::new(format!("<ph icu name=\"{}\">{}</ph>", ph.name, icu_str))
     }
 
-    fn visit_block_placeholder(&mut self, ph: &i18n::BlockPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_block_placeholder(
+        &mut self,
+        ph: &i18n::BlockPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let children: Vec<String> = ph
             .children
             .iter()
@@ -490,7 +545,12 @@ fn word_at(bytes: &[u8], index: usize, endian: Endian) -> u32 {
 
 fn read_u32_le(bytes: &[u8], index: usize) -> u32 {
     if index + 4 <= bytes.len() {
-        u32::from_le_bytes([bytes[index], bytes[index + 1], bytes[index + 2], bytes[index + 3]])
+        u32::from_le_bytes([
+            bytes[index],
+            bytes[index + 1],
+            bytes[index + 2],
+            bytes[index + 3],
+        ])
     } else {
         0
     }
@@ -503,4 +563,3 @@ fn read_u8(bytes: &[u8], index: usize) -> u8 {
         0
     }
 }
-

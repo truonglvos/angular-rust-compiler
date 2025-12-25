@@ -26,25 +26,22 @@ pub type ExportMap = HashMap<String, ExportInfo>;
 ///
 /// # Returns
 /// The export name if found, prioritizing non-alias exports.
-pub fn find_exported_name_of_node(
-    target_name: &str,
-    exports: &ExportMap,
-) -> Option<String> {
+pub fn find_exported_name_of_node(target_name: &str, exports: &ExportMap) -> Option<String> {
     let mut found_export_name: Option<String> = None;
-    
+
     for (export_name, info) in exports {
         if info.local_name != target_name {
             continue;
         }
-        
+
         // A non-alias export (where export name matches local name) is always preferred
         if export_name == target_name {
             return Some(export_name.clone());
         }
-        
+
         found_export_name = Some(export_name.clone());
     }
-    
+
     found_export_name
 }
 

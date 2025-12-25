@@ -1,4 +1,3 @@
-
 //! TypeScript-compatible interfaces and types for the Angular compiler.
 //! This crate serves as a shared compatibility layer.
 
@@ -64,11 +63,11 @@ pub enum DiagnosticMessageChain {
         category: DiagnosticCategory,
         code: i32,
         next: Option<Vec<DiagnosticMessageChain>>,
-    }
+    },
 }
 
 impl DiagnosticMessageChain {
-     pub fn new(message: impl Into<String>) -> Self {
+    pub fn new(message: impl Into<String>) -> Self {
         Self::String(message.into())
     }
 }
@@ -140,7 +139,7 @@ pub fn make_diagnostic_chain(
         category: DiagnosticCategory::Message,
         code: 0,
         message_text,
-        next
+        next,
     }
 }
 
@@ -150,7 +149,12 @@ pub fn add_diagnostic_chain(
 ) -> DiagnosticMessageChain {
     match message_text {
         DiagnosticMessageChain::String(s) => make_diagnostic_chain(s, Some(add)),
-         DiagnosticMessageChain::Chain { message_text, category, code, next } => {
+        DiagnosticMessageChain::Chain {
+            message_text,
+            category,
+            code,
+            next,
+        } => {
             let mut next_vec = next.unwrap_or_default();
             next_vec.extend(add);
             DiagnosticMessageChain::Chain {

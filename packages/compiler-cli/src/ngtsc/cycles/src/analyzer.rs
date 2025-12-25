@@ -1,7 +1,7 @@
 use crate::ngtsc::cycles::src::imports::ImportGraph;
 use crate::ngtsc::file_system::AbsoluteFsPath;
-use std::collections::HashMap;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use ts::SourceFile;
 
 pub struct CycleAnalyzer<'a> {
@@ -11,7 +11,7 @@ pub struct CycleAnalyzer<'a> {
 
 impl<'a> CycleAnalyzer<'a> {
     pub fn new(import_graph: &'a ImportGraph<'a>) -> Self {
-        Self { 
+        Self {
             import_graph,
             cached_results: RefCell::new(None),
         }
@@ -23,7 +23,7 @@ impl<'a> CycleAnalyzer<'a> {
 
         // Try to reuse the cached results as long as the `from` source file is the same.
         let mut cache = self.cached_results.borrow_mut();
-        
+
         // Check if we need to invalidate or create new cache
         let reset_cache = if let Some(results) = &*cache {
             &results.from != &from_path
@@ -38,14 +38,10 @@ impl<'a> CycleAnalyzer<'a> {
         // Import of 'from' -> 'to' is illegal if an edge 'to' -> 'from' already exists.
         if let Some(results) = &mut *cache {
             if results.would_be_cyclic(&to_path) {
-                return Some(Cycle::new(
-                    self.import_graph,
-                    from_path,
-                    to_path,
-                ));
+                return Some(Cycle::new(self.import_graph, from_path, to_path));
             }
         }
-        
+
         None
     }
 
@@ -62,15 +58,24 @@ pub struct Cycle {
 }
 
 impl Cycle {
-    pub fn new<'a>(import_graph: &'a ImportGraph<'a>, from: AbsoluteFsPath, to: AbsoluteFsPath) -> Self {
+    pub fn new<'a>(
+        import_graph: &'a ImportGraph<'a>,
+        from: AbsoluteFsPath,
+        to: AbsoluteFsPath,
+    ) -> Self {
         let path = vec![from.clone()]
             .into_iter()
-            .chain(import_graph.find_path_by_path(&to, &from).unwrap_or_default().into_iter())
+            .chain(
+                import_graph
+                    .find_path_by_path(&to, &from)
+                    .unwrap_or_default()
+                    .into_iter(),
+            )
             .collect();
-            
+
         Self { from, to, path }
     }
-    
+
     pub fn get_path(&self) -> &Vec<AbsoluteFsPath> {
         &self.path
     }
@@ -99,11 +104,11 @@ impl<'a> CycleResults<'a> {
 
     fn would_be_cyclic(&mut self, sf: &AbsoluteFsPath) -> bool {
         if let Some(&state) = self.results.get(sf) {
-             return state == CycleState::Cyclic;
+            return state == CycleState::Cyclic;
         }
 
         if sf == &self.from {
-             return true;
+            return true;
         }
 
         // Assume for now that the file will be acyclic; this prevents infinite recursion
@@ -125,4 +130,3 @@ pub enum CycleHandlingStrategy {
     UseRemoteScoping,
     Error,
 }
-

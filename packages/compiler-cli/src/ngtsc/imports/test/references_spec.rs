@@ -24,11 +24,11 @@ fn test_reference_from_name() {
 fn test_reference_with_owning_module() {
     let module = OwningModule::new("@angular/core", "/src/app.ts");
     let mut reference = Reference::from_name(
-        "Injectable", 
-        Some(PathBuf::from("/node_modules/@angular/core/index.ts"))
+        "Injectable",
+        Some(PathBuf::from("/node_modules/@angular/core/index.ts")),
     );
     reference.best_guess_owning_module = Some(module);
-    
+
     assert!(reference.has_owning_module_guess());
     assert_eq!(reference.owned_by_module_guess(), Some("@angular/core"));
 }
@@ -37,7 +37,7 @@ fn test_reference_with_owning_module() {
 fn test_reference_add_identifier() {
     let mut reference = Reference::from_name("Foo", Some(PathBuf::from("/src/foo.ts")));
     reference.add_identifier("FooAlias");
-    
+
     // Should have both identifiers
     assert_eq!(reference.debug_name(), "Foo");
 }
@@ -46,6 +46,6 @@ fn test_reference_add_identifier() {
 fn test_reference_clone_with_no_identifiers() {
     let reference = Reference::from_name("Foo", Some(PathBuf::from("/src/foo.ts")));
     let cloned = reference.clone_with_no_identifiers();
-    
+
     assert_eq!(cloned.debug_name(), "Foo");
 }

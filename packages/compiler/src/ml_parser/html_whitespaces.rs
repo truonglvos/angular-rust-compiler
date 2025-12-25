@@ -9,11 +9,11 @@
 //! - convert &ngsp; pseudo-entity to a single space;
 
 use crate::ml_parser::ast::*;
-use crate::ml_parser::parser::ParseTreeResult;
 use crate::ml_parser::entities::NGSP_UNICODE;
-use regex::Regex;
-use std::collections::{HashSet, HashMap};
+use crate::ml_parser::parser::ParseTreeResult;
 use once_cell::sync::Lazy;
+use regex::Regex;
+use std::collections::{HashMap, HashSet};
 
 pub const PRESERVE_WS_ATTR_NAME: &str = "ngPreserveWhitespaces";
 
@@ -31,13 +31,11 @@ static SKIP_WS_TRIM_TAGS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
 // Based on https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
 const WS_CHARS: &str = " \u{000C}\n\r\t\u{000B}\u{1680}\u{180E}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{2028}\u{2029}\u{202F}\u{205F}\u{3000}\u{FEFF}";
 
-static NO_WS_REGEXP: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(&format!("[^{}]", regex::escape(WS_CHARS))).unwrap()
-});
+static NO_WS_REGEXP: Lazy<Regex> =
+    Lazy::new(|| Regex::new(&format!("[^{}]", regex::escape(WS_CHARS))).unwrap());
 
-static WS_REPLACE_REGEXP: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(&format!("[{}]{{2,}}", regex::escape(WS_CHARS))).unwrap()
-});
+static WS_REPLACE_REGEXP: Lazy<Regex> =
+    Lazy::new(|| Regex::new(&format!("[{}]{{2,}}", regex::escape(WS_CHARS))).unwrap());
 
 fn has_preserve_whitespaces_attr(attrs: &[Attribute]) -> bool {
     attrs.iter().any(|attr| attr.name == PRESERVE_WS_ATTR_NAME)
@@ -90,8 +88,14 @@ impl WhitespaceVisitor {
         }
     }
 
-    pub fn visit_element(&mut self, element: &Element, _context: Option<&SiblingVisitorContext>) -> Option<Node> {
-        if SKIP_WS_TRIM_TAGS.contains(element.name.as_str()) || has_preserve_whitespaces_attr(&element.attrs) {
+    pub fn visit_element(
+        &mut self,
+        element: &Element,
+        _context: Option<&SiblingVisitorContext>,
+    ) -> Option<Node> {
+        if SKIP_WS_TRIM_TAGS.contains(element.name.as_str())
+            || has_preserve_whitespaces_attr(&element.attrs)
+        {
             // don't descend into elements where we need to preserve whitespaces
             // but still visit all attributes to eliminate one used as a marker to preserve WS
             let new_attrs = visit_all_with_siblings_attrs(self, &element.attrs);
@@ -126,7 +130,11 @@ impl WhitespaceVisitor {
         Some(Node::Element(new_element))
     }
 
-    pub fn visit_attribute(&self, attribute: &Attribute, _context: Option<&SiblingVisitorContext>) -> Option<Attribute> {
+    pub fn visit_attribute(
+        &self,
+        attribute: &Attribute,
+        _context: Option<&SiblingVisitorContext>,
+    ) -> Option<Attribute> {
         if attribute.name != PRESERVE_WS_ATTR_NAME {
             Some(attribute.clone())
         } else {
@@ -136,7 +144,7 @@ impl WhitespaceVisitor {
 
     pub fn visit_text(&self, text: &Text, context: Option<&SiblingVisitorContext>) -> Option<Node> {
         let is_not_blank = NO_WS_REGEXP.is_match(&text.value);
-        
+
         let has_expansion_sibling = if let Some(ctx) = context {
             is_expansion_node(&ctx.prev) || is_expansion_node(&ctx.next)
         } else {
@@ -152,7 +160,7 @@ impl WhitespaceVisitor {
         if is_not_blank || has_expansion_sibling {
             // Process the whitespace of the value of this Text node
             let processed = process_whitespace(&text.value);
-            
+
             let final_value = if self.preserve_significant_whitespace {
                 processed
             } else {
@@ -165,7 +173,7 @@ impl WhitespaceVisitor {
                     trimmed
                 }
             };
-            
+
             let result = Text {
                 value: final_value,
                 source_span: text.source_span.clone(),
@@ -178,15 +186,23 @@ impl WhitespaceVisitor {
         None
     }
 
-    pub fn visit_comment(&self, comment: &Comment, _context: Option<&SiblingVisitorContext>) -> Option<Node> {
+    pub fn visit_comment(
+        &self,
+        comment: &Comment,
+        _context: Option<&SiblingVisitorContext>,
+    ) -> Option<Node> {
         Some(Node::Comment(comment.clone()))
     }
 
-    pub fn visit_expansion(&mut self, expansion: &Expansion, _context: Option<&SiblingVisitorContext>) -> Option<Node> {
+    pub fn visit_expansion(
+        &mut self,
+        expansion: &Expansion,
+        _context: Option<&SiblingVisitorContext>,
+    ) -> Option<Node> {
         self.icu_expansion_depth += 1;
-        
+
         let new_cases = visit_all_with_siblings_expansion_cases(self, &expansion.cases);
-        
+
         self.icu_expansion_depth -= 1;
 
         let new_expansion = Expansion {
@@ -197,13 +213,17 @@ impl WhitespaceVisitor {
             switch_value_source_span: expansion.switch_value_source_span.clone(),
             i18n: expansion.i18n.clone(),
         };
-        
+
         Some(Node::Expansion(new_expansion))
     }
 
-    pub fn visit_expansion_case(&mut self, expansion_case: &ExpansionCase, _context: Option<&SiblingVisitorContext>) -> ExpansionCase {
+    pub fn visit_expansion_case(
+        &mut self,
+        expansion_case: &ExpansionCase,
+        _context: Option<&SiblingVisitorContext>,
+    ) -> ExpansionCase {
         let new_expression = visit_all_with_siblings_nodes(self, &expansion_case.expression);
-        
+
         ExpansionCase {
             value: expansion_case.value.clone(),
             expression: new_expression,
@@ -213,9 +233,13 @@ impl WhitespaceVisitor {
         }
     }
 
-    pub fn visit_block(&mut self, block: &Block, _context: Option<&SiblingVisitorContext>) -> Option<Node> {
+    pub fn visit_block(
+        &mut self,
+        block: &Block,
+        _context: Option<&SiblingVisitorContext>,
+    ) -> Option<Node> {
         let new_children = visit_all_with_siblings_nodes(self, &block.children);
-        
+
         let new_block = Block {
             name: block.name.clone(),
             parameters: block.parameters.clone(),
@@ -227,20 +251,34 @@ impl WhitespaceVisitor {
             end_source_span: block.end_source_span.clone(),
             i18n: block.i18n.clone(),
         };
-        
+
         Some(Node::Block(new_block))
     }
 
-    pub fn visit_block_parameter(&self, parameter: &BlockParameter, _context: Option<&SiblingVisitorContext>) -> Option<Node> {
+    pub fn visit_block_parameter(
+        &self,
+        parameter: &BlockParameter,
+        _context: Option<&SiblingVisitorContext>,
+    ) -> Option<Node> {
         Some(Node::BlockParameter(parameter.clone()))
     }
 
-    pub fn visit_let_declaration(&self, decl: &LetDeclaration, _context: Option<&SiblingVisitorContext>) -> Option<Node> {
+    pub fn visit_let_declaration(
+        &self,
+        decl: &LetDeclaration,
+        _context: Option<&SiblingVisitorContext>,
+    ) -> Option<Node> {
         Some(Node::LetDeclaration(decl.clone()))
     }
 
-    pub fn visit_component(&mut self, component: &Component, _context: Option<&SiblingVisitorContext>) -> Option<Node> {
-        if SKIP_WS_TRIM_TAGS.contains(component.component_name.as_str()) || has_preserve_whitespaces_attr(&component.attrs) {
+    pub fn visit_component(
+        &mut self,
+        component: &Component,
+        _context: Option<&SiblingVisitorContext>,
+    ) -> Option<Node> {
+        if SKIP_WS_TRIM_TAGS.contains(component.component_name.as_str())
+            || has_preserve_whitespaces_attr(&component.attrs)
+        {
             let new_attrs = visit_all_with_siblings_attrs(self, &component.attrs);
             let new_component = Component {
                 component_name: component.component_name.clone(),
@@ -275,7 +313,11 @@ impl WhitespaceVisitor {
         Some(Node::Component(new_component))
     }
 
-    pub fn visit_directive(&self, directive: &Directive, _context: Option<&SiblingVisitorContext>) -> Option<Node> {
+    pub fn visit_directive(
+        &self,
+        directive: &Directive,
+        _context: Option<&SiblingVisitorContext>,
+    ) -> Option<Node> {
         Some(Node::Directive(directive.clone()))
     }
 }
@@ -298,7 +340,10 @@ fn trim_ws_end(text: &str) -> &str {
     text.trim_end_matches(|c: char| WS_CHARS.contains(c))
 }
 
-fn trim_leading_and_trailing_whitespace(text: &str, context: Option<&SiblingVisitorContext>) -> String {
+fn trim_leading_and_trailing_whitespace(
+    text: &str,
+    context: Option<&SiblingVisitorContext>,
+) -> String {
     let is_first_token_in_tag = context.map_or(true, |ctx| ctx.prev.is_none());
     let is_last_token_in_tag = context.map_or(true, |ctx| ctx.next.is_none());
 
@@ -307,13 +352,13 @@ fn trim_leading_and_trailing_whitespace(text: &str, context: Option<&SiblingVisi
     } else {
         text
     };
-    
+
     let maybe_trimmed = if is_last_token_in_tag {
         trim_ws_end(maybe_trimmed_start)
     } else {
         maybe_trimmed_start
     };
-    
+
     maybe_trimmed.to_string()
 }
 
@@ -329,7 +374,7 @@ pub fn remove_whitespaces(
 ) -> ParseTreeResult {
     let mut visitor = WhitespaceVisitor::new(preserve_significant_whitespace, None, false);
     let root_nodes = visit_all_with_siblings_nodes(&mut visitor, &html_ast_with_errors.root_nodes);
-    
+
     ParseTreeResult {
         root_nodes,
         errors: html_ast_with_errors.errors,
@@ -339,13 +384,21 @@ pub fn remove_whitespaces(
 /// Visit all nodes with sibling context
 pub fn visit_all_with_siblings_nodes(visitor: &mut WhitespaceVisitor, nodes: &[Node]) -> Vec<Node> {
     let mut result = Vec::new();
-    
+
     for (i, ast) in nodes.iter().enumerate() {
         let context = SiblingVisitorContext {
-            prev: if i > 0 { Some(Box::new(nodes[i - 1].clone())) } else { None },
-            next: if i < nodes.len() - 1 { Some(Box::new(nodes[i + 1].clone())) } else { None },
+            prev: if i > 0 {
+                Some(Box::new(nodes[i - 1].clone()))
+            } else {
+                None
+            },
+            next: if i < nodes.len() - 1 {
+                Some(Box::new(nodes[i + 1].clone()))
+            } else {
+                None
+            },
         };
-        
+
         let ast_result = match ast {
             Node::Element(el) => visitor.visit_element(el, Some(&context)),
             Node::Text(text) => visitor.visit_text(text, Some(&context)),
@@ -358,29 +411,38 @@ pub fn visit_all_with_siblings_nodes(visitor: &mut WhitespaceVisitor, nodes: &[N
             Node::Directive(directive) => visitor.visit_directive(directive, Some(&context)),
             _ => Some(ast.clone()),
         };
-        
+
         if let Some(result_node) = ast_result {
             result.push(result_node);
         }
     }
-    
+
     result
 }
 
-fn visit_all_with_siblings_attrs(visitor: &WhitespaceVisitor, attrs: &[Attribute]) -> Vec<Attribute> {
+fn visit_all_with_siblings_attrs(
+    visitor: &WhitespaceVisitor,
+    attrs: &[Attribute],
+) -> Vec<Attribute> {
     let mut result = Vec::new();
-    
+
     for attr in attrs {
         if let Some(new_attr) = visitor.visit_attribute(attr, None) {
             result.push(new_attr);
         }
     }
-    
+
     result
 }
 
-fn visit_all_with_siblings_expansion_cases(visitor: &mut WhitespaceVisitor, cases: &[ExpansionCase]) -> Vec<ExpansionCase> {
-    cases.iter().map(|case| visitor.visit_expansion_case(case, None)).collect()
+fn visit_all_with_siblings_expansion_cases(
+    visitor: &mut WhitespaceVisitor,
+    cases: &[ExpansionCase],
+) -> Vec<ExpansionCase> {
+    cases
+        .iter()
+        .map(|case| visitor.visit_expansion_case(case, None))
+        .collect()
 }
 
 #[cfg(test)]
@@ -403,25 +465,22 @@ mod tests {
 
     #[test]
     fn test_has_preserve_whitespaces_attr() {
-        use crate::parse_util::{ParseSourceFile, ParseLocation, ParseSourceSpan};
-        
+        use crate::parse_util::{ParseLocation, ParseSourceFile, ParseSourceSpan};
+
         let file = ParseSourceFile::new(String::new(), "test.html".to_string());
         let location = ParseLocation::new(file, 0, 0, 0);
         let span = ParseSourceSpan::new(location.clone(), location);
-        
-        let attrs = vec![
-            Attribute {
-                name: "ngPreserveWhitespaces".to_string(),
-                value: "true".to_string(),
-                source_span: span.clone(),
-                key_span: None,
-                value_span: None,
-                value_tokens: None,
-                i18n: None,
-            }
-        ];
-        
+
+        let attrs = vec![Attribute {
+            name: "ngPreserveWhitespaces".to_string(),
+            value: "true".to_string(),
+            source_span: span.clone(),
+            key_span: None,
+            value_span: None,
+            value_tokens: None,
+            i18n: None,
+        }];
+
         assert!(has_preserve_whitespaces_attr(&attrs));
     }
 }
-

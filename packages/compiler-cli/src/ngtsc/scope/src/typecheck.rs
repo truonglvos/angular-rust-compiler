@@ -2,8 +2,8 @@
 //
 // Scope information for type-checking.
 
-use std::collections::HashMap;
 use super::api::{DirectiveInScope, PipeInScope};
+use std::collections::HashMap;
 
 /// Type-check scope data for a component.
 #[derive(Debug, Clone)]
@@ -27,24 +27,27 @@ impl TypeCheckScope {
             is_poisoned: false,
         }
     }
-    
-    pub fn from_compilation_scope(
-        directives: &[DirectiveInScope],
-        pipes: &[PipeInScope],
-    ) -> Self {
+
+    pub fn from_compilation_scope(directives: &[DirectiveInScope], pipes: &[PipeInScope]) -> Self {
         Self {
-            directives: directives.iter().map(|d| TypeCheckDirective {
-                ref_name: d.directive.clone(),
-                selector: d.selector.clone(),
-                is_component: d.is_component,
-                inputs: Vec::new(),
-                outputs: Vec::new(),
-                host_directives: Vec::new(),
-            }).collect(),
-            pipes: pipes.iter().map(|p| TypeCheckPipe {
-                ref_name: p.pipe.clone(),
-                name: p.name.clone(),
-            }).collect(),
+            directives: directives
+                .iter()
+                .map(|d| TypeCheckDirective {
+                    ref_name: d.directive.clone(),
+                    selector: d.selector.clone(),
+                    is_component: d.is_component,
+                    inputs: Vec::new(),
+                    outputs: Vec::new(),
+                    host_directives: Vec::new(),
+                })
+                .collect(),
+            pipes: pipes
+                .iter()
+                .map(|p| TypeCheckPipe {
+                    ref_name: p.pipe.clone(),
+                    name: p.name.clone(),
+                })
+                .collect(),
             schemas: Vec::new(),
             is_poisoned: false,
         }
@@ -113,12 +116,12 @@ impl TypeCheckScopeRegistry {
             scope_cache: HashMap::new(),
         }
     }
-    
+
     /// Get type-check scope for a component.
     pub fn get_type_check_scope(&self, component_ref: &str) -> Option<&TypeCheckScope> {
         self.scope_cache.get(component_ref)
     }
-    
+
     /// Register type-check scope for a component.
     pub fn register_type_check_scope(
         &mut self,

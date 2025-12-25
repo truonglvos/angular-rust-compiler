@@ -8,10 +8,12 @@ use std::collections::HashSet;
 
 use crate::perform_compile::{
     exit_code_from_result, format_diagnostics, perform_compilation, read_configuration,
-    ParsedConfiguration, CompilationResult, EmitFlags, Program,
+    CompilationResult, EmitFlags, ParsedConfiguration, Program,
 };
 use crate::perform_watch::{create_perform_watch_host, perform_watch_compilation, WatchResult};
-use crate::transformers::api::{CompilerOptions, CustomTransformers, Diagnostic, DiagnosticCategory, NewLineKind};
+use crate::transformers::api::{
+    CompilerOptions, CustomTransformers, Diagnostic, DiagnosticCategory, NewLineKind,
+};
 
 /// Parsed configuration for ngc with watch mode support.
 #[derive(Debug, Clone, Default)]
@@ -67,9 +69,11 @@ impl FormatDiagnosticsHost {
     pub fn new(options: Option<&CompilerOptions>) -> Self {
         let current_directory = options
             .and_then(|o| o.base_path.clone())
-            .unwrap_or_else(|| std::env::current_dir()
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_else(|_| ".".to_string()));
+            .unwrap_or_else(|| {
+                std::env::current_dir()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_else(|_| ".".to_string())
+            });
 
         let new_line = if let Some(opts) = options {
             if opts.new_line == Some(NewLineKind::LineFeed) {
@@ -132,7 +136,11 @@ where
 
     if watch {
         let result = watch_mode(&project, &options, &console_error);
-        return report_errors_and_exit(&result.first_compile_result, Some(&options), &console_error);
+        return report_errors_and_exit(
+            &result.first_compile_result,
+            Some(&options),
+            &console_error,
+        );
     }
 
     let old_program = program_reuse.as_ref().and_then(|pr| pr.program.clone());
@@ -225,7 +233,13 @@ pub fn read_ngc_command_line_and_configuration(args: &[String]) -> NgcParsedConf
     let config = read_command_line_and_configuration(
         args,
         Some(options),
-        &["i18nFile", "i18nFormat", "locale", "missingTranslation", "watch"],
+        &[
+            "i18nFile",
+            "i18nFormat",
+            "locale",
+            "missingTranslation",
+            "watch",
+        ],
     );
 
     NgcParsedConfiguration {
@@ -384,11 +398,7 @@ fn merge_options(target: &mut CompilerOptions, source: &CompilerOptions) {
 }
 
 /// Run in watch mode.
-pub fn watch_mode<F>(
-    project: &str,
-    options: &CompilerOptions,
-    console_error: &F,
-) -> WatchResult
+pub fn watch_mode<F>(project: &str, options: &CompilerOptions, console_error: &F) -> WatchResult
 where
     F: Fn(&str),
 {
@@ -432,8 +442,7 @@ fn print_diagnostics<F>(
     diagnostics: &[Diagnostic],
     options: Option<&CompilerOptions>,
     console_error: &F,
-)
-where
+) where
     F: Fn(&str),
 {
     if diagnostics.is_empty() {

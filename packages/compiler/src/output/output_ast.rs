@@ -3,8 +3,8 @@
 //! Corresponds to packages/compiler/src/output/output_ast.ts
 //! Defines the AST for output code generation
 
-use crate::parse_util::ParseSourceSpan;
 use crate::output::abstract_emitter::HasSourceSpan;
+use crate::parse_util::ParseSourceSpan;
 use std::any::Any;
 
 //// Types
@@ -17,7 +17,11 @@ pub enum TypeModifier {
 
 pub trait TypeTrait {
     fn modifiers(&self) -> TypeModifier;
-    fn visit_type(&self, visitor: &mut dyn TypeVisitor, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
+    fn visit_type(
+        &self,
+        visitor: &mut dyn TypeVisitor,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
     fn has_modifier(&self, modifier: TypeModifier) -> bool {
         self.modifiers() as u8 & modifier as u8 != 0
     }
@@ -147,11 +151,31 @@ pub fn none_type() -> Type {
 }
 
 pub trait TypeVisitor {
-    fn visit_builtin_type(&mut self, type_: &BuiltinType, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_expression_type(&mut self, type_: &ExpressionType, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_array_type(&mut self, type_: &ArrayType, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_map_type(&mut self, type_: &MapType, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_transplanted_type(&mut self, type_: &TransplantedType<Box<dyn std::any::Any>>, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
+    fn visit_builtin_type(
+        &mut self,
+        type_: &BuiltinType,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_expression_type(
+        &mut self,
+        type_: &ExpressionType,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_array_type(
+        &mut self,
+        type_: &ArrayType,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_map_type(
+        &mut self,
+        type_: &MapType,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_transplanted_type(
+        &mut self,
+        type_: &TransplantedType<Box<dyn std::any::Any>>,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
 }
 
 ///// Expressions
@@ -200,7 +224,11 @@ pub enum BinaryOperator {
 pub trait ExpressionTrait {
     fn type_(&self) -> Option<&Type>;
     fn source_span(&self) -> Option<&ParseSourceSpan>;
-    fn visit_expression(&self, visitor: &mut dyn ExpressionVisitor, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
+    fn visit_expression(
+        &self,
+        visitor: &mut dyn ExpressionVisitor,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
     fn is_equivalent(&self, e: &Expression) -> bool;
     fn is_constant(&self) -> bool;
     fn clone_expr(&self) -> Expression;
@@ -242,7 +270,7 @@ pub enum Expression {
     Parens(ParenthesizedExpr),
     RegularExpressionLiteral(RegularExpressionLiteralExpr),
     RawCode(RawCodeExpr),
-    
+
     // IR Expression variants
     LexicalRead(crate::template::pipeline::ir::expression::LexicalReadExpr),
     Reference(crate::template::pipeline::ir::expression::ReferenceExpr),
@@ -630,66 +658,298 @@ pub struct RegularExpressionLiteralExpr {
 }
 
 pub trait ExpressionVisitor {
-    fn visit_raw_code_expr(&mut self, expr: &RawCodeExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_read_var_expr(&mut self, expr: &ReadVarExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_write_var_expr(&mut self, expr: &WriteVarExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_write_key_expr(&mut self, expr: &WriteKeyExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_write_prop_expr(&mut self, expr: &WritePropExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_invoke_function_expr(&mut self, expr: &InvokeFunctionExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_tagged_template_expr(&mut self, expr: &TaggedTemplateLiteralExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_instantiate_expr(&mut self, expr: &InstantiateExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_literal_expr(&mut self, expr: &LiteralExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_localized_string(&mut self, expr: &LocalizedString, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_external_expr(&mut self, expr: &ExternalExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_binary_operator_expr(&mut self, expr: &BinaryOperatorExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_read_prop_expr(&mut self, expr: &ReadPropExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_read_key_expr(&mut self, expr: &ReadKeyExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_conditional_expr(&mut self, expr: &ConditionalExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_unary_operator_expr(&mut self, expr: &UnaryOperatorExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_parenthesized_expr(&mut self, expr: &ParenthesizedExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_function_expr(&mut self, expr: &FunctionExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_arrow_function_expr(&mut self, expr: &ArrowFunctionExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_literal_array_expr(&mut self, expr: &LiteralArrayExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_literal_map_expr(&mut self, expr: &LiteralMapExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_comma_expr(&mut self, expr: &CommaExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_typeof_expr(&mut self, expr: &TypeofExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_void_expr(&mut self, expr: &VoidExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_not_expr(&mut self, expr: &NotExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_if_null_expr(&mut self, expr: &IfNullExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_assert_not_null_expr(&mut self, expr: &AssertNotNullExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_cast_expr(&mut self, expr: &CastExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_dynamic_import_expr(&mut self, expr: &DynamicImportExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_template_literal_expr(&mut self, expr: &TemplateLiteralExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_regular_expression_literal(&mut self, expr: &RegularExpressionLiteralExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_wrapped_node_expr(&mut self, expr: &WrappedNodeExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    
+    fn visit_raw_code_expr(
+        &mut self,
+        expr: &RawCodeExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_read_var_expr(
+        &mut self,
+        expr: &ReadVarExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_write_var_expr(
+        &mut self,
+        expr: &WriteVarExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_write_key_expr(
+        &mut self,
+        expr: &WriteKeyExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_write_prop_expr(
+        &mut self,
+        expr: &WritePropExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_invoke_function_expr(
+        &mut self,
+        expr: &InvokeFunctionExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_tagged_template_expr(
+        &mut self,
+        expr: &TaggedTemplateLiteralExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_instantiate_expr(
+        &mut self,
+        expr: &InstantiateExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_literal_expr(
+        &mut self,
+        expr: &LiteralExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_localized_string(
+        &mut self,
+        expr: &LocalizedString,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_external_expr(
+        &mut self,
+        expr: &ExternalExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_binary_operator_expr(
+        &mut self,
+        expr: &BinaryOperatorExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_read_prop_expr(
+        &mut self,
+        expr: &ReadPropExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_read_key_expr(
+        &mut self,
+        expr: &ReadKeyExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_conditional_expr(
+        &mut self,
+        expr: &ConditionalExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_unary_operator_expr(
+        &mut self,
+        expr: &UnaryOperatorExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_parenthesized_expr(
+        &mut self,
+        expr: &ParenthesizedExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_function_expr(
+        &mut self,
+        expr: &FunctionExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_arrow_function_expr(
+        &mut self,
+        expr: &ArrowFunctionExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_literal_array_expr(
+        &mut self,
+        expr: &LiteralArrayExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_literal_map_expr(
+        &mut self,
+        expr: &LiteralMapExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_comma_expr(
+        &mut self,
+        expr: &CommaExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_typeof_expr(
+        &mut self,
+        expr: &TypeofExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_void_expr(
+        &mut self,
+        expr: &VoidExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_not_expr(
+        &mut self,
+        expr: &NotExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_if_null_expr(
+        &mut self,
+        expr: &IfNullExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_assert_not_null_expr(
+        &mut self,
+        expr: &AssertNotNullExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_cast_expr(
+        &mut self,
+        expr: &CastExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_dynamic_import_expr(
+        &mut self,
+        expr: &DynamicImportExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_template_literal_expr(
+        &mut self,
+        expr: &TemplateLiteralExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_regular_expression_literal(
+        &mut self,
+        expr: &RegularExpressionLiteralExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_wrapped_node_expr(
+        &mut self,
+        expr: &WrappedNodeExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+
     // IR Expression visitor methods
-    fn visit_lexical_read_expr(&mut self, expr: &crate::template::pipeline::ir::expression::LexicalReadExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_reference_expr(&mut self, expr: &crate::template::pipeline::ir::expression::ReferenceExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_context_expr(&mut self, expr: &crate::template::pipeline::ir::expression::ContextExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_next_context_expr(&mut self, expr: &crate::template::pipeline::ir::expression::NextContextExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_get_current_view_expr(&mut self, expr: &crate::template::pipeline::ir::expression::GetCurrentViewExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_restore_view_expr(&mut self, expr: &crate::template::pipeline::ir::expression::RestoreViewExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_reset_view_expr(&mut self, expr: &crate::template::pipeline::ir::expression::ResetViewExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_read_variable_expr(&mut self, expr: &crate::template::pipeline::ir::expression::ReadVariableExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_pure_function_expr(&mut self, expr: &crate::template::pipeline::ir::expression::PureFunctionExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_pure_function_parameter_expr(&mut self, expr: &crate::template::pipeline::ir::expression::PureFunctionParameterExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_pipe_binding_expr(&mut self, expr: &crate::template::pipeline::ir::expression::PipeBindingExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_pipe_binding_variadic_expr(&mut self, expr: &crate::template::pipeline::ir::expression::PipeBindingVariadicExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_safe_property_read_expr(&mut self, expr: &crate::template::pipeline::ir::expression::SafePropertyReadExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_safe_keyed_read_expr(&mut self, expr: &crate::template::pipeline::ir::expression::SafeKeyedReadExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_safe_invoke_function_expr(&mut self, expr: &crate::template::pipeline::ir::expression::SafeInvokeFunctionExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_safe_ternary_expr(&mut self, expr: &crate::template::pipeline::ir::expression::SafeTernaryExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_empty_expr(&mut self, expr: &crate::template::pipeline::ir::expression::EmptyExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_assign_temporary_expr(&mut self, expr: &crate::template::pipeline::ir::expression::AssignTemporaryExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_read_temporary_expr(&mut self, expr: &crate::template::pipeline::ir::expression::ReadTemporaryExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_slot_literal_expr(&mut self, expr: &crate::template::pipeline::ir::expression::SlotLiteralExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_conditional_case_expr(&mut self, expr: &crate::template::pipeline::ir::expression::ConditionalCaseExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_const_collected_expr(&mut self, expr: &crate::template::pipeline::ir::expression::ConstCollectedExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_two_way_binding_set_expr(&mut self, expr: &crate::template::pipeline::ir::expression::TwoWayBindingSetExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_context_let_reference_expr(&mut self, expr: &crate::template::pipeline::ir::expression::ContextLetReferenceExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_store_let_expr(&mut self, expr: &crate::template::pipeline::ir::expression::StoreLetExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_track_context_expr(&mut self, expr: &crate::template::pipeline::ir::expression::TrackContextExpr, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
+    fn visit_lexical_read_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::LexicalReadExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_reference_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::ReferenceExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_context_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::ContextExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_next_context_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::NextContextExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_get_current_view_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::GetCurrentViewExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_restore_view_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::RestoreViewExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_reset_view_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::ResetViewExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_read_variable_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::ReadVariableExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_pure_function_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::PureFunctionExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_pure_function_parameter_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::PureFunctionParameterExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_pipe_binding_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::PipeBindingExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_pipe_binding_variadic_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::PipeBindingVariadicExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_safe_property_read_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::SafePropertyReadExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_safe_keyed_read_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::SafeKeyedReadExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_safe_invoke_function_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::SafeInvokeFunctionExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_safe_ternary_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::SafeTernaryExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_empty_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::EmptyExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_assign_temporary_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::AssignTemporaryExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_read_temporary_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::ReadTemporaryExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_slot_literal_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::SlotLiteralExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_conditional_case_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::ConditionalCaseExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_const_collected_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::ConstCollectedExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_two_way_binding_set_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::TwoWayBindingSetExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_context_let_reference_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::ContextLetReferenceExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_store_let_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::StoreLetExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_track_context_expr(
+        &mut self,
+        expr: &crate::template::pipeline::ir::expression::TrackContextExpr,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
 }
 
 ///// Statements
@@ -753,11 +1013,31 @@ pub struct IfStmt {
 }
 
 pub trait StatementVisitor {
-    fn visit_declare_var_stmt(&mut self, stmt: &DeclareVarStmt, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_declare_function_stmt(&mut self, stmt: &DeclareFunctionStmt, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_expression_stmt(&mut self, stmt: &ExpressionStatement, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_return_stmt(&mut self, stmt: &ReturnStatement, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
-    fn visit_if_stmt(&mut self, stmt: &IfStmt, context: &mut dyn std::any::Any) -> Box<dyn std::any::Any>;
+    fn visit_declare_var_stmt(
+        &mut self,
+        stmt: &DeclareVarStmt,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_declare_function_stmt(
+        &mut self,
+        stmt: &DeclareFunctionStmt,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_expression_stmt(
+        &mut self,
+        stmt: &ExpressionStatement,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_return_stmt(
+        &mut self,
+        stmt: &ReturnStatement,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_if_stmt(
+        &mut self,
+        stmt: &IfStmt,
+        context: &mut dyn std::any::Any,
+    ) -> Box<dyn std::any::Any>;
     // Add more visitor methods as needed...
 }
 
@@ -839,7 +1119,11 @@ impl Expression {
         }
     }
 
-    pub fn prop(&self, name: impl Into<String>, source_span: Option<ParseSourceSpan>) -> Box<Expression> {
+    pub fn prop(
+        &self,
+        name: impl Into<String>,
+        source_span: Option<ParseSourceSpan>,
+    ) -> Box<Expression> {
         Box::new(Expression::ReadProp(ReadPropExpr {
             receiver: Box::new(self.clone()),
             name: name.into(),
@@ -848,7 +1132,12 @@ impl Expression {
         }))
     }
 
-    pub fn key(&self, index: Box<Expression>, type_: Option<Type>, source_span: Option<ParseSourceSpan>) -> Box<Expression> {
+    pub fn key(
+        &self,
+        index: Box<Expression>,
+        type_: Option<Type>,
+        source_span: Option<ParseSourceSpan>,
+    ) -> Box<Expression> {
         Box::new(Expression::ReadKey(ReadKeyExpr {
             receiver: Box::new(self.clone()),
             index,
@@ -857,7 +1146,12 @@ impl Expression {
         }))
     }
 
-    pub fn call_fn(&self, params: Vec<Expression>, source_span: Option<ParseSourceSpan>, pure: Option<bool>) -> Box<Expression> {
+    pub fn call_fn(
+        &self,
+        params: Vec<Expression>,
+        source_span: Option<ParseSourceSpan>,
+        pure: Option<bool>,
+    ) -> Box<Expression> {
         Box::new(Expression::InvokeFn(InvokeFunctionExpr {
             fn_: Box::new(self.clone()),
             args: params,
@@ -867,7 +1161,12 @@ impl Expression {
         }))
     }
 
-    pub fn instantiate(&self, params: Vec<Expression>, type_: Option<Type>, source_span: Option<ParseSourceSpan>) -> Box<Expression> {
+    pub fn instantiate(
+        &self,
+        params: Vec<Expression>,
+        type_: Option<Type>,
+        source_span: Option<ParseSourceSpan>,
+    ) -> Box<Expression> {
         Box::new(Expression::Instantiate(InstantiateExpr {
             class_expr: Box::new(self.clone()),
             args: params,
@@ -876,7 +1175,12 @@ impl Expression {
         }))
     }
 
-    pub fn conditional(&self, true_case: Box<Expression>, false_case: Option<Box<Expression>>, source_span: Option<ParseSourceSpan>) -> Box<Expression> {
+    pub fn conditional(
+        &self,
+        true_case: Box<Expression>,
+        false_case: Option<Box<Expression>>,
+        source_span: Option<ParseSourceSpan>,
+    ) -> Box<Expression> {
         Box::new(Expression::Conditional(ConditionalExpr {
             condition: Box::new(self.clone()),
             true_case,
@@ -894,7 +1198,11 @@ impl Expression {
     }
 
     /// Creates a binary OR expression (||)
-    pub fn or(&self, rhs: Box<Expression>, source_span: Option<ParseSourceSpan>) -> Box<Expression> {
+    pub fn or(
+        &self,
+        rhs: Box<Expression>,
+        source_span: Option<ParseSourceSpan>,
+    ) -> Box<Expression> {
         Box::new(Expression::BinaryOp(BinaryOperatorExpr {
             operator: BinaryOperator::Or,
             lhs: Box::new(self.clone()),
@@ -905,27 +1213,27 @@ impl Expression {
     }
 
     /// Creates a write property expression (property assignment)
-    pub fn set(&self, value: Box<Expression>, source_span: Option<ParseSourceSpan>) -> Box<Expression> {
+    pub fn set(
+        &self,
+        value: Box<Expression>,
+        source_span: Option<ParseSourceSpan>,
+    ) -> Box<Expression> {
         // Check if self is ReadPropExpr or ReadKeyExpr
         match self {
-            Expression::ReadProp(read_prop) => {
-                Box::new(Expression::WriteProp(WritePropExpr {
-                    receiver: read_prop.receiver.clone(),
-                    name: read_prop.name.clone(),
-                    value,
-                    type_: None,
-                    source_span,
-                }))
-            }
-            Expression::ReadKey(read_key) => {
-                Box::new(Expression::WriteKey(WriteKeyExpr {
-                    receiver: read_key.receiver.clone(),
-                    index: read_key.index.clone(),
-                    value,
-                    type_: None,
-                    source_span,
-                }))
-            }
+            Expression::ReadProp(read_prop) => Box::new(Expression::WriteProp(WritePropExpr {
+                receiver: read_prop.receiver.clone(),
+                name: read_prop.name.clone(),
+                value,
+                type_: None,
+                source_span,
+            })),
+            Expression::ReadKey(read_key) => Box::new(Expression::WriteKey(WriteKeyExpr {
+                receiver: read_key.receiver.clone(),
+                index: read_key.index.clone(),
+                value,
+                type_: None,
+                source_span,
+            })),
             _ => {
                 panic!("set() can only be called on ReadPropExpr or ReadKeyExpr");
             }
@@ -953,7 +1261,12 @@ pub fn not(expr: Box<Expression>) -> Box<Expression> {
     }))
 }
 
-pub fn fn_expr(params: Vec<FnParam>, statements: Vec<Statement>, type_: Option<Type>, name: Option<String>) -> Box<Expression> {
+pub fn fn_expr(
+    params: Vec<FnParam>,
+    statements: Vec<Statement>,
+    type_: Option<Type>,
+    name: Option<String>,
+) -> Box<Expression> {
     Box::new(Expression::Fn(FunctionExpr {
         params,
         statements,
@@ -963,7 +1276,11 @@ pub fn fn_expr(params: Vec<FnParam>, statements: Vec<Statement>, type_: Option<T
     }))
 }
 
-pub fn arrow_fn(params: Vec<FnParam>, body: ArrowFunctionBody, type_: Option<Type>) -> Box<Expression> {
+pub fn arrow_fn(
+    params: Vec<FnParam>,
+    body: ArrowFunctionBody,
+    type_: Option<Type>,
+) -> Box<Expression> {
     Box::new(Expression::ArrowFn(ArrowFunctionExpr {
         params,
         body,
@@ -1021,7 +1338,9 @@ impl Expression {
             Expression::Void(e) => Expression::Void(e.clone()),
             Expression::Unary(e) => Expression::Unary(e.clone()),
             Expression::Parens(e) => Expression::Parens(e.clone()),
-            Expression::RegularExpressionLiteral(e) => Expression::RegularExpressionLiteral(e.clone()),
+            Expression::RegularExpressionLiteral(e) => {
+                Expression::RegularExpressionLiteral(e.clone())
+            }
             // IR Expression variants
             Expression::LexicalRead(e) => Expression::LexicalRead(e.clone()),
             Expression::Reference(e) => Expression::Reference(e.clone()),
@@ -1393,7 +1712,11 @@ impl ExpressionTrait for Expression {
         }
     }
 
-    fn visit_expression(&self, visitor: &mut dyn ExpressionVisitor, context: &mut dyn Any) -> Box<dyn Any> {
+    fn visit_expression(
+        &self,
+        visitor: &mut dyn ExpressionVisitor,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         match self {
             Expression::ReadVar(e) => visitor.visit_read_var_expr(e, context),
             Expression::WriteVar(e) => visitor.visit_write_var_expr(e, context),
@@ -1427,7 +1750,9 @@ impl ExpressionTrait for Expression {
             Expression::Void(e) => visitor.visit_void_expr(e, context),
             Expression::Unary(e) => visitor.visit_unary_operator_expr(e, context),
             Expression::Parens(e) => visitor.visit_parenthesized_expr(e, context),
-            Expression::RegularExpressionLiteral(e) => visitor.visit_regular_expression_literal(e, context),
+            Expression::RegularExpressionLiteral(e) => {
+                visitor.visit_regular_expression_literal(e, context)
+            }
             Expression::RawCode(e) => visitor.visit_raw_code_expr(e, context),
             // IR Expression variants
             Expression::LexicalRead(e) => visitor.visit_lexical_read_expr(e, context),
@@ -1439,12 +1764,18 @@ impl ExpressionTrait for Expression {
             Expression::ResetView(e) => visitor.visit_reset_view_expr(e, context),
             Expression::ReadVariable(e) => visitor.visit_read_variable_expr(e, context),
             Expression::PureFunction(e) => visitor.visit_pure_function_expr(e, context),
-            Expression::PureFunctionParameter(e) => visitor.visit_pure_function_parameter_expr(e, context),
+            Expression::PureFunctionParameter(e) => {
+                visitor.visit_pure_function_parameter_expr(e, context)
+            }
             Expression::PipeBinding(e) => visitor.visit_pipe_binding_expr(e, context),
-            Expression::PipeBindingVariadic(e) => visitor.visit_pipe_binding_variadic_expr(e, context),
+            Expression::PipeBindingVariadic(e) => {
+                visitor.visit_pipe_binding_variadic_expr(e, context)
+            }
             Expression::SafePropertyRead(e) => visitor.visit_safe_property_read_expr(e, context),
             Expression::SafeKeyedRead(e) => visitor.visit_safe_keyed_read_expr(e, context),
-            Expression::SafeInvokeFunction(e) => visitor.visit_safe_invoke_function_expr(e, context),
+            Expression::SafeInvokeFunction(e) => {
+                visitor.visit_safe_invoke_function_expr(e, context)
+            }
             Expression::SafeTernary(e) => visitor.visit_safe_ternary_expr(e, context),
             Expression::Empty(e) => visitor.visit_empty_expr(e, context),
             Expression::AssignTemporary(e) => visitor.visit_assign_temporary_expr(e, context),
@@ -1453,7 +1784,9 @@ impl ExpressionTrait for Expression {
             Expression::ConditionalCase(e) => visitor.visit_conditional_case_expr(e, context),
             Expression::ConstCollected(e) => visitor.visit_const_collected_expr(e, context),
             Expression::TwoWayBindingSet(e) => visitor.visit_two_way_binding_set_expr(e, context),
-            Expression::ContextLetReference(e) => visitor.visit_context_let_reference_expr(e, context),
+            Expression::ContextLetReference(e) => {
+                visitor.visit_context_let_reference_expr(e, context)
+            }
             Expression::StoreLet(e) => visitor.visit_store_let_expr(e, context),
             Expression::TrackContext(e) => visitor.visit_track_context_expr(e, context),
         }
@@ -1479,7 +1812,11 @@ impl ExpressionTrait for Expression {
 
 // Add visit_statement method to Statement enum
 impl Statement {
-    pub fn visit_statement(&self, visitor: &mut dyn StatementVisitor, context: &mut dyn Any) -> Box<dyn Any> {
+    pub fn visit_statement(
+        &self,
+        visitor: &mut dyn StatementVisitor,
+        context: &mut dyn Any,
+    ) -> Box<dyn Any> {
         match self {
             Statement::DeclareVar(s) => visitor.visit_declare_var_stmt(s, context),
             Statement::DeclareFn(s) => visitor.visit_declare_function_stmt(s, context),
@@ -1489,4 +1826,3 @@ impl Statement {
         }
     }
 }
-

@@ -84,7 +84,11 @@ impl Message {
 /// Base trait for all i18n AST nodes
 pub trait NodeTrait {
     fn source_span(&self) -> &ParseSourceSpan;
-    fn visit<V: Visitor>(&self, visitor: &mut V, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any>;
+    fn visit<V: Visitor>(
+        &self,
+        visitor: &mut V,
+        context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any>;
 }
 
 /// Enum representing all possible i18n AST node types
@@ -112,7 +116,11 @@ impl Node {
         }
     }
 
-    pub fn visit<V: Visitor>(&self, visitor: &mut V, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    pub fn visit<V: Visitor>(
+        &self,
+        visitor: &mut V,
+        context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         match self {
             Node::Text(n) => visitor.visit_text(n, context),
             Node::Container(n) => visitor.visit_container(n, context),
@@ -305,24 +313,63 @@ pub enum I18nMeta {
 
 /// Visitor trait for traversing i18n AST
 pub trait Visitor {
-    fn visit_text(&mut self, text: &Text, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any>;
-    fn visit_container(&mut self, container: &Container, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any>;
-    fn visit_icu(&mut self, icu: &Icu, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any>;
-    fn visit_tag_placeholder(&mut self, ph: &TagPlaceholder, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any>;
-    fn visit_placeholder(&mut self, ph: &Placeholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any>;
-    fn visit_icu_placeholder(&mut self, ph: &IcuPlaceholder, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any>;
-    fn visit_block_placeholder(&mut self, ph: &BlockPlaceholder, context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any>;
+    fn visit_text(
+        &mut self,
+        text: &Text,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_container(
+        &mut self,
+        container: &Container,
+        context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_icu(
+        &mut self,
+        icu: &Icu,
+        context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_tag_placeholder(
+        &mut self,
+        ph: &TagPlaceholder,
+        context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_placeholder(
+        &mut self,
+        ph: &Placeholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_icu_placeholder(
+        &mut self,
+        ph: &IcuPlaceholder,
+        context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any>;
+    fn visit_block_placeholder(
+        &mut self,
+        ph: &BlockPlaceholder,
+        context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any>;
 }
 
 /// Clone visitor - clones the AST
 pub struct CloneVisitor;
 
 impl Visitor for CloneVisitor {
-    fn visit_text(&mut self, text: &Text, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
-        Box::new(Node::Text(Text::new(text.value.clone(), text.source_span.clone())))
+    fn visit_text(
+        &mut self,
+        text: &Text,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
+        Box::new(Node::Text(Text::new(
+            text.value.clone(),
+            text.source_span.clone(),
+        )))
     }
 
-    fn visit_container(&mut self, container: &Container, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_container(
+        &mut self,
+        container: &Container,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         // Note: context cannot be moved in closure, so we pass None for now
         // This needs proper implementation with context handling
         let children = container
@@ -333,10 +380,17 @@ impl Visitor for CloneVisitor {
                 *result.downcast::<Node>().unwrap()
             })
             .collect();
-        Box::new(Node::Container(Container::new(children, container.source_span.clone())))
+        Box::new(Node::Container(Container::new(
+            children,
+            container.source_span.clone(),
+        )))
     }
 
-    fn visit_icu(&mut self, icu: &Icu, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_icu(
+        &mut self,
+        icu: &Icu,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let mut cases = HashMap::new();
         for (key, node) in &icu.cases {
             let result = node.visit(self, None); // TODO: Fix context passing
@@ -351,7 +405,11 @@ impl Visitor for CloneVisitor {
         )))
     }
 
-    fn visit_tag_placeholder(&mut self, ph: &TagPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_tag_placeholder(
+        &mut self,
+        ph: &TagPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let children = ph
             .children
             .iter()
@@ -373,7 +431,11 @@ impl Visitor for CloneVisitor {
         )))
     }
 
-    fn visit_placeholder(&mut self, ph: &Placeholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_placeholder(
+        &mut self,
+        ph: &Placeholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         Box::new(Node::Placeholder(Placeholder::new(
             ph.value.clone(),
             ph.name.clone(),
@@ -381,7 +443,11 @@ impl Visitor for CloneVisitor {
         )))
     }
 
-    fn visit_icu_placeholder(&mut self, ph: &IcuPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_icu_placeholder(
+        &mut self,
+        ph: &IcuPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         Box::new(Node::IcuPlaceholder(IcuPlaceholder::new(
             ph.value.clone(),
             ph.name.clone(),
@@ -389,7 +455,11 @@ impl Visitor for CloneVisitor {
         )))
     }
 
-    fn visit_block_placeholder(&mut self, ph: &BlockPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_block_placeholder(
+        &mut self,
+        ph: &BlockPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let children = ph
             .children
             .iter()
@@ -415,40 +485,68 @@ impl Visitor for CloneVisitor {
 pub struct RecurseVisitor;
 
 impl Visitor for RecurseVisitor {
-    fn visit_text(&mut self, _text: &Text, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_text(
+        &mut self,
+        _text: &Text,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         Box::new(())
     }
 
-    fn visit_container(&mut self, container: &Container, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_container(
+        &mut self,
+        container: &Container,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         for child in &container.children {
             child.visit(self, None);
         }
         Box::new(())
     }
 
-    fn visit_icu(&mut self, icu: &Icu, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_icu(
+        &mut self,
+        icu: &Icu,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         for node in icu.cases.values() {
             node.visit(self, None);
         }
         Box::new(())
     }
 
-    fn visit_tag_placeholder(&mut self, ph: &TagPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_tag_placeholder(
+        &mut self,
+        ph: &TagPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         for child in &ph.children {
             child.visit(self, None);
         }
         Box::new(())
     }
 
-    fn visit_placeholder(&mut self, _ph: &Placeholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_placeholder(
+        &mut self,
+        _ph: &Placeholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         Box::new(())
     }
 
-    fn visit_icu_placeholder(&mut self, _ph: &IcuPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_icu_placeholder(
+        &mut self,
+        _ph: &IcuPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         Box::new(())
     }
 
-    fn visit_block_placeholder(&mut self, ph: &BlockPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_block_placeholder(
+        &mut self,
+        ph: &BlockPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         for child in &ph.children {
             child.visit(self, None);
         }
@@ -472,11 +570,19 @@ fn serialize_message(message_nodes: &[Node]) -> String {
 struct LocalizeMessageStringVisitor;
 
 impl Visitor for LocalizeMessageStringVisitor {
-    fn visit_text(&mut self, text: &Text, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_text(
+        &mut self,
+        text: &Text,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         Box::new(text.value.clone())
     }
 
-    fn visit_container(&mut self, container: &Container, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_container(
+        &mut self,
+        container: &Container,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let result = container
             .children
             .iter()
@@ -489,7 +595,11 @@ impl Visitor for LocalizeMessageStringVisitor {
         Box::new(result)
     }
 
-    fn visit_icu(&mut self, icu: &Icu, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_icu(
+        &mut self,
+        icu: &Icu,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let mut str_cases = Vec::new();
         for (k, v) in &icu.cases {
             let case_result = v.visit(self, None);
@@ -498,14 +608,20 @@ impl Visitor for LocalizeMessageStringVisitor {
         }
         let result = format!(
             "{{${}, {}, {}}}",
-            icu.expression_placeholder.as_ref().unwrap_or(&icu.expression),
+            icu.expression_placeholder
+                .as_ref()
+                .unwrap_or(&icu.expression),
             icu.type_,
             str_cases.join(" ")
         );
         Box::new(result)
     }
 
-    fn visit_tag_placeholder(&mut self, ph: &TagPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_tag_placeholder(
+        &mut self,
+        ph: &TagPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let children = ph
             .children
             .iter()
@@ -519,15 +635,27 @@ impl Visitor for LocalizeMessageStringVisitor {
         Box::new(result)
     }
 
-    fn visit_placeholder(&mut self, ph: &Placeholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_placeholder(
+        &mut self,
+        ph: &Placeholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         Box::new(format!("{{${}}}", ph.name))
     }
 
-    fn visit_icu_placeholder(&mut self, ph: &IcuPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_icu_placeholder(
+        &mut self,
+        ph: &IcuPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         Box::new(format!("{{${}}}", ph.name))
     }
 
-    fn visit_block_placeholder(&mut self, ph: &BlockPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_block_placeholder(
+        &mut self,
+        ph: &BlockPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let children = ph
             .children
             .iter()
@@ -541,4 +669,3 @@ impl Visitor for LocalizeMessageStringVisitor {
         Box::new(result)
     }
 }
-

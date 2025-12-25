@@ -81,14 +81,17 @@ impl SimplePlaceholderMapper {
         if self.public_to_internal.contains_key(&public_name) {
             // Create a new name when it has already been used
             let next_id = *self.public_to_next_id.get(&public_name).unwrap();
-            self.public_to_next_id.insert(public_name.clone(), next_id + 1);
+            self.public_to_next_id
+                .insert(public_name.clone(), next_id + 1);
             public_name = format!("{}_{}", public_name, next_id);
         } else {
             self.public_to_next_id.insert(public_name.clone(), 1);
         }
 
-        self.internal_to_public.insert(internal_name.to_string(), public_name.clone());
-        self.public_to_internal.insert(public_name, internal_name.to_string());
+        self.internal_to_public
+            .insert(internal_name.to_string(), public_name.clone());
+        self.public_to_internal
+            .insert(public_name, internal_name.to_string());
     }
 }
 
@@ -114,50 +117,81 @@ impl<'a, F> Visitor for MapperVisitor<'a, F>
 where
     F: Fn(&str) -> String,
 {
-    fn visit_text(&mut self, _text: &i18n::Text, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_text(
+        &mut self,
+        _text: &i18n::Text,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         Box::new(())
     }
 
-    fn visit_container(&mut self, container: &i18n::Container, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_container(
+        &mut self,
+        container: &i18n::Container,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         for child in &container.children {
             child.visit(self, None);
         }
         Box::new(())
     }
 
-    fn visit_icu(&mut self, icu: &i18n::Icu, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_icu(
+        &mut self,
+        icu: &i18n::Icu,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         for node in icu.cases.values() {
             node.visit(self, None);
         }
         Box::new(())
     }
 
-    fn visit_tag_placeholder(&mut self, ph: &i18n::TagPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
-        self.mapper.visit_placeholder_name(&ph.start_name, &self.map_name);
+    fn visit_tag_placeholder(
+        &mut self,
+        ph: &i18n::TagPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
+        self.mapper
+            .visit_placeholder_name(&ph.start_name, &self.map_name);
         for child in &ph.children {
             child.visit(self, None);
         }
-        self.mapper.visit_placeholder_name(&ph.close_name, &self.map_name);
+        self.mapper
+            .visit_placeholder_name(&ph.close_name, &self.map_name);
         Box::new(())
     }
 
-    fn visit_placeholder(&mut self, ph: &i18n::Placeholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_placeholder(
+        &mut self,
+        ph: &i18n::Placeholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         self.mapper.visit_placeholder_name(&ph.name, &self.map_name);
         Box::new(())
     }
 
-    fn visit_block_placeholder(&mut self, ph: &i18n::BlockPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
-        self.mapper.visit_placeholder_name(&ph.start_name, &self.map_name);
+    fn visit_block_placeholder(
+        &mut self,
+        ph: &i18n::BlockPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
+        self.mapper
+            .visit_placeholder_name(&ph.start_name, &self.map_name);
         for child in &ph.children {
             child.visit(self, None);
         }
-        self.mapper.visit_placeholder_name(&ph.close_name, &self.map_name);
+        self.mapper
+            .visit_placeholder_name(&ph.close_name, &self.map_name);
         Box::new(())
     }
 
-    fn visit_icu_placeholder(&mut self, ph: &i18n::IcuPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_icu_placeholder(
+        &mut self,
+        ph: &i18n::IcuPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         self.mapper.visit_placeholder_name(&ph.name, &self.map_name);
         Box::new(())
     }
 }
-

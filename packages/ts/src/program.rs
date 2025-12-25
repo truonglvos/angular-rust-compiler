@@ -1,5 +1,5 @@
-use crate::{Diagnostic, DiagnosticWithLocation, ScriptTarget, ModuleKind};
 use crate::node::SourceFile;
+use crate::{Diagnostic, DiagnosticWithLocation, ModuleKind, ScriptTarget};
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct CompilerOptions {
@@ -120,7 +120,11 @@ pub enum NewLineKind {
 }
 
 pub trait CompilerHost {
-    fn get_source_file(&self, file_name: &str, language_version: ScriptTarget) -> Option<Box<dyn SourceFile>>;
+    fn get_source_file(
+        &self,
+        file_name: &str,
+        language_version: ScriptTarget,
+    ) -> Option<Box<dyn SourceFile>>;
     fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String;
     fn get_current_directory(&self) -> String;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
@@ -135,8 +139,14 @@ pub trait Program {
     fn get_source_files(&self) -> Vec<Box<dyn SourceFile>>;
     fn get_options_diagnostics(&self) -> Vec<Diagnostic>;
     fn get_global_diagnostics(&self) -> Vec<Diagnostic>;
-    fn get_syntactic_diagnostics(&self, source_file: Option<&dyn SourceFile>) -> Vec<DiagnosticWithLocation>;
+    fn get_syntactic_diagnostics(
+        &self,
+        source_file: Option<&dyn SourceFile>,
+    ) -> Vec<DiagnosticWithLocation>;
     fn get_semantic_diagnostics(&self, source_file: Option<&dyn SourceFile>) -> Vec<Diagnostic>;
-    fn get_declaration_diagnostics(&self, source_file: Option<&dyn SourceFile>) -> Vec<DiagnosticWithLocation>;
+    fn get_declaration_diagnostics(
+        &self,
+        source_file: Option<&dyn SourceFile>,
+    ) -> Vec<DiagnosticWithLocation>;
     fn get_type_checker(&self) -> Box<dyn crate::type_checker::TypeChecker>;
 }

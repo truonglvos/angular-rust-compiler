@@ -3,13 +3,13 @@
 //! Corresponds to packages/compiler/src/i18n/message_bundle.ts
 //! A container for messages extracted from templates
 
+use crate::i18n::extractor_merger::extract_messages;
+use crate::i18n::i18n_ast::{Message, Node, Visitor};
+use crate::i18n::serializers::serializer::{PlaceholderMapper, Serializer};
+use crate::ml_parser::ast::Node as HtmlNode;
 use crate::ml_parser::html_parser::HtmlParser;
 use crate::ml_parser::lexer::TokenizeOptions;
-use crate::ml_parser::ast::Node as HtmlNode;
 use crate::parse_util::ParseError;
-use crate::i18n::i18n_ast::{Message, Node, Visitor};
-use crate::i18n::extractor_merger::extract_messages;
-use crate::i18n::serializers::serializer::{Serializer, PlaceholderMapper};
 use std::collections::HashMap;
 
 /// A container for message extracted from the templates
@@ -44,7 +44,7 @@ impl MessageBundle {
         // Parse HTML with tokenizeExpansionForms: true
         let mut tokenize_options = TokenizeOptions::default();
         tokenize_options.tokenize_expansion_forms = true;
-        
+
         let html_parser_result = self.html_parser.parse(source, url, Some(tokenize_options));
 
         if !html_parser_result.errors.is_empty() {
@@ -161,11 +161,19 @@ struct MapPlaceholderNamesVisitor<'a> {
 }
 
 impl Visitor for MapPlaceholderNamesVisitor<'_> {
-    fn visit_text(&mut self, text: &crate::i18n::i18n_ast::Text, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_text(
+        &mut self,
+        text: &crate::i18n::i18n_ast::Text,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         Box::new(Node::Text(text.clone()))
     }
 
-    fn visit_container(&mut self, container: &crate::i18n::i18n_ast::Container, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_container(
+        &mut self,
+        container: &crate::i18n::i18n_ast::Container,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let children: Vec<Node> = container
             .children
             .iter()
@@ -180,7 +188,11 @@ impl Visitor for MapPlaceholderNamesVisitor<'_> {
         }))
     }
 
-    fn visit_icu(&mut self, icu: &crate::i18n::i18n_ast::Icu, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_icu(
+        &mut self,
+        icu: &crate::i18n::i18n_ast::Icu,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let cases: HashMap<String, crate::i18n::i18n_ast::Node> = icu
             .cases
             .iter()
@@ -198,10 +210,18 @@ impl Visitor for MapPlaceholderNamesVisitor<'_> {
         }))
     }
 
-    fn visit_tag_placeholder(&mut self, ph: &crate::i18n::i18n_ast::TagPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
-        let start_name = self.mapper.to_public_name(&ph.start_name)
+    fn visit_tag_placeholder(
+        &mut self,
+        ph: &crate::i18n::i18n_ast::TagPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
+        let start_name = self
+            .mapper
+            .to_public_name(&ph.start_name)
             .unwrap_or_else(|| ph.start_name.clone());
-        let close_name = self.mapper.to_public_name(&ph.close_name)
+        let close_name = self
+            .mapper
+            .to_public_name(&ph.close_name)
             .unwrap_or_else(|| ph.close_name.clone());
         let children: Vec<Node> = ph
             .children
@@ -211,21 +231,29 @@ impl Visitor for MapPlaceholderNamesVisitor<'_> {
                 *result.downcast::<Node>().unwrap()
             })
             .collect();
-        Box::new(Node::TagPlaceholder(crate::i18n::i18n_ast::TagPlaceholder {
-            tag: ph.tag.clone(),
-            attrs: ph.attrs.clone(),
-            start_name,
-            close_name,
-            children,
-            is_void: ph.is_void,
-            source_span: ph.source_span.clone(),
-            start_source_span: ph.start_source_span.clone(),
-            end_source_span: ph.end_source_span.clone(),
-        }))
+        Box::new(Node::TagPlaceholder(
+            crate::i18n::i18n_ast::TagPlaceholder {
+                tag: ph.tag.clone(),
+                attrs: ph.attrs.clone(),
+                start_name,
+                close_name,
+                children,
+                is_void: ph.is_void,
+                source_span: ph.source_span.clone(),
+                start_source_span: ph.start_source_span.clone(),
+                end_source_span: ph.end_source_span.clone(),
+            },
+        ))
     }
 
-    fn visit_placeholder(&mut self, ph: &crate::i18n::i18n_ast::Placeholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
-        let name = self.mapper.to_public_name(&ph.name)
+    fn visit_placeholder(
+        &mut self,
+        ph: &crate::i18n::i18n_ast::Placeholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
+        let name = self
+            .mapper
+            .to_public_name(&ph.name)
             .unwrap_or_else(|| ph.name.clone());
         Box::new(Node::Placeholder(crate::i18n::i18n_ast::Placeholder {
             value: ph.value.clone(),
@@ -234,21 +262,37 @@ impl Visitor for MapPlaceholderNamesVisitor<'_> {
         }))
     }
 
-    fn visit_icu_placeholder(&mut self, ph: &crate::i18n::i18n_ast::IcuPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
-        let name = self.mapper.to_public_name(&ph.name)
+    fn visit_icu_placeholder(
+        &mut self,
+        ph: &crate::i18n::i18n_ast::IcuPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
+        let name = self
+            .mapper
+            .to_public_name(&ph.name)
             .unwrap_or_else(|| ph.name.clone());
-        Box::new(Node::IcuPlaceholder(crate::i18n::i18n_ast::IcuPlaceholder {
-            value: ph.value.clone(),
-            name,
-            source_span: ph.source_span.clone(),
-            previous_message: ph.previous_message.clone(),
-        }))
+        Box::new(Node::IcuPlaceholder(
+            crate::i18n::i18n_ast::IcuPlaceholder {
+                value: ph.value.clone(),
+                name,
+                source_span: ph.source_span.clone(),
+                previous_message: ph.previous_message.clone(),
+            },
+        ))
     }
 
-    fn visit_block_placeholder(&mut self, ph: &crate::i18n::i18n_ast::BlockPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
-        let start_name = self.mapper.to_public_name(&ph.start_name)
+    fn visit_block_placeholder(
+        &mut self,
+        ph: &crate::i18n::i18n_ast::BlockPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
+        let start_name = self
+            .mapper
+            .to_public_name(&ph.start_name)
             .unwrap_or_else(|| ph.start_name.clone());
-        let close_name = self.mapper.to_public_name(&ph.close_name)
+        let close_name = self
+            .mapper
+            .to_public_name(&ph.close_name)
             .unwrap_or_else(|| ph.close_name.clone());
         let children: Vec<Node> = ph
             .children
@@ -258,16 +302,17 @@ impl Visitor for MapPlaceholderNamesVisitor<'_> {
                 *result.downcast::<Node>().unwrap()
             })
             .collect();
-        Box::new(Node::BlockPlaceholder(crate::i18n::i18n_ast::BlockPlaceholder {
-            name: ph.name.clone(),
-            parameters: ph.parameters.clone(),
-            start_name,
-            close_name,
-            children,
-            source_span: ph.source_span.clone(),
-            start_source_span: ph.start_source_span.clone(),
-            end_source_span: ph.end_source_span.clone(),
-        }))
+        Box::new(Node::BlockPlaceholder(
+            crate::i18n::i18n_ast::BlockPlaceholder {
+                name: ph.name.clone(),
+                parameters: ph.parameters.clone(),
+                start_name,
+                close_name,
+                children,
+                source_span: ph.source_span.clone(),
+                start_source_span: ph.start_source_span.clone(),
+                end_source_span: ph.end_source_span.clone(),
+            },
+        ))
     }
 }
-

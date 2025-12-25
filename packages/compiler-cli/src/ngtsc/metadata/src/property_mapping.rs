@@ -28,7 +28,8 @@ impl ClassPropertyMapping {
     }
 
     pub fn insert(&mut self, entry: InputOrOutput) {
-        self.entries.insert(entry.class_property_name.clone(), entry);
+        self.entries
+            .insert(entry.class_property_name.clone(), entry);
     }
 
     pub fn get(&self, class_property_name: &str) -> Option<&InputOrOutput> {
@@ -57,17 +58,23 @@ impl ClassPropertyMapping {
     pub fn to_binding_vec(&self) -> Vec<(String, String)> {
         self.entries
             .values()
-            .map(|v| (v.binding_property_name.clone(), v.class_property_name.clone()))
+            .map(|v| {
+                (
+                    v.binding_property_name.clone(),
+                    v.class_property_name.clone(),
+                )
+            })
             .collect()
     }
 }
 
 impl angular_compiler::render3::view::t2_api::InputOutputPropertySet for ClassPropertyMapping {
     fn has_binding_property_name(&self, property_name: &str) -> bool {
-        self.entries.values().any(|v| v.binding_property_name == property_name)
+        self.entries
+            .values()
+            .any(|v| v.binding_property_name == property_name)
     }
 }
 
 /// Type alias for class property names.
 pub type ClassPropertyName = String;
-

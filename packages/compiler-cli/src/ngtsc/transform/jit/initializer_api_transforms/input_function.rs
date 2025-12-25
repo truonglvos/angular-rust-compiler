@@ -4,11 +4,11 @@
 // Signal inputs cannot be recognized at runtime using reflection, so
 // this transform adds a decorator for JIT compatibility.
 
-use crate::ngtsc::imports::ImportedSymbolsTracker;
 use super::transform_api::{
-    PropertyTransformResult, PropertyInfo, is_signal_input_call,
-    create_synthetic_angular_core_decorator_access,
+    create_synthetic_angular_core_decorator_access, is_signal_input_call, PropertyInfo,
+    PropertyTransformResult,
 };
+use crate::ngtsc::imports::ImportedSymbolsTracker;
 
 /// Transform for signal inputs.
 ///
@@ -25,25 +25,30 @@ pub fn signal_inputs_transform(
     }
 
     // Create the @Input decorator
-    let input_decorator = create_signal_input_decorator(&property.name, property.value_string.as_deref());
-    
+    let input_decorator =
+        create_signal_input_decorator(&property.name, property.value_string.as_deref());
+
     PropertyTransformResult::with_decorators(vec![input_decorator])
 }
 
 /// Create an @Input decorator for a signal input.
-fn create_signal_input_decorator(property_name: &str, value: Option<&str>) -> super::transform_api::SyntheticDecorator {
+fn create_signal_input_decorator(
+    property_name: &str,
+    value: Option<&str>,
+) -> super::transform_api::SyntheticDecorator {
     let mut decorator = create_synthetic_angular_core_decorator_access("Input");
-    
+
     // Extract options from the input() call if present
     if let Some(value_str) = value {
         // Parse input options: input({ alias: 'foo', transform: fn })
         if let Some(alias) = extract_input_alias(value_str) {
             decorator = decorator.with_arg(format!("{{ alias: '{}', isSignal: true }}", alias));
         } else {
-            decorator = decorator.with_arg(format!("{{ alias: '{}', isSignal: true }}", property_name));
+            decorator =
+                decorator.with_arg(format!("{{ alias: '{}', isSignal: true }}", property_name));
         }
     }
-    
+
     decorator
 }
 
@@ -53,7 +58,7 @@ fn extract_input_alias(value: &str) -> Option<String> {
     if let Some(start) = value.find("alias:") {
         let rest = &value[start + 6..];
         let rest = rest.trim_start();
-        
+
         // Find the string value
         if rest.starts_with('\'') || rest.starts_with('"') {
             let quote = rest.chars().next().unwrap();

@@ -22,25 +22,23 @@ impl NgtscCompilerHost {
     }
 
     pub fn get_source_file(&self, file_name: &str) -> Option<String> {
-         self.read_file(file_name)
+        self.read_file(file_name)
     }
 
     pub fn get_default_lib_file_name(&self) -> String {
-        self.fs.join(self.get_default_lib_location().as_str(), &["lib.d.ts"])
+        self.fs
+            .join(self.get_default_lib_location().as_str(), &["lib.d.ts"])
     }
 
     pub fn get_default_lib_location(&self) -> String {
         self.fs.get_default_lib_location().into_string()
     }
 
-    pub fn write_file(
-        &self,
-        file_name: &str,
-        data: &str,
-        _write_byte_order_mark: bool,
-    ) {
+    pub fn write_file(&self, file_name: &str, data: &str, _write_byte_order_mark: bool) {
         let path = absolute_from(file_name);
-        let _ = self.fs.ensure_dir(&AbsoluteFsPath::new(self.fs.dirname(path.as_str())));
+        let _ = self
+            .fs
+            .ensure_dir(&AbsoluteFsPath::new(self.fs.dirname(path.as_str())));
         let _ = self.fs.write_file(&path, data.as_bytes(), None);
     }
 
@@ -61,7 +59,10 @@ impl NgtscCompilerHost {
     }
 
     pub fn get_new_line(&self) -> String {
-        self.options.new_line.clone().unwrap_or_else(|| "\n".to_string())
+        self.options
+            .new_line
+            .clone()
+            .unwrap_or_else(|| "\n".to_string())
     }
 
     pub fn file_exists(&self, file_name: &str) -> bool {
@@ -79,6 +80,9 @@ impl NgtscCompilerHost {
 
     pub fn realpath(&self, path: &str) -> String {
         let abs = self.fs.resolve(&[path]);
-         self.fs.realpath(&abs).map(|p| p.into_string()).unwrap_or_else(|_| path.to_string())
+        self.fs
+            .realpath(&abs)
+            .map(|p| p.into_string())
+            .unwrap_or_else(|_| path.to_string())
     }
 }

@@ -11,16 +11,16 @@ mod utils;
 
 #[cfg(test)]
 mod tests {
+    use super::utils::serialize_nodes;
     use angular_compiler::ml_parser::html_parser::HtmlParser;
     use angular_compiler::ml_parser::lexer::TokenizeOptions;
-    use super::utils::serialize_nodes;
 
     #[test]
     fn should_support_element() {
         let html = "<p></p>";
         let parser = HtmlParser::new();
         let ast = parser.parse(html, "url", None);
-        
+
         assert_eq!(serialize_nodes(&ast.root_nodes), vec![html]);
     }
 
@@ -29,7 +29,7 @@ mod tests {
         let html = "<p k=\"value\"></p>";
         let parser = HtmlParser::new();
         let ast = parser.parse(html, "url", None);
-        
+
         assert_eq!(serialize_nodes(&ast.root_nodes), vec![html]);
     }
 
@@ -38,7 +38,7 @@ mod tests {
         let html = "some text";
         let parser = HtmlParser::new();
         let ast = parser.parse(html, "url", None);
-        
+
         assert_eq!(serialize_nodes(&ast.root_nodes), vec![html]);
     }
 
@@ -49,7 +49,7 @@ mod tests {
         let mut options = TokenizeOptions::default();
         options.tokenize_expansion_forms = true;
         let ast = parser.parse(html, "url", Some(options));
-        
+
         assert_eq!(serialize_nodes(&ast.root_nodes), vec![html]);
     }
 
@@ -60,7 +60,7 @@ mod tests {
         let mut options = TokenizeOptions::default();
         options.tokenize_expansion_forms = true;
         let ast = parser.parse(html, "url", Some(options));
-        
+
         assert_eq!(serialize_nodes(&ast.root_nodes), vec![html]);
     }
 
@@ -77,8 +77,7 @@ mod tests {
         let mut options = TokenizeOptions::default();
         options.tokenize_expansion_forms = true;
         let ast = parser.parse(html, "url", Some(options));
-        
+
         assert_eq!(serialize_nodes(&ast.root_nodes), vec![html]);
     }
 }
-

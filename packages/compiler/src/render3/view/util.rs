@@ -9,13 +9,13 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::core::InputFlags;
+use crate::directive_matching::CssSelector;
 use crate::expression_parser::ast::BindingType;
 use crate::ml_parser::tags::split_ns_name;
 use crate::output::output_ast::{
-    Expression, Statement, LiteralExpr, LiteralValue, LiteralArrayExpr, LiteralMapExpr,
-    LiteralMapEntry, DeclareVarStmt, ReadVarExpr,
+    DeclareVarStmt, Expression, LiteralArrayExpr, LiteralExpr, LiteralMapEntry, LiteralMapExpr,
+    LiteralValue, ReadVarExpr, Statement,
 };
-use crate::directive_matching::CssSelector;
 use crate::render3::r3_ast as t;
 
 lazy_static! {
@@ -137,13 +137,12 @@ pub fn conditionally_create_directive_binding_literal(
         .iter()
         .map(|(key, value)| {
             let expression_value = match value {
-                InputBindingValue::Simple(public_name) => {
-                    as_literal_string(public_name)
-                }
+                InputBindingValue::Simple(public_name) => as_literal_string(public_name),
                 InputBindingValue::Complex(meta) => {
-                    let different_declaring_name = meta.binding_property_name != meta.class_property_name;
+                    let different_declaring_name =
+                        meta.binding_property_name != meta.class_property_name;
                     let has_decorator_input_transform = meta.transform_function.is_some();
-                    
+
                     // Combine flags using bitwise OR on the underlying values
                     let mut flags_value: u32 = InputFlags::None as u32;
                     if meta.is_signal {
@@ -153,7 +152,11 @@ pub fn conditionally_create_directive_binding_literal(
                         flags_value |= InputFlags::HasDecoratorInputTransform as u32;
                     }
 
-                    if for_inputs && (different_declaring_name || has_decorator_input_transform || flags_value != 0) {
+                    if for_inputs
+                        && (different_declaring_name
+                            || has_decorator_input_transform
+                            || flags_value != 0)
+                    {
                         let mut result = vec![
                             literal_expr(LiteralValue::Number(flags_value as f64)),
                             as_literal_string(&meta.binding_property_name),
@@ -253,14 +256,11 @@ impl DefinitionMap {
 /// Creates a `CssSelector` from an AST node.
 pub fn create_css_selector_from_node(node: &t::R3Node) -> Option<CssSelector> {
     let (element_name, attributes, inputs, outputs) = match node {
-        t::R3Node::Element(el) => (
-            el.name.clone(),
-            &el.attributes,
-            &el.inputs,
-            &el.outputs,
-        ),
+        t::R3Node::Element(el) => (el.name.clone(), &el.attributes, &el.inputs, &el.outputs),
         t::R3Node::Template(tpl) => (
-            tpl.tag_name.clone().unwrap_or_else(|| "ng-template".to_string()),
+            tpl.tag_name
+                .clone()
+                .unwrap_or_else(|| "ng-template".to_string()),
             &tpl.attributes,
             &tpl.inputs,
             &tpl.outputs,
@@ -278,7 +278,7 @@ pub fn create_css_selector_from_node(node: &t::R3Node) -> Option<CssSelector> {
     for attr in attributes {
         if let Ok((_, name_no_ns)) = split_ns_name(&attr.name, false) {
             css_selector.add_attribute(&name_no_ns, &attr.value);
-            
+
             if attr.name.to_lowercase() == "class" {
                 let classes: Vec<&str> = attr.value.trim().split_whitespace().collect();
                 for class_name in classes {
@@ -310,13 +310,13 @@ pub fn create_css_selector_from_node(node: &t::R3Node) -> Option<CssSelector> {
                     }
                 }
                 t::TemplateAttr::Bound(bound_attr) => {
-                     // Bound attributes (e.g. from *ngIf="value") usually match as input [ngIf]
-                     // But strictly speaking, the attribute name itself should be present.
-                     // Synthesized structural directives often appear as Text attributes (e.g. *f -> f="")
-                     // But if it is bound, we add the name.
-                     if let Ok((_, name_no_ns)) = split_ns_name(&bound_attr.name, false) {
+                    // Bound attributes (e.g. from *ngIf="value") usually match as input [ngIf]
+                    // But strictly speaking, the attribute name itself should be present.
+                    // Synthesized structural directives often appear as Text attributes (e.g. *f -> f="")
+                    // But if it is bound, we add the name.
+                    if let Ok((_, name_no_ns)) = split_ns_name(&bound_attr.name, false) {
                         css_selector.add_attribute(&name_no_ns, "");
-                     }
+                    }
                 }
             }
         }
@@ -324,7 +324,3 @@ pub fn create_css_selector_from_node(node: &t::R3Node) -> Option<CssSelector> {
 
     Some(css_selector)
 }
-
-
-
-

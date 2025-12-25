@@ -7,9 +7,7 @@ use once_cell::sync::Lazy;
 
 /// Global VERSION instance
 /// Matches Angular's: export const VERSION = new Version('0.0.0-PLACEHOLDER');
-pub static VERSION: Lazy<Version> = Lazy::new(|| {
-    Version::new("0.0.0-PLACEHOLDER")
-});
+pub static VERSION: Lazy<Version> = Lazy::new(|| Version::new("0.0.0-PLACEHOLDER"));
 
 #[cfg(test)]
 mod tests {

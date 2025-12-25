@@ -19,11 +19,16 @@ pub struct OptionsParseError {
 
 impl OptionsParseError {
     pub fn new(message: impl Into<String>) -> Self {
-        Self { message: message.into() }
+        Self {
+            message: message.into(),
+        }
     }
-    
+
     pub fn wrong_type(expected: &str) -> Self {
-        Self::new(format!("Argument needs to be {} that is statically analyzable.", expected))
+        Self::new(format!(
+            "Argument needs to be {} that is statically analyzable.",
+            expected
+        ))
     }
 }
 
@@ -32,7 +37,7 @@ pub fn parse_and_validate_input_and_output_options(
     options: &HashMap<String, String>,
 ) -> Result<InputOutputOptions, OptionsParseError> {
     let alias = options.get("alias").cloned();
-    
+
     Ok(InputOutputOptions { alias })
 }
 

@@ -20,15 +20,18 @@ impl GenericsExtractor {
             default: default.map(|s| s.to_string()),
         }
     }
-    
+
     /// Extract multiple type parameters.
-    pub fn extract_all(params: &[(String, Option<String>, Option<String>)]) -> Vec<TypeParameterEntry> {
-        params.iter().map(|(name, constraint, default)| {
-            TypeParameterEntry {
+    pub fn extract_all(
+        params: &[(String, Option<String>, Option<String>)],
+    ) -> Vec<TypeParameterEntry> {
+        params
+            .iter()
+            .map(|(name, constraint, default)| TypeParameterEntry {
                 name: name.clone(),
                 constraint: constraint.clone(),
                 default: default.clone(),
-            }
-        }).collect()
+            })
+            .collect()
     }
 }

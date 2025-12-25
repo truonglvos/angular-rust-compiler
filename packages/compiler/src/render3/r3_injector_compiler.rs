@@ -4,12 +4,12 @@
 //! Contains injector definition compilation
 
 use crate::output::output_ast::{
-    Expression, Type, ExpressionType, LiteralArrayExpr, ExternalExpr, InvokeFunctionExpr,
+    Expression, ExpressionType, ExternalExpr, InvokeFunctionExpr, LiteralArrayExpr, Type,
     TypeModifier,
 };
 
 use super::r3_identifiers::Identifiers as R3;
-use super::util::{R3CompiledExpression, R3Reference, type_with_parameters};
+use super::util::{type_with_parameters, R3CompiledExpression, R3Reference};
 use super::view::util::DefinitionMap;
 
 /// Helper to create external expression from ExternalReference
@@ -39,16 +39,19 @@ pub fn compile_injector(meta: &R3InjectorMetadata) -> R3CompiledExpression {
     }
 
     if !meta.imports.is_empty() {
-        definition_map.set("imports", Some(Expression::LiteralArray(LiteralArrayExpr {
-            entries: meta.imports.clone(),
-            type_: None,
-            source_span: None,
-        })));
+        definition_map.set(
+            "imports",
+            Some(Expression::LiteralArray(LiteralArrayExpr {
+                entries: meta.imports.clone(),
+                type_: None,
+                source_span: None,
+            })),
+        );
     }
 
     let define_injector_ref = R3::define_injector();
     let define_injector_expr = external_expr(define_injector_ref);
-    
+
     let expression = Expression::InvokeFn(InvokeFunctionExpr {
         fn_: Box::new(define_injector_expr),
         args: vec![Expression::LiteralMap(definition_map.to_literal_map())],
@@ -66,7 +69,7 @@ pub fn compile_injector(meta: &R3InjectorMetadata) -> R3CompiledExpression {
 pub fn create_injector_type(meta: &R3InjectorMetadata) -> Type {
     let injector_declaration_ref = R3::injector_declaration();
     let injector_declaration_expr = external_expr(injector_declaration_ref);
-    
+
     Type::Expression(ExpressionType {
         value: Box::new(injector_declaration_expr),
         modifiers: TypeModifier::None,

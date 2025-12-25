@@ -42,12 +42,14 @@ static POLICY: OnceLock<Option<Box<dyn TrustedTypePolicy>>> = OnceLock::new();
 /// Returns the Trusted Types policy, or None if Trusted Types are not
 /// enabled/supported. The first call to this function will create the policy.
 fn get_policy() -> Option<&'static dyn TrustedTypePolicy> {
-    POLICY.get_or_init(|| {
-        // In Rust, we don't have direct browser API access like in JavaScript
-        // This is a placeholder that would need platform-specific implementation
-        // For now, we always return None (no Trusted Types support)
-        None
-    }).as_deref()
+    POLICY
+        .get_or_init(|| {
+            // In Rust, we don't have direct browser API access like in JavaScript
+            // This is a placeholder that would need platform-specific implementation
+            // For now, we always return None (no Trusted Types support)
+            None
+        })
+        .as_deref()
 }
 
 /// Unsafely promote a string to a TrustedScript, falling back to strings when
@@ -93,10 +95,7 @@ pub fn new_trusted_function_for_jit(args: &[String]) -> Result<String, String> {
 
     let fn_body = &args[args.len() - 1];
 
-    let body = format!(
-        "(function anonymous({}) {{\n{}\n}})",
-        fn_args, fn_body
-    );
+    let body = format!("(function anonymous({}) {{\n{}\n}})", fn_args, fn_body);
 
     // In JavaScript, this would use eval with Trusted Types
     // In Rust, we just return the function source
@@ -109,7 +108,11 @@ mod tests {
 
     #[test]
     fn test_new_trusted_function_for_jit() {
-        let result = new_trusted_function_for_jit(&["a".to_string(), "b".to_string(), "return a + b;".to_string()]);
+        let result = new_trusted_function_for_jit(&[
+            "a".to_string(),
+            "b".to_string(),
+            "return a + b;".to_string(),
+        ]);
         assert!(result.is_ok());
         let fn_source = result.unwrap();
         assert!(fn_source.contains("function anonymous(a,b)"));

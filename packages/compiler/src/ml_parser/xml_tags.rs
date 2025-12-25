@@ -93,4 +93,3 @@ mod tests {
         assert_eq!(def.get_content_type(None), TagContentType::ParsableData);
     }
 }
-

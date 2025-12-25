@@ -35,7 +35,7 @@ impl SharedConstantDefinition for PureFunctionConstant {
                 type_: None,
             });
         }
-        
+
         // Return expression: replace PureFunctionParameterExpr with variable reads (a0, a1...)
         let return_expr = ir::transform_expressions_in_expression(
             expr,
@@ -56,7 +56,7 @@ impl SharedConstantDefinition for PureFunctionConstant {
             o::ArrowFunctionBody::Expression(Box::new(return_expr)),
             None,
         );
-        
+
         // Declare var: const _c0 = (a0, a1) => ...
         o::Statement::DeclareVar(o::DeclareVarStmt {
             name,
@@ -75,40 +75,43 @@ pub fn phase(job: &mut ComponentCompilationJob) {
 pub fn extract_pure_functions(job: &mut ComponentCompilationJob) {
     // Split borrow of job to access pool and units simultaneously
     let pool = &mut job.pool;
-    
+
     // Process root view
     process_view(pool, &mut job.root);
-    
+
     // Process child views
     for view in job.views.values_mut() {
         process_view(pool, view);
     }
 }
 
-fn process_view(pool: &mut crate::constant_pool::ConstantPool, view: &mut crate::template::pipeline::src::compilation::ViewCompilationUnit) {
+fn process_view(
+    pool: &mut crate::constant_pool::ConstantPool,
+    view: &mut crate::template::pipeline::src::compilation::ViewCompilationUnit,
+) {
     // Transform create ops
     for op in view.create.iter_mut() {
         ir::transform_expressions_in_op(
             op.as_mut(),
             &mut |expr, flags| transform_pure_function(pool, expr, flags),
-            ir::VisitorContextFlag::NONE
+            ir::VisitorContextFlag::NONE,
         );
     }
-    
+
     // Transform update ops
     for op in view.update.iter_mut() {
         ir::transform_expressions_in_op(
             op.as_mut(),
             &mut |expr, flags| transform_pure_function(pool, expr, flags),
-            ir::VisitorContextFlag::NONE
+            ir::VisitorContextFlag::NONE,
         );
     }
 }
 
 fn transform_pure_function(
-    pool: &mut crate::constant_pool::ConstantPool, 
-    expr: o::Expression, 
-    _flags: ir::VisitorContextFlag
+    pool: &mut crate::constant_pool::ConstantPool,
+    expr: o::Expression,
+    _flags: ir::VisitorContextFlag,
 ) -> o::Expression {
     if let o::Expression::PureFunction(mut pure_fn) = expr {
         if let Some(body) = pure_fn.body.take() {
@@ -116,12 +119,12 @@ fn transform_pure_function(
                 let constant_def = Box::new(PureFunctionConstant {
                     num_args: pure_fn.args.len(),
                 });
-                
+
                 // Hoist to constant pool!
                 // pool.get_shared_constant will use to_shared_constant_declaration to create the arrow function
                 // and return a reference to the variable (e.g. _c0)
                 let hoisted_ref = pool.get_shared_constant(constant_def, *body);
-                
+
                 pure_fn.fn_ = Some(Box::new(hoisted_ref));
             }
         }

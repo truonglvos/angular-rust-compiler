@@ -7,10 +7,7 @@ use super::input_output_parse_options::InputOutputOptions;
 
 /// Configuration for the output() initializer function.
 pub fn output_initializer_config() -> InitializerApiConfig {
-    InitializerApiConfig::new(
-        "output",
-        vec![AccessLevel::Public, AccessLevel::Protected],
-    )
+    InitializerApiConfig::new("output", vec![AccessLevel::Public, AccessLevel::Protected])
 }
 
 /// Configuration for outputFromObservable() from rxjs-interop.
@@ -23,10 +20,7 @@ pub fn output_from_observable_config() -> InitializerApiConfig {
 
 /// List of all output initializer configurations.
 pub fn output_initializer_configs() -> Vec<InitializerApiConfig> {
-    vec![
-        output_initializer_config(),
-        output_from_observable_config(),
-    ]
+    vec![output_initializer_config(), output_from_observable_config()]
 }
 
 /// Parsed output mapping.
@@ -49,7 +43,7 @@ impl OutputMapping {
             binding_property_name: name,
         }
     }
-    
+
     pub fn with_alias(mut self, alias: impl Into<String>) -> Self {
         self.binding_property_name = alias.into();
         self
@@ -62,7 +56,7 @@ pub fn try_parse_initializer_based_output(
     options: Option<&InputOutputOptions>,
 ) -> OutputMapping {
     let alias = options.and_then(|o| o.alias.clone());
-    
+
     OutputMapping {
         is_signal: false,
         class_property_name: member_name.to_string(),

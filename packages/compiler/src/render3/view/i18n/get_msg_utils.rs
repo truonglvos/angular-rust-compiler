@@ -7,9 +7,8 @@ use std::collections::HashMap;
 
 use crate::i18n::i18n_ast as i18n;
 use crate::output::output_ast::{
-    Expression, Statement, ReadVarExpr, DeclareVarStmt, ExpressionStatement,
-    LiteralExpr, LiteralValue, InvokeFunctionExpr, LiteralMapExpr, LiteralMapEntry,
-    StmtModifier,
+    DeclareVarStmt, Expression, ExpressionStatement, InvokeFunctionExpr, LiteralExpr,
+    LiteralMapEntry, LiteralMapExpr, LiteralValue, ReadVarExpr, Statement, StmtModifier,
 };
 
 use super::icu_serializer::serialize_icu_node;
@@ -78,7 +77,8 @@ pub fn create_google_get_msg_statements(
                 let value = if let Some(placeholder) = message.placeholders.get(param) {
                     literal_string(placeholder.source_span.to_string())
                 } else if let Some(msg) = message.placeholder_to_message.get(param) {
-                    let source: String = msg.nodes
+                    let source: String = msg
+                        .nodes
                         .iter()
                         .map(|node| node.source_span().to_string())
                         .collect::<Vec<_>>()
@@ -126,10 +126,10 @@ pub fn create_google_get_msg_statements(
         source_span: None,
         pure: false,
     });
-    
+
     // Get the closure variable name
     let closure_var_name = closure_var.name.clone();
-    
+
     let goog_get_msg_stmt = Statement::DeclareVar(DeclareVarStmt {
         name: closure_var_name,
         value: Some(Box::new(goog_get_msg_call)),
@@ -137,15 +137,35 @@ pub fn create_google_get_msg_statements(
         modifiers: StmtModifier::Final,
         source_span: None,
     });
-    
+
     // TODO: Add JSDoc comment support via addLeadingComment
     // googGetMsgStmt.addLeadingComment(i18nMetaToJSDoc(message));
     let _jsdoc = i18n_meta_to_jsdoc(&super::meta::I18nMeta {
-        id: if message.id.is_empty() { None } else { Some(message.id.clone()) },
-        custom_id: if message.custom_id.is_empty() { None } else { Some(message.custom_id.clone()) },
-        legacy_ids: if message.legacy_ids.is_empty() { None } else { Some(message.legacy_ids.clone()) },
-        description: if message.description.is_empty() { None } else { Some(message.description.clone()) },
-        meaning: if message.meaning.is_empty() { None } else { Some(message.meaning.clone()) },
+        id: if message.id.is_empty() {
+            None
+        } else {
+            Some(message.id.clone())
+        },
+        custom_id: if message.custom_id.is_empty() {
+            None
+        } else {
+            Some(message.custom_id.clone())
+        },
+        legacy_ids: if message.legacy_ids.is_empty() {
+            None
+        } else {
+            Some(message.legacy_ids.clone())
+        },
+        description: if message.description.is_empty() {
+            None
+        } else {
+            Some(message.description.clone())
+        },
+        meaning: if message.meaning.is_empty() {
+            None
+        } else {
+            Some(message.meaning.clone())
+        },
     });
 
     // I18N_X = MSG_...;
@@ -182,7 +202,8 @@ impl GetMsgSerializerVisitor {
     }
 
     pub fn visit_container(&self, container: &i18n::Container) -> String {
-        container.children
+        container
+            .children
             .iter()
             .map(|child| self.visit_node(child))
             .collect::<Vec<_>>()
@@ -197,7 +218,8 @@ impl GetMsgSerializerVisitor {
         if ph.is_void {
             self.format_ph(&ph.start_name)
         } else {
-            let children: String = ph.children
+            let children: String = ph
+                .children
                 .iter()
                 .map(|child| self.visit_node(child))
                 .collect();
@@ -215,7 +237,8 @@ impl GetMsgSerializerVisitor {
     }
 
     pub fn visit_block_placeholder(&self, ph: &i18n::BlockPlaceholder) -> String {
-        let children: String = ph.children
+        let children: String = ph
+            .children
             .iter()
             .map(|child| self.visit_node(child))
             .collect();
@@ -256,10 +279,10 @@ lazy_static::lazy_static! {
 
 /// Serialize an i18n message for goog.getMsg
 pub fn serialize_i18n_message_for_get_msg(message: &i18n::Message) -> String {
-    message.nodes
+    message
+        .nodes
         .iter()
         .map(|node| SERIALIZER_VISITOR.visit_node(node))
         .collect::<Vec<_>>()
         .join("")
 }
-

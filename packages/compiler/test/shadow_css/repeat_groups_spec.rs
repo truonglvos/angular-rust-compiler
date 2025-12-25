@@ -33,7 +33,7 @@ fn should_add_clones_of_the_original_groups_if_multiples_is_greater_than_1() {
     let group2 = vec!["a2".to_string(), "b2".to_string(), "c2".to_string()];
     let mut groups = vec![group1.clone(), group2.clone()];
     repeat_groups(&mut groups, 3);
-    
+
     assert_eq!(groups.len(), 6);
     assert_eq!(groups[0], group1);
     assert_eq!(groups[1], group2);
@@ -42,4 +42,3 @@ fn should_add_clones_of_the_original_groups_if_multiples_is_greater_than_1() {
     assert_eq!(groups[4], group1);
     assert_eq!(groups[5], group2);
 }
-

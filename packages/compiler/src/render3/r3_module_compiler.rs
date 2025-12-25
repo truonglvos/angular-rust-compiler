@@ -4,12 +4,12 @@
 //! Contains NgModule compilation logic
 
 use crate::output::output_ast::{
-    Expression, Statement, Type, ExpressionType, LiteralArrayExpr,
-    InvokeFunctionExpr, TypeofExpr, FunctionExpr, ExternalExpr, TypeModifier, BuiltinType, BuiltinTypeName,
+    BuiltinType, BuiltinTypeName, Expression, ExpressionType, ExternalExpr, FunctionExpr,
+    InvokeFunctionExpr, LiteralArrayExpr, Statement, Type, TypeModifier, TypeofExpr,
 };
 
 use super::r3_identifiers::Identifiers as R3;
-use super::util::{R3CompiledExpression, R3Reference, jit_only_guarded_expression, refs_to_array};
+use super::util::{jit_only_guarded_expression, refs_to_array, R3CompiledExpression, R3Reference};
 use super::view::util::DefinitionMap;
 
 /// Helper to create external expression from ExternalReference
@@ -127,7 +127,13 @@ pub fn compile_ng_module(meta: &R3NgModuleMetadata) -> R3CompiledExpression {
     // bootstrap (Global mode only)
     if let R3NgModuleMetadata::Global(global) = meta {
         if !global.bootstrap.is_empty() {
-            definition_map.set("bootstrap", Some(refs_to_array(&global.bootstrap, global.contains_forward_decls)));
+            definition_map.set(
+                "bootstrap",
+                Some(refs_to_array(
+                    &global.bootstrap,
+                    global.contains_forward_decls,
+                )),
+            );
         }
     }
 
@@ -136,13 +142,31 @@ pub fn compile_ng_module(meta: &R3NgModuleMetadata) -> R3CompiledExpression {
         R3SelectorScopeMode::Inline => {
             if let R3NgModuleMetadata::Global(global) = meta {
                 if !global.declarations.is_empty() {
-                    definition_map.set("declarations", Some(refs_to_array(&global.declarations, global.contains_forward_decls)));
+                    definition_map.set(
+                        "declarations",
+                        Some(refs_to_array(
+                            &global.declarations,
+                            global.contains_forward_decls,
+                        )),
+                    );
                 }
                 if !global.imports.is_empty() {
-                    definition_map.set("imports", Some(refs_to_array(&global.imports, global.contains_forward_decls)));
+                    definition_map.set(
+                        "imports",
+                        Some(refs_to_array(
+                            &global.imports,
+                            global.contains_forward_decls,
+                        )),
+                    );
                 }
                 if !global.exports.is_empty() {
-                    definition_map.set("exports", Some(refs_to_array(&global.exports, global.contains_forward_decls)));
+                    definition_map.set(
+                        "exports",
+                        Some(refs_to_array(
+                            &global.exports,
+                            global.contains_forward_decls,
+                        )),
+                    );
                 }
             }
         }
@@ -160,11 +184,14 @@ pub fn compile_ng_module(meta: &R3NgModuleMetadata) -> R3CompiledExpression {
     if let Some(schemas) = meta.schemas() {
         if !schemas.is_empty() {
             let schema_exprs: Vec<Expression> = schemas.iter().map(|r| r.value.clone()).collect();
-            definition_map.set("schemas", Some(Expression::LiteralArray(LiteralArrayExpr {
-                entries: schema_exprs,
-                type_: None,
-                source_span: None,
-            })));
+            definition_map.set(
+                "schemas",
+                Some(Expression::LiteralArray(LiteralArrayExpr {
+                    entries: schema_exprs,
+                    type_: None,
+                    source_span: None,
+                })),
+            );
         }
     }
 
@@ -175,7 +202,7 @@ pub fn compile_ng_module(meta: &R3NgModuleMetadata) -> R3CompiledExpression {
         // Generate side-effectful call to register NgModule by id
         let register_ng_module_type_ref = R3::register_ng_module_type();
         let register_ng_module_type_expr = external_expr(register_ng_module_type_ref);
-        
+
         statements.push(
             Expression::InvokeFn(InvokeFunctionExpr {
                 fn_: Box::new(register_ng_module_type_expr),
@@ -183,13 +210,14 @@ pub fn compile_ng_module(meta: &R3NgModuleMetadata) -> R3CompiledExpression {
                 type_: None,
                 source_span: None,
                 pure: false,
-            }).to_stmt(),
+            })
+            .to_stmt(),
         );
     }
 
     let define_ng_module_ref = R3::define_ng_module();
     let define_ng_module_expr = external_expr(define_ng_module_ref);
-    
+
     let expression = Expression::InvokeFn(InvokeFunctionExpr {
         fn_: Box::new(define_ng_module_expr),
         args: vec![Expression::LiteralMap(definition_map.to_literal_map())],
@@ -252,13 +280,31 @@ fn generate_set_ng_module_scope_call(meta: &R3NgModuleMetadata) -> Option<Statem
     match meta {
         R3NgModuleMetadata::Global(global) => {
             if !global.declarations.is_empty() {
-                scope_map.set("declarations", Some(refs_to_array(&global.declarations, global.contains_forward_decls)));
+                scope_map.set(
+                    "declarations",
+                    Some(refs_to_array(
+                        &global.declarations,
+                        global.contains_forward_decls,
+                    )),
+                );
             }
             if !global.imports.is_empty() {
-                scope_map.set("imports", Some(refs_to_array(&global.imports, global.contains_forward_decls)));
+                scope_map.set(
+                    "imports",
+                    Some(refs_to_array(
+                        &global.imports,
+                        global.contains_forward_decls,
+                    )),
+                );
             }
             if !global.exports.is_empty() {
-                scope_map.set("exports", Some(refs_to_array(&global.exports, global.contains_forward_decls)));
+                scope_map.set(
+                    "exports",
+                    Some(refs_to_array(
+                        &global.exports,
+                        global.contains_forward_decls,
+                    )),
+                );
             }
         }
         R3NgModuleMetadata::Local(local) => {
@@ -284,7 +330,7 @@ fn generate_set_ng_module_scope_call(meta: &R3NgModuleMetadata) -> Option<Statem
     // setNgModuleScope(...)
     let set_ng_module_scope_ref = R3::set_ng_module_scope();
     let set_ng_module_scope_expr = external_expr(set_ng_module_scope_ref);
-    
+
     let fn_call = Expression::InvokeFn(InvokeFunctionExpr {
         fn_: Box::new(set_ng_module_scope_expr),
         args: vec![
@@ -339,13 +385,16 @@ fn tuple_type_of(refs: &[R3Reference]) -> Type {
     if refs.is_empty() {
         return none_type();
     }
-    let types: Vec<Expression> = refs.iter().map(|r| {
-        Expression::TypeOf(TypeofExpr {
-            expr: Box::new(r.type_expr.clone()),
-            type_: None,
-            source_span: None,
+    let types: Vec<Expression> = refs
+        .iter()
+        .map(|r| {
+            Expression::TypeOf(TypeofExpr {
+                expr: Box::new(r.type_expr.clone()),
+                type_: None,
+                source_span: None,
+            })
         })
-    }).collect();
+        .collect();
     expression_type(Expression::LiteralArray(LiteralArrayExpr {
         entries: types,
         type_: None,
@@ -357,13 +406,16 @@ fn tuple_of_types(types: &[Expression]) -> Type {
     if types.is_empty() {
         return none_type();
     }
-    let typeof_types: Vec<Expression> = types.iter().map(|t| {
-        Expression::TypeOf(TypeofExpr {
-            expr: Box::new(t.clone()),
-            type_: None,
-            source_span: None,
+    let typeof_types: Vec<Expression> = types
+        .iter()
+        .map(|t| {
+            Expression::TypeOf(TypeofExpr {
+                expr: Box::new(t.clone()),
+                type_: None,
+                source_span: None,
+            })
         })
-    }).collect();
+        .collect();
     expression_type(Expression::LiteralArray(LiteralArrayExpr {
         entries: typeof_types,
         type_: None,

@@ -8,10 +8,10 @@ pub fn references_equal(
     if a.len() != b.len() {
         return false;
     }
-    
+
     let a_set: std::collections::HashSet<_> = a.iter().collect();
     let b_set: std::collections::HashSet<_> = b.iter().collect();
-    
+
     a_set == b_set
 }
 

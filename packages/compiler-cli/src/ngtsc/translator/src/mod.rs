@@ -1,6 +1,6 @@
 pub mod api;
-pub mod import_manager;
 pub mod context;
+pub mod import_manager;
 pub mod translator;
 pub mod ts_util;
 pub mod type_emitter;

@@ -9,14 +9,16 @@ use utils::{assert_equal_css, shim};
 #[test]
 fn should_handle_media_rules_with_simple_rules() {
     let css = "@media screen and (max-width: 800px) {div {font-size: 50px;}} div {}";
-    let expected = "@media screen and (max-width:800px) {div[contenta] {font-size:50px;}} div[contenta] {}";
+    let expected =
+        "@media screen and (max-width:800px) {div[contenta] {font-size:50px;}} div[contenta] {}";
     assert_equal_css(&shim(css, "contenta", ""), expected);
 }
 
 #[test]
 fn should_handle_media_rules_with_both_width_and_height() {
     let css = "@media screen and (max-width:800px, max-height:100%) {div {font-size:50px;}}";
-    let expected = "@media screen and (max-width:800px, max-height:100%) {div[contenta] {font-size:50px;}}";
+    let expected =
+        "@media screen and (max-width:800px, max-height:100%) {div[contenta] {font-size:50px;}}";
     assert_equal_css(&shim(css, "contenta", ""), expected);
 }
 
@@ -62,11 +64,19 @@ fn should_strip_ng_deep_and_host_from_within_page_rules() {
         "@page { margin-right:4in;}",
     );
     assert_equal_css(
-        &shim("@page { ::ng-deep @top-left { content: \"Hamlet\";}}", "contenta", "h"),
+        &shim(
+            "@page { ::ng-deep @top-left { content: \"Hamlet\";}}",
+            "contenta",
+            "h",
+        ),
         "@page { @top-left { content:\"Hamlet\";}}",
     );
     assert_equal_css(
-        &shim("@page { :host ::ng-deep @top-left { content:\"Hamlet\";}}", "contenta", "h"),
+        &shim(
+            "@page { :host ::ng-deep @top-left { content:\"Hamlet\";}}",
+            "contenta",
+            "h",
+        ),
         "@page { @top-left { content:\"Hamlet\";}}",
     );
 }
@@ -101,7 +111,11 @@ fn should_strip_ng_deep_and_host_from_within_font_face() {
         "@font-face { font-family{}}",
     );
     assert_equal_css(
-        &shim("@font-face { :host ::ng-deep font-family{} }", "contenta", "h"),
+        &shim(
+            "@font-face { :host ::ng-deep font-family{} }",
+            "contenta",
+            "h",
+        ),
         "@font-face { font-family{}}",
     );
 }
@@ -246,4 +260,3 @@ fn should_scope_normal_selectors_inside_a_starting_style_rule() {
         }",
     );
 }
-

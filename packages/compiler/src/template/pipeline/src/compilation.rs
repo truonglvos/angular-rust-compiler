@@ -6,7 +6,7 @@
 use crate::constant_pool::ConstantPool;
 use crate::output::output_ast::Expression;
 use crate::render3::view::api::R3ComponentDeferMetadata;
-use crate::template::pipeline::ir as ir;
+use crate::template::pipeline::ir;
 
 /// The kind of compilation job
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,13 +69,13 @@ pub struct ComponentCompilationJob {
     pub all_deferrable_deps_fn: Option<Expression>,
     pub relative_template_path: Option<String>,
     pub enable_debug_locations: bool,
-    
+
     pub root: ViewCompilationUnit,
     pub views: indexmap::IndexMap<ir::XrefId, ViewCompilationUnit>,
     pub content_selectors: Option<Expression>,
     pub consts: Vec<Expression>,
     pub consts_initializers: Vec<Expression>,
-    
+
     next_xref_id: ir::XrefId,
 }
 
@@ -94,12 +94,12 @@ impl ComponentCompilationJob {
     ) -> Self {
         let root_xref = ir::XrefId::new(0);
         let root = ViewCompilationUnit::new(root_xref, None);
-        
+
         let views = indexmap::IndexMap::new();
         // Note: In TypeScript, root is stored in views as well
         // In Rust, we store it separately in the root field
         // If needed, we could use Rc<RefCell<ViewCompilationUnit>> to share ownership
-        
+
         ComponentCompilationJob {
             component_name,
             pool,
@@ -129,14 +129,18 @@ impl ComponentCompilationJob {
     }
 
     /// Add a constant `Expression` to the compilation and return its index in the `consts` array.
-    pub fn add_const(&mut self, new_const: Expression, initializers: Option<Vec<Expression>>) -> ir::ConstIndex {
+    pub fn add_const(
+        &mut self,
+        new_const: Expression,
+        initializers: Option<Vec<Expression>>,
+    ) -> ir::ConstIndex {
         // Check for equivalent constants
         for (idx, existing) in self.consts.iter().enumerate() {
             if self.expressions_equivalent(existing, &new_const) {
                 return ir::ConstIndex::new(idx);
             }
         }
-        
+
         let idx = self.consts.len();
         self.consts.push(new_const);
         if let Some(init) = initializers {
@@ -224,7 +228,7 @@ pub trait CompilationUnit {
     fn update(&self) -> &ir::OpList<Box<dyn ir::UpdateOp + Send + Sync>>;
     /// Get the update operations list (mutable)
     fn update_mut(&mut self) -> &mut ir::OpList<Box<dyn ir::UpdateOp + Send + Sync>>;
-    
+
     /// Iterate over all operations within this view.
     ///
     /// Some operations may have child operations (like ListenerOp with handlerOps,
@@ -244,7 +248,7 @@ pub struct ViewCompilationUnit {
     pub context_variables: indexmap::IndexMap<String, String>,
     pub aliases: Vec<ir::AliasVariable>,
     pub decls: Option<usize>,
-    
+
     pub fn_name: Option<String>,
     pub vars: Option<usize>,
     pub create: ir::OpList<Box<dyn ir::CreateOp + Send + Sync>>,
@@ -318,7 +322,7 @@ impl CompilationUnit for ViewCompilationUnit {
             self.create()
                 .iter()
                 .map(|op| op.as_ref() as &dyn ir::Op)
-                .chain(self.update().iter().map(|op| op.as_ref() as &dyn ir::Op))
+                .chain(self.update().iter().map(|op| op.as_ref() as &dyn ir::Op)),
         )
     }
 }
@@ -471,7 +475,7 @@ impl CompilationUnit for HostBindingCompilationUnit {
             self.create()
                 .iter()
                 .map(|op| op.as_ref() as &dyn ir::Op)
-                .chain(self.update().iter().map(|op| op.as_ref() as &dyn ir::Op))
+                .chain(self.update().iter().map(|op| op.as_ref() as &dyn ir::Op)),
         )
     }
 }

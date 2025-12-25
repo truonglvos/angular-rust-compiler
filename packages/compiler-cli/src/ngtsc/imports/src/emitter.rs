@@ -1,6 +1,6 @@
 // Reference Emitter - Generates expressions for references
 //
-// The ReferenceEmitter uses strategies to produce expressions that 
+// The ReferenceEmitter uses strategies to produce expressions that
 // refer to References in the context of a particular file.
 
 use super::references::Reference;
@@ -13,30 +13,30 @@ pub struct ImportFlags {
 
 impl ImportFlags {
     pub const NONE: Self = Self { bits: 0x00 };
-    
+
     /// Force the generation of a new import even if an identifier exists.
     pub const FORCE_NEW_IMPORT: Self = Self { bits: 0x01 };
-    
+
     /// Import should not be deferred using dynamic imports.
     pub const NO_DEFERRED_IMPORTS: Self = Self { bits: 0x02 };
-    
+
     /// Allow emitting references to type-only declarations.
     pub const ALLOW_TYPE_IMPORTS: Self = Self { bits: 0x04 };
-    
+
     /// Allow relative imports from declaration files.
     pub const ALLOW_RELATIVE_DTS_IMPORTS: Self = Self { bits: 0x08 };
-    
+
     /// Allow references from ambient imports.
     pub const ALLOW_AMBIENT_REFERENCES: Self = Self { bits: 0x10 };
-    
+
     pub fn new() -> Self {
         Self::NONE
     }
-    
+
     pub fn contains(&self, other: Self) -> bool {
         (self.bits & other.bits) == other.bits
     }
-    
+
     pub fn insert(&mut self, other: Self) {
         self.bits |= other.bits;
     }
@@ -44,9 +44,11 @@ impl ImportFlags {
 
 impl std::ops::BitOr for ImportFlags {
     type Output = Self;
-    
+
     fn bitor(self, rhs: Self) -> Self::Output {
-        Self { bits: self.bits | rhs.bits }
+        Self {
+            bits: self.bits | rhs.bits,
+        }
     }
 }
 
@@ -98,7 +100,11 @@ pub struct FailedEmitResult {
 }
 
 impl FailedEmitResult {
-    pub fn new(ref_name: impl Into<String>, context: impl Into<String>, reason: impl Into<String>) -> Self {
+    pub fn new(
+        ref_name: impl Into<String>,
+        context: impl Into<String>,
+        reason: impl Into<String>,
+    ) -> Self {
         Self {
             ref_name: ref_name.into(),
             context: context.into(),
@@ -118,7 +124,7 @@ impl ReferenceEmitResult {
     pub fn is_success(&self) -> bool {
         matches!(self, Self::Success(_))
     }
-    
+
     pub fn unwrap(self) -> EmittedReference {
         match self {
             Self::Success(e) => e,
@@ -148,7 +154,7 @@ impl ReferenceEmitter {
     pub fn new(strategies: Vec<Box<dyn ReferenceEmitStrategy>>) -> Self {
         Self { strategies }
     }
-    
+
     /// Emit a reference expression using registered strategies.
     pub fn emit(
         &self,
@@ -161,7 +167,7 @@ impl ReferenceEmitter {
                 return result;
             }
         }
-        
+
         ReferenceEmitResult::Failed(FailedEmitResult::new(
             reference.debug_name(),
             context_file,
@@ -190,13 +196,14 @@ impl ReferenceEmitStrategy for LocalIdentifierStrategy {
         if import_flags.contains(ImportFlags::FORCE_NEW_IMPORT) {
             return None;
         }
-        
+
         // Check if reference is in the same source file
-        let is_same_file = reference.source_file
+        let is_same_file = reference
+            .source_file
             .as_ref()
             .map(|sf| sf.to_string_lossy() == context_file)
             .unwrap_or(false);
-        
+
         if is_same_file {
             Some(ReferenceEmitResult::Success(EmittedReference::new(
                 reference.debug_name(),
@@ -227,15 +234,15 @@ impl ReferenceEmitStrategy for RelativePathStrategy {
     ) -> Option<ReferenceEmitResult> {
         let source_file = reference.source_file.as_ref()?;
         let source_file_str = source_file.to_string_lossy();
-        
+
         if source_file_str == context_file {
             return None;
         }
-        
+
         // Generate a relative import path
         let relative_path = calculate_relative_path(context_file, &source_file_str);
         let import_expr = format!("import('{}').{}", relative_path, reference.debug_name());
-        
+
         Some(ReferenceEmitResult::Success(EmittedReference::new(
             import_expr,
             ImportedFile::Known(source_file_str.to_string()),
@@ -295,9 +302,10 @@ impl ReferenceEmitStrategy for LogicalProjectStrategy {
     ) -> Option<ReferenceEmitResult> {
         let source_file = reference.source_file.as_ref()?;
         let source_file_str = source_file.to_string_lossy();
-        
+
         if source_file_str.starts_with(&self.base_path) {
-            let logical_path = source_file_str.strip_prefix(&self.base_path)
+            let logical_path = source_file_str
+                .strip_prefix(&self.base_path)
                 .unwrap_or(&source_file_str);
             let import_expr = format!("@project{}#{}", logical_path, reference.debug_name());
             Some(ReferenceEmitResult::Success(EmittedReference::new(
@@ -313,37 +321,38 @@ impl ReferenceEmitStrategy for LogicalProjectStrategy {
 /// Calculate relative path between two file paths.
 fn calculate_relative_path(from: &str, to: &str) -> String {
     use std::path::Path;
-    
+
     let from_path = Path::new(from);
     let to_path = Path::new(to);
-    
+
     let from_dir = from_path.parent().unwrap_or(Path::new(""));
-    
+
     if let Ok(rel) = to_path.strip_prefix(from_dir) {
         return format!("./{}", rel.display());
     }
-    
+
     // Simple implementation - count parent directories
     let from_parts: Vec<_> = from_dir.components().collect();
     let to_parts: Vec<_> = to_path.components().collect();
-    
-    let common = from_parts.iter()
+
+    let common = from_parts
+        .iter()
         .zip(to_parts.iter())
         .take_while(|(a, b)| a == b)
         .count();
-    
+
     let ups = from_parts.len() - common;
     let mut result = String::new();
-    
+
     for _ in 0..ups {
         result.push_str("../");
     }
-    
+
     for part in &to_parts[common..] {
         result.push_str(&part.as_os_str().to_string_lossy());
         result.push('/');
     }
-    
+
     result.pop(); // Remove trailing slash
     result
 }

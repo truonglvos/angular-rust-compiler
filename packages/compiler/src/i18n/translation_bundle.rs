@@ -4,13 +4,16 @@
 //! A container for translated messages
 
 use crate::core::MissingTranslationStrategy;
+use crate::i18n::i18n_ast::{
+    BlockPlaceholder, Container, Icu, IcuPlaceholder, Message, Node, Placeholder, TagPlaceholder,
+    Text, Visitor,
+};
+use crate::i18n::serializers::serializer::{PlaceholderMapper, Serializer};
+use crate::i18n::serializers::xml_helper::escape_xml;
 use crate::ml_parser::ast as html;
 use crate::ml_parser::html_parser::HtmlParser;
 use crate::ml_parser::lexer::TokenizeOptions;
 use crate::parse_util::ParseError;
-use crate::i18n::i18n_ast::{Message, Node, Visitor, Text, Container, Icu, Placeholder, TagPlaceholder, IcuPlaceholder, BlockPlaceholder};
-use crate::i18n::serializers::serializer::{PlaceholderMapper, Serializer};
-use crate::i18n::serializers::xml_helper::escape_xml;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -63,22 +66,21 @@ impl TranslationBundle {
         missing_translation_strategy: MissingTranslationStrategy,
     ) -> Result<Self, String> {
         let load_result = serializer.load(content, url);
-        
+
         // Wrap serializer in Arc for sharing
         let serializer_arc = Arc::new(serializer);
-        
+
         // Create closures that capture the Arc
         let serializer_clone = serializer_arc.clone();
-        let digest_fn: Rc<dyn Fn(&Message) -> String> = Rc::new(move |m: &Message| {
-            serializer_clone.digest(m)
-        });
-        
+        let digest_fn: Rc<dyn Fn(&Message) -> String> =
+            Rc::new(move |m: &Message| serializer_clone.digest(m));
+
         let serializer_clone2 = serializer_arc.clone();
-        let mapper_factory: Option<Rc<dyn Fn(&Message) -> Box<dyn PlaceholderMapper>>> = 
+        let mapper_factory: Option<Rc<dyn Fn(&Message) -> Box<dyn PlaceholderMapper>>> =
             Some(Rc::new(move |m: &Message| {
-                serializer_clone2.create_name_mapper(m).unwrap_or_else(|| {
-                    Box::new(NoOpPlaceholderMapper)
-                })
+                serializer_clone2
+                    .create_name_mapper(m)
+                    .unwrap_or_else(|| Box::new(NoOpPlaceholderMapper))
             }));
 
         let mut bundle = TranslationBundle::new(
@@ -97,7 +99,12 @@ impl TranslationBundle {
         let result = self.i18n_to_html.convert(src_msg);
 
         if !result.errors.is_empty() {
-            return Err(result.errors.iter().map(|e| e.to_string()).collect::<Vec<_>>().join("\n"));
+            return Err(result
+                .errors
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<_>>()
+                .join("\n"));
         }
 
         Ok(result.nodes)
@@ -202,9 +209,8 @@ impl I18nToHtmlVisitor {
 
     fn convert_to_text(&mut self, src_msg: &Message) -> String {
         let id = (self.digest_fn)(src_msg);
-        let mapper = self.mapper_factory.as_ref()
-            .map(|factory| factory(src_msg));
-        
+        let mapper = self.mapper_factory.as_ref().map(|factory| factory(src_msg));
+
         let nodes: Vec<Node>;
         let mapper_fn: Box<dyn Fn(&str) -> String>;
 
@@ -213,7 +219,16 @@ impl I18nToHtmlVisitor {
         // Note: We can't clone Box<dyn Fn>, so we'll store None and recreate if needed
         // Actually, we don't need to store the mapper in context since we can recreate it
         self.context_stack.push(ContextEntry {
-            msg: current_msg.unwrap_or_else(|| Message::new(vec![], HashMap::new(), HashMap::new(), String::new(), String::new(), String::new())),
+            msg: current_msg.unwrap_or_else(|| {
+                Message::new(
+                    vec![],
+                    HashMap::new(),
+                    HashMap::new(),
+                    String::new(),
+                    String::new(),
+                    String::new(),
+                )
+            }),
             mapper: None, // We'll recreate the mapper when restoring context
         });
 
@@ -228,7 +243,9 @@ impl I18nToHtmlVisitor {
                 // Wrap mapper in Rc to share it
                 let mapper_rc: Rc<dyn PlaceholderMapper> = Rc::from(m);
                 mapper_fn = Box::new(move |name: &str| {
-                    mapper_rc.to_internal_name(name).unwrap_or_else(|| name.to_string())
+                    mapper_rc
+                        .to_internal_name(name)
+                        .unwrap_or_else(|| name.to_string())
                 });
             } else {
                 mapper_fn = Box::new(|name: &str| name.to_string());
@@ -245,7 +262,10 @@ impl I18nToHtmlVisitor {
                     String::new()
                 };
                 if !src_msg.nodes.is_empty() {
-                    self.add_error(&src_msg.nodes[0], &format!("Missing translation for message \"{}\"{}", id, ctx));
+                    self.add_error(
+                        &src_msg.nodes[0],
+                        &format!("Missing translation for message \"{}\"{}", id, ctx),
+                    );
                 }
             }
             // Note: Warning strategy would require a Console trait, which we don't have yet
@@ -255,10 +275,13 @@ impl I18nToHtmlVisitor {
 
         self.mapper = Some(mapper_fn);
 
-        let text: String = nodes.iter()
+        let text: String = nodes
+            .iter()
             .map(|node| {
                 let result = node.visit(self, None);
-                *result.downcast::<String>().unwrap_or_else(|_| Box::new(String::new()))
+                *result
+                    .downcast::<String>()
+                    .unwrap_or_else(|_| Box::new(String::new()))
             })
             .collect();
 
@@ -274,35 +297,53 @@ impl I18nToHtmlVisitor {
     }
 
     fn add_error(&mut self, node: &Node, msg: &str) {
-        self.errors.push(ParseError::new(
-            node.source_span().clone(),
-            msg.to_string(),
-        ));
+        self.errors
+            .push(ParseError::new(node.source_span().clone(), msg.to_string()));
     }
 }
 
 impl Visitor for I18nToHtmlVisitor {
-    fn visit_text(&mut self, text: &Text, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_text(
+        &mut self,
+        text: &Text,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         // `convert()` uses an `HtmlParser` to return `html.Node`s
         // we should then make sure that any special characters are escaped
         Box::new(escape_xml(&text.value))
     }
 
-    fn visit_container(&mut self, container: &Container, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
-        let result: String = container.children.iter()
+    fn visit_container(
+        &mut self,
+        container: &Container,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
+        let result: String = container
+            .children
+            .iter()
             .map(|n| {
                 let visit_result = n.visit(self, None);
-                *visit_result.downcast::<String>().unwrap_or_else(|_| Box::new(String::new()))
+                *visit_result
+                    .downcast::<String>()
+                    .unwrap_or_else(|_| Box::new(String::new()))
             })
             .collect();
         Box::new(result)
     }
 
-    fn visit_icu(&mut self, icu: &Icu, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
-        let cases: Vec<String> = icu.cases.iter()
+    fn visit_icu(
+        &mut self,
+        icu: &Icu,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
+        let cases: Vec<String> = icu
+            .cases
+            .iter()
             .map(|(k, v)| {
                 let case_result = v.visit(self, None);
-                let case_text = *case_result.downcast::<String>().unwrap_or_else(|_| Box::new(String::new()));
+                let case_text = *case_result
+                    .downcast::<String>()
+                    .unwrap_or_else(|_| Box::new(String::new()));
                 format!("{} {{{}}}", k, case_text)
             })
             .collect();
@@ -319,10 +360,19 @@ impl Visitor for I18nToHtmlVisitor {
             icu.expression.clone()
         };
 
-        Box::new(format!("{{{{{}}}, {}, {}}}", exp, icu.type_, cases.join(" ")))
+        Box::new(format!(
+            "{{{{{}}}, {}, {}}}",
+            exp,
+            icu.type_,
+            cases.join(" ")
+        ))
     }
 
-    fn visit_placeholder(&mut self, ph: &Placeholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_placeholder(
+        &mut self,
+        ph: &Placeholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let ph_name = if let Some(ref mapper) = self.mapper {
             mapper(&ph.name)
         } else {
@@ -340,13 +390,22 @@ impl Visitor for I18nToHtmlVisitor {
             }
         }
 
-        self.add_error(&Node::Placeholder(ph.clone()), &format!("Unknown placeholder \"{}\"", ph.name));
+        self.add_error(
+            &Node::Placeholder(ph.clone()),
+            &format!("Unknown placeholder \"{}\"", ph.name),
+        );
         Box::new(String::new())
     }
 
-    fn visit_tag_placeholder(&mut self, ph: &TagPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_tag_placeholder(
+        &mut self,
+        ph: &TagPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let tag = &ph.tag;
-        let attrs: Vec<String> = ph.attrs.iter()
+        let attrs: Vec<String> = ph
+            .attrs
+            .iter()
             .map(|(name, value)| format!("{}=\"{}\"", name, value))
             .collect();
         let attrs_str = attrs.join(" ");
@@ -354,17 +413,25 @@ impl Visitor for I18nToHtmlVisitor {
         if ph.is_void {
             Box::new(format!("<{} {}/>", tag, attrs_str))
         } else {
-            let children: String = ph.children.iter()
+            let children: String = ph
+                .children
+                .iter()
                 .map(|c| {
                     let result = c.visit(self, None);
-                    *result.downcast::<String>().unwrap_or_else(|_| Box::new(String::new()))
+                    *result
+                        .downcast::<String>()
+                        .unwrap_or_else(|_| Box::new(String::new()))
                 })
                 .collect();
             Box::new(format!("<{} {}>{}</{}>", tag, attrs_str, children, tag))
         }
     }
 
-    fn visit_icu_placeholder(&mut self, ph: &IcuPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_icu_placeholder(
+        &mut self,
+        ph: &IcuPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         // An ICU placeholder references the source message to be serialized
         if let Some(ref src_msg) = self.src_msg {
             if let Some(msg) = src_msg.placeholder_to_message.get(&ph.name) {
@@ -375,16 +442,24 @@ impl Visitor for I18nToHtmlVisitor {
         Box::new(String::new())
     }
 
-    fn visit_block_placeholder(&mut self, ph: &BlockPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_block_placeholder(
+        &mut self,
+        ph: &BlockPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let params = if ph.parameters.is_empty() {
             String::new()
         } else {
             format!(" ({})", ph.parameters.join("; "))
         };
-        let children: String = ph.children.iter()
+        let children: String = ph
+            .children
+            .iter()
             .map(|c| {
                 let result = c.visit(self, None);
-                *result.downcast::<String>().unwrap_or_else(|_| Box::new(String::new()))
+                *result
+                    .downcast::<String>()
+                    .unwrap_or_else(|_| Box::new(String::new()))
             })
             .collect();
         Box::new(format!("@{}{} {{{}}}", ph.name, params, children))

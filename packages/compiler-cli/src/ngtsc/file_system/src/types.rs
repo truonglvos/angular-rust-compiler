@@ -1,5 +1,5 @@
-use std::path::Path;
 use std::io;
+use std::path::Path;
 
 /// A `string` representing a specific type of path, with a particular brand `B`.
 ///
@@ -33,7 +33,6 @@ impl<B> std::fmt::Display for BrandedPath<B> {
     }
 }
 
-
 /// A fully qualified path in the file system, in POSIX form.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AbsoluteFsPath(String);
@@ -50,8 +49,8 @@ impl AbsoluteFsPath {
     pub fn as_str(&self) -> &str {
         &self.0
     }
-    
-     pub fn as_path(&self) -> &Path {
+
+    pub fn as_path(&self) -> &Path {
         Path::new(&self.0)
     }
 
@@ -72,13 +71,11 @@ impl AsRef<Path> for AbsoluteFsPath {
     }
 }
 
-
 impl std::fmt::Display for AbsoluteFsPath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
-
 
 /// A path that's relative to another (unspecified) root.
 ///
@@ -159,7 +156,6 @@ impl IntoPathString for PathSegment {
     }
 }
 
-
 /// An abstraction over the path manipulation aspects of a file-system.
 pub trait PathManipulation {
     fn extname(&self, path: &str) -> String;
@@ -167,10 +163,10 @@ pub trait PathManipulation {
     fn is_rooted(&self, path: &str) -> bool;
     fn dirname(&self, file: &str) -> String;
     fn join(&self, base_path: &str, paths: &[&str]) -> String;
-    
+
     /// Compute the relative path between `from` and `to`.
     fn relative(&self, from: &str, to: &str) -> String; // Returns either PathSegment or AbsoluteFsPath as string
-    
+
     fn basename(&self, file_path: &str, extension: Option<&str>) -> PathSegment;
     fn normalize(&self, path: &str) -> String;
     fn resolve(&self, paths: &[&str]) -> AbsoluteFsPath;
@@ -193,7 +189,12 @@ pub trait ReadonlyFileSystem: PathManipulation {
 
 /// A basic interface to abstract the underlying file-system.
 pub trait FileSystem: ReadonlyFileSystem {
-    fn write_file(&self, path: &AbsoluteFsPath, data: &[u8], exclusive: Option<bool>) -> io::Result<()>;
+    fn write_file(
+        &self,
+        path: &AbsoluteFsPath,
+        data: &[u8],
+        exclusive: Option<bool>,
+    ) -> io::Result<()>;
     fn remove_file(&self, path: &AbsoluteFsPath) -> io::Result<()>;
     fn symlink(&self, target: &AbsoluteFsPath, path: &AbsoluteFsPath) -> io::Result<()>;
     fn copy_file(&self, from: &AbsoluteFsPath, to: &AbsoluteFsPath) -> io::Result<()>;

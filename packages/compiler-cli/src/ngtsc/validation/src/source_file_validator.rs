@@ -18,7 +18,7 @@ impl ValidationResult {
             warnings: Vec::new(),
         }
     }
-    
+
     pub fn error(message: String, code: i32) -> Self {
         Self {
             is_valid: false,
@@ -26,7 +26,7 @@ impl ValidationResult {
             warnings: Vec::new(),
         }
     }
-    
+
     pub fn add_warning(&mut self, message: &str, code: i32) {
         self.warnings.push(ValidationWarning {
             message: message.to_string(),
@@ -56,7 +56,7 @@ impl DeclarationValidator {
     pub fn new() -> Self {
         Self
     }
-    
+
     pub fn validate_component(
         &self,
         _name: &str,
@@ -64,18 +64,15 @@ impl DeclarationValidator {
         _template: Option<&str>,
     ) -> ValidationResult {
         if selector.is_none() {
-            return ValidationResult::error(
-                "Component must have a selector".to_string(),
-                1001,
-            );
+            return ValidationResult::error("Component must have a selector".to_string(), 1001);
         }
         ValidationResult::success()
     }
-    
+
     pub fn validate_directive(&self, _name: &str, _selector: &str) -> ValidationResult {
         ValidationResult::success()
     }
-    
+
     pub fn validate_pipe(&self, _name: &str, _pipe_name: &str) -> ValidationResult {
         ValidationResult::success()
     }

@@ -2,7 +2,7 @@
 //
 // Handles parsing of signal-based query initializers like viewChild, contentChildren.
 
-use super::initializer_functions::{InitializerApiFunction, OwningModule, InitializerFunctionName};
+use super::initializer_functions::{InitializerApiFunction, InitializerFunctionName, OwningModule};
 
 /// Query metadata from initializer.
 #[derive(Debug, Clone)]
@@ -35,7 +35,7 @@ impl QueryFunctionMetadata {
             is_signal: true,
         }
     }
-    
+
     pub fn view_children(property_name: impl Into<String>, selector: impl Into<String>) -> Self {
         Self {
             property_name: property_name.into(),
@@ -47,7 +47,7 @@ impl QueryFunctionMetadata {
             is_signal: true,
         }
     }
-    
+
     pub fn content_child(property_name: impl Into<String>, selector: impl Into<String>) -> Self {
         Self {
             property_name: property_name.into(),
@@ -59,7 +59,7 @@ impl QueryFunctionMetadata {
             is_signal: true,
         }
     }
-    
+
     pub fn content_children(property_name: impl Into<String>, selector: impl Into<String>) -> Self {
         Self {
             property_name: property_name.into(),
@@ -71,12 +71,12 @@ impl QueryFunctionMetadata {
             is_signal: true,
         }
     }
-    
+
     pub fn with_required(mut self, required: bool) -> Self {
         self.is_required = required;
         self
     }
-    
+
     pub fn with_read(mut self, read: impl Into<String>) -> Self {
         self.read = Some(read.into());
         self
@@ -86,10 +86,22 @@ impl QueryFunctionMetadata {
 /// All query initializer APIs.
 pub fn query_initializer_apis() -> Vec<InitializerApiFunction> {
     vec![
-        InitializerApiFunction::new(OwningModule::AngularCore, InitializerFunctionName::ViewChild),
-        InitializerApiFunction::new(OwningModule::AngularCore, InitializerFunctionName::ViewChildren),
-        InitializerApiFunction::new(OwningModule::AngularCore, InitializerFunctionName::ContentChild),
-        InitializerApiFunction::new(OwningModule::AngularCore, InitializerFunctionName::ContentChildren),
+        InitializerApiFunction::new(
+            OwningModule::AngularCore,
+            InitializerFunctionName::ViewChild,
+        ),
+        InitializerApiFunction::new(
+            OwningModule::AngularCore,
+            InitializerFunctionName::ViewChildren,
+        ),
+        InitializerApiFunction::new(
+            OwningModule::AngularCore,
+            InitializerFunctionName::ContentChild,
+        ),
+        InitializerApiFunction::new(
+            OwningModule::AngularCore,
+            InitializerFunctionName::ContentChildren,
+        ),
     ]
 }
 
@@ -102,15 +114,23 @@ pub fn try_parse_signal_query(
     read: Option<&str>,
 ) -> Option<QueryFunctionMetadata> {
     let mut query = match function_name {
-        InitializerFunctionName::ViewChild => QueryFunctionMetadata::view_child(property_name, selector),
-        InitializerFunctionName::ViewChildren => QueryFunctionMetadata::view_children(property_name, selector),
-        InitializerFunctionName::ContentChild => QueryFunctionMetadata::content_child(property_name, selector),
-        InitializerFunctionName::ContentChildren => QueryFunctionMetadata::content_children(property_name, selector),
+        InitializerFunctionName::ViewChild => {
+            QueryFunctionMetadata::view_child(property_name, selector)
+        }
+        InitializerFunctionName::ViewChildren => {
+            QueryFunctionMetadata::view_children(property_name, selector)
+        }
+        InitializerFunctionName::ContentChild => {
+            QueryFunctionMetadata::content_child(property_name, selector)
+        }
+        InitializerFunctionName::ContentChildren => {
+            QueryFunctionMetadata::content_children(property_name, selector)
+        }
         _ => return None,
     };
-    
+
     query.is_required = is_required;
     query.read = read.map(|s| s.to_string());
-    
+
     Some(query)
 }

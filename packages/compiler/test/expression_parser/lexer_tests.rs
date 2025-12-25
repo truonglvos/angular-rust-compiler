@@ -40,7 +40,11 @@ mod tests {
     fn expect_number_token(token: &Token, index: usize, end: usize, n: f64) {
         expect_token(token, index, end);
         assert!(token.is_number(), "Expected number token");
-        assert!((token.num_value - n).abs() < f64::EPSILON, "Expected number {}", n);
+        assert!(
+            (token.num_value - n).abs() < f64::EPSILON,
+            "Expected number {}",
+            n
+        );
     }
 
     fn expect_string_token(
@@ -68,7 +72,10 @@ mod tests {
             token.is_private_identifier(),
             "Expected private identifier token"
         );
-        assert_eq!(token.str_value, identifier, "Expected private identifier value");
+        assert_eq!(
+            token.str_value, identifier,
+            "Expected private identifier value"
+        );
     }
 
     fn expect_keyword_token(token: &Token, index: usize, end: usize, keyword: &str) {
@@ -135,7 +142,8 @@ mod tests {
     }
 
     #[test]
-    fn should_throw_an_invalid_character_error_when_a_hash_character_is_discovered_but_not_indicating_a_private_identifier() {
+    fn should_throw_an_invalid_character_error_when_a_hash_character_is_discovered_but_not_indicating_a_private_identifier(
+    ) {
         let tokens = lex("#");
         expect_error_token(
             &tokens[0],
@@ -428,7 +436,12 @@ mod tests {
         expect_number_token(&lex("123_456")[0], 0, 7, 123456.0);
         expect_number_token(&lex("1_000_000_000")[0], 0, 13, 1000000000.0);
         expect_number_token(&lex("123_456.78")[0], 0, 10, 123456.78);
-        expect_number_token(&lex("123_456_789.123_456_789")[0], 0, 23, 123456789.123456789);
+        expect_number_token(
+            &lex("123_456_789.123_456_789")[0],
+            0,
+            23,
+            123456789.123456789,
+        );
         expect_number_token(&lex("1_2_3_4")[0], 0, 7, 1234.0);
         expect_number_token(&lex("1_2_3_4.5_6_7_8")[0], 0, 15, 1234.5678);
     }
@@ -618,13 +631,7 @@ mod tests {
                 StringTokenKind::TemplateLiteralPart,
             );
             expect_operator_token(&tokens[3], 14, 16, "${");
-            expect_string_token(
-                &tokens[4],
-                16,
-                17,
-                "",
-                StringTokenKind::TemplateLiteralPart,
-            );
+            expect_string_token(&tokens[4], 16, 17, "", StringTokenKind::TemplateLiteralPart);
             expect_operator_token(&tokens[5], 17, 19, "${");
             expect_identifier_token(&tokens[6], 19, 20, "a");
             expect_character_token(&tokens[7], 20, 21, '}');
@@ -636,13 +643,7 @@ mod tests {
                 StringTokenKind::TemplateLiteralEnd,
             );
             expect_character_token(&tokens[9], 26, 27, '}');
-            expect_string_token(
-                &tokens[10],
-                27,
-                28,
-                "",
-                StringTokenKind::TemplateLiteralEnd,
-            );
+            expect_string_token(&tokens[10], 27, 28, "", StringTokenKind::TemplateLiteralEnd);
             expect_character_token(&tokens[11], 28, 29, '}');
             expect_string_token(
                 &tokens[12],
@@ -765,13 +766,7 @@ mod tests {
             expect_character_token(&tokens[0], 0, 1, '{');
             expect_identifier_token(&tokens[1], 1, 4, "foo");
             expect_character_token(&tokens[2], 4, 5, ':');
-            expect_string_token(
-                &tokens[3],
-                6,
-                7,
-                "",
-                StringTokenKind::TemplateLiteralPart,
-            );
+            expect_string_token(&tokens[3], 6, 7, "", StringTokenKind::TemplateLiteralPart);
             expect_operator_token(&tokens[4], 7, 9, "${");
             expect_identifier_token(&tokens[5], 9, 13, "name");
             expect_character_token(&tokens[6], 13, 14, '}');
@@ -883,13 +878,7 @@ mod tests {
         fn should_tokenize_template_literal_with_an_interpolation_in_the_beginning() {
             let tokens = lex("`${name} Johnson`");
             assert_eq!(tokens.len(), 5);
-            expect_string_token(
-                &tokens[0],
-                0,
-                1,
-                "",
-                StringTokenKind::TemplateLiteralPart,
-            );
+            expect_string_token(&tokens[0], 0, 1, "", StringTokenKind::TemplateLiteralPart);
             expect_operator_token(&tokens[1], 1, 3, "${");
             expect_identifier_token(&tokens[2], 3, 7, "name");
             expect_character_token(&tokens[3], 7, 8, '}');
@@ -929,13 +918,7 @@ mod tests {
         fn should_tokenize_template_literal_with_several_interpolations() {
             let tokens = lex("`${a} - ${b} - ${c}`");
             assert_eq!(tokens.len(), 13);
-            expect_string_token(
-                &tokens[0],
-                0,
-                1,
-                "",
-                StringTokenKind::TemplateLiteralPart,
-            );
+            expect_string_token(&tokens[0], 0, 1, "", StringTokenKind::TemplateLiteralPart);
             expect_operator_token(&tokens[1], 1, 3, "${");
             expect_identifier_token(&tokens[2], 3, 4, "a");
             expect_character_token(&tokens[3], 4, 5, '}');
@@ -1262,4 +1245,3 @@ mod tests {
         }
     }
 }
-

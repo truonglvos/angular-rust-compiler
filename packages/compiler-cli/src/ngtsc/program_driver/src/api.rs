@@ -10,9 +10,11 @@ pub struct Program {
 
 impl Program {
     pub fn new(files: Vec<String>) -> Self {
-        Self { source_files: files }
+        Self {
+            source_files: files,
+        }
     }
-    
+
     pub fn source_files(&self) -> &[String] {
         &self.source_files
     }
@@ -41,11 +43,11 @@ impl ProgramDriver for SimpleProgramDriver {
     fn get_program(&self) -> Option<&Program> {
         self.program.as_ref()
     }
-    
+
     fn update_program(&mut self, program: Program) {
         self.program = Some(program);
     }
-    
+
     fn get_source_files(&self) -> Vec<String> {
         self.program
             .as_ref()

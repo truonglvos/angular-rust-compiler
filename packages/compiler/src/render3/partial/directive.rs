@@ -6,13 +6,15 @@
 use indexmap::IndexMap;
 
 use crate::output::output_ast::{
-    Expression, LiteralExpr, LiteralValue, LiteralArrayExpr, LiteralMapExpr, LiteralMapEntry,
-    ExternalExpr, InvokeFunctionExpr,
+    Expression, ExternalExpr, InvokeFunctionExpr, LiteralArrayExpr, LiteralExpr, LiteralMapEntry,
+    LiteralMapExpr, LiteralValue,
 };
 use crate::render3::r3_identifiers::Identifiers as R3;
-use crate::render3::util::{R3CompiledExpression, convert_from_maybe_forward_ref_expression, generate_forward_ref};
+use crate::render3::util::{
+    convert_from_maybe_forward_ref_expression, generate_forward_ref, R3CompiledExpression,
+};
 use crate::render3::view::api::{R3DirectiveMetadata, R3HostMetadata, R3QueryMetadata};
-use crate::render3::view::util::{DefinitionMap, UNSAFE_OBJECT_KEY_NAME_REGEXP, as_literal_string};
+use crate::render3::view::util::{as_literal_string, DefinitionMap, UNSAFE_OBJECT_KEY_NAME_REGEXP};
 
 /// Helper to create literal expression
 fn literal(value: LiteralValue) -> Expression {
@@ -33,14 +35,12 @@ fn external_expr(reference: crate::output::output_ast::ExternalReference) -> Exp
 }
 
 /// Compile a directive declaration defined by the `R3DirectiveMetadata`.
-pub fn compile_declare_directive_from_metadata(
-    meta: &R3DirectiveMetadata,
-) -> R3CompiledExpression {
+pub fn compile_declare_directive_from_metadata(meta: &R3DirectiveMetadata) -> R3CompiledExpression {
     let definition_map = create_directive_definition_map(meta);
 
     let declare_directive_ref = R3::declare_directive();
     let declare_directive_expr = external_expr(declare_directive_ref);
-    
+
     let expression = Expression::InvokeFn(InvokeFunctionExpr {
         fn_: Box::new(declare_directive_expr),
         args: vec![Expression::LiteralMap(definition_map.to_literal_map())],
@@ -60,8 +60,16 @@ pub fn create_directive_definition_map(meta: &R3DirectiveMetadata) -> Definition
     let mut definition_map = DefinitionMap::new();
     let min_version = get_minimum_version_for_partial_output(meta);
 
-    definition_map.set("minVersion", Some(literal(LiteralValue::String(min_version))));
-    definition_map.set("version", Some(literal(LiteralValue::String("0.0.0-PLACEHOLDER".to_string()))));
+    definition_map.set(
+        "minVersion",
+        Some(literal(LiteralValue::String(min_version))),
+    );
+    definition_map.set(
+        "version",
+        Some(literal(LiteralValue::String(
+            "0.0.0-PLACEHOLDER".to_string(),
+        ))),
+    );
 
     // e.g. `type: MyDirective`
     definition_map.set("type", Some(meta.type_.value.clone()));
@@ -76,7 +84,10 @@ pub fn create_directive_definition_map(meta: &R3DirectiveMetadata) -> Definition
 
     // e.g. `selector: 'some-dir'`
     if let Some(ref selector) = meta.selector {
-        definition_map.set("selector", Some(literal(LiteralValue::String(selector.clone()))));
+        definition_map.set(
+            "selector",
+            Some(literal(LiteralValue::String(selector.clone()))),
+        );
     }
 
     // inputs
@@ -92,7 +103,8 @@ pub fn create_directive_definition_map(meta: &R3DirectiveMetadata) -> Definition
 
     // outputs
     if !meta.outputs.is_empty() {
-        let outputs_entries: Vec<LiteralMapEntry> = meta.outputs
+        let outputs_entries: Vec<LiteralMapEntry> = meta
+            .outputs
             .iter()
             .map(|(key, value)| LiteralMapEntry {
                 key: key.clone(),
@@ -100,11 +112,14 @@ pub fn create_directive_definition_map(meta: &R3DirectiveMetadata) -> Definition
                 quoted: false,
             })
             .collect();
-        definition_map.set("outputs", Some(Expression::LiteralMap(LiteralMapExpr {
-            entries: outputs_entries,
-            type_: None,
-            source_span: None,
-        })));
+        definition_map.set(
+            "outputs",
+            Some(Expression::LiteralMap(LiteralMapExpr {
+                entries: outputs_entries,
+                type_: None,
+                source_span: None,
+            })),
+        );
     }
 
     // host
@@ -120,21 +135,28 @@ pub fn create_directive_definition_map(meta: &R3DirectiveMetadata) -> Definition
     // queries
     if !meta.queries.is_empty() {
         let queries_exprs: Vec<Expression> = meta.queries.iter().map(compile_query).collect();
-        definition_map.set("queries", Some(Expression::LiteralArray(LiteralArrayExpr {
-            entries: queries_exprs,
-            type_: None,
-            source_span: None,
-        })));
+        definition_map.set(
+            "queries",
+            Some(Expression::LiteralArray(LiteralArrayExpr {
+                entries: queries_exprs,
+                type_: None,
+                source_span: None,
+            })),
+        );
     }
 
     // viewQueries
     if !meta.view_queries.is_empty() {
-        let view_queries_exprs: Vec<Expression> = meta.view_queries.iter().map(compile_query).collect();
-        definition_map.set("viewQueries", Some(Expression::LiteralArray(LiteralArrayExpr {
-            entries: view_queries_exprs,
-            type_: None,
-            source_span: None,
-        })));
+        let view_queries_exprs: Vec<Expression> =
+            meta.view_queries.iter().map(compile_query).collect();
+        definition_map.set(
+            "viewQueries",
+            Some(Expression::LiteralArray(LiteralArrayExpr {
+                entries: view_queries_exprs,
+                type_: None,
+                source_span: None,
+            })),
+        );
     }
 
     // exportAs
@@ -143,11 +165,14 @@ pub fn create_directive_definition_map(meta: &R3DirectiveMetadata) -> Definition
             .iter()
             .map(|s| literal(LiteralValue::String(s.clone())))
             .collect();
-        definition_map.set("exportAs", Some(Expression::LiteralArray(LiteralArrayExpr {
-            entries: export_as_exprs,
-            type_: None,
-            source_span: None,
-        })));
+        definition_map.set(
+            "exportAs",
+            Some(Expression::LiteralArray(LiteralArrayExpr {
+                entries: export_as_exprs,
+                type_: None,
+                source_span: None,
+            })),
+        );
     }
 
     if meta.uses_inheritance {
@@ -161,7 +186,10 @@ pub fn create_directive_definition_map(meta: &R3DirectiveMetadata) -> Definition
     // hostDirectives
     if let Some(ref host_directives) = meta.host_directives {
         if !host_directives.is_empty() {
-            definition_map.set("hostDirectives", Some(create_host_directives(host_directives)));
+            definition_map.set(
+                "hostDirectives",
+                Some(create_host_directives(host_directives)),
+            );
         }
     }
 
@@ -178,7 +206,10 @@ fn get_minimum_version_for_partial_output(meta: &R3DirectiveMetadata) -> String 
     let mut min_version = "14.0.0".to_string();
 
     // Check for decorator transform functions
-    let has_decorator_transform_functions = meta.inputs.values().any(|input| input.transform_function.is_some());
+    let has_decorator_transform_functions = meta
+        .inputs
+        .values()
+        .any(|input| input.transform_function.is_some());
     if has_decorator_transform_functions {
         min_version = "16.1.0".to_string();
     }
@@ -204,9 +235,12 @@ fn needs_new_input_partial_output(meta: &R3DirectiveMetadata) -> bool {
 /// Compiles the metadata of a single query.
 fn compile_query(query: &R3QueryMetadata) -> Expression {
     let mut meta = DefinitionMap::new();
-    
-    meta.set("propertyName", Some(literal(LiteralValue::String(query.property_name.clone()))));
-    
+
+    meta.set(
+        "propertyName",
+        Some(literal(LiteralValue::String(query.property_name.clone()))),
+    );
+
     if query.first {
         meta.set("first", Some(literal(LiteralValue::Bool(true))));
     }
@@ -218,19 +252,28 @@ fn compile_query(query: &R3QueryMetadata) -> Expression {
                 .iter()
                 .map(|s| literal(LiteralValue::String(s.clone())))
                 .collect();
-            meta.set("predicate", Some(Expression::LiteralArray(LiteralArrayExpr {
-                entries: selector_exprs,
-                type_: None,
-                source_span: None,
-            })));
+            meta.set(
+                "predicate",
+                Some(Expression::LiteralArray(LiteralArrayExpr {
+                    entries: selector_exprs,
+                    type_: None,
+                    source_span: None,
+                })),
+            );
         }
         crate::render3::view::api::R3QueryPredicate::Expression(expr) => {
-            meta.set("predicate", Some(convert_from_maybe_forward_ref_expression(expr)));
+            meta.set(
+                "predicate",
+                Some(convert_from_maybe_forward_ref_expression(expr)),
+            );
         }
     }
 
     if !query.emit_distinct_changes_only {
-        meta.set("emitDistinctChangesOnly", Some(literal(LiteralValue::Bool(false))));
+        meta.set(
+            "emitDistinctChangesOnly",
+            Some(literal(LiteralValue::Bool(false))),
+        );
     }
 
     if query.descendants {
@@ -258,7 +301,8 @@ fn compile_host_metadata(meta: &R3HostMetadata) -> Option<Expression> {
 
     // attributes
     if !meta.attributes.is_empty() {
-        let attr_entries: Vec<LiteralMapEntry> = meta.attributes
+        let attr_entries: Vec<LiteralMapEntry> = meta
+            .attributes
             .iter()
             .map(|(key, value)| LiteralMapEntry {
                 key: key.clone(),
@@ -266,16 +310,20 @@ fn compile_host_metadata(meta: &R3HostMetadata) -> Option<Expression> {
                 quoted: true,
             })
             .collect();
-        host_metadata.set("attributes", Some(Expression::LiteralMap(LiteralMapExpr {
-            entries: attr_entries,
-            type_: None,
-            source_span: None,
-        })));
+        host_metadata.set(
+            "attributes",
+            Some(Expression::LiteralMap(LiteralMapExpr {
+                entries: attr_entries,
+                type_: None,
+                source_span: None,
+            })),
+        );
     }
 
     // listeners
     if !meta.listeners.is_empty() {
-        let listener_entries: Vec<LiteralMapEntry> = meta.listeners
+        let listener_entries: Vec<LiteralMapEntry> = meta
+            .listeners
             .iter()
             .map(|(key, value)| LiteralMapEntry {
                 key: key.clone(),
@@ -283,16 +331,20 @@ fn compile_host_metadata(meta: &R3HostMetadata) -> Option<Expression> {
                 quoted: true,
             })
             .collect();
-        host_metadata.set("listeners", Some(Expression::LiteralMap(LiteralMapExpr {
-            entries: listener_entries,
-            type_: None,
-            source_span: None,
-        })));
+        host_metadata.set(
+            "listeners",
+            Some(Expression::LiteralMap(LiteralMapExpr {
+                entries: listener_entries,
+                type_: None,
+                source_span: None,
+            })),
+        );
     }
 
     // properties
     if !meta.properties.is_empty() {
-        let prop_entries: Vec<LiteralMapEntry> = meta.properties
+        let prop_entries: Vec<LiteralMapEntry> = meta
+            .properties
             .iter()
             .map(|(key, value)| LiteralMapEntry {
                 key: key.clone(),
@@ -300,19 +352,28 @@ fn compile_host_metadata(meta: &R3HostMetadata) -> Option<Expression> {
                 quoted: true,
             })
             .collect();
-        host_metadata.set("properties", Some(Expression::LiteralMap(LiteralMapExpr {
-            entries: prop_entries,
-            type_: None,
-            source_span: None,
-        })));
+        host_metadata.set(
+            "properties",
+            Some(Expression::LiteralMap(LiteralMapExpr {
+                entries: prop_entries,
+                type_: None,
+                source_span: None,
+            })),
+        );
     }
 
     // specialAttributes
     if let Some(ref style_attr) = meta.special_attributes.style_attr {
-        host_metadata.set("styleAttribute", Some(literal(LiteralValue::String(style_attr.clone()))));
+        host_metadata.set(
+            "styleAttribute",
+            Some(literal(LiteralValue::String(style_attr.clone()))),
+        );
     }
     if let Some(ref class_attr) = meta.special_attributes.class_attr {
-        host_metadata.set("classAttribute", Some(literal(LiteralValue::String(class_attr.clone()))));
+        host_metadata.set(
+            "classAttribute",
+            Some(literal(LiteralValue::String(class_attr.clone()))),
+        );
     }
 
     if host_metadata.values.is_empty() {
@@ -342,10 +403,12 @@ fn create_host_directives(
             if let Some(ref inputs) = current.inputs {
                 let inputs_arr: Vec<Expression> = inputs
                     .iter()
-                    .flat_map(|(k, v)| vec![
-                        literal(LiteralValue::String(k.clone())),
-                        literal(LiteralValue::String(v.clone())),
-                    ])
+                    .flat_map(|(k, v)| {
+                        vec![
+                            literal(LiteralValue::String(k.clone())),
+                            literal(LiteralValue::String(v.clone())),
+                        ]
+                    })
                     .collect();
                 entries.push(LiteralMapEntry {
                     key: "inputs".to_string(),
@@ -361,10 +424,12 @@ fn create_host_directives(
             if let Some(ref outputs) = current.outputs {
                 let outputs_arr: Vec<Expression> = outputs
                     .iter()
-                    .flat_map(|(k, v)| vec![
-                        literal(LiteralValue::String(k.clone())),
-                        literal(LiteralValue::String(v.clone())),
-                    ])
+                    .flat_map(|(k, v)| {
+                        vec![
+                            literal(LiteralValue::String(k.clone())),
+                            literal(LiteralValue::String(v.clone())),
+                        ]
+                    })
                     .collect();
                 entries.push(LiteralMapEntry {
                     key: "outputs".to_string(),
@@ -426,7 +491,12 @@ fn create_inputs_partial_metadata(
                 },
                 LiteralMapEntry {
                     key: "transformFunction".to_string(),
-                    value: Box::new(value.transform_function.clone().unwrap_or_else(|| literal(LiteralValue::Null))),
+                    value: Box::new(
+                        value
+                            .transform_function
+                            .clone()
+                            .unwrap_or_else(|| literal(LiteralValue::Null)),
+                    ),
                     quoted: false,
                 },
             ];
@@ -464,22 +534,23 @@ fn legacy_inputs_partial_metadata(
             let public_name = &value.binding_property_name;
             let different_declaring_name = public_name != declared_name;
 
-            let result: Expression = if different_declaring_name || value.transform_function.is_some() {
-                let mut values = vec![
-                    as_literal_string(public_name),
-                    as_literal_string(declared_name),
-                ];
-                if let Some(ref transform) = value.transform_function {
-                    values.push(transform.clone());
-                }
-                Expression::LiteralArray(LiteralArrayExpr {
-                    entries: values,
-                    type_: None,
-                    source_span: None,
-                })
-            } else {
-                as_literal_string(public_name)
-            };
+            let result: Expression =
+                if different_declaring_name || value.transform_function.is_some() {
+                    let mut values = vec![
+                        as_literal_string(public_name),
+                        as_literal_string(declared_name),
+                    ];
+                    if let Some(ref transform) = value.transform_function {
+                        values.push(transform.clone());
+                    }
+                    Expression::LiteralArray(LiteralArrayExpr {
+                        entries: values,
+                        type_: None,
+                        source_span: None,
+                    })
+                } else {
+                    as_literal_string(public_name)
+                };
 
             LiteralMapEntry {
                 key: declared_name.clone(),

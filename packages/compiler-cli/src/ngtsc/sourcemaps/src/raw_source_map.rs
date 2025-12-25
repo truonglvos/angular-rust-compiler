@@ -31,26 +31,26 @@ impl SourceMap {
 /// VLQ encoding for source maps.
 pub fn encode_vlq(mut value: i32) -> String {
     const BASE64_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    
+
     let mut result = String::new();
     let negative = value < 0;
-    
+
     if negative {
         value = -value;
     }
-    
+
     // Add sign bit to first 5 bits
     let mut first_digit = (value & 0xF) << 1;
     if negative {
         first_digit |= 1;
     }
     value >>= 4;
-    
+
     if value > 0 {
         first_digit |= 0x20; // continuation bit
     }
     result.push(BASE64_CHARS[first_digit as usize] as char);
-    
+
     while value > 0 {
         let mut digit = value & 0x1F;
         value >>= 5;
@@ -59,6 +59,6 @@ pub fn encode_vlq(mut value: i32) -> String {
         }
         result.push(BASE64_CHARS[digit as usize] as char);
     }
-    
+
     result
 }

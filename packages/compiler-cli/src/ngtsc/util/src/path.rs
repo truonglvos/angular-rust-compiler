@@ -7,20 +7,21 @@ pub fn is_valid_identifier(name: &str) -> bool {
     if name.is_empty() {
         return false;
     }
-    
+
     let first = name.chars().next().unwrap();
     if !first.is_alphabetic() && first != '_' && first != '$' {
         return false;
     }
-    
-    name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+
+    name.chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
 }
 
 /// Convert to camel case.
 pub fn to_camel_case(input: &str) -> String {
     let mut result = String::new();
     let mut capitalize_next = false;
-    
+
     for c in input.chars() {
         if c == '-' || c == '_' {
             capitalize_next = true;
@@ -31,14 +32,14 @@ pub fn to_camel_case(input: &str) -> String {
             result.push(c);
         }
     }
-    
+
     result
 }
 
 /// Convert to kebab case.
 pub fn to_kebab_case(input: &str) -> String {
     let mut result = String::new();
-    
+
     for (i, c) in input.chars().enumerate() {
         if c.is_ascii_uppercase() {
             if i > 0 {
@@ -49,7 +50,7 @@ pub fn to_kebab_case(input: &str) -> String {
             result.push(c);
         }
     }
-    
+
     result
 }
 

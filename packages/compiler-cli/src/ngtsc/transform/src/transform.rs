@@ -3,9 +3,9 @@
 // This module provides the Ivy transformation pipeline for applying compilation
 // results to TypeScript/JavaScript source files.
 
-use std::collections::HashMap;
-use crate::ngtsc::transform::src::api::{CompileResult, ConstantPool, CompilationMode};
+use crate::ngtsc::transform::src::api::{CompilationMode, CompileResult, ConstantPool};
 use crate::ngtsc::transform::src::compilation::TraitCompiler;
+use std::collections::HashMap;
 
 // ============================================================================
 // File Overview Metadata

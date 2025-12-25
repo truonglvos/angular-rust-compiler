@@ -15,10 +15,10 @@ use std::collections::{HashMap, HashSet};
 pub struct LocalCompilationExtraImportsTracker {
     /// Map from file path to set of module names for local imports.
     local_imports_map: HashMap<String, HashSet<String>>,
-    
+
     /// Set of module names to be added as global imports to all files.
     global_imports_set: HashSet<String>,
-    
+
     /// Names of files marked for extra import generation.
     marked_files_set: HashSet<String>,
 }
@@ -27,14 +27,14 @@ impl LocalCompilationExtraImportsTracker {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Marks a source file for extra imports generation.
     ///
     /// Extra imports are only generated for files marked through this method.
     pub fn mark_file_for_extra_import_generation(&mut self, file_name: &str) {
         self.marked_files_set.insert(file_name.to_string());
     }
-    
+
     /// Adds an extra import to be added to a specific source file.
     ///
     /// # Arguments
@@ -46,7 +46,7 @@ impl LocalCompilationExtraImportsTracker {
             .or_insert_with(HashSet::new)
             .insert(module_name.to_string());
     }
-    
+
     /// Adds a global import that will be added to all marked files.
     ///
     /// # Arguments
@@ -54,7 +54,7 @@ impl LocalCompilationExtraImportsTracker {
     pub fn add_global_import(&mut self, module_name: &str) {
         self.global_imports_set.insert(module_name.to_string());
     }
-    
+
     /// Returns the list of all module names that a file should include as extra imports.
     ///
     /// Returns empty if the file is not marked for extra import generation.
@@ -62,21 +62,21 @@ impl LocalCompilationExtraImportsTracker {
         if !self.marked_files_set.contains(file_name) {
             return Vec::new();
         }
-        
+
         let mut imports: Vec<String> = self.global_imports_set.iter().cloned().collect();
-        
+
         if let Some(local_imports) = self.local_imports_map.get(file_name) {
             imports.extend(local_imports.iter().cloned());
         }
-        
+
         imports
     }
-    
+
     /// Check if a file is marked for extra import generation.
     pub fn is_file_marked(&self, file_name: &str) -> bool {
         self.marked_files_set.contains(file_name)
     }
-    
+
     /// Get all global imports.
     pub fn get_global_imports(&self) -> &HashSet<String> {
         &self.global_imports_set

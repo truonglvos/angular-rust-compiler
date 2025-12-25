@@ -2,7 +2,6 @@
 //
 // Functions for analyzing constructor dependencies and injection tokens.
 
-
 /// Represents a constructor dependency metadata.
 #[derive(Debug, Clone)]
 pub struct R3DependencyMetadata {
@@ -31,22 +30,22 @@ impl R3DependencyMetadata {
             resolved: R3ResolvedDependencyType::Token,
         }
     }
-    
+
     pub fn with_optional(mut self) -> Self {
         self.optional = true;
         self
     }
-    
+
     pub fn with_host(mut self) -> Self {
         self.host = true;
         self
     }
-    
+
     pub fn with_self(mut self) -> Self {
         self.self_ = true;
         self
     }
-    
+
     pub fn with_skip_self(mut self) -> Self {
         self.skip_self = true;
         self
@@ -79,7 +78,7 @@ impl ConstructorDeps {
     pub fn is_valid(&self) -> bool {
         matches!(self, ConstructorDeps::Valid(_))
     }
-    
+
     pub fn into_deps(self) -> Option<Vec<R3DependencyMetadata>> {
         match self {
             ConstructorDeps::Valid(deps) => Some(deps),
@@ -145,10 +144,10 @@ pub fn get_constructor_dependencies(
     if constructor_params.is_empty() {
         return Some(ConstructorDeps::Valid(Vec::new()));
     }
-    
+
     let mut deps = Vec::new();
     let mut errors = Vec::new();
-    
+
     for (index, param) in constructor_params.iter().enumerate() {
         match analyze_ctor_parameter(param, is_core) {
             Ok(dep) => deps.push(dep),
@@ -161,7 +160,7 @@ pub fn get_constructor_dependencies(
             }
         }
     }
-    
+
     if errors.is_empty() {
         Some(ConstructorDeps::Valid(deps))
     } else {
@@ -208,14 +207,14 @@ fn analyze_ctor_parameter(
     let mut self_ = false;
     let mut skip_self = false;
     let mut resolved = R3ResolvedDependencyType::Token;
-    
+
     // Process decorators
     for dec in &param.decorators {
         let is_angular = is_core || dec.is_angular_core();
         if !is_angular {
             continue;
         }
-        
+
         match dec.name.as_str() {
             OPTIONAL_DECORATOR => optional = true,
             HOST_DECORATOR => host = true,
@@ -235,11 +234,12 @@ fn analyze_ctor_parameter(
             _ => {}
         }
     }
-    
+
     // Use type token if no explicit @Inject
-    let final_token = token.or(param.type_token.clone())
+    let final_token = token
+        .or(param.type_token.clone())
         .ok_or(UnavailableValueKind::MissingType)?;
-    
+
     Ok(R3DependencyMetadata {
         token: final_token,
         optional,

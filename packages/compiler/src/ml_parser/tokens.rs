@@ -368,4 +368,3 @@ pub type InterpolatedTextToken = Token; // TextToken | InterpolationToken | Enco
 
 /// Type alias for interpolated attribute tokens
 pub type InterpolatedAttributeToken = Token; // AttributeValueTextToken | AttributeValueInterpolationToken | EncodedEntityToken
-

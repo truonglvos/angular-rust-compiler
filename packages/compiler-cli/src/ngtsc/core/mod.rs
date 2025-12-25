@@ -4,14 +4,13 @@
 
 use std::path::PathBuf;
 
-/// Compiler options (subset of tsconfig)
-
-pub mod compiler;
 pub mod ast_transformer;
+/// Compiler options (subset of tsconfig)
+pub mod compiler;
 #[cfg(test)]
 mod compiler_test;
 
-pub use compiler::{NgCompiler, CompilationTicket, CompilationTicketKind, CompilationResult};
+pub use compiler::{CompilationResult, CompilationTicket, CompilationTicketKind, NgCompiler};
 
 #[derive(Debug, Clone, Default)]
 pub struct NgCompilerOptions {

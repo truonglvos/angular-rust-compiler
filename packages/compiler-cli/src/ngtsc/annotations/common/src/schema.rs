@@ -19,7 +19,7 @@ impl SchemaMetadata {
             SchemaMetadata::NoErrors => "NO_ERRORS_SCHEMA",
         }
     }
-    
+
     /// Parse a schema from its name.
     pub fn from_name(name: &str) -> Option<Self> {
         match name {
@@ -38,7 +38,9 @@ pub struct SchemaError {
 
 impl SchemaError {
     pub fn new(message: impl Into<String>) -> Self {
-        Self { message: message.into() }
+        Self {
+            message: message.into(),
+        }
     }
 }
 
@@ -48,7 +50,7 @@ pub fn extract_schemas(
     context: &str,
 ) -> Result<Vec<SchemaMetadata>, SchemaError> {
     let mut schemas = Vec::new();
-    
+
     for name in schema_names {
         match SchemaMetadata::from_name(name) {
             Some(schema) => schemas.push(schema),
@@ -60,7 +62,7 @@ pub fn extract_schemas(
             }
         }
     }
-    
+
     Ok(schemas)
 }
 

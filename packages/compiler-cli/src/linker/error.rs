@@ -20,7 +20,11 @@ impl FatalLinkerError {
 
 impl fmt::Display for FatalLinkerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Linker Error: {} (native node: {})", self.message, self.node_debug_info)
+        write!(
+            f,
+            "Linker Error: {} (native node: {})",
+            self.message, self.node_debug_info
+        )
     }
 }
 

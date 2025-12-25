@@ -3,13 +3,15 @@
 //! This module defines the core metadata types used throughout the Angular compiler.
 //! Matches: angular/packages/compiler-cli/src/ngtsc/metadata/src/api.ts
 
+use super::property_mapping::ClassPropertyMapping;
+pub use crate::ngtsc::imports::{OwningModule, Reference};
+use angular_compiler::ml_parser::ast::Node as HtmlNode;
+pub use angular_compiler::render3::view::t2_api::{
+    DirectiveMeta as T2DirectiveMeta, LegacyAnimationTriggerNames,
+};
+use oxc_ast::ast as oxc_ast;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use super::property_mapping::ClassPropertyMapping;
-use angular_compiler::ml_parser::ast::Node as HtmlNode;
-pub use angular_compiler::render3::view::t2_api::{DirectiveMeta as T2DirectiveMeta, LegacyAnimationTriggerNames};
-use oxc_ast::ast as oxc_ast;
-pub use crate::ngtsc::imports::{Reference, OwningModule};
 
 /// Discriminant for different kinds of compiler metadata objects.
 /// Matches TypeScript's MetaKind enum from api.ts (L128-133)
@@ -31,8 +33,6 @@ pub enum MatchSource {
     HostDirective,
 }
 
-
-
 /// Represents a base class reference that may be dynamic.
 /// Matches TypeScript's `Reference<ClassDeclaration> | 'dynamic' | null`
 #[derive(Debug, Clone)]
@@ -43,13 +43,11 @@ pub enum BaseClass<'a> {
     Dynamic,
 }
 
-
-
 /// Metadata for an `@Input()` transform function.
 /// Matches TypeScript's DecoratorInputTransform (L180-193)
 #[derive(Debug, Clone)]
 pub struct DecoratorInputTransform {
-    pub node: String,  // AST node placeholder
+    pub node: String, // AST node placeholder
     pub type_ref: String,
 }
 
@@ -303,7 +301,9 @@ impl<'a> Clone for DirectiveMeta<'a> {
             component: self.component.clone(),
             type_check: self.type_check.clone(),
             queries: self.queries.clone(),
-            input_field_names_from_metadata_array: self.input_field_names_from_metadata_array.clone(),
+            input_field_names_from_metadata_array: self
+                .input_field_names_from_metadata_array
+                .clone(),
             base_class: self.base_class.clone(),
             is_poisoned: self.is_poisoned,
             is_standalone: self.is_standalone,
@@ -403,11 +403,11 @@ impl Default for NgModuleMeta {
 
 /// Unified enum for all Angular decorator metadata types.
 /// Note: Component is now part of DirectiveMeta with is_component=true
-/// 
+///
 /// The lifetime `'a` is tied to the OXC AST allocator.
 #[derive(Debug)]
 pub enum DecoratorMetadata<'a> {
-    Directive(DirectiveMeta<'a>),  // is_component flag distinguishes component vs directive
+    Directive(DirectiveMeta<'a>), // is_component flag distinguishes component vs directive
     Pipe(PipeMeta),
     Injectable(InjectableMeta),
     NgModule(NgModuleMeta),
@@ -434,7 +434,7 @@ impl<'a> DecoratorMetadata<'a> {
             DecoratorMetadata::NgModule(n) => n.kind,
         }
     }
-    
+
     /// Get the name of the decorated class.
     pub fn name(&self) -> &str {
         match self {
@@ -444,7 +444,7 @@ impl<'a> DecoratorMetadata<'a> {
             DecoratorMetadata::NgModule(n) => &n.name,
         }
     }
-    
+
     /// Get the source file path for this metadata.
     pub fn source_file(&self) -> Option<&PathBuf> {
         match self {
@@ -454,17 +454,17 @@ impl<'a> DecoratorMetadata<'a> {
             DecoratorMetadata::NgModule(n) => n.source_file.as_ref(),
         }
     }
-    
+
     /// Check if this is a component.
     pub fn is_component(&self) -> bool {
         matches!(self, DecoratorMetadata::Directive(d) if d.t2.is_component)
     }
-    
+
     /// Check if this is a pipe.
     pub fn is_pipe(&self) -> bool {
         matches!(self, DecoratorMetadata::Pipe(_))
     }
-    
+
     /// Check if this is an injectable.
     pub fn is_injectable(&self) -> bool {
         matches!(self, DecoratorMetadata::Injectable(_))

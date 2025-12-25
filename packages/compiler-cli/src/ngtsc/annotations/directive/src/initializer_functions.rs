@@ -46,7 +46,7 @@ impl InitializerFunctionName {
             InitializerFunctionName::ContentChildren => "contentChildren",
         }
     }
-    
+
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "input" => Some(InitializerFunctionName::Input),
@@ -78,7 +78,7 @@ impl InitializerApiFunction {
             allowed_access_levels: vec![AccessLevel::Public, AccessLevel::Protected],
         }
     }
-    
+
     pub fn with_access_levels(mut self, levels: Vec<AccessLevel>) -> Self {
         self.allowed_access_levels = levels;
         self
@@ -110,24 +110,39 @@ pub fn output_initializer_api() -> InitializerApiFunction {
 }
 
 pub fn output_from_observable_api() -> InitializerApiFunction {
-    InitializerApiFunction::new(OwningModule::AngularCoreRxjsInterop, InitializerFunctionName::OutputFromObservable)
+    InitializerApiFunction::new(
+        OwningModule::AngularCoreRxjsInterop,
+        InitializerFunctionName::OutputFromObservable,
+    )
 }
 
 /// Query initializer APIs.
 pub fn view_child_api() -> InitializerApiFunction {
-    InitializerApiFunction::new(OwningModule::AngularCore, InitializerFunctionName::ViewChild)
+    InitializerApiFunction::new(
+        OwningModule::AngularCore,
+        InitializerFunctionName::ViewChild,
+    )
 }
 
 pub fn view_children_api() -> InitializerApiFunction {
-    InitializerApiFunction::new(OwningModule::AngularCore, InitializerFunctionName::ViewChildren)
+    InitializerApiFunction::new(
+        OwningModule::AngularCore,
+        InitializerFunctionName::ViewChildren,
+    )
 }
 
 pub fn content_child_api() -> InitializerApiFunction {
-    InitializerApiFunction::new(OwningModule::AngularCore, InitializerFunctionName::ContentChild)
+    InitializerApiFunction::new(
+        OwningModule::AngularCore,
+        InitializerFunctionName::ContentChild,
+    )
 }
 
 pub fn content_children_api() -> InitializerApiFunction {
-    InitializerApiFunction::new(OwningModule::AngularCore, InitializerFunctionName::ContentChildren)
+    InitializerApiFunction::new(
+        OwningModule::AngularCore,
+        InitializerFunctionName::ContentChildren,
+    )
 }
 
 /// Try to parse an initializer API from expression text.
@@ -136,7 +151,7 @@ pub fn try_parse_initializer_api(
     allowed_apis: &[InitializerApiFunction],
 ) -> Option<InitializerFunctionMetadata> {
     let trimmed = expression_text.trim();
-    
+
     // Check for .required() pattern
     let (base_name, is_required) = if let Some(idx) = trimmed.find(".required(") {
         (&trimmed[..idx], true)
@@ -145,15 +160,16 @@ pub fn try_parse_initializer_api(
     } else {
         return None;
     };
-    
+
     // Try to match function name
     let fn_name = InitializerFunctionName::from_str(base_name)?;
-    
+
     // Find matching API
-    let api = allowed_apis.iter()
+    let api = allowed_apis
+        .iter()
         .find(|a| a.function_name == fn_name)?
         .clone();
-    
+
     Some(InitializerFunctionMetadata {
         api,
         is_required,

@@ -7,12 +7,13 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use crate::ngtsc::transform::src::api::{
-    CompilationMode, CompileResult, ConstantPool, DecoratorHandler, IndexingContext, TypeCheckContext, Xi18nContext,
-};
-use crate::ngtsc::transform::src::trait_::TraitState;
-use crate::ngtsc::transform::src::declaration::DtsTransformRegistry;
 use crate::ngtsc::reflection::ClassDeclaration;
+use crate::ngtsc::transform::src::api::{
+    CompilationMode, CompileResult, ConstantPool, DecoratorHandler, IndexingContext,
+    TypeCheckContext, Xi18nContext,
+};
+use crate::ngtsc::transform::src::declaration::DtsTransformRegistry;
+use crate::ngtsc::transform::src::trait_::TraitState;
 use ts::Diagnostic;
 
 // ============================================================================
@@ -24,16 +25,16 @@ use ts::Diagnostic;
 pub struct ClassRecord<D: Clone, A: Clone, S: Clone, R: Clone> {
     /// Class identifier/name.
     pub class_name: String,
-    
+
     /// All traits which matched on the class.
     pub traits: Vec<TraitInfo<D, A, S, R>>,
-    
+
     /// Meta-diagnostics about the class (e.g., invalid decorator combinations).
     pub meta_diagnostics: Option<Vec<Diagnostic>>,
-    
+
     /// Whether traits contains traits matched from DecoratorHandlers marked as WEAK.
     pub has_weak_handlers: bool,
-    
+
     /// Whether traits contains a trait from a DecoratorHandler matched as PRIMARY.
     pub has_primary_handler: bool,
 }
@@ -84,7 +85,7 @@ pub struct TraitInfo<D: Clone, A: Clone, S: Clone, R: Clone> {
 pub trait SourceFileTypeIdentifier {
     /// Check if a file is a shim file.
     fn is_shim(&self, path: &str) -> bool;
-    
+
     /// Check if a file is a resource file.
     fn is_resource(&self, path: &str) -> bool;
 }
@@ -96,7 +97,7 @@ impl SourceFileTypeIdentifier for DefaultSourceFileTypeIdentifier {
     fn is_shim(&self, _path: &str) -> bool {
         false
     }
-    
+
     fn is_resource(&self, _path: &str) -> bool {
         false
     }
@@ -114,31 +115,31 @@ impl SourceFileTypeIdentifier for DefaultSourceFileTypeIdentifier {
 pub struct TraitCompiler<D: Clone, A: Clone, S: Clone, R: Clone> {
     /// All registered decorator handlers.
     handlers: Vec<Arc<dyn DecoratorHandler<D, A, S, R>>>,
-    
+
     /// Map of handler names to handlers (for lookup during adoption).
     handlers_by_name: HashMap<String, Arc<dyn DecoratorHandler<D, A, S, R>>>,
-    
+
     /// Map of class identifiers to their records.
     classes: HashMap<String, ClassRecord<D, A, S, R>>,
-    
+
     /// Map of source file paths to class identifiers within them.
     file_to_classes: HashMap<String, HashSet<String>>,
-    
+
     /// Files that were analyzed but contained no traits.
     files_without_traits: HashSet<String>,
-    
+
     /// Map for re-exports (filename -> alias -> (module, symbol)).
     reexport_map: HashMap<String, HashMap<String, (String, String)>>,
-    
+
     /// The compilation mode.
     compilation_mode: CompilationMode,
-    
+
     /// Whether to compile non-exported classes.
     compile_non_exported_classes: bool,
-    
+
     /// DTS transform registry.
     dts_transforms: DtsTransformRegistry,
-    
+
     /// Whether to emit declaration files only.
     emit_declaration_only: bool,
 }
@@ -153,7 +154,7 @@ impl<D: Clone, A: Clone, S: Clone, R: Clone> TraitCompiler<D, A, S, R> {
         for handler in &handlers {
             handlers_by_name.insert(handler.name().to_string(), handler.clone());
         }
-        
+
         Self {
             handlers,
             handlers_by_name,
@@ -207,15 +208,15 @@ impl<D: Clone, A: Clone, S: Clone, R: Clone> TraitCompiler<D, A, S, R> {
     /// Get all analyzed records grouped by source file.
     pub fn get_analyzed_records(&self) -> HashMap<String, Vec<String>> {
         let mut result = HashMap::new();
-        
+
         for (sf, classes) in &self.file_to_classes {
             result.insert(sf.clone(), classes.iter().cloned().collect());
         }
-        
+
         for sf in &self.files_without_traits {
             result.entry(sf.clone()).or_insert_with(Vec::new);
         }
-        
+
         result
     }
 
@@ -236,7 +237,7 @@ impl<D: Clone, A: Clone, S: Clone, R: Clone> TraitCompiler<D, A, S, R> {
             resolve_diagnostics: None,
             detected_metadata: Some(detected_metadata),
         };
-        
+
         self.classes
             .entry(class_name.to_string())
             .or_insert_with(|| ClassRecord::new(class_name.to_string()))
@@ -247,7 +248,7 @@ impl<D: Clone, A: Clone, S: Clone, R: Clone> TraitCompiler<D, A, S, R> {
     /// Resolve all analyzed traits.
     pub fn resolve(&mut self) {
         let class_names: Vec<String> = self.classes.keys().cloned().collect();
-        
+
         for class_name in class_names {
             if let Some(record) = self.classes.get_mut(&class_name) {
                 for trait_info in &mut record.traits {
@@ -263,11 +264,11 @@ impl<D: Clone, A: Clone, S: Clone, R: Clone> TraitCompiler<D, A, S, R> {
                         }
                         TraitState::Analyzed => {}
                     }
-                    
+
                     if trait_info.analysis.is_none() {
                         continue;
                     }
-                    
+
                     // Mark as resolved
                     trait_info.state = TraitState::Resolved;
                 }
@@ -284,12 +285,12 @@ impl<D: Clone, A: Clone, S: Clone, R: Clone> TraitCompiler<D, A, S, R> {
     ) -> Option<Vec<CompileResult>> {
         let record = self.classes.get(class_name)?;
         let mut results = Vec::new();
-        
+
         for trait_info in &record.traits {
             if trait_info.state != TraitState::Resolved {
                 continue;
             }
-            
+
             // Check for errors in diagnostics
             if has_diagnostic_errors(&trait_info.analysis_diagnostics) {
                 continue;
@@ -297,14 +298,14 @@ impl<D: Clone, A: Clone, S: Clone, R: Clone> TraitCompiler<D, A, S, R> {
             if has_diagnostic_errors(&trait_info.resolve_diagnostics) {
                 continue;
             }
-            
+
             // Get handler
             let handler = self.handlers_by_name.get(&trait_info.handler_name)?;
-            
+
             // Compile based on mode
             let analysis = trait_info.analysis.as_ref()?;
             let resolution = trait_info.resolution.as_ref();
-            
+
             let compile_results = match self.compilation_mode {
                 CompilationMode::Local => {
                     handler.compile_local(class_decl, analysis, resolution, constant_pool)
@@ -316,15 +317,18 @@ impl<D: Clone, A: Clone, S: Clone, R: Clone> TraitCompiler<D, A, S, R> {
                     handler.compile_full(class_decl, analysis, resolution, constant_pool)
                 }
             };
-            
+
             // Deduplicate results by name
             for result in compile_results {
-                if !results.iter().any(|r: &CompileResult| r.name == result.name) {
+                if !results
+                    .iter()
+                    .any(|r: &CompileResult| r.name == result.name)
+                {
                     results.push(result);
                 }
             }
         }
-        
+
         if results.is_empty() {
             None
         } else {
@@ -353,14 +357,16 @@ impl<D: Clone, A: Clone, S: Clone, R: Clone> TraitCompiler<D, A, S, R> {
     /// Get all diagnostics from the compilation.
     pub fn diagnostics(&self) -> Vec<Diagnostic> {
         let mut diagnostics = Vec::new();
-        
+
         for record in self.classes.values() {
             if let Some(ref meta_diags) = record.meta_diagnostics {
                 diagnostics.extend(meta_diags.iter().cloned());
             }
-            
+
             for trait_info in &record.traits {
-                if trait_info.state == TraitState::Analyzed || trait_info.state == TraitState::Resolved {
+                if trait_info.state == TraitState::Analyzed
+                    || trait_info.state == TraitState::Resolved
+                {
                     if let Some(ref diags) = trait_info.analysis_diagnostics {
                         diagnostics.extend(diags.iter().cloned());
                     }
@@ -372,7 +378,7 @@ impl<D: Clone, A: Clone, S: Clone, R: Clone> TraitCompiler<D, A, S, R> {
                 }
             }
         }
-        
+
         diagnostics
     }
 
@@ -394,7 +400,8 @@ impl<D: Clone, A: Clone, S: Clone, R: Clone> TraitCompiler<D, A, S, R> {
 
 /// Helper function to check if diagnostics contain errors
 fn has_diagnostic_errors(diagnostics: &Option<Vec<Diagnostic>>) -> bool {
-    diagnostics.as_ref()
+    diagnostics
+        .as_ref()
         .map(|diags| !diags.is_empty()) // Consider any diagnostic as potential error for now
         .unwrap_or(false)
 }

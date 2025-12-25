@@ -112,10 +112,10 @@ pub enum DiagnosticCategory {
 pub trait Program {
     /// Get all source files.
     fn get_source_files(&self) -> Vec<String>;
-    
+
     /// Emit compiled output.
     fn emit(&self) -> EmitResult;
-    
+
     /// Get diagnostics.
     fn get_diagnostics(&self) -> Vec<Diagnostic>;
 }
@@ -141,4 +141,3 @@ pub struct CustomTransformers {
     /// Transformers to run after declaration emit.
     pub after_declarations: Vec<String>,
 }
-

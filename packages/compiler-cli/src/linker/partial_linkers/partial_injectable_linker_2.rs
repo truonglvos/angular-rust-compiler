@@ -1,10 +1,11 @@
-use crate::linker::partial_linker::PartialLinker;
-use crate::linker::ast_value::AstObject;
 use crate::linker::ast::AstNode;
+use crate::linker::ast_value::AstObject;
+use crate::linker::partial_linker::PartialLinker;
 use angular_compiler::constant_pool::ConstantPool;
 use angular_compiler::output::output_ast as o;
 use angular_compiler::render3::r3_factory::{
-    compile_factory_function, R3FactoryMetadata, R3ConstructorFactoryMetadata, FactoryTarget, DepsOrInvalid
+    compile_factory_function, DepsOrInvalid, FactoryTarget, R3ConstructorFactoryMetadata,
+    R3FactoryMetadata,
 };
 use angular_compiler::render3::r3_identifiers::Identifiers as R3;
 use angular_compiler::render3::util::R3Reference;
@@ -29,13 +30,15 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialInjectableLinke
         // Extract type
         let type_expr = match meta_obj.get_value("type") {
             Ok(v) => v.node,
-            Err(e) => return o::Expression::Literal(o::LiteralExpr {
-                value: o::LiteralValue::String(format!("Error: {}", e)),
-                type_: None,
-                source_span: None,
-            }),
+            Err(e) => {
+                return o::Expression::Literal(o::LiteralExpr {
+                    value: o::LiteralValue::String(format!("Error: {}", e)),
+                    type_: None,
+                    source_span: None,
+                })
+            }
         };
-        
+
         let type_str = meta_obj.host.print_node(&type_expr);
         let wrapped_type = o::Expression::ReadVar(o::ReadVarExpr {
             name: type_str.clone(),
@@ -51,7 +54,7 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialInjectableLinke
         // Create R3FactoryMetadata to generate the factory function
         // For simple classes, deps are usually handled via constructor or reflection in JIT,
         // but in partial definition they are explicit.
-        
+
         // TODO: Parse actual deps from metadata if available
         let deps = if meta_obj.has("deps") {
             if let Ok(deps_arr) = meta_obj.get_array("deps") {
@@ -74,12 +77,12 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialInjectableLinke
                         } else {
                             None
                         };
-                        
+
                         let optional = dep_obj.get_bool("optional").unwrap_or(false);
                         let self_ = dep_obj.get_bool("self").unwrap_or(false);
                         let skip_self = dep_obj.get_bool("skipSelf").unwrap_or(false);
                         let host = dep_obj.get_bool("host").unwrap_or(false);
-                        
+
                         // Check for attribute injection
                         let attribute_name_type = if dep_obj.has("attribute") {
                             if let Ok(attr_val) = dep_obj.get_value("attribute") {
@@ -95,15 +98,17 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialInjectableLinke
                         } else {
                             None
                         };
-                        
-                        parsed_deps.push(angular_compiler::render3::r3_factory::R3DependencyMetadata {
-                            token,
-                            attribute_name_type,
-                            host,
-                            optional,
-                            self_,
-                            skip_self,
-                        });
+
+                        parsed_deps.push(
+                            angular_compiler::render3::r3_factory::R3DependencyMetadata {
+                                token,
+                                attribute_name_type,
+                                host,
+                                optional,
+                                self_,
+                                skip_self,
+                            },
+                        );
                     }
                 }
                 Some(DepsOrInvalid::Valid(parsed_deps))
@@ -116,7 +121,7 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialInjectableLinke
 
         // Construct ɵɵdefineInjectable definition map
         let mut definition_entries = vec![];
-        
+
         // token: type
         definition_entries.push(o::LiteralMapEntry {
             key: "token".to_string(),
@@ -132,14 +137,14 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialInjectableLinke
             // This creates a proper IIFE that calls the factory function
             if let Ok(use_factory_val) = meta_obj.get_value("useFactory") {
                 let factory_code = meta_obj.host.print_node(&use_factory_val.node);
-                
+
                 // Always wrap useFactory in parentheses and invoke as IIFE
                 // Example: useFactory: () => inject(Foo) -> factory: () => (() => inject(Foo))()
                 // Example: useFactory: createLocation -> factory: () => (createLocation)()
                 o::Expression::ArrowFn(o::ArrowFunctionExpr {
                     params: vec![],
-                    body: o::ArrowFunctionBody::Expression(Box::new(
-                        o::Expression::InvokeFn(o::InvokeFunctionExpr {
+                    body: o::ArrowFunctionBody::Expression(Box::new(o::Expression::InvokeFn(
+                        o::InvokeFunctionExpr {
                             fn_: Box::new(o::Expression::RawCode(o::RawCodeExpr {
                                 // Wrap in parentheses to create proper IIFE
                                 code: format!("({})", factory_code),
@@ -149,8 +154,8 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialInjectableLinke
                             type_: None,
                             source_span: None,
                             pure: false,
-                        })
-                    )),
+                        },
+                    ))),
                     type_: None,
                     source_span: None,
                 })
@@ -197,7 +202,7 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialInjectableLinke
                 // If it's a string literal, use it
                 // If it's an identifier, wrap it
                 if val.is_string() {
-                     definition_entries.push(o::LiteralMapEntry {
+                    definition_entries.push(o::LiteralMapEntry {
                         key: "providedIn".to_string(),
                         value: Box::new(o::Expression::Literal(o::LiteralExpr {
                             value: o::LiteralValue::String(val.get_string().unwrap()),
@@ -207,17 +212,17 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialInjectableLinke
                         quoted: false,
                     });
                 } else {
-                     // Assume expressions (like 'root' or valid identifier)
-                     let s = val.host.print_node(&val.node);
-                     // If it prints as "root", make it a string literal "root" IF it was a identifier??
-                     // No, generally providedIn: 'root' comes as string literal in AST.
-                     // If providedIn: SomeModule, it comes as identifier.
-                     // We should trust the AST parsing.
-                     // But AST host print_node might return source string.
-                     // If it's a string literal "root", output should be "root".
-                     
-                     // Optimization: check if it looks like a string in source (quoted)
-                     definition_entries.push(o::LiteralMapEntry {
+                    // Assume expressions (like 'root' or valid identifier)
+                    let s = val.host.print_node(&val.node);
+                    // If it prints as "root", make it a string literal "root" IF it was a identifier??
+                    // No, generally providedIn: 'root' comes as string literal in AST.
+                    // If providedIn: SomeModule, it comes as identifier.
+                    // We should trust the AST parsing.
+                    // But AST host print_node might return source string.
+                    // If it's a string literal "root", output should be "root".
+
+                    // Optimization: check if it looks like a string in source (quoted)
+                    definition_entries.push(o::LiteralMapEntry {
                         key: "providedIn".to_string(),
                         value: Box::new(o::Expression::ReadVar(o::ReadVarExpr {
                             name: s.replace("\"", "").replace("'", ""), // Hacky cleanup if strictly "root"

@@ -9,7 +9,10 @@ use crate::output::output_ast::ExternalReference;
 
 /// Trait for resolving external references at runtime
 pub trait ExternalReferenceResolver {
-    fn resolve_external_reference(&self, reference: &ExternalReference) -> Option<Box<dyn std::any::Any>>;
+    fn resolve_external_reference(
+        &self,
+        reference: &ExternalReference,
+    ) -> Option<Box<dyn std::any::Any>>;
 }
 
 /// Implementation of `ExternalReferenceResolver` which resolves references to @angular/core
@@ -27,9 +30,16 @@ impl R3JitReflector {
 }
 
 impl ExternalReferenceResolver for R3JitReflector {
-    fn resolve_external_reference(&self, reference: &ExternalReference) -> Option<Box<dyn std::any::Any>> {
+    fn resolve_external_reference(
+        &self,
+        reference: &ExternalReference,
+    ) -> Option<Box<dyn std::any::Any>> {
         // This reflector only handles @angular/core imports
-        if reference.module_name.as_ref().map_or(true, |m| m != "@angular/core") {
+        if reference
+            .module_name
+            .as_ref()
+            .map_or(true, |m| m != "@angular/core")
+        {
             panic!(
                 "Cannot resolve external reference to {:?}, only references to @angular/core are supported.",
                 reference.module_name
@@ -37,7 +47,7 @@ impl ExternalReferenceResolver for R3JitReflector {
         }
 
         let name = reference.name.as_ref()?;
-        
+
         if !self.context.contains_key(name) {
             panic!("No value provided for @angular/core symbol '{}'.", name);
         }
@@ -47,4 +57,3 @@ impl ExternalReferenceResolver for R3JitReflector {
         None
     }
 }
-

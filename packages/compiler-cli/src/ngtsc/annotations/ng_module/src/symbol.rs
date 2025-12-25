@@ -35,32 +35,33 @@ impl NgModuleSymbol {
             standalone_transitive_imports: Vec::new(),
         }
     }
-    
+
     /// Check if public API is affected by changes.
     pub fn is_public_api_affected(&self, previous: &NgModuleSymbol) -> bool {
         self.has_providers != previous.has_providers
     }
-    
+
     /// Check if emit is affected by changes.
     pub fn is_emit_affected(&self, previous: &NgModuleSymbol) -> bool {
         // Check remotely scoped components
         if self.remotely_scoped_components.len() != previous.remotely_scoped_components.len() {
             return true;
         }
-        
+
         // Check standalone imports
-        if self.standalone_transitive_imports.len() != previous.standalone_transitive_imports.len() {
+        if self.standalone_transitive_imports.len() != previous.standalone_transitive_imports.len()
+        {
             return true;
         }
-        
+
         false
     }
-    
+
     /// Check if type check API is affected.
     pub fn is_type_check_api_affected(&self, previous: &NgModuleSymbol) -> bool {
         self.is_public_api_affected(previous)
     }
-    
+
     /// Add a remotely scoped component.
     pub fn add_remotely_scoped_component(
         &mut self,
@@ -68,13 +69,14 @@ impl NgModuleSymbol {
         used_directives: Vec<String>,
         used_pipes: Vec<String>,
     ) {
-        self.remotely_scoped_components.push(RemotelyScopedComponent {
-            component: component.into(),
-            used_directives,
-            used_pipes,
-        });
+        self.remotely_scoped_components
+            .push(RemotelyScopedComponent {
+                component: component.into(),
+                used_directives,
+                used_pipes,
+            });
     }
-    
+
     /// Add a transitive import from a standalone component.
     pub fn add_transitive_import_from_standalone_component(&mut self, imported: impl Into<String>) {
         self.standalone_transitive_imports.push(imported.into());

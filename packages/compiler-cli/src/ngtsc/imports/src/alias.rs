@@ -42,7 +42,7 @@ pub trait AliasingHost {
         ng_module_name: &str,
         is_reexport: bool,
     ) -> Option<String>;
-    
+
     /// Determine an expression by which a declaration should be imported using an alias.
     fn get_alias_in(
         &self,
@@ -68,14 +68,15 @@ impl UnifiedModulesAliasingHost {
             module_name_getter: Box::new(module_name_getter),
         }
     }
-    
+
     /// Generate an alias name for a declaration.
     fn alias_name(&self, decl_file: &str, context_file: &str) -> String {
         let full_path = decl_file;
-        let context_module = (self.module_name_getter)(context_file)
-            .unwrap_or_else(|| context_file.to_string());
-        
-        format!("ɵng${}$${}",
+        let context_module =
+            (self.module_name_getter)(context_file).unwrap_or_else(|| context_file.to_string());
+
+        format!(
+            "ɵng${}$${}",
             escape_for_alias(&context_module),
             escape_for_alias(full_path)
         )
@@ -95,15 +96,15 @@ impl AliasingHost for UnifiedModulesAliasingHost {
         if decl_file == context_file {
             return None;
         }
-        
+
         // Don't alias re-exports from the same file as the original
         if is_reexport {
             return None;
         }
-        
+
         Some(self.alias_name(decl_file, context_file))
     }
-    
+
     fn get_alias_in(
         &self,
         _decl_name: &str,
@@ -114,10 +115,10 @@ impl AliasingHost for UnifiedModulesAliasingHost {
         if decl_file == via_file {
             return None;
         }
-        
+
         let alias_name = self.alias_name(decl_file, via_file);
         let via_module = (self.module_name_getter)(via_file)?;
-        
+
         Some(format!("{}#{}", via_module, alias_name))
     }
 }
@@ -135,10 +136,12 @@ impl PrivateExportAliasingHost {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Generate a private alias name for a symbol.
     fn generate_private_name(&self, symbol_name: &str, ng_module_name: &str) -> String {
-        let id = self.counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let id = self
+            .counter
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         format!("ɵngExportɵ{}ɵ{}${}", ng_module_name, symbol_name, id)
     }
 }
@@ -156,10 +159,10 @@ impl AliasingHost for PrivateExportAliasingHost {
         if decl_file == context_file {
             return None;
         }
-        
+
         Some(self.generate_private_name(decl_name, ng_module_name))
     }
-    
+
     fn get_alias_in(
         &self,
         _decl_name: &str,

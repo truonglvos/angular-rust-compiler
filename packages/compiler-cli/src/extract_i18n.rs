@@ -36,24 +36,24 @@ pub struct ExtractI18nResult {
 pub fn extract_i18n(options: ExtractI18nOptions) -> ExtractI18nResult {
     let extractor = MessageExtractor::new();
     let mut message_count = 0;
-    
+
     // In a real implementation, we would:
     // 1. Parse each source file
     // 2. Find i18n-marked content
     // 3. Extract messages
-    
+
     for _file in &options.source_files {
         // Would parse and extract here
         message_count += 0; // Placeholder
     }
-    
+
     // Generate output based on format
     let output = match options.format.unwrap_or(I18nFormat::Xlf) {
         I18nFormat::Xlf | I18nFormat::Xlf2 => Some(extractor.to_xliff()),
         I18nFormat::Xmb => Some(extractor.to_xmb()),
         I18nFormat::Json => Some("{}".to_string()),
     };
-    
+
     ExtractI18nResult {
         success: true,
         output,
@@ -65,7 +65,7 @@ pub fn extract_i18n(options: ExtractI18nOptions) -> ExtractI18nResult {
 /// Main entry point for xi18n command.
 pub fn main_xi18n(args: &[String]) -> i32 {
     let mut options = ExtractI18nOptions::default();
-    
+
     // Parse arguments
     let mut i = 0;
     while i < args.len() {
@@ -101,9 +101,9 @@ pub fn main_xi18n(args: &[String]) -> i32 {
         }
         i += 1;
     }
-    
+
     let result = extract_i18n(options);
-    
+
     if result.success {
         if let Some(output) = result.output {
             println!("{}", output);

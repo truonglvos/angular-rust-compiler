@@ -5,8 +5,8 @@
 
 use crate::core::SecurityContext;
 use crate::expression_parser::ast::{
-    AST as ExprAST, ASTWithSource, BindingType as ExprBindingType,
-    ParsedEventType as ExprParsedEventType, LiteralMap,
+    ASTWithSource, BindingType as ExprBindingType, LiteralMap,
+    ParsedEventType as ExprParsedEventType, AST as ExprAST,
 };
 use crate::i18n::i18n_ast::I18nMeta;
 use crate::parse_util::ParseSourceSpan;
@@ -35,7 +35,7 @@ impl Node for Comment {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, _visitor: &mut V) -> V::Result {
         panic!("visit() not implemented for Comment")
     }
@@ -58,7 +58,7 @@ impl Node for Text {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_text(self)
     }
@@ -74,7 +74,11 @@ pub struct BoundText {
 
 impl BoundText {
     pub fn new(value: ExprAST, source_span: ParseSourceSpan, i18n: Option<I18nMeta>) -> Self {
-        BoundText { value, source_span, i18n }
+        BoundText {
+            value,
+            source_span,
+            i18n,
+        }
     }
 }
 
@@ -82,7 +86,7 @@ impl Node for BoundText {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_bound_text(self)
     }
@@ -123,7 +127,7 @@ impl Node for TextAttribute {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_text_attribute(self)
     }
@@ -175,7 +179,7 @@ impl Node for BoundAttribute {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_bound_attribute(self)
     }
@@ -222,7 +226,7 @@ impl Node for BoundEvent {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_bound_event(self)
     }
@@ -284,7 +288,7 @@ impl Node for Element {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_element(self)
     }
@@ -341,7 +345,7 @@ impl Node for DeferredTrigger {
             DeferredTrigger::Viewport(t) => &t.source_span,
         }
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_deferred_trigger(self)
     }
@@ -460,7 +464,7 @@ impl Node for DeferredBlockPlaceholder {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.block.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_deferred_block_placeholder(self)
     }
@@ -480,7 +484,7 @@ impl Node for DeferredBlockLoading {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.block.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_deferred_block_loading(self)
     }
@@ -498,7 +502,7 @@ impl Node for DeferredBlockError {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.block.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_deferred_block_error(self)
     }
@@ -523,7 +527,7 @@ impl Node for DeferredBlock {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.block.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_deferred_block(self)
     }
@@ -542,7 +546,7 @@ impl Node for SwitchBlock {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.block.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_switch_block(self)
     }
@@ -561,7 +565,7 @@ impl Node for SwitchBlockCase {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.block.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_switch_block_case(self)
     }
@@ -586,7 +590,7 @@ impl Node for ForLoopBlock {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.block.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_for_loop_block(self)
     }
@@ -604,7 +608,7 @@ impl Node for ForLoopBlockEmpty {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.block.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_for_loop_block_empty(self)
     }
@@ -621,7 +625,7 @@ impl Node for IfBlock {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.block.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_if_block(self)
     }
@@ -641,7 +645,7 @@ impl Node for IfBlockBranch {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.block.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_if_block_branch(self)
     }
@@ -659,7 +663,7 @@ impl Node for UnknownBlock {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_unknown_block(self)
     }
@@ -679,7 +683,7 @@ impl Node for LetDeclaration {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_let_declaration(self)
     }
@@ -708,7 +712,7 @@ impl Node for Component {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_component(self)
     }
@@ -732,7 +736,7 @@ impl Node for Directive {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_directive(self)
     }
@@ -768,7 +772,7 @@ impl Node for Template {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_template(self)
     }
@@ -797,7 +801,7 @@ impl Node for Content {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_content(self)
     }
@@ -817,7 +821,7 @@ impl Node for Variable {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_variable(self)
     }
@@ -837,7 +841,7 @@ impl Node for Reference {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_reference(self)
     }
@@ -862,7 +866,7 @@ impl Node for Icu {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_icu(self)
     }
@@ -900,7 +904,7 @@ impl Node for HostElement {
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
-    
+
     fn visit<V: Visitor>(&self, _visitor: &mut V) -> V::Result {
         panic!("HostElement cannot be visited")
     }
@@ -942,11 +946,11 @@ pub enum R3Node {
 /// Visitor trait for R3 AST
 pub trait Visitor {
     type Result;
-    
+
     fn visit(&mut self, _node: &R3Node) -> Option<Self::Result> {
         None
     }
-    
+
     fn visit_element(&mut self, element: &Element) -> Self::Result;
     fn visit_template(&mut self, template: &Template) -> Self::Result;
     fn visit_content(&mut self, content: &Content) -> Self::Result;
@@ -959,7 +963,10 @@ pub trait Visitor {
     fn visit_bound_text(&mut self, text: &BoundText) -> Self::Result;
     fn visit_icu(&mut self, icu: &Icu) -> Self::Result;
     fn visit_deferred_block(&mut self, deferred: &DeferredBlock) -> Self::Result;
-    fn visit_deferred_block_placeholder(&mut self, block: &DeferredBlockPlaceholder) -> Self::Result;
+    fn visit_deferred_block_placeholder(
+        &mut self,
+        block: &DeferredBlockPlaceholder,
+    ) -> Self::Result;
     fn visit_deferred_block_error(&mut self, block: &DeferredBlockError) -> Self::Result;
     fn visit_deferred_block_loading(&mut self, block: &DeferredBlockLoading) -> Self::Result;
     fn visit_deferred_trigger(&mut self, trigger: &DeferredTrigger) -> Self::Result;
@@ -973,7 +980,7 @@ pub trait Visitor {
     fn visit_let_declaration(&mut self, decl: &LetDeclaration) -> Self::Result;
     fn visit_component(&mut self, component: &Component) -> Self::Result;
     fn visit_directive(&mut self, directive: &Directive) -> Self::Result;
-    
+
     // Optional method for visiting comments (not in TypeScript Visitor interface but used in tests)
     // Note: This method must be implemented by each visitor implementation
     // It's not in the TypeScript Visitor interface but is used in test code
@@ -1021,4 +1028,3 @@ pub fn visit_all<V: Visitor>(visitor: &mut V, nodes: &[R3Node]) -> Vec<V::Result
     }
     result
 }
-

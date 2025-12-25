@@ -4,9 +4,20 @@ use std::fmt::Debug;
 pub trait TypeChecker: Debug {
     fn get_type_at_location(&self, node: &dyn Node) -> Box<dyn Type>;
     fn get_symbol_at_location(&self, node: &dyn Node) -> Option<Box<dyn Symbol>>;
-    fn type_to_string(&self, ty: &dyn Type, enclosing_declaration: Option<&dyn Node>, flags: Option<TypeFormatFlags>) -> String;
-    fn symbol_to_string(&self, symbol: &dyn Symbol, enclosing_declaration: Option<&dyn Node>, meaning: Option<SymbolFlags>, flags: Option<SymbolFormatFlags>) -> String;
-    
+    fn type_to_string(
+        &self,
+        ty: &dyn Type,
+        enclosing_declaration: Option<&dyn Node>,
+        flags: Option<TypeFormatFlags>,
+    ) -> String;
+    fn symbol_to_string(
+        &self,
+        symbol: &dyn Symbol,
+        enclosing_declaration: Option<&dyn Node>,
+        meaning: Option<SymbolFlags>,
+        flags: Option<SymbolFormatFlags>,
+    ) -> String;
+
     // Add more methods as needed
     fn get_declared_type_of_symbol(&self, symbol: &dyn Symbol) -> Box<dyn Type>;
     fn get_exports_of_module(&self, symbol: &dyn Symbol) -> Vec<Box<dyn Symbol>>;
@@ -63,7 +74,7 @@ impl TypeFlags {
     pub const NON_PRIMITIVE: Self = Self(67108864);
     pub const TEMPLATE_LITERAL: Self = Self(134217728);
     pub const STRING_MAPPING: Self = Self(268435456);
-    
+
     // Helper to check flags
     pub fn contains(&self, other: Self) -> bool {
         (self.0 & other.0) == other.0

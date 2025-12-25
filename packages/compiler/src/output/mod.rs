@@ -1,5 +1,5 @@
 //! Output Module
-//! 
+//!
 //! Corresponds to packages/compiler/src/output/
 //! Handles code generation and output
 

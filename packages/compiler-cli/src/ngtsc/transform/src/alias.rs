@@ -51,7 +51,10 @@ impl AliasTransformConfig {
     }
 
     /// Get export statements for a specific file.
-    pub fn get_exports_for_file(&self, file_name: &str) -> Option<&HashMap<String, (String, String)>> {
+    pub fn get_exports_for_file(
+        &self,
+        file_name: &str,
+    ) -> Option<&HashMap<String, (String, String)>> {
         self.export_statements.get(file_name)
     }
 }
@@ -91,10 +94,7 @@ impl ExportAlias {
 ///
 /// This would typically be called during the transformation phase to add
 /// re-export statements to source files.
-pub fn apply_alias_exports(
-    config: &AliasTransformConfig,
-    file_name: &str,
-) -> Vec<ExportAlias> {
+pub fn apply_alias_exports(config: &AliasTransformConfig, file_name: &str) -> Vec<ExportAlias> {
     config
         .get_exports_for_file(file_name)
         .map(|exports| {

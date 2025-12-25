@@ -3,8 +3,8 @@
 //! Corresponds to packages/compiler/src/ml_parser/defaults.ts (35 lines)
 
 use crate::assertions::assert_interpolation_symbols;
-use std::collections::HashSet;
 use once_cell::sync::Lazy;
+use std::collections::HashSet;
 
 /// Interpolation configuration
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,4 +72,3 @@ mod tests {
         assert!(DEFAULT_CONTAINER_BLOCKS.contains("switch"));
     }
 }
-

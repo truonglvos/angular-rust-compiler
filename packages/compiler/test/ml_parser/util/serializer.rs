@@ -4,7 +4,6 @@
  * Mirrors angular/packages/compiler/test/ml_parser/util/util.ts
  * Serializes HTML AST nodes back to HTML strings
  */
-
 use angular_compiler::ml_parser::ast::*;
 use angular_compiler::ml_parser::html_tags::get_html_tag_definition;
 
@@ -17,7 +16,7 @@ impl SerializerVisitor {
 
     pub fn visit_element(&self, element: &Element) -> String {
         let attrs = self.visit_all_attributes(&element.attrs);
-        
+
         let tag_def = get_html_tag_definition(&element.name);
         if tag_def.is_void {
             return format!("<{}{}/>", element.name, attrs);
@@ -36,13 +35,20 @@ impl SerializerVisitor {
     }
 
     pub fn visit_comment(&self, comment: &Comment) -> String {
-        let value = comment.value.as_ref().map(|v| v.clone()).unwrap_or_default();
+        let value = comment
+            .value
+            .as_ref()
+            .map(|v| v.clone())
+            .unwrap_or_default();
         format!("<!--{}-->", value)
     }
 
     pub fn visit_expansion(&self, expansion: &Expansion) -> String {
         let cases = self.visit_all_expansion_cases(&expansion.cases);
-        format!("{{{}, {},{}}}", expansion.switch_value, expansion.expansion_type, cases)
+        format!(
+            "{{{}, {},{}}}",
+            expansion.switch_value, expansion.expansion_type, cases
+        )
     }
 
     pub fn visit_expansion_case(&self, case: &ExpansionCase) -> String {
@@ -72,7 +78,10 @@ impl SerializerVisitor {
     pub fn visit_component(&self, component: &Component) -> String {
         let attrs = self.visit_all_attributes(&component.attrs);
         let children = self.visit_all(&component.children);
-        format!("<{}{}>{}</{}>", component.component_name, attrs, children, component.component_name)
+        format!(
+            "<{}{}>{}</{}>",
+            component.component_name, attrs, children, component.component_name
+        )
     }
 
     pub fn visit_directive(&self, directive: &Directive) -> String {
@@ -89,8 +98,9 @@ impl SerializerVisitor {
             return String::new();
         }
 
-        let results: Vec<String> = nodes.iter().map(|node| {
-            match node {
+        let results: Vec<String> = nodes
+            .iter()
+            .map(|node| match node {
                 Node::Element(e) => self.visit_element(e),
                 Node::Attribute(a) => self.visit_attribute(a),
                 Node::Text(t) => self.visit_text(t),
@@ -102,18 +112,26 @@ impl SerializerVisitor {
                 Node::LetDeclaration(d) => self.visit_let_declaration(d),
                 Node::Component(c) => self.visit_component(c),
                 Node::Directive(d) => self.visit_directive(d),
-            }
-        }).collect();
+            })
+            .collect();
 
         format!("{}{}", prefix, results.join(separator))
     }
 
     fn visit_all_expansion_cases(&self, cases: &[ExpansionCase]) -> String {
-        cases.iter().map(|case| self.visit_expansion_case(case)).collect::<Vec<_>>().join("")
+        cases
+            .iter()
+            .map(|case| self.visit_expansion_case(case))
+            .collect::<Vec<_>>()
+            .join("")
     }
 
     fn visit_all_block_params(&self, params: &[BlockParameter]) -> String {
-        params.iter().map(|p| self.visit_block_parameter(p)).collect::<Vec<_>>().join(";")
+        params
+            .iter()
+            .map(|p| self.visit_block_parameter(p))
+            .collect::<Vec<_>>()
+            .join(";")
     }
 
     fn visit_all_attributes(&self, attrs: &[Attribute]) -> String {
@@ -128,8 +146,9 @@ impl SerializerVisitor {
 /// Serialize HTML AST nodes back to HTML strings
 pub fn serialize_nodes(nodes: &[Node]) -> Vec<String> {
     let visitor = SerializerVisitor::new();
-    nodes.iter().map(|node| {
-        match node {
+    nodes
+        .iter()
+        .map(|node| match node {
             Node::Element(e) => visitor.visit_element(e),
             Node::Attribute(a) => visitor.visit_attribute(a),
             Node::Text(t) => visitor.visit_text(t),
@@ -141,8 +160,8 @@ pub fn serialize_nodes(nodes: &[Node]) -> Vec<String> {
             Node::LetDeclaration(d) => visitor.visit_let_declaration(d),
             Node::Component(c) => visitor.visit_component(c),
             Node::Directive(d) => visitor.visit_directive(d),
-        }
-    }).collect()
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -151,21 +170,20 @@ mod tests {
 
     #[test]
     fn test_serialize_simple_text() {
-        use angular_compiler::parse_util::{ParseSourceFile, ParseLocation, ParseSourceSpan};
-        
+        use angular_compiler::parse_util::{ParseLocation, ParseSourceFile, ParseSourceSpan};
+
         let file = ParseSourceFile::new(String::new(), "test.html".to_string());
         let location = ParseLocation::new(file, 0, 0, 0);
         let span = ParseSourceSpan::new(location.clone(), location);
-        
+
         let text = Text {
             value: "hello".to_string(),
             source_span: span,
             tokens: vec![],
             i18n: None,
         };
-        
+
         let visitor = SerializerVisitor::new();
         assert_eq!(visitor.visit_text(&text), "hello");
     }
 }
-

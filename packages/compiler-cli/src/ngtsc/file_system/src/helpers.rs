@@ -1,7 +1,5 @@
 use crate::ngtsc::file_system::src::invalid_file_system::InvalidFileSystem;
-use crate::ngtsc::file_system::src::types::{
-    AbsoluteFsPath, FileSystem, PathSegment,
-};
+use crate::ngtsc::file_system::src::types::{AbsoluteFsPath, FileSystem, PathSegment};
 use crate::ngtsc::file_system::src::util::normalize_separators;
 use std::sync::{Arc, RwLock};
 
@@ -38,7 +36,10 @@ pub fn set_file_system(file_system: Arc<dyn FileSystem + Sync + Send>) {
 pub fn absolute_from(path: &str) -> AbsoluteFsPath {
     let fs = get_file_system();
     if !fs.is_rooted(path) {
-        panic!("Internal Error: absoluteFrom({}): path is not absolute", path);
+        panic!(
+            "Internal Error: absoluteFrom({}): path is not absolute",
+            path
+        );
     }
     fs.resolve(&[path])
 }
@@ -56,7 +57,10 @@ pub fn relative_from(path: &str) -> PathSegment {
     let fs = get_file_system();
     let normalized = normalize_separators(path);
     if fs.is_rooted(&normalized) {
-        panic!("Internal Error: relativeFrom({}): path is not relative", path);
+        panic!(
+            "Internal Error: relativeFrom({}): path is not relative",
+            path
+        );
     }
     PathSegment::new(normalized)
 }

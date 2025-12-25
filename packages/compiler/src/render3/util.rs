@@ -3,14 +3,14 @@
 //! Corresponds to packages/compiler/src/render3/util.ts
 //! Contains utility functions for render3 compilation
 
-use crate::output::output_ast::{
-    Expression, ExpressionType, Type, Statement, ExternalExpr, ExternalReference,
-    BinaryOperator, BinaryOperatorExpr, TypeofExpr, WrappedNodeExpr, ArrowFunctionExpr,
-    LiteralExpr, LiteralValue, LiteralArrayExpr, InvokeFunctionExpr, ArrowFunctionBody,
-    TypeModifier, BuiltinType, BuiltinTypeName,
-};
-use crate::output::abstract_emitter::escape_identifier;
 use super::r3_identifiers::Identifiers;
+use crate::output::abstract_emitter::escape_identifier;
+use crate::output::output_ast::{
+    ArrowFunctionBody, ArrowFunctionExpr, BinaryOperator, BinaryOperatorExpr, BuiltinType,
+    BuiltinTypeName, Expression, ExpressionType, ExternalExpr, ExternalReference,
+    InvokeFunctionExpr, LiteralArrayExpr, LiteralExpr, LiteralValue, Statement, Type, TypeModifier,
+    TypeofExpr, WrappedNodeExpr,
+};
 
 /// Creates an expression type with the given number of type parameters
 pub fn type_with_parameters(type_expr: Expression, num_params: usize) -> Type {
@@ -22,10 +22,12 @@ pub fn type_with_parameters(type_expr: Expression, num_params: usize) -> Type {
         });
     }
     let params: Vec<Type> = (0..num_params)
-        .map(|_| Type::Builtin(BuiltinType {
-            name: BuiltinTypeName::Dynamic,
-            modifiers: TypeModifier::None,
-        }))
+        .map(|_| {
+            Type::Builtin(BuiltinType {
+                name: BuiltinTypeName::Dynamic,
+                modifiers: TypeModifier::None,
+            })
+        })
         .collect();
     Type::Expression(ExpressionType {
         value: Box::new(type_expr),
@@ -113,7 +115,7 @@ pub fn guarded_expression(guard: &str, expr: Expression) -> Expression {
         type_: None,
         source_span: None,
     });
-    
+
     let guard_not_defined = Expression::BinaryOp(BinaryOperatorExpr {
         operator: BinaryOperator::Identical,
         lhs: Box::new(Expression::TypeOf(TypeofExpr {
@@ -129,7 +131,7 @@ pub fn guarded_expression(guard: &str, expr: Expression) -> Expression {
         type_: None,
         source_span: None,
     });
-    
+
     let guard_undefined_or_true = Expression::BinaryOp(BinaryOperatorExpr {
         operator: BinaryOperator::Or,
         lhs: Box::new(guard_not_defined),
@@ -137,7 +139,7 @@ pub fn guarded_expression(guard: &str, expr: Expression) -> Expression {
         type_: None,
         source_span: None,
     });
-    
+
     Expression::BinaryOp(BinaryOperatorExpr {
         operator: BinaryOperator::And,
         lhs: Box::new(guard_undefined_or_true),
@@ -168,7 +170,7 @@ pub fn refs_to_array(refs: &[R3Reference], should_forward_declare: bool) -> Expr
         type_: None,
         source_span: None,
     });
-    
+
     if should_forward_declare {
         Expression::ArrowFn(ArrowFunctionExpr {
             params: vec![],
@@ -228,9 +230,7 @@ pub fn convert_from_maybe_forward_ref_expression(
         ForwardRefHandling::None | ForwardRefHandling::Wrapped => {
             maybe_forward_ref.expression.clone()
         }
-        ForwardRefHandling::Unwrapped => {
-            generate_forward_ref(maybe_forward_ref.expression.clone())
-        }
+        ForwardRefHandling::Unwrapped => generate_forward_ref(maybe_forward_ref.expression.clone()),
     }
 }
 
@@ -244,14 +244,14 @@ pub fn generate_forward_ref(expr: Expression) -> Expression {
         type_: None,
         source_span: None,
     });
-    
+
     let arrow_fn = Expression::ArrowFn(ArrowFunctionExpr {
         params: vec![],
         body: ArrowFunctionBody::Expression(Box::new(expr)),
         type_: None,
         source_span: None,
     });
-    
+
     Expression::InvokeFn(InvokeFunctionExpr {
         fn_: Box::new(forward_ref_import),
         args: vec![arrow_fn],

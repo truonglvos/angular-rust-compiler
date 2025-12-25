@@ -6,11 +6,9 @@
 //! `UsesSlotIndexTrait`.
 
 use crate::template::pipeline::ir;
-use crate::template::pipeline::src::compilation::{
-    ComponentCompilationJob, CompilationUnit,
-};
-use crate::template::pipeline::src::util::elements::op_kind_has_consumes_slot_trait;
 use crate::template::pipeline::ir::traits::ConsumesSlotOpTrait;
+use crate::template::pipeline::src::compilation::{CompilationUnit, ComponentCompilationJob};
+use crate::template::pipeline::src::util::elements::op_kind_has_consumes_slot_trait;
 
 /// Assign data slots for all operations which implement `ConsumesSlotOpTrait`, and propagate the
 /// assigned data slots of those operations to any expressions which reference them via
@@ -23,7 +21,8 @@ pub fn phase(job: &mut ComponentCompilationJob) {
     // This map needs to be global (across all views within the component) since it's possible to
     // reference a slot from one view from an expression within another (e.g. local references work
     // this way).
-    let mut slot_map: std::collections::HashMap<ir::XrefId, usize> = std::collections::HashMap::new();
+    let mut slot_map: std::collections::HashMap<ir::XrefId, usize> =
+        std::collections::HashMap::new();
 
     // Process all views in the component and assign slot indexes.
     // First, process root view
@@ -43,10 +42,10 @@ pub fn phase(job: &mut ComponentCompilationJob) {
             // Assign slots to this declaration starting at the current `slotCount`.
             if let Some((handle, num_slots)) = get_slot_handle_and_num_slots_mut(op.as_mut()) {
                 handle.slot = Some(slot_count);
-                
+
                 // And track its assigned slot in the `slotMap`.
                 slot_map.insert(xref, handle.slot.unwrap());
-                
+
                 // Each declaration may use more than 1 slot, so increment `slotCount` to reserve the number
                 // of slots required.
                 slot_count += num_slots;
@@ -73,10 +72,10 @@ pub fn phase(job: &mut ComponentCompilationJob) {
             // Assign slots to this declaration starting at the current `slotCount`.
             if let Some((handle, num_slots)) = get_slot_handle_and_num_slots_mut(op.as_mut()) {
                 handle.slot = Some(slot_count);
-                
+
                 // And track its assigned slot in the `slotMap`.
                 slot_map.insert(xref, handle.slot.unwrap());
-                
+
                 // Each declaration may use more than 1 slot, so increment `slotCount` to reserve the number
                 // of slots required.
                 slot_count += num_slots;
@@ -92,7 +91,7 @@ pub fn phase(job: &mut ComponentCompilationJob) {
     // `UsesSlotIndexExprTrait` and propagate the assigned slot indexes into them.
     // Additionally, this second scan allows us to find `ir.TemplateOp`s which declare views and
     // propagate the number of slots used for each view into the operation which declares it.
-    
+
     // Process root view
     {
         let unit = &mut job.root;
@@ -135,7 +134,7 @@ pub fn phase(job: &mut ComponentCompilationJob) {
             }
         }
     }
-    
+
     // Now set decls on ops
     for (_, unit) in job.views.iter_mut() {
         for op in unit.create_mut().iter_mut() {
@@ -149,13 +148,13 @@ pub fn phase(job: &mut ComponentCompilationJob) {
     // Propagate slot indexes to expressions which implement `UsesSlotIndexExprTrait`
     // Specifically, propagate slot indexes to `ReferenceExpr` and `ContextLetReferenceExpr`
     // expressions based on their `target` XrefId.
-    
+
     // Process root view
     {
         let unit = &mut job.root;
         propagate_slot_indexes_in_unit(unit, &slot_map);
     }
-    
+
     // Process all other views
     for (_, unit) in job.views.iter_mut() {
         propagate_slot_indexes_in_unit(unit, &slot_map);
@@ -167,9 +166,9 @@ fn propagate_slot_indexes_in_unit(
     unit: &mut crate::template::pipeline::src::compilation::ViewCompilationUnit,
     slot_map: &std::collections::HashMap<ir::XrefId, usize>,
 ) {
-    use crate::template::pipeline::ir::expression::transform_expressions_in_op;
     use crate::output::output_ast::Expression;
-    
+    use crate::template::pipeline::ir::expression::transform_expressions_in_op;
+
     // Process create ops
     for op in unit.create_mut().iter_mut() {
         transform_expressions_in_op(
@@ -215,7 +214,7 @@ fn propagate_slot_indexes_in_unit(
             ir::VisitorContextFlag::NONE,
         );
     }
-    
+
     // Process update ops
     for op in unit.update_mut().iter_mut() {
         transform_expressions_in_op(
@@ -261,7 +260,7 @@ fn propagate_slot_indexes_in_unit(
             ir::VisitorContextFlag::NONE,
         );
     }
-    
+
     // Also need to process expressions in nested operations (listeners, repeater trackByOps)
     for op in unit.create_mut().iter_mut() {
         match op.kind() {
@@ -271,7 +270,7 @@ fn propagate_slot_indexes_in_unit(
                     let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                     let listener_ptr = op_ptr as *mut ListenerOp;
                     let listener = &mut *listener_ptr;
-                    
+
                     if let Some(&slot) = slot_map.get(&listener.target) {
                         listener.target_slot.slot = Some(slot);
                     }
@@ -287,7 +286,7 @@ fn propagate_slot_indexes_in_unit(
                     let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                     let two_way_ptr = op_ptr as *mut TwoWayListenerOp;
                     let two_way = &mut *two_way_ptr;
-                    
+
                     for handler_op in two_way.handler_ops.iter_mut() {
                         propagate_slot_indexes_in_nested_ops(handler_op.as_mut(), slot_map);
                     }
@@ -299,7 +298,7 @@ fn propagate_slot_indexes_in_unit(
                     let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                     let anim_ptr = op_ptr as *mut AnimationOp;
                     let anim = &mut *anim_ptr;
-                    
+
                     for handler_op in anim.handler_ops.iter_mut() {
                         propagate_slot_indexes_in_nested_ops(handler_op.as_mut(), slot_map);
                     }
@@ -311,7 +310,7 @@ fn propagate_slot_indexes_in_unit(
                     let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                     let anim_listener_ptr = op_ptr as *mut AnimationListenerOp;
                     let anim_listener = &mut *anim_listener_ptr;
-                    
+
                     for handler_op in anim_listener.handler_ops.iter_mut() {
                         propagate_slot_indexes_in_nested_ops(handler_op.as_mut(), slot_map);
                     }
@@ -323,7 +322,7 @@ fn propagate_slot_indexes_in_unit(
                     let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                     let repeater_ptr = op_ptr as *mut RepeaterCreateOp;
                     let repeater = &mut *repeater_ptr;
-                    
+
                     if let Some(ref mut track_by_ops) = repeater.track_by_ops {
                         for track_by_op in track_by_ops.iter_mut() {
                             propagate_slot_indexes_in_nested_ops(track_by_op.as_mut(), slot_map);
@@ -341,9 +340,9 @@ fn propagate_slot_indexes_in_nested_ops(
     op: &mut dyn ir::UpdateOp,
     slot_map: &std::collections::HashMap<ir::XrefId, usize>,
 ) {
-    use crate::template::pipeline::ir::expression::transform_expressions_in_op;
     use crate::output::output_ast::Expression;
-    
+    use crate::template::pipeline::ir::expression::transform_expressions_in_op;
+
     transform_expressions_in_op(
         op,
         &mut |mut expr: Expression, _flags| {
@@ -375,7 +374,7 @@ fn get_slot_handle_and_num_slots_mut(op: &mut dyn ir::Op) -> Option<(&mut ir::Sl
     unsafe {
         let op_ptr = op as *mut dyn ir::Op;
         let kind = op.kind();
-        
+
         match kind {
             ir::OpKind::ElementStart => {
                 use crate::template::pipeline::ir::ops::create::ElementStartOp;
@@ -483,7 +482,7 @@ fn set_decls_on_op(op: &mut dyn ir::CreateOp, decls: usize) {
     unsafe {
         let op_ptr = op as *mut dyn ir::CreateOp;
         let op_ptr = op_ptr as *mut dyn ir::Op;
-        
+
         match op.kind() {
             ir::OpKind::Template => {
                 use crate::template::pipeline::ir::ops::create::TemplateOp;
@@ -509,4 +508,3 @@ fn set_decls_on_op(op: &mut dyn ir::CreateOp, decls: usize) {
         }
     }
 }
-

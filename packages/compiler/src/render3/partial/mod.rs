@@ -4,25 +4,24 @@
 //! Contains partial/linking compilation APIs
 
 pub mod api;
-pub mod util;
-pub mod directive;
+pub mod class_metadata;
 pub mod component;
-pub mod pipe;
+pub mod directive;
 pub mod factory;
 pub mod injectable;
 pub mod injector;
 pub mod ng_module;
-pub mod class_metadata;
+pub mod pipe;
+pub mod util;
 
 // Re-exports
 pub use api::*;
-pub use util::*;
-pub use directive::*;
+pub use class_metadata::*;
 pub use component::*;
-pub use pipe::*;
+pub use directive::*;
 pub use factory::*;
 pub use injectable::*;
 pub use injector::*;
 pub use ng_module::*;
-pub use class_metadata::*;
-
+pub use pipe::*;
+pub use util::*;

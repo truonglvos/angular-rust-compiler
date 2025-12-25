@@ -30,12 +30,12 @@ impl Version {
         let parts: Vec<&str> = version.split('-').collect();
         let version_part = parts[0];
         let prerelease = parts.get(1).map(|s| s.to_string());
-        
+
         let nums: Vec<&str> = version_part.split('.').collect();
         if nums.len() < 3 {
             return None;
         }
-        
+
         Some(Self {
             major: nums[0].parse().ok()?,
             minor: nums[1].parse().ok()?,
@@ -43,7 +43,7 @@ impl Version {
             prerelease,
         })
     }
-    
+
     /// Get current version.
     pub fn current() -> Self {
         Self::parse(VERSION).unwrap_or(Self {
@@ -53,7 +53,7 @@ impl Version {
             prerelease: Some("dev".to_string()),
         })
     }
-    
+
     /// Format version as string.
     pub fn to_string(&self) -> String {
         let base = format!("{}.{}.{}", self.major, self.minor, self.patch);

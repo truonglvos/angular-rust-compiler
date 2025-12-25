@@ -39,7 +39,9 @@ impl Default for NullLogger {
 }
 
 impl Logger for NullLogger {
-    fn level(&self) -> LogLevel { LogLevel::Error }
+    fn level(&self) -> LogLevel {
+        LogLevel::Error
+    }
     fn debug(&self, _msg: &str) {}
     fn info(&self, _msg: &str) {}
     fn warn(&self, _msg: &str) {}

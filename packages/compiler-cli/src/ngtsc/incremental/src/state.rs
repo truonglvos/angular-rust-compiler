@@ -2,8 +2,8 @@
 //
 // Tracks the state of compilation for incremental builds.
 
-use std::collections::HashMap;
 use super::api::IncrementalState;
+use std::collections::HashMap;
 
 /// State for a single file in an incremental build.
 #[derive(Debug, Clone)]
@@ -50,7 +50,7 @@ impl IncrementalStateManager {
             prior_state: None,
         }
     }
-    
+
     /// Initialize with prior state.
     pub fn with_prior_state(prior: IncrementalState) -> Self {
         Self {
@@ -59,17 +59,17 @@ impl IncrementalStateManager {
             prior_state: Some(prior),
         }
     }
-    
+
     /// Get prior state.
     pub fn prior(&self) -> Option<&IncrementalState> {
         self.prior_state.as_ref()
     }
-    
+
     /// Get current state.
     pub fn current(&self) -> &IncrementalState {
         &self.current
     }
-    
+
     /// Record that a file was analyzed.
     pub fn record_analyzed(&mut self, file: &str) {
         self.current.analyzed_files.insert(file.to_string());
@@ -77,7 +77,7 @@ impl IncrementalStateManager {
             state.analyzed = true;
         }
     }
-    
+
     /// Record that a file was emitted.
     pub fn record_emitted(&mut self, file: &str) {
         self.current.emitted_files.insert(file.to_string());
@@ -85,7 +85,7 @@ impl IncrementalStateManager {
             state.emitted = true;
         }
     }
-    
+
     /// Check if a file needs re-analysis.
     pub fn needs_analysis(&self, file: &str, current_hash: &str) -> bool {
         if let Some(prior) = &self.prior_state {
@@ -99,7 +99,7 @@ impl IncrementalStateManager {
         }
         true
     }
-    
+
     /// Finalize the current state.
     pub fn finalize(self) -> IncrementalState {
         self.current

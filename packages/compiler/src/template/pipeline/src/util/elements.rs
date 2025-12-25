@@ -4,8 +4,8 @@
 
 use crate::template::pipeline::ir::enums::OpKind;
 use crate::template::pipeline::ir::handle::XrefId;
-use crate::template::pipeline::ir::ops::create::RepeaterCreateOp;
 use crate::template::pipeline::ir::operations::CreateOp;
+use crate::template::pipeline::ir::ops::create::RepeaterCreateOp;
 use crate::template::pipeline::src::compilation::CompilationUnit;
 use std::collections::HashMap;
 
@@ -66,9 +66,7 @@ pub(crate) fn op_kind_has_consumes_slot_trait(kind: OpKind) -> bool {
 /// Note: This implementation stores indices into the OpList instead of the operations themselves.
 /// The operations can be retrieved using the `lookup_element` function which takes the unit
 /// as a parameter. This approach avoids ownership issues while still providing efficient lookup.
-pub fn create_op_xref_map(
-    unit: &dyn CompilationUnit,
-) -> HashMap<XrefId, usize> {
+pub fn create_op_xref_map(unit: &dyn CompilationUnit) -> HashMap<XrefId, usize> {
     let mut map = HashMap::new();
 
     for (index, op) in unit.create().iter().enumerate() {
@@ -107,7 +105,7 @@ pub fn create_op_xref_map(
                 // This is safe because we know it's a RepeaterCreateOp
                 let op_ptr = op as *const Box<dyn CreateOp + Send + Sync>;
                 let repeater_ptr = op_ptr as *const Box<RepeaterCreateOp>;
-                
+
                 if !repeater_ptr.is_null() {
                     let repeater = &**repeater_ptr;
                     if let Some(empty_view) = repeater.empty_view {
@@ -126,7 +124,7 @@ pub fn create_op_xref_map(
 ///
 /// This is a helper function that provides the same functionality as the TypeScript version.
 /// It first looks up the index in the map, then retrieves the operation from the unit.
-/// 
+///
 /// Note: The returned reference is borrowed from `unit`, so it cannot outlive the unit.
 pub fn lookup_element<'a>(
     unit: &'a dyn CompilationUnit,
@@ -137,7 +135,7 @@ pub fn lookup_element<'a>(
         .get(&xref)
         .copied()
         .expect("All attributes should have an element-like target.");
-    
+
     unit.create()
         .get(index)
         .expect("Operation index out of bounds")

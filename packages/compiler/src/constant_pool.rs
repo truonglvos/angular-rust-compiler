@@ -5,8 +5,8 @@
 //! ConstantPool tries to reuse literal factories when two or more literals are identical.
 //! This optimizes the generated code by avoiding duplicate constant definitions.
 
-use std::collections::HashMap;
 use crate::output::output_ast as o;
+use std::collections::HashMap;
 
 const CONSTANT_PREFIX: &str = "_c";
 const POOL_INCLUSION_LENGTH_THRESHOLD_FOR_STRINGS: usize = 50;
@@ -49,7 +49,7 @@ impl GenericKeyFn {
     pub fn key_of(&self, expr: &o::Expression) -> String {
         // Simplified key generation using debug formatting for now
         // TODO: Implement proper key visitor
-        format!("{:?}", expr) 
+        format!("{:?}", expr)
     }
 }
 
@@ -76,7 +76,11 @@ impl ConstantPool {
         }
     }
 
-    pub fn get_const_literal(&mut self, literal: o::Expression, force_shared: bool) -> o::Expression {
+    pub fn get_const_literal(
+        &mut self,
+        literal: o::Expression,
+        force_shared: bool,
+    ) -> o::Expression {
         if self.is_simple_literal(&literal) {
             return literal;
         }
@@ -102,7 +106,7 @@ impl ConstantPool {
             });
             self.statements.push(stmt);
 
-             if let Some(fixup) = self.literals.get_mut(&key) {
+            if let Some(fixup) = self.literals.get_mut(&key) {
                 fixup.fixup(*var_expr.clone()); // Dereference the Box
             }
             return *var_expr; // Dereference to return Expression
@@ -116,12 +120,12 @@ impl ConstantPool {
 
         if force_shared {
             let name = self.fresh_name();
-             let var_expr = o::variable(name.clone());
+            let var_expr = o::variable(name.clone());
 
             let stmt = o::Statement::DeclareVar(o::DeclareVarStmt {
                 name,
                 value: Some(Box::new(literal)),
-                type_: None, 
+                type_: None,
                 modifiers: o::StmtModifier::Final,
                 source_span: None,
             });
@@ -137,16 +141,20 @@ impl ConstantPool {
         result
     }
 
-    pub fn get_shared_constant(&mut self, definition: Box<dyn SharedConstantDefinition>, initial_value: o::Expression) -> o::Expression {
+    pub fn get_shared_constant(
+        &mut self,
+        definition: Box<dyn SharedConstantDefinition>,
+        initial_value: o::Expression,
+    ) -> o::Expression {
         let key = definition.key_of(&initial_value);
         if let Some(existing) = self.shared_constants.get(&key) {
             return existing.clone();
         }
-        
+
         let id = self.fresh_name();
         let stmt = definition.to_shared_constant_declaration(id.clone(), initial_value);
         self.statements.push(stmt);
-        
+
         let var_expr = o::variable(id);
         self.shared_constants.insert(key, *var_expr.clone());
         *var_expr
@@ -162,10 +170,10 @@ impl ConstantPool {
         use_unique_name: bool,
     ) -> o::Expression {
         use crate::output::output_ast::ExpressionTrait;
-        
+
         // Check if function is already declared
         let is_arrow = matches!(fn_expr, o::Expression::ArrowFn(_));
-        
+
         for stmt in &self.statements {
             match stmt {
                 o::Statement::DeclareVar(var_stmt) => {
@@ -191,7 +199,7 @@ impl ConstantPool {
                 _ => {}
             }
         }
-        
+
         // Function not found, declare it
         let name = if use_unique_name {
             self.unique_name(prefix, false)
@@ -204,7 +212,7 @@ impl ConstantPool {
                 prefix
             }
         };
-        
+
         let stmt = match fn_expr {
             o::Expression::Fn(func_expr) => {
                 // Convert FunctionExpr to DeclareFunctionStmt
@@ -219,17 +227,15 @@ impl ConstantPool {
                     source_span: func_expr_clone.source_span,
                 })
             }
-            _ => {
-                o::Statement::DeclareVar(o::DeclareVarStmt {
-                    name: name.clone(),
-                    value: Some(Box::new(fn_expr)),
-                    type_: None,
-                    modifiers: o::StmtModifier::Final,
-                    source_span: None,
-                })
-            }
+            _ => o::Statement::DeclareVar(o::DeclareVarStmt {
+                name: name.clone(),
+                value: Some(Box::new(fn_expr)),
+                type_: None,
+                modifiers: o::StmtModifier::Final,
+                source_span: None,
+            }),
         };
-        
+
         self.statements.push(stmt);
         *o::variable(name)
     }
@@ -259,7 +265,7 @@ impl ConstantPool {
     pub fn unique_name(&mut self, preferred_name: String, _always_include_suffix: bool) -> String {
         // Rust specific: TS has `alwaysIncludeSuffix` (boolean).
         // I'll ignore it for now or assume false implies check existing.
-        
+
         if !self.claimed_names.contains_key(&preferred_name) {
             self.claimed_names.insert(preferred_name.clone(), 0);
             return preferred_name;
@@ -280,11 +286,9 @@ impl ConstantPool {
 
     fn is_simple_literal(&self, expr: &o::Expression) -> bool {
         match expr {
-            o::Expression::Literal(lit_expr) => {
-                 match &lit_expr.value {
-                     o::LiteralValue::String(s) => s.len() < POOL_INCLUSION_LENGTH_THRESHOLD_FOR_STRINGS,
-                     _ => true
-                 }
+            o::Expression::Literal(lit_expr) => match &lit_expr.value {
+                o::LiteralValue::String(s) => s.len() < POOL_INCLUSION_LENGTH_THRESHOLD_FOR_STRINGS,
+                _ => true,
             },
             _ => false,
         }

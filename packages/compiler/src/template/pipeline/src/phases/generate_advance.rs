@@ -4,32 +4,37 @@
 //! Generate `ir.AdvanceOp`s in between `ir.UpdateOp`s that ensure the runtime's implicit slot
 //! context will be advanced correctly.
 
-use crate::template::pipeline::ir as ir;
+use crate::output::output_ast::Expression;
+use crate::parse_util::{ParseLocation, ParseSourceFile, ParseSourceSpan};
+use crate::template::pipeline::ir;
 use crate::template::pipeline::ir::enums::OpKind;
 use crate::template::pipeline::ir::ops::update::create_advance_op;
-use crate::template::pipeline::src::compilation::{CompilationJob, ComponentCompilationJob, CompilationJobKind, CompilationUnit};
+use crate::template::pipeline::src::compilation::{
+    CompilationJob, CompilationJobKind, CompilationUnit, ComponentCompilationJob,
+};
 use crate::template::pipeline::src::util::elements::op_kind_has_consumes_slot_trait;
-use crate::parse_util::{ParseSourceSpan, ParseLocation, ParseSourceFile};
-use crate::output::output_ast::Expression;
 
 /// Generate `ir.AdvanceOp`s in between `ir.UpdateOp`s that ensure the runtime's implicit slot
 /// context will be advanced correctly.
 pub fn phase(job: &mut dyn CompilationJob) {
     let job_kind = job.kind();
-    
-    if matches!(job_kind, CompilationJobKind::Tmpl | CompilationJobKind::Both) {
+
+    if matches!(
+        job_kind,
+        CompilationJobKind::Tmpl | CompilationJobKind::Both
+    ) {
         let component_job = unsafe {
             let job_ptr = job as *mut dyn CompilationJob;
             let job_ptr = job_ptr as *mut ComponentCompilationJob;
             &mut *job_ptr
         };
-        
+
         // Process root unit
         {
             let root = &mut component_job.root;
             process_unit(root);
         }
-        
+
         // Process all view units
         let view_keys: Vec<_> = component_job.views.keys().cloned().collect();
         for key in view_keys {
@@ -42,8 +47,9 @@ pub fn phase(job: &mut dyn CompilationJob) {
 
 fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewCompilationUnit) {
     // First build a map of all of the declarations in the view that have assigned slots.
-    let mut slot_map: std::collections::HashMap<ir::XrefId, usize> = std::collections::HashMap::new();
-    
+    let mut slot_map: std::collections::HashMap<ir::XrefId, usize> =
+        std::collections::HashMap::new();
+
     for op in unit.create() {
         // Check if op implements ConsumesSlotOpTrait
         if op_kind_has_consumes_slot_trait(op.kind()) {
@@ -63,7 +69,7 @@ fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewComp
     // To do that, we track what the runtime's slot counter will be through the update operations.
     let mut slot_context = 0;
     let mut insertions: Vec<(usize, usize, ParseSourceSpan)> = Vec::new(); // (index, delta, source_span)
-    
+
     for (index, op) in unit.update().iter().enumerate() {
         let mut consumer_target: Option<ir::XrefId> = None;
         let mut source_span: Option<ParseSourceSpan> = None;
@@ -83,7 +89,10 @@ fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewComp
 
         if let Some(target) = consumer_target {
             if !slot_map.contains_key(&target) {
-                panic!("AssertionError: reference to unknown slot for target {}", target.0);
+                panic!(
+                    "AssertionError: reference to unknown slot for target {}",
+                    target.0
+                );
             }
 
             let slot = *slot_map.get(&target).unwrap();
@@ -100,7 +109,9 @@ fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewComp
                 }
 
                 let span = source_span.unwrap_or_else(|| {
-                    op.source_span().cloned().unwrap_or_else(|| create_empty_parse_source_span())
+                    op.source_span()
+                        .cloned()
+                        .unwrap_or_else(|| create_empty_parse_source_span())
                 });
                 insertions.push((index, delta as usize, span));
                 slot_context = slot;
@@ -118,11 +129,22 @@ fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewComp
 fn has_depends_on_slot_context_trait_by_kind(kind: OpKind) -> bool {
     matches!(
         kind,
-        OpKind::Property | OpKind::Attribute | OpKind::ClassProp | OpKind::StyleProp |
-        OpKind::ClassMap | OpKind::StyleMap | OpKind::DomProperty |
-        OpKind::Binding | OpKind::TwoWayProperty | OpKind::TwoWayListener |
-        OpKind::Listener | OpKind::Animation | OpKind::AnimationListener |
-        OpKind::InterpolateText | OpKind::Repeater | OpKind::Conditional
+        OpKind::Property
+            | OpKind::Attribute
+            | OpKind::ClassProp
+            | OpKind::StyleProp
+            | OpKind::ClassMap
+            | OpKind::StyleMap
+            | OpKind::DomProperty
+            | OpKind::Binding
+            | OpKind::TwoWayProperty
+            | OpKind::TwoWayListener
+            | OpKind::Listener
+            | OpKind::Animation
+            | OpKind::AnimationListener
+            | OpKind::InterpolateText
+            | OpKind::Repeater
+            | OpKind::Conditional
     )
 }
 
@@ -131,7 +153,7 @@ fn get_slot_from_create_op(op: &Box<dyn ir::CreateOp + Send + Sync>) -> Option<u
     // This is safe because we've verified the OpKind matches
     unsafe {
         let op_ptr = op.as_ref() as *const dyn ir::CreateOp;
-        
+
         match op.kind() {
             OpKind::ElementStart => {
                 use crate::template::pipeline::ir::ops::create::ElementStartOp;
@@ -208,7 +230,9 @@ fn get_slot_from_create_op(op: &Box<dyn ir::CreateOp + Send + Sync>) -> Option<u
                 defer.handle.slot
             }
             OpKind::I18nStart | OpKind::I18n | OpKind::I18nAttributes => {
-                use crate::template::pipeline::ir::ops::create::{I18nStartOp, I18nOp, I18nAttributesOp};
+                use crate::template::pipeline::ir::ops::create::{
+                    I18nAttributesOp, I18nOp, I18nStartOp,
+                };
                 match op.kind() {
                     OpKind::I18nStart => {
                         let i18n_ptr = op_ptr as *const I18nStartOp;
@@ -245,12 +269,14 @@ fn get_slot_from_create_op(op: &Box<dyn ir::CreateOp + Send + Sync>) -> Option<u
     }
 }
 
-fn get_target_from_update_op(op: &Box<dyn ir::UpdateOp + Send + Sync>) -> Option<(ir::XrefId, ParseSourceSpan)> {
+fn get_target_from_update_op(
+    op: &Box<dyn ir::UpdateOp + Send + Sync>,
+) -> Option<(ir::XrefId, ParseSourceSpan)> {
     // Check if op implements DependsOnSlotContextOpTrait
     // Downcast based on OpKind to access target and source_span
     unsafe {
         let op_ptr = op.as_ref() as *const dyn ir::UpdateOp;
-        
+
         match op.kind() {
             OpKind::Property => {
                 use crate::template::pipeline::ir::ops::update::PropertyOp;
@@ -324,7 +350,10 @@ fn get_target_from_update_op(op: &Box<dyn ir::UpdateOp + Send + Sync>) -> Option
                 let text = &*text_ptr;
                 Some((text.target, text.source_span.clone()))
             }
-            OpKind::TwoWayListener | OpKind::Listener | OpKind::Animation | OpKind::AnimationListener => {
+            OpKind::TwoWayListener
+            | OpKind::Listener
+            | OpKind::Animation
+            | OpKind::AnimationListener => {
                 // These are CreateOps, not UpdateOps, so they shouldn't appear here
                 None
             }
@@ -341,13 +370,13 @@ fn check_expressions_for_reference_in_update_op(
 ) -> (Option<ir::XrefId>, Option<ParseSourceSpan>) {
     unsafe {
         let op_ptr = op.as_ref() as *const dyn ir::UpdateOp;
-        
+
         match op.kind() {
             OpKind::Binding => {
                 use crate::template::pipeline::ir::ops::update::BindingOp;
                 let binding_ptr = op_ptr as *const BindingOp;
                 let binding = &*binding_ptr;
-                
+
                 match &binding.expression {
                     crate::template::pipeline::ir::ops::update::BindingExpression::Expression(expr) => {
                         check_expression_recursive_for_reference(expr)
@@ -400,12 +429,8 @@ fn check_expression_recursive_for_reference(
             }
             check_expression_recursive_for_reference(&bin.rhs)
         }
-        Expression::Unary(un) => {
-            check_expression_recursive_for_reference(&un.expr)
-        }
-        Expression::ReadProp(prop) => {
-            check_expression_recursive_for_reference(&prop.receiver)
-        }
+        Expression::Unary(un) => check_expression_recursive_for_reference(&un.expr),
+        Expression::ReadProp(prop) => check_expression_recursive_for_reference(&prop.receiver),
         Expression::ReadKey(key) => {
             let receiver_result = check_expression_recursive_for_reference(&key.receiver);
             if receiver_result.0.is_some() {
@@ -495,4 +520,3 @@ fn create_empty_parse_source_span() -> ParseSourceSpan {
     let empty_loc = ParseLocation::new(empty_file, 0, 0, 0);
     ParseSourceSpan::new(empty_loc.clone(), empty_loc)
 }
-

@@ -21,7 +21,7 @@ pub fn is_named_variable_declaration<'a>(node: &'a ast::Declaration<'a>) -> bool
         // VariableDeclaration has declarations: Vec<VariableDeclarator>
         // TS logic is slightly different as it treats each declarator as a declaration often.
         // For Oxc, this check might check if *any* declarator is named (which they must be).
-        return true; 
+        return true;
     }
     false
 }

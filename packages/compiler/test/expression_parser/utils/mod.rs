@@ -4,7 +4,6 @@
  * Helper functions for expression parser tests
  * Mirrors angular/packages/compiler/test/expression_parser/utils
  */
-
 pub mod unparser;
 
 use angular_compiler::parse_util::{ParseLocation, ParseSourceFile, ParseSourceSpan};

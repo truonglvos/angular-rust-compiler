@@ -3,19 +3,19 @@
 //! Corresponds to packages/compiler/src/util.ts
 //! Common utility functions
 
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
 
 /// Regex for dash-case to camelCase conversion
-static DASH_CASE_REGEXP: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"-+([a-z0-9])").unwrap()
-});
+static DASH_CASE_REGEXP: Lazy<Regex> = Lazy::new(|| Regex::new(r"-+([a-z0-9])").unwrap());
 
 /// Convert dash-case to camelCase
 pub fn dash_case_to_camel_case(input: &str) -> String {
-    DASH_CASE_REGEXP.replace_all(input, |caps: &regex::Captures| {
-        caps.get(1).unwrap().as_str().to_uppercase()
-    }).to_string()
+    DASH_CASE_REGEXP
+        .replace_all(input, |caps: &regex::Captures| {
+            caps.get(1).unwrap().as_str().to_uppercase()
+        })
+        .to_string()
 }
 
 /// Split string at colon
@@ -36,7 +36,10 @@ fn split_at(input: &str, character: char, default_values: &[Option<&str>]) -> Ve
         ]
     } else {
         // Return default values (matching TypeScript behavior)
-        default_values.iter().map(|v| v.map(|s| s.to_string())).collect()
+        default_values
+            .iter()
+            .map(|v| v.map(|s| s.to_string()))
+            .collect()
     }
 }
 
@@ -45,7 +48,26 @@ fn split_at(input: &str, character: char, default_values: &[Option<&str>]) -> Ve
 pub fn escape_regex(s: &str) -> String {
     let mut result = String::new();
     for ch in s.chars() {
-        if matches!(ch, '.' | '*' | '+' | '?' | '^' | '=' | '!' | ':' | '$' | '{' | '}' | '(' | ')' | '|' | '[' | ']' | '/' | '\\') {
+        if matches!(
+            ch,
+            '.' | '*'
+                | '+'
+                | '?'
+                | '^'
+                | '='
+                | '!'
+                | ':'
+                | '$'
+                | '{'
+                | '}'
+                | '('
+                | ')'
+                | '|'
+                | '['
+                | ']'
+                | '/'
+                | '\\'
+        ) {
             result.push('\\');
         }
         result.push(ch);
@@ -69,19 +91,19 @@ pub fn error(msg: &str) -> ! {
 /// UTF-8 encode a string
 /// Handles surrogate pairs correctly like TypeScript version
 /// Matches the exact behavior of TypeScript utf8Encode function
-/// 
+///
 /// TypeScript uses charCodeAt which returns UTF-16 code units, so we need to
 /// work with UTF-16 encoding to match the behavior exactly
 pub fn utf8_encode(str: &str) -> Vec<u8> {
     let mut encoded = Vec::new();
-    
+
     // Convert to UTF-16 code units (like JavaScript charCodeAt)
     let utf16: Vec<u16> = str.encode_utf16().collect();
     let mut index = 0;
-    
+
     while index < utf16.len() {
         let mut code_point = utf16[index] as u32;
-        
+
         // Decode surrogate pairs (exactly like TypeScript)
         // High surrogates: 0xD800 to 0xDBFF
         // Low surrogates: 0xDC00 to 0xDFFF
@@ -92,7 +114,7 @@ pub fn utf8_encode(str: &str) -> Vec<u8> {
                 code_point = ((code_point - 0xD800) << 10) + low - 0xDC00 + 0x10000;
             }
         }
-        
+
         // Encode to UTF-8 bytes (exactly like TypeScript)
         if code_point <= 0x7f {
             encoded.push(code_point as u8);
@@ -109,10 +131,10 @@ pub fn utf8_encode(str: &str) -> Vec<u8> {
             encoded.push(((code_point >> 6) & 0x3f | 0x80) as u8);
             encoded.push((code_point & 0x3f | 0x80) as u8);
         }
-        
+
         index += 1;
     }
-    
+
     encoded
 }
 
@@ -126,12 +148,12 @@ pub trait Stringify {
 
 /// Stringify any value - single entry point like TypeScript
 /// Usage: stringify(&value) - works for any type that implements Stringify
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```
 /// use angular_compiler::util::stringify;
-/// 
+///
 /// assert_eq!(stringify(&"hello"), "hello");
 /// assert_eq!(stringify(&vec![1, 2, 3]), "[1, 2, 3]");
 /// assert_eq!(stringify(&Some("value")), "value");
@@ -175,14 +197,26 @@ impl<T: Stringify> Stringify for Option<T> {
 // Implement for Vec/arrays
 impl<T: Stringify> Stringify for Vec<T> {
     fn stringify(&self) -> String {
-        format!("[{}]", self.iter().map(|t| t.stringify()).collect::<Vec<_>>().join(", "))
+        format!(
+            "[{}]",
+            self.iter()
+                .map(|t| t.stringify())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
     }
 }
 
 // Implement for slices
 impl<T: Stringify> Stringify for [T] {
     fn stringify(&self) -> String {
-        format!("[{}]", self.iter().map(|t| t.stringify()).collect::<Vec<_>>().join(", "))
+        format!(
+            "[{}]",
+            self.iter()
+                .map(|t| t.stringify())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
     }
 }
 

@@ -2,8 +2,8 @@
 //
 // Main documentation extractor that coordinates other extractors.
 
-use std::collections::HashMap;
 use super::entities::*;
+use std::collections::HashMap;
 
 /// Documentation extraction options.
 #[derive(Debug, Clone, Default)]
@@ -66,20 +66,20 @@ impl DocsExtractor {
             entries_by_file: HashMap::new(),
         }
     }
-    
+
     /// Extract documentation from source files.
     pub fn extract(&mut self, source_files: &[String]) -> ExtractionResult {
         let mut result = ExtractionResult::new();
-        
+
         for file in source_files {
             if self.should_include_file(file) {
                 self.extract_file(file, &mut result);
             }
         }
-        
+
         result
     }
-    
+
     /// Check if a file should be included.
     fn should_include_file(&self, file: &str) -> bool {
         // Check exclude patterns first
@@ -88,22 +88,22 @@ impl DocsExtractor {
                 return false;
             }
         }
-        
+
         // If no include patterns, include all
         if self.options.include_patterns.is_empty() {
             return true;
         }
-        
+
         // Check include patterns
         for pattern in &self.options.include_patterns {
             if file.contains(pattern) {
                 return true;
             }
         }
-        
+
         false
     }
-    
+
     /// Extract documentation from a single file.
     fn extract_file(&mut self, _file: &str, _result: &mut ExtractionResult) {
         // In a real implementation, this would:
@@ -112,16 +112,15 @@ impl DocsExtractor {
         // 3. Extract classes, functions, etc. using sub-extractors
         // 4. Add entries to result
     }
-    
+
     /// Check if an entry is internal.
     pub fn is_internal(entry: &DocEntry) -> bool {
         entry.jsdoc_tags.iter().any(|tag| tag.name == "internal")
     }
-    
+
     /// Check if an entry is deprecated.
     pub fn is_deprecated(entry: &DocEntry) -> bool {
-        entry.deprecated.is_some() ||
-        entry.jsdoc_tags.iter().any(|tag| tag.name == "deprecated")
+        entry.deprecated.is_some() || entry.jsdoc_tags.iter().any(|tag| tag.name == "deprecated")
     }
 }
 

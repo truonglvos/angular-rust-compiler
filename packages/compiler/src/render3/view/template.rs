@@ -5,8 +5,8 @@
 
 use crate::expression_parser::parser::Parser;
 use crate::ml_parser::html_parser::HtmlParser;
+use crate::ml_parser::html_whitespaces::{visit_all_with_siblings_nodes, WhitespaceVisitor};
 use crate::ml_parser::lexer::{LexerRange, TokenizeOptions};
-use crate::ml_parser::html_whitespaces::{WhitespaceVisitor, visit_all_with_siblings_nodes};
 use crate::parse_util::ParseError;
 use crate::render3::r3_ast as t;
 use crate::render3::r3_template_transform::{html_ast_to_render3_ast, Render3ParseOptions};
@@ -87,10 +87,12 @@ pub fn parse_template(
     options: ParseTemplateOptions,
 ) -> ParsedTemplate {
     let html_parser = HtmlParser::new();
-    
+
     let mut tokenize_options = TokenizeOptions::default();
     tokenize_options.tokenize_expansion_forms = true;
-    tokenize_options.leading_trivia_chars = options.leading_trivia_chars.clone()
+    tokenize_options.leading_trivia_chars = options
+        .leading_trivia_chars
+        .clone()
         .or_else(|| Some(LEADING_TRIVIA_CHARS.to_vec()));
     tokenize_options.selectorless_enabled = options.enable_selectorless.unwrap_or(false);
     tokenize_options.escaped_string = options.escaped_string.unwrap_or(false);
@@ -103,43 +105,47 @@ pub fn parse_template(
     if let Some(range) = options.range {
         tokenize_options.range = Some(range);
     }
-    
+
     let parse_result = html_parser.parse(template, template_url, Some(tokenize_options));
-    
+
     // Process i18n metadata (simplified for now)
     let mut html_nodes = parse_result.root_nodes;
-    
+
     // Handle whitespace preservation
     if options.preserve_whitespaces != Some(true) {
         let mut visitor = WhitespaceVisitor::new(
             options.preserve_significant_whitespace.unwrap_or(true), // Default to true based on view_util
             None,
-            false
+            false,
         );
         html_nodes = visit_all_with_siblings_nodes(&mut visitor, &html_nodes);
     }
-    
+
     // Create binding parser
     let selectorless_enabled = options.enable_selectorless.unwrap_or(false);
     let mut binding_parser = make_binding_parser(selectorless_enabled);
-    
+
     // Convert HTML AST to R3 AST
     let collect_comment_nodes = options.collect_comment_nodes.unwrap_or(false);
     let r3_options = Render3ParseOptions {
         collect_comment_nodes,
     };
-    
+
     let r3_result = html_ast_to_render3_ast(&html_nodes, &mut binding_parser, &r3_options);
-    
+
     let mut errors = parse_result.errors;
     errors.extend(r3_result.errors);
-    
+
     ParsedTemplate {
         preserve_whitespaces: options.preserve_whitespaces,
-        errors: if errors.is_empty() { None } else { Some(errors) },
+        errors: if errors.is_empty() {
+            None
+        } else {
+            Some(errors)
+        },
         nodes: r3_result.nodes,
         style_urls: vec![], // TODO: Extract from metadata
-        styles: vec![], // TODO: Extract from metadata
+        styles: vec![],     // TODO: Extract from metadata
         ng_content_selectors: r3_result.ng_content_selectors,
         comment_nodes: if collect_comment_nodes {
             r3_result.comment_nodes
@@ -164,11 +170,13 @@ pub fn make_binding_parser(_selectorless_enabled: bool) -> BindingParser<'static
 }
 
 /// Construct a `BindingParser` with a custom parser.
-pub fn make_binding_parser_with_parser<'a>(_selectorless_enabled: bool, parser: &'a Parser) -> BindingParser<'a> {
+pub fn make_binding_parser_with_parser<'a>(
+    _selectorless_enabled: bool,
+    parser: &'a Parser,
+) -> BindingParser<'a> {
     BindingParser::new(
         parser,
         &*ELEMENT_REGISTRY as &dyn crate::schema::element_schema_registry::ElementSchemaRegistry,
         vec![],
     )
 }
-

@@ -1,20 +1,19 @@
-use std::collections::HashMap;
 use indexmap::IndexMap;
+use std::collections::HashMap;
 
 use crate::compiler_facade_interface::{
     self as facade, CompilerFacade, CoreEnvironment, R3ComponentMetadataFacade,
-    R3DeclareComponentFacade, R3DeclareDirectiveFacade, R3DeclareFactoryFacade,
-    R3DeclareInjectableFacade, R3DeclareInjectorFacade, R3DeclareNgModuleFacade,
-    R3DeclarePipeFacade, R3DirectiveMetadataFacade, R3FactoryDefMetadataFacade,
-    R3InjectableMetadataFacade, R3InjectorMetadataFacade, R3NgModuleMetadataFacade,
-    R3PipeMetadataFacade, R3QueryMetadataFacade, R3DeclareDependencyMetadataFacade,
-    R3DependencyMetadataFacade,
+    R3DeclareComponentFacade, R3DeclareDependencyMetadataFacade, R3DeclareDirectiveFacade,
+    R3DeclareFactoryFacade, R3DeclareInjectableFacade, R3DeclareInjectorFacade,
+    R3DeclareNgModuleFacade, R3DeclarePipeFacade, R3DependencyMetadataFacade,
+    R3DirectiveMetadataFacade, R3FactoryDefMetadataFacade, R3InjectableMetadataFacade,
+    R3InjectorMetadataFacade, R3NgModuleMetadataFacade, R3PipeMetadataFacade,
+    R3QueryMetadataFacade,
 };
 use crate::constant_pool::ConstantPool;
 use crate::core::{ChangeDetectionStrategy, ViewEncapsulation};
 use crate::injectable_compiler_2::{
-    compile_injectable,
-    R3InjectableMetadata as InjectableMetadata,
+    compile_injectable, R3InjectableMetadata as InjectableMetadata,
 };
 use crate::output::output_ast::{
     DeclareVarStmt, Expression, Statement, StmtModifier, WrappedNodeExpr,
@@ -22,28 +21,28 @@ use crate::output::output_ast::{
 use crate::output::output_jit::{ExternalReferenceResolver, JitEvaluator};
 use crate::parse_util::{ParseLocation, ParseSourceFile, ParseSourceSpan};
 use crate::render3::r3_factory::{
-    compile_factory_function, R3ConstructorFactoryMetadata, R3FactoryMetadata,
-    FactoryTarget,
+    compile_factory_function, FactoryTarget, R3ConstructorFactoryMetadata, R3FactoryMetadata,
 };
 use crate::render3::r3_injector_compiler::{compile_injector, R3InjectorMetadata};
-use crate::render3::r3_jit::{ExternalReferenceResolver as R3ExternalReferenceResolver, R3JitReflector};
+use crate::render3::r3_jit::{
+    ExternalReferenceResolver as R3ExternalReferenceResolver, R3JitReflector,
+};
 use crate::render3::r3_module_compiler::{
     compile_ng_module, R3NgModuleMetadata, R3NgModuleMetadataCommon, R3NgModuleMetadataGlobal,
     R3NgModuleMetadataKind, R3SelectorScopeMode,
 };
 use crate::render3::r3_pipe_compiler::{compile_pipe_from_metadata, R3PipeMetadata};
 use crate::render3::util::{
-    wrap_reference, R3Reference, create_may_be_forward_ref_expression, get_safe_property_access_string,
+    create_may_be_forward_ref_expression, get_safe_property_access_string, wrap_reference,
+    R3Reference,
 };
 use crate::render3::view::api::{
-    R3ComponentMetadata, R3ComponentTemplate, R3DirectiveMetadata, R3HostMetadata,
-    R3LifecycleMetadata, R3QueryMetadata,
-    ChangeDetectionOrExpression,
-    R3InputMetadata,
+    ChangeDetectionOrExpression, R3ComponentMetadata, R3ComponentTemplate, R3DirectiveMetadata,
+    R3HostMetadata, R3InputMetadata, R3LifecycleMetadata, R3QueryMetadata,
 };
 use crate::render3::view::compiler::{
-    compile_component_from_metadata, compile_directive_from_metadata,
-    parse_host_bindings, verify_host_bindings, ParsedHostBindings,
+    compile_component_from_metadata, compile_directive_from_metadata, parse_host_bindings,
+    verify_host_bindings, ParsedHostBindings,
 };
 use crate::render3::view::template::{make_binding_parser, parse_template, ParseTemplateOptions};
 
@@ -97,9 +96,9 @@ impl CompilerFacadeImpl {
             // Here, we can't easily convert Box<dyn Any> to serde_json::Value without knowing what it is.
             // For now, we'll return Null as a placeholder, but with a comment that we found the value.
             // In a real generic implementation we might need a way to serialize the result or return an opaque handle.
-            Ok(serde_json::Value::Null) 
+            Ok(serde_json::Value::Null)
         } else {
-             Ok(serde_json::Value::Null)
+            Ok(serde_json::Value::Null)
         }
     }
 }
@@ -145,7 +144,9 @@ impl CompilerFacade for CompilerFacadeImpl {
             name: facade.name.clone(),
             type_: wrap_reference(facade.type_ref),
             providers: if !facade.providers.is_empty() {
-                Some(new_wrapped_node_expr(serde_json::Value::Array(facade.providers)))
+                Some(new_wrapped_node_expr(serde_json::Value::Array(
+                    facade.providers,
+                )))
             } else {
                 None
             },
@@ -177,18 +178,18 @@ impl CompilerFacade for CompilerFacadeImpl {
         facade: R3NgModuleMetadataFacade,
     ) -> Result<serde_json::Value, String> {
         let schemas = if let Some(schemas) = facade.schemas {
-             if !schemas.is_empty() {
-                 Some(
-                     schemas
-                         .iter()
-                         .map(|s| wrap_reference(s.name.clone()))
-                         .collect(),
-                 )
-             } else {
-                 None
-             }
+            if !schemas.is_empty() {
+                Some(
+                    schemas
+                        .iter()
+                        .map(|s| wrap_reference(s.name.clone()))
+                        .collect(),
+                )
+            } else {
+                None
+            }
         } else {
-             None
+            None
         };
 
         let meta = R3NgModuleMetadata::Global(R3NgModuleMetadataGlobal {
@@ -197,7 +198,9 @@ impl CompilerFacade for CompilerFacadeImpl {
                 type_: wrap_reference(facade.type_ref),
                 selector_scope_mode: R3SelectorScopeMode::Inline,
                 schemas,
-                id: facade.id.map(|id| new_wrapped_node_expr(serde_json::Value::String(id))),
+                id: facade
+                    .id
+                    .map(|id| new_wrapped_node_expr(serde_json::Value::String(id))),
             },
             bootstrap: facade
                 .bootstrap
@@ -369,10 +372,10 @@ impl CompilerFacade for CompilerFacadeImpl {
         };
 
         if let Ok(res) = compile_injectable(meta, false) {
-             let expr = convert_injectable_expression_to_expression(res.expression);
-             self.jit_expression(expr, angular_core_env, source_map_url, vec![])
+            let expr = convert_injectable_expression_to_expression(res.expression);
+            self.jit_expression(expr, angular_core_env, source_map_url, vec![])
         } else {
-             Err("Compile injectable failed".to_string())
+            Err("Compile injectable failed".to_string())
         }
     }
 
@@ -395,10 +398,10 @@ impl CompilerFacade for CompilerFacadeImpl {
         };
 
         if let Ok(res) = compile_injectable(meta, false) {
-             let expr = convert_injectable_expression_to_expression(res.expression);
-             self.jit_expression(expr, angular_core_env, source_map_url, vec![])
+            let expr = convert_injectable_expression_to_expression(res.expression);
+            self.jit_expression(expr, angular_core_env, source_map_url, vec![])
         } else {
-             Err("Compile injectable declaration failed".to_string())
+            Err("Compile injectable declaration failed".to_string())
         }
     }
 
@@ -443,7 +446,7 @@ impl ExternalReferenceResolver for R3JitReflectorAdapter {
         let inner_ref = crate::output::output_ast::ExternalReference {
             module_name: reference.module_name.clone(),
             name: reference.name.clone(),
-            runtime: None, 
+            runtime: None,
         };
 
         match R3ExternalReferenceResolver::resolve_external_reference(&self.0, &inner_ref) {
@@ -489,14 +492,14 @@ fn convert_declare_ng_module_facade_to_metadata(
     declaration: R3DeclareNgModuleFacade,
 ) -> R3NgModuleMetadata {
     let schemas = if let Some(schemas) = declaration.schemas {
-         Some(
-             schemas
-                 .iter()
-                 .map(|s| create_wrapped_reference_from_value(serde_json::json!(s.name)))
-                 .collect()
-         )
+        Some(
+            schemas
+                .iter()
+                .map(|s| create_wrapped_reference_from_value(serde_json::json!(s.name)))
+                .collect(),
+        )
     } else {
-         None
+        None
     };
 
     R3NgModuleMetadata::Global(R3NgModuleMetadataGlobal {
@@ -545,28 +548,47 @@ fn convert_directive_facade_to_metadata(facade: R3DirectiveMetadataFacade) -> R3
     for (field, annotations) in &prop_metadata {
         for ann in annotations {
             if is_input(ann) {
-                let binding_property_name = ann.get("alias").and_then(|v| v.as_str()).unwrap_or(field).to_string();
-                let required = ann.get("required").and_then(|v| v.as_bool()).unwrap_or(false);
-                let is_signal = ann.get("isSignal").and_then(|v| v.as_bool()).unwrap_or(false);
-                let transform = ann.get("transform").map(|v| new_wrapped_node_expr(v.clone()));
+                let binding_property_name = ann
+                    .get("alias")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(field)
+                    .to_string();
+                let required = ann
+                    .get("required")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                let is_signal = ann
+                    .get("isSignal")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                let transform = ann
+                    .get("transform")
+                    .map(|v| new_wrapped_node_expr(v.clone()));
 
-                inputs_from_type.insert(field.clone(), R3InputMetadata {
-                    binding_property_name,
-                    class_property_name: field.clone(),
-                    required,
-                    is_signal,
-                    transform_function: transform,
-                });
+                inputs_from_type.insert(
+                    field.clone(),
+                    R3InputMetadata {
+                        binding_property_name,
+                        class_property_name: field.clone(),
+                        required,
+                        is_signal,
+                        transform_function: transform,
+                    },
+                );
             } else if is_output(ann) {
-                 let alias = ann.get("alias").and_then(|v| v.as_str()).unwrap_or(field).to_string();
-                 outputs_from_type.insert(field.clone(), alias);
+                let alias = ann
+                    .get("alias")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(field)
+                    .to_string();
+                outputs_from_type.insert(field.clone(), alias);
             }
         }
     }
 
     let mut inputs = convert_input_metadata_array(&facade.inputs);
     inputs.extend(inputs_from_type);
-    
+
     // Convert outputs from string array to map
     let mut outputs = IndexMap::new();
     for output in &facade.outputs {
@@ -577,9 +599,10 @@ fn convert_directive_facade_to_metadata(facade: R3DirectiveMetadataFacade) -> R3
 
     // Dummy source span for now
     let source_span = create_dummy_source_span();
-    
+
     // Extract host bindings
-    let host_bindings = extract_host_bindings(&prop_metadata, &source_span, &facade.host).unwrap_or_else(|_| ParsedHostBindings::default());
+    let host_bindings = extract_host_bindings(&prop_metadata, &source_span, &facade.host)
+        .unwrap_or_else(|_| ParsedHostBindings::default());
 
     let host_metadata = R3HostMetadata {
         attributes: host_bindings.attributes,
@@ -595,15 +618,25 @@ fn convert_directive_facade_to_metadata(facade: R3DirectiveMetadataFacade) -> R3
         type_source_span: source_span,
         deps: None,
         selector: facade.selector,
-        queries: facade.queries.into_iter().map(convert_to_r3_query_metadata).collect(),
-        view_queries: facade.view_queries.into_iter().map(convert_to_r3_query_metadata).collect(),
+        queries: facade
+            .queries
+            .into_iter()
+            .map(convert_to_r3_query_metadata)
+            .collect(),
+        view_queries: facade
+            .view_queries
+            .into_iter()
+            .map(convert_to_r3_query_metadata)
+            .collect(),
         host: host_metadata,
         lifecycle: R3LifecycleMetadata::default(),
         inputs,
         outputs,
         uses_inheritance: facade.uses_inheritance,
         export_as: facade.export_as,
-        providers: facade.providers.map(|p| new_wrapped_node_expr(serde_json::Value::Array(p))),
+        providers: facade
+            .providers
+            .map(|p| new_wrapped_node_expr(serde_json::Value::Array(p))),
         is_standalone: facade.is_standalone,
         is_signal: facade.is_signal,
         host_directives: None,
@@ -623,28 +656,43 @@ fn convert_declare_directive_facade_to_metadata(
         type_source_span: create_dummy_source_span(),
         deps: None,
         selector: declaration.selector,
-        queries: declaration.queries.unwrap_or_default().into_iter().map(convert_query_declaration_to_metadata).collect(),
-        view_queries: declaration.view_queries.unwrap_or_default().into_iter().map(convert_query_declaration_to_metadata).collect(),
+        queries: declaration
+            .queries
+            .unwrap_or_default()
+            .into_iter()
+            .map(convert_query_declaration_to_metadata)
+            .collect(),
+        view_queries: declaration
+            .view_queries
+            .unwrap_or_default()
+            .into_iter()
+            .map(convert_query_declaration_to_metadata)
+            .collect(),
         host: host_bindings,
         lifecycle: R3LifecycleMetadata::default(),
         inputs: convert_inputs_declaration(declaration.inputs),
         outputs: convert_outputs_declaration(declaration.outputs),
         uses_inheritance: declaration.uses_inheritance.unwrap_or(false),
         export_as: declaration.export_as,
-        providers: declaration.providers.map(|p| new_wrapped_node_expr(serde_json::Value::Array(p))),
+        providers: declaration
+            .providers
+            .map(|p| new_wrapped_node_expr(serde_json::Value::Array(p))),
         is_standalone: declaration.is_standalone.unwrap_or(false),
         is_signal: declaration.is_signal.unwrap_or(false),
         host_directives: None,
     }
 }
 
-fn extract_directive_metadata_from_component(facade: &R3ComponentMetadataFacade) -> R3DirectiveMetadata {
+fn extract_directive_metadata_from_component(
+    facade: &R3ComponentMetadataFacade,
+) -> R3DirectiveMetadata {
     // Reuse convert_directive_facade_to_metadata logic by temporarily constructing a R3DirectiveMetadataFacade
     // OR just duplicate logic. Duplication is safer to avoid cloning cost of big struct.
-    
+
     // For now, let's just use the previous simple implementation but add host bindings extraction
     let source_span = create_dummy_source_span();
-    let host_bindings = extract_host_bindings(&facade.prop_metadata, &source_span, &facade.host).unwrap_or_else(|_| ParsedHostBindings::default());
+    let host_bindings = extract_host_bindings(&facade.prop_metadata, &source_span, &facade.host)
+        .unwrap_or_else(|_| ParsedHostBindings::default());
     let host_metadata = R3HostMetadata {
         attributes: host_bindings.attributes,
         listeners: host_bindings.listeners,
@@ -659,23 +707,38 @@ fn extract_directive_metadata_from_component(facade: &R3ComponentMetadataFacade)
         type_source_span: source_span,
         deps: None,
         selector: facade.selector.clone(),
-        queries: facade.queries.clone().into_iter().map(convert_to_r3_query_metadata).collect(),
-        view_queries: facade.view_queries.clone().into_iter().map(convert_to_r3_query_metadata).collect(),
+        queries: facade
+            .queries
+            .clone()
+            .into_iter()
+            .map(convert_to_r3_query_metadata)
+            .collect(),
+        view_queries: facade
+            .view_queries
+            .clone()
+            .into_iter()
+            .map(convert_to_r3_query_metadata)
+            .collect(),
         host: host_metadata,
         lifecycle: R3LifecycleMetadata::default(),
-        inputs: IndexMap::new(), // TODO: extract inputs from props
+        inputs: IndexMap::new(),  // TODO: extract inputs from props
         outputs: IndexMap::new(), // TODO: extract outputs from props
         uses_inheritance: facade.uses_inheritance,
         export_as: facade.export_as.clone(),
-        providers: facade.providers.clone().map(|p| new_wrapped_node_expr(serde_json::Value::Array(p))),
+        providers: facade
+            .providers
+            .clone()
+            .map(|p| new_wrapped_node_expr(serde_json::Value::Array(p))),
         is_standalone: facade.is_standalone,
         is_signal: facade.is_signal,
         host_directives: None,
     }
 }
 
-fn extract_declare_directive_metadata_from_component(declaration: &R3DeclareComponentFacade) -> R3DirectiveMetadata {
-     let host_bindings = convert_host_declaration_to_metadata(declaration.host.clone());
+fn extract_declare_directive_metadata_from_component(
+    declaration: &R3DeclareComponentFacade,
+) -> R3DirectiveMetadata {
+    let host_bindings = convert_host_declaration_to_metadata(declaration.host.clone());
 
     R3DirectiveMetadata {
         name: declaration.type_ref.clone(),
@@ -684,15 +747,30 @@ fn extract_declare_directive_metadata_from_component(declaration: &R3DeclareComp
         type_source_span: create_dummy_source_span(),
         deps: None,
         selector: declaration.selector.clone(),
-        queries: declaration.queries.clone().unwrap_or_default().into_iter().map(convert_query_declaration_to_metadata).collect(),
-        view_queries: declaration.view_queries.clone().unwrap_or_default().into_iter().map(convert_query_declaration_to_metadata).collect(),
+        queries: declaration
+            .queries
+            .clone()
+            .unwrap_or_default()
+            .into_iter()
+            .map(convert_query_declaration_to_metadata)
+            .collect(),
+        view_queries: declaration
+            .view_queries
+            .clone()
+            .unwrap_or_default()
+            .into_iter()
+            .map(convert_query_declaration_to_metadata)
+            .collect(),
         host: host_bindings,
         lifecycle: R3LifecycleMetadata::default(),
         inputs: convert_inputs_declaration(declaration.inputs.clone()),
         outputs: convert_outputs_declaration(declaration.outputs.clone()),
         uses_inheritance: declaration.uses_inheritance.unwrap_or(false),
         export_as: declaration.export_as.clone(),
-        providers: declaration.providers.clone().map(|p| new_wrapped_node_expr(serde_json::Value::Array(p))),
+        providers: declaration
+            .providers
+            .clone()
+            .map(|p| new_wrapped_node_expr(serde_json::Value::Array(p))),
         is_standalone: declaration.is_standalone.unwrap_or(false),
         is_signal: declaration.is_signal.unwrap_or(false),
         host_directives: None,
@@ -705,7 +783,7 @@ fn convert_component_facade_to_metadata(
 ) -> R3ComponentMetadata {
     // Manually extract directive metadata
     let directive = extract_directive_metadata_from_component(&facade);
-    
+
     let template = parse_template(
         &facade.template,
         &source_map_url,
@@ -731,13 +809,17 @@ fn convert_component_facade_to_metadata(
         styles: facade.styles,
         external_styles: None,
         encapsulation: ViewEncapsulation::None,
-        animations: facade.animations.map(|a| new_wrapped_node_expr(serde_json::Value::Array(a))),
-        view_providers: facade.view_providers.map(|vp| new_wrapped_node_expr(serde_json::Value::Array(vp))),
+        animations: facade
+            .animations
+            .map(|a| new_wrapped_node_expr(serde_json::Value::Array(a))),
+        view_providers: facade
+            .view_providers
+            .map(|vp| new_wrapped_node_expr(serde_json::Value::Array(vp))),
         relative_context_file_path: source_map_url,
         i18n_use_external_ids: false,
-        change_detection: facade.change_detection.map(|_cd| {
-            ChangeDetectionOrExpression::Strategy(ChangeDetectionStrategy::Default) 
-        }),
+        change_detection: facade
+            .change_detection
+            .map(|_cd| ChangeDetectionOrExpression::Strategy(ChangeDetectionStrategy::Default)),
         relative_template_path: None,
         has_directive_dependencies: false,
         raw_imports: None,
@@ -776,19 +858,22 @@ fn convert_declare_component_facade_to_metadata(
         styles: declaration.styles.unwrap_or_default(),
         external_styles: None,
         encapsulation: ViewEncapsulation::None,
-        animations: declaration.animations.map(|a| new_wrapped_node_expr(serde_json::Value::Array(a))),
-        view_providers: declaration.view_providers.map(|vp| new_wrapped_node_expr(serde_json::Value::Array(vp))),
+        animations: declaration
+            .animations
+            .map(|a| new_wrapped_node_expr(serde_json::Value::Array(a))),
+        view_providers: declaration
+            .view_providers
+            .map(|vp| new_wrapped_node_expr(serde_json::Value::Array(vp))),
         relative_context_file_path: source_map_url,
         i18n_use_external_ids: false,
-        change_detection: declaration.change_detection.map(|_cd| {
-             ChangeDetectionOrExpression::Strategy(ChangeDetectionStrategy::Default)
-        }),
+        change_detection: declaration
+            .change_detection
+            .map(|_cd| ChangeDetectionOrExpression::Strategy(ChangeDetectionStrategy::Default)),
         relative_template_path: None,
         has_directive_dependencies: false,
         raw_imports: None,
     }
 }
-
 
 fn new_wrapped_node_expr(value: serde_json::Value) -> Expression {
     Expression::WrappedNode(WrappedNodeExpr {
@@ -832,10 +917,10 @@ fn create_dummy_source_span() -> ParseSourceSpan {
 
 // Helper for Injectable conversion
 fn create_injectable_reference(type_ref: String) -> crate::injectable_compiler_2::R3Reference {
-     crate::injectable_compiler_2::R3Reference {
-         value: create_injectable_expr_json(type_ref.clone()),
-         type_ref: create_injectable_expr_json(type_ref),
-     }
+    crate::injectable_compiler_2::R3Reference {
+        value: create_injectable_expr_json(type_ref.clone()),
+        type_ref: create_injectable_expr_json(type_ref),
+    }
 }
 
 fn create_injectable_expr_json(val: String) -> crate::injectable_compiler_2::Expression {
@@ -845,16 +930,13 @@ fn create_injectable_expr_json(val: String) -> crate::injectable_compiler_2::Exp
 }
 
 #[allow(dead_code)]
-fn create_injectable_expr_from_value(val: serde_json::Value) -> crate::injectable_compiler_2::Expression {
-    crate::injectable_compiler_2::Expression {
-        value: val,
-    }
+fn create_injectable_expr_from_value(
+    val: serde_json::Value,
+) -> crate::injectable_compiler_2::Expression {
+    crate::injectable_compiler_2::Expression { value: val }
 }
 
-
-fn convert_host_declaration_to_metadata(
-    host: Option<HashMap<String, String>>,
-) -> R3HostMetadata {
+fn convert_host_declaration_to_metadata(host: Option<HashMap<String, String>>) -> R3HostMetadata {
     let host = host.unwrap_or_default();
 
     // Re-implement or call parse_host_bindings if available for declaration?
@@ -869,13 +951,13 @@ fn convert_host_declaration_to_metadata(
     }
 }
 
-fn convert_query_declaration_to_metadata(
-    declaration: R3QueryMetadataFacade,
-) -> R3QueryMetadata {
+fn convert_query_declaration_to_metadata(declaration: R3QueryMetadataFacade) -> R3QueryMetadata {
     R3QueryMetadata {
         property_name: declaration.property_name,
         first: declaration.first,
-        predicate: crate::render3::view::api::R3QueryPredicate::Expression(convert_query_predicate(declaration.predicate)),
+        predicate: crate::render3::view::api::R3QueryPredicate::Expression(
+            convert_query_predicate(declaration.predicate),
+        ),
         descendants: declaration.descendants,
         read: declaration.read.map(|r| new_wrapped_node_expr(r)),
         static_: declaration.is_static,
@@ -890,22 +972,43 @@ fn inputs_partial_metadata_to_input_metadata(
     let mut result = IndexMap::new();
     for (minified_class_name, value) in inputs {
         if let Some(s) = value.as_str() {
-             result.insert(minified_class_name.clone(), parse_legacy_input_partial_output(s));
+            result.insert(
+                minified_class_name.clone(),
+                parse_legacy_input_partial_output(s),
+            );
         } else if let Some(arr) = value.as_array() {
-              result.insert(minified_class_name.clone(), parse_legacy_input_partial_output_array(arr));
+            result.insert(
+                minified_class_name.clone(),
+                parse_legacy_input_partial_output_array(arr),
+            );
         } else if let Some(obj) = value.as_object() {
-             let public_name = obj.get("publicName").and_then(|v| v.as_str()).unwrap_or(&minified_class_name).to_string();
-             let is_required = obj.get("isRequired").and_then(|v| v.as_bool()).unwrap_or(false);
-             let is_signal = obj.get("isSignal").and_then(|v| v.as_bool()).unwrap_or(false);
-             let transform_function = obj.get("transformFunction").map(|v| new_wrapped_node_expr(v.clone()));
+            let public_name = obj
+                .get("publicName")
+                .and_then(|v| v.as_str())
+                .unwrap_or(&minified_class_name)
+                .to_string();
+            let is_required = obj
+                .get("isRequired")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let is_signal = obj
+                .get("isSignal")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let transform_function = obj
+                .get("transformFunction")
+                .map(|v| new_wrapped_node_expr(v.clone()));
 
-             result.insert(minified_class_name.clone(), R3InputMetadata {
-                 binding_property_name: public_name,
-                 class_property_name: minified_class_name,
-                 required: is_required,
-                 is_signal,
-                 transform_function,
-             });
+            result.insert(
+                minified_class_name.clone(),
+                R3InputMetadata {
+                    binding_property_name: public_name,
+                    class_property_name: minified_class_name,
+                    required: is_required,
+                    is_signal,
+                    transform_function,
+                },
+            );
         }
     }
     result
@@ -922,65 +1025,81 @@ fn parse_legacy_input_partial_output(value: &str) -> R3InputMetadata {
 }
 
 fn parse_legacy_input_partial_output_array(value: &[serde_json::Value]) -> R3InputMetadata {
-     let binding_property_name = value.get(0).and_then(|v| v.as_str()).unwrap_or("").to_string();
-     let class_property_name = value.get(1).and_then(|v| v.as_str()).unwrap_or("").to_string();
-     let transform_function = value.get(2).map(|v| new_wrapped_node_expr(v.clone()));
+    let binding_property_name = value
+        .get(0)
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let class_property_name = value
+        .get(1)
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let transform_function = value.get(2).map(|v| new_wrapped_node_expr(v.clone()));
 
-     R3InputMetadata {
+    R3InputMetadata {
         binding_property_name,
         class_property_name,
         transform_function,
         required: false,
         is_signal: false,
-     }
+    }
 }
 
-fn compute_provided_in(provided_in: Option<crate::compiler_facade_interface::ProvidedIn>) -> crate::injectable_compiler_2::MaybeForwardRefExpression {
+fn compute_provided_in(
+    provided_in: Option<crate::compiler_facade_interface::ProvidedIn>,
+) -> crate::injectable_compiler_2::MaybeForwardRefExpression {
     let value = match provided_in {
         Some(crate::compiler_facade_interface::ProvidedIn::Type(type_ref)) => {
-             serde_json::Value::String(type_ref)
-        },
+            serde_json::Value::String(type_ref)
+        }
         Some(crate::compiler_facade_interface::ProvidedIn::Scope(scope)) => {
-             serde_json::Value::String(scope)
-        },
+            serde_json::Value::String(scope)
+        }
         None => serde_json::Value::Null,
     };
-    
+
     crate::injectable_compiler_2::MaybeForwardRefExpression {
         expression: crate::injectable_compiler_2::Expression { value },
-        forward_ref: false, 
+        forward_ref: false,
     }
 }
 
 fn convert_to_maybe_forward_ref_expression(
-    val: Option<serde_json::Value>
+    val: Option<serde_json::Value>,
 ) -> Option<crate::injectable_compiler_2::MaybeForwardRefExpression> {
-    val.map(|v| crate::injectable_compiler_2::MaybeForwardRefExpression {
-        expression: crate::injectable_compiler_2::Expression { value: v },
-        forward_ref: false
-    })
+    val.map(
+        |v| crate::injectable_compiler_2::MaybeForwardRefExpression {
+            expression: crate::injectable_compiler_2::Expression { value: v },
+            forward_ref: false,
+        },
+    )
 }
 
 fn convert_to_provider_expression(
-    val: Option<serde_json::Value>
+    val: Option<serde_json::Value>,
 ) -> Option<crate::injectable_compiler_2::Expression> {
     val.map(|v| crate::injectable_compiler_2::Expression { value: v })
 }
 
 fn convert_r3_dependency_metadata_array(
-    deps: Option<Vec<R3DependencyMetadataFacade>>
+    deps: Option<Vec<R3DependencyMetadataFacade>>,
 ) -> Option<Vec<crate::injectable_compiler_2::R3DependencyMetadata>> {
     deps.map(|d| d.into_iter().map(convert_r3_dependency_metadata).collect())
 }
 
 fn convert_declare_dependency_metadata_array(
-    deps: Option<Vec<R3DeclareDependencyMetadataFacade>>
+    deps: Option<Vec<R3DeclareDependencyMetadataFacade>>,
 ) -> Option<Vec<crate::injectable_compiler_2::R3DependencyMetadata>> {
-    deps.map(|d| d.into_iter().map(convert_r3_declare_dependency_metadata).collect())
+    deps.map(|d| {
+        d.into_iter()
+            .map(convert_r3_declare_dependency_metadata)
+            .collect()
+    })
 }
 
 fn convert_r3_dependency_metadata(
-    dep: R3DependencyMetadataFacade
+    dep: R3DependencyMetadataFacade,
 ) -> crate::injectable_compiler_2::R3DependencyMetadata {
     crate::injectable_compiler_2::R3DependencyMetadata {
         token: crate::injectable_compiler_2::Expression { value: dep.token },
@@ -993,11 +1112,13 @@ fn convert_r3_dependency_metadata(
 }
 
 fn convert_r3_declare_dependency_metadata(
-     dep: R3DeclareDependencyMetadataFacade
+    dep: R3DeclareDependencyMetadataFacade,
 ) -> crate::injectable_compiler_2::R3DependencyMetadata {
     crate::injectable_compiler_2::R3DependencyMetadata {
         token: crate::injectable_compiler_2::Expression { value: dep.token },
-        attribute: dep.attribute.and_then(|t| if t { Some("unknown".to_string()) } else { None }), // TODO: Attribute logic in TS handles unknown?
+        attribute: dep
+            .attribute
+            .and_then(|t| if t { Some("unknown".to_string()) } else { None }), // TODO: Attribute logic in TS handles unknown?
         host: dep.host.unwrap_or(false),
         optional: dep.optional.unwrap_or(false),
         self_dep: dep.self_dep.unwrap_or(false),
@@ -1008,12 +1129,14 @@ fn convert_r3_declare_dependency_metadata(
 // Helpers
 
 fn convert_injectable_expression_to_expression(
-    expr: crate::injectable_compiler_2::Expression
+    expr: crate::injectable_compiler_2::Expression,
 ) -> Expression {
     new_wrapped_node_expr(expr.value)
 }
 
-fn convert_special_attributes(attrs: crate::render3::view::compiler::HostSpecialAttributes) -> crate::render3::view::api::R3HostSpecialAttributes {
+fn convert_special_attributes(
+    attrs: crate::render3::view::compiler::HostSpecialAttributes,
+) -> crate::render3::view::api::R3HostSpecialAttributes {
     crate::render3::view::api::R3HostSpecialAttributes {
         class_attr: attrs.class_attr,
         style_attr: attrs.style_attr,
@@ -1024,7 +1147,9 @@ fn convert_to_r3_query_metadata(facade: R3QueryMetadataFacade) -> R3QueryMetadat
     R3QueryMetadata {
         property_name: facade.property_name,
         first: facade.first,
-        predicate: crate::render3::view::api::R3QueryPredicate::Expression(convert_query_predicate(facade.predicate)),
+        predicate: crate::render3::view::api::R3QueryPredicate::Expression(
+            convert_query_predicate(facade.predicate),
+        ),
         descendants: facade.descendants,
         read: facade.read.map(|r| new_wrapped_node_expr(r)),
         static_: facade.is_static,
@@ -1033,47 +1158,69 @@ fn convert_to_r3_query_metadata(facade: R3QueryMetadataFacade) -> R3QueryMetadat
     }
 }
 
-fn convert_query_predicate(predicate: serde_json::Value) -> crate::render3::util::MaybeForwardRefExpression {
-     if let serde_json::Value::Array(_) = predicate {
-         create_may_be_forward_ref_expression(new_wrapped_node_expr(predicate), crate::render3::util::ForwardRefHandling::None)
-     } else {
-         create_may_be_forward_ref_expression(new_wrapped_node_expr(predicate), crate::render3::util::ForwardRefHandling::Wrapped)
-     }
+fn convert_query_predicate(
+    predicate: serde_json::Value,
+) -> crate::render3::util::MaybeForwardRefExpression {
+    if let serde_json::Value::Array(_) = predicate {
+        create_may_be_forward_ref_expression(
+            new_wrapped_node_expr(predicate),
+            crate::render3::util::ForwardRefHandling::None,
+        )
+    } else {
+        create_may_be_forward_ref_expression(
+            new_wrapped_node_expr(predicate),
+            crate::render3::util::ForwardRefHandling::Wrapped,
+        )
+    }
 }
 
-fn convert_input_metadata_array(inputs: &[crate::compiler_facade_interface::InputMetadata]) -> IndexMap<String, R3InputMetadata> {
+fn convert_input_metadata_array(
+    inputs: &[crate::compiler_facade_interface::InputMetadata],
+) -> IndexMap<String, R3InputMetadata> {
     let mut result = IndexMap::new();
     for input in inputs {
         match input {
             crate::compiler_facade_interface::InputMetadata::Simple(name) => {
-                 let (binding, class_prop) = parse_mapping_string(name);
-                 result.insert(class_prop.clone(), R3InputMetadata {
-                     binding_property_name: binding,
-                     class_property_name: class_prop,
-                     required: false,
-                     is_signal: false,
-                     transform_function: None,
-                 });
-            },
-            crate::compiler_facade_interface::InputMetadata::Detailed { name, alias, required } => {
-                 result.insert(name.clone(), R3InputMetadata {
-                     binding_property_name: alias.clone().unwrap_or(name.clone()),
-                     class_property_name: name.clone(),
-                     required: required.unwrap_or(false),
-                     is_signal: false,
-                     transform_function: None,
-                 });
+                let (binding, class_prop) = parse_mapping_string(name);
+                result.insert(
+                    class_prop.clone(),
+                    R3InputMetadata {
+                        binding_property_name: binding,
+                        class_property_name: class_prop,
+                        required: false,
+                        is_signal: false,
+                        transform_function: None,
+                    },
+                );
+            }
+            crate::compiler_facade_interface::InputMetadata::Detailed {
+                name,
+                alias,
+                required,
+            } => {
+                result.insert(
+                    name.clone(),
+                    R3InputMetadata {
+                        binding_property_name: alias.clone().unwrap_or(name.clone()),
+                        class_property_name: name.clone(),
+                        required: required.unwrap_or(false),
+                        is_signal: false,
+                        transform_function: None,
+                    },
+                );
             }
         }
     }
     result
 }
 
-fn convert_inputs_declaration(inputs: Option<serde_json::Value>) -> IndexMap<String, R3InputMetadata> {
+fn convert_inputs_declaration(
+    inputs: Option<serde_json::Value>,
+) -> IndexMap<String, R3InputMetadata> {
     if let Some(serde_json::Value::Object(map)) = inputs {
         let mut index_map = IndexMap::new();
         for (k, v) in map {
-             index_map.insert(k, v);
+            index_map.insert(k, v);
         }
         inputs_partial_metadata_to_input_metadata(index_map)
     } else {
@@ -1084,12 +1231,12 @@ fn convert_inputs_declaration(inputs: Option<serde_json::Value>) -> IndexMap<Str
 fn convert_outputs_declaration(outputs: Option<serde_json::Value>) -> IndexMap<String, String> {
     if let Some(serde_json::Value::Object(map)) = outputs {
         let mut result = IndexMap::new();
-         for (k, v) in map {
-             if let Some(s) = v.as_str() {
-                 result.insert(k, s.to_string());
-             }
-         }
-         result
+        for (k, v) in map {
+            if let Some(s) = v.as_str() {
+                result.insert(k, s.to_string());
+            }
+        }
+        result
     } else {
         IndexMap::new()
     }
@@ -1149,28 +1296,44 @@ fn extract_host_bindings(
 
     let errors = verify_host_bindings(&bindings, source_span);
     if !errors.is_empty() {
-        let msg = errors.iter().map(|e| e.msg.clone()).collect::<Vec<String>>().join("\n");
+        let msg = errors
+            .iter()
+            .map(|e| e.msg.clone())
+            .collect::<Vec<String>>()
+            .join("\n");
         return Err(msg);
     }
-    
+
     for (field, annotations) in prop_metadata {
         for ann in annotations {
-             if is_host_binding(ann) {
-                 let host_property_name = ann.get("hostPropertyName").and_then(|v| v.as_str()).unwrap_or(field);
-                 bindings.properties.insert(
-                     host_property_name.to_string(),
-                     get_safe_property_access_string("this", field),
-                 );
-             } else if is_host_listener(ann) {
-                 let event_name = ann.get("eventName").and_then(|v| v.as_str()).unwrap_or(field);
-                 let args = ann.get("args").and_then(|v| v.as_array()).map(|arr| {
-                     arr.iter().map(|v| v.as_str().unwrap_or("").to_string()).collect::<Vec<String>>()
-                 }).unwrap_or_default();
-                 bindings.listeners.insert(
-                     event_name.to_string(),
-                     format!("{}({})", field, args.join(",")),
-                 );
-             }
+            if is_host_binding(ann) {
+                let host_property_name = ann
+                    .get("hostPropertyName")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(field);
+                bindings.properties.insert(
+                    host_property_name.to_string(),
+                    get_safe_property_access_string("this", field),
+                );
+            } else if is_host_listener(ann) {
+                let event_name = ann
+                    .get("eventName")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(field);
+                let args = ann
+                    .get("args")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .map(|v| v.as_str().unwrap_or("").to_string())
+                            .collect::<Vec<String>>()
+                    })
+                    .unwrap_or_default();
+                bindings.listeners.insert(
+                    event_name.to_string(),
+                    format!("{}({})", field, args.join(",")),
+                );
+            }
         }
     }
 

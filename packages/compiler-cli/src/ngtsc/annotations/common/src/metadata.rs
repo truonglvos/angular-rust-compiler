@@ -53,17 +53,17 @@ impl R3ClassMetadata {
             prop_decorators: Vec::new(),
         }
     }
-    
+
     pub fn with_decorators(mut self, decorators: Vec<DecoratorMetadata>) -> Self {
         self.decorators = decorators;
         self
     }
-    
+
     pub fn with_ctor_parameters(mut self, params: Vec<CtorParameterMetadata>) -> Self {
         self.ctor_parameters = Some(params);
         self
     }
-    
+
     pub fn with_prop_decorators(mut self, props: Vec<PropDecoratorMetadata>) -> Self {
         self.prop_decorators = props;
         self
@@ -85,29 +85,33 @@ pub fn extract_class_metadata(
         .filter(|d| super::util::is_angular_decorator(d, &d.name, is_core))
         .map(|d| decorator_to_metadata(d))
         .collect();
-    
+
     if angular_decorators.is_empty() {
         return None;
     }
-    
+
     // Convert constructor parameters
     let ctor_meta = ctor_params.map(|params| {
-        params.iter().map(|p| ctor_parameter_to_metadata(p, is_core)).collect()
+        params
+            .iter()
+            .map(|p| ctor_parameter_to_metadata(p, is_core))
+            .collect()
     });
-    
+
     // Convert property decorators
     let prop_meta: Vec<PropDecoratorMetadata> = prop_decorators
         .iter()
         .map(|(name, decs)| PropDecoratorMetadata {
             name: name.clone(),
-            decorators: decs.iter()
+            decorators: decs
+                .iter()
                 .filter(|d| super::util::is_angular_decorator(d, &d.name, is_core))
                 .map(decorator_to_metadata)
                 .collect(),
         })
         .filter(|p| !p.decorators.is_empty())
         .collect();
-    
+
     Some(R3ClassMetadata {
         type_: class_name.to_string(),
         decorators: angular_decorators,
@@ -129,15 +133,20 @@ pub fn ctor_parameter_to_metadata(
     param: &super::di::CtorParameter,
     is_core: bool,
 ) -> CtorParameterMetadata {
-    let decorators: Vec<DecoratorMetadata> = param.decorators
+    let decorators: Vec<DecoratorMetadata> = param
+        .decorators
         .iter()
         .filter(|d| is_core || d.is_angular_core())
         .map(|d| DecoratorMetadata {
             type_: d.name.clone(),
-            args: if d.args.is_empty() { None } else { Some(d.args.clone()) },
+            args: if d.args.is_empty() {
+                None
+            } else {
+                Some(d.args.clone())
+            },
         })
         .collect();
-    
+
     CtorParameterMetadata {
         type_: param.type_token.clone(),
         decorators,
@@ -155,7 +164,7 @@ pub fn decorated_class_member_to_metadata(
         .filter(|d| super::util::is_angular_decorator(d, &d.name, is_core))
         .map(decorator_to_metadata)
         .collect();
-    
+
     if angular_decorators.is_empty() {
         None
     } else {

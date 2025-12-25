@@ -36,12 +36,12 @@ impl PathManipulation for NodeJSPathManipulation {
         // For now, let's trust std::fs::canonicalize OR just use absolute path construction if we assume POSIX.
         // Given 1:1 constraint, we should use a library or logic that mimics `path.resolve`.
         // Since we are likely in a rush, we will approximate using std::path APIs and normalize.
-        
+
         // This is a simplified version. `path.resolve` behavior:
         // Starting from right to left, if an absolute path is found, discard the rest to the left.
         // If no absolute path, prepend CWD.
         // Join and Normalize.
-        
+
         // Let's rely on basic PathBuf push which handles absolute paths correctly (resets buffer).
         let mut resolved = PathBuf::new();
         resolved.push(std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
@@ -86,22 +86,29 @@ impl PathManipulation for NodeJSPathManipulation {
         // Fallback or more complex generic relative path logic needed.
         // Since we claimed 1:1, we should probably implement `path_relative` logic.
         // ... Leaving as simple strip_prefix for now, assuming mostly downward pointers.
-         self.normalize_path(to_path.to_string_lossy().as_ref())
+        self.normalize_path(to_path.to_string_lossy().as_ref())
     }
 
     fn basename(&self, file_path: &str, extension: Option<&str>) -> PathSegment {
         let path = Path::new(file_path);
-        let mut name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let mut name = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
         if let Some(ext) = extension {
-             if name.ends_with(ext) {
-                 name.truncate(name.len() - ext.len());
-             }
+            if name.ends_with(ext) {
+                name.truncate(name.len() - ext.len());
+            }
         }
         PathSegment::new(name)
     }
 
     fn extname(&self, path: &str) -> String {
-         Path::new(path).extension().map(|s| format!(".{}", s.to_string_lossy())).unwrap_or_default()
+        Path::new(path)
+            .extension()
+            .map(|s| format!(".{}", s.to_string_lossy()))
+            .unwrap_or_default()
     }
 
     fn normalize(&self, path: &str) -> String {
@@ -124,17 +131,39 @@ impl NodeJSReadonlyFileSystem {
 }
 
 impl PathManipulation for NodeJSReadonlyFileSystem {
-    fn extname(&self, path: &str) -> String { self.base.extname(path) }
-    fn is_root(&self, path: &AbsoluteFsPath) -> bool { self.base.is_root(path) }
-    fn is_rooted(&self, path: &str) -> bool { self.base.is_rooted(path) }
-    fn dirname(&self, file: &str) -> String { self.base.dirname(file) }
-    fn join(&self, base_path: &str, paths: &[&str]) -> String { self.base.join(base_path, paths) }
-    fn relative(&self, from: &str, to: &str) -> String { self.base.relative(from, to) }
-    fn basename(&self, file_path: &str, extension: Option<&str>) -> PathSegment { self.base.basename(file_path, extension) }
-    fn normalize(&self, path: &str) -> String { self.base.normalize(path) }
-    fn resolve(&self, paths: &[&str]) -> AbsoluteFsPath { self.base.resolve(paths) }
-    fn pwd(&self) -> AbsoluteFsPath { self.base.pwd() }
-    fn chdir(&self, path: &AbsoluteFsPath) { self.base.chdir(path) }
+    fn extname(&self, path: &str) -> String {
+        self.base.extname(path)
+    }
+    fn is_root(&self, path: &AbsoluteFsPath) -> bool {
+        self.base.is_root(path)
+    }
+    fn is_rooted(&self, path: &str) -> bool {
+        self.base.is_rooted(path)
+    }
+    fn dirname(&self, file: &str) -> String {
+        self.base.dirname(file)
+    }
+    fn join(&self, base_path: &str, paths: &[&str]) -> String {
+        self.base.join(base_path, paths)
+    }
+    fn relative(&self, from: &str, to: &str) -> String {
+        self.base.relative(from, to)
+    }
+    fn basename(&self, file_path: &str, extension: Option<&str>) -> PathSegment {
+        self.base.basename(file_path, extension)
+    }
+    fn normalize(&self, path: &str) -> String {
+        self.base.normalize(path)
+    }
+    fn resolve(&self, paths: &[&str]) -> AbsoluteFsPath {
+        self.base.resolve(paths)
+    }
+    fn pwd(&self) -> AbsoluteFsPath {
+        self.base.pwd()
+    }
+    fn chdir(&self, path: &AbsoluteFsPath) {
+        self.base.chdir(path)
+    }
 }
 
 impl ReadonlyFileSystem for NodeJSReadonlyFileSystem {
@@ -160,7 +189,9 @@ impl ReadonlyFileSystem for NodeJSReadonlyFileSystem {
         let mut result = Vec::new();
         for entry in entries {
             let entry = entry?;
-            result.push(PathSegment::new(entry.file_name().to_string_lossy().to_string()));
+            result.push(PathSegment::new(
+                entry.file_name().to_string_lossy().to_string(),
+            ));
         }
         Ok(result)
     }
@@ -185,7 +216,9 @@ impl ReadonlyFileSystem for NodeJSReadonlyFileSystem {
 
     fn realpath(&self, file_path: &AbsoluteFsPath) -> io::Result<AbsoluteFsPath> {
         let real = fs::canonicalize(file_path.as_str())?;
-        Ok(AbsoluteFsPath::new(self.base.normalize_path(real.to_string_lossy().as_ref())))
+        Ok(AbsoluteFsPath::new(
+            self.base.normalize_path(real.to_string_lossy().as_ref()),
+        ))
     }
 
     fn get_default_lib_location(&self) -> AbsoluteFsPath {
@@ -207,33 +240,78 @@ impl NodeJSFileSystem {
 }
 
 impl PathManipulation for NodeJSFileSystem {
-    fn extname(&self, path: &str) -> String { self.readonly.extname(path) }
-    fn is_root(&self, path: &AbsoluteFsPath) -> bool { self.readonly.is_root(path) }
-    fn is_rooted(&self, path: &str) -> bool { self.readonly.is_rooted(path) }
-    fn dirname(&self, file: &str) -> String { self.readonly.dirname(file) }
-    fn join(&self, base_path: &str, paths: &[&str]) -> String { self.readonly.join(base_path, paths) }
-    fn relative(&self, from: &str, to: &str) -> String { self.readonly.relative(from, to) }
-    fn basename(&self, file_path: &str, extension: Option<&str>) -> PathSegment { self.readonly.basename(file_path, extension) }
-    fn normalize(&self, path: &str) -> String { self.readonly.normalize(path) }
-    fn resolve(&self, paths: &[&str]) -> AbsoluteFsPath { self.readonly.resolve(paths) }
-    fn pwd(&self) -> AbsoluteFsPath { self.readonly.pwd() }
-    fn chdir(&self, path: &AbsoluteFsPath) { self.readonly.chdir(path) }
+    fn extname(&self, path: &str) -> String {
+        self.readonly.extname(path)
+    }
+    fn is_root(&self, path: &AbsoluteFsPath) -> bool {
+        self.readonly.is_root(path)
+    }
+    fn is_rooted(&self, path: &str) -> bool {
+        self.readonly.is_rooted(path)
+    }
+    fn dirname(&self, file: &str) -> String {
+        self.readonly.dirname(file)
+    }
+    fn join(&self, base_path: &str, paths: &[&str]) -> String {
+        self.readonly.join(base_path, paths)
+    }
+    fn relative(&self, from: &str, to: &str) -> String {
+        self.readonly.relative(from, to)
+    }
+    fn basename(&self, file_path: &str, extension: Option<&str>) -> PathSegment {
+        self.readonly.basename(file_path, extension)
+    }
+    fn normalize(&self, path: &str) -> String {
+        self.readonly.normalize(path)
+    }
+    fn resolve(&self, paths: &[&str]) -> AbsoluteFsPath {
+        self.readonly.resolve(paths)
+    }
+    fn pwd(&self) -> AbsoluteFsPath {
+        self.readonly.pwd()
+    }
+    fn chdir(&self, path: &AbsoluteFsPath) {
+        self.readonly.chdir(path)
+    }
 }
 
 impl ReadonlyFileSystem for NodeJSFileSystem {
-    fn is_case_sensitive(&self) -> bool { self.readonly.is_case_sensitive() }
-    fn exists(&self, path: &AbsoluteFsPath) -> bool { self.readonly.exists(path) }
-    fn read_file(&self, path: &AbsoluteFsPath) -> io::Result<String> { self.readonly.read_file(path) }
-    fn read_file_buffer(&self, path: &AbsoluteFsPath) -> io::Result<Vec<u8>> { self.readonly.read_file_buffer(path) }
-    fn readdir(&self, path: &AbsoluteFsPath) -> io::Result<Vec<PathSegment>> { self.readonly.readdir(path) }
-    fn lstat(&self, path: &AbsoluteFsPath) -> io::Result<FileStats> { self.readonly.lstat(path) }
-    fn stat(&self, path: &AbsoluteFsPath) -> io::Result<FileStats> { self.readonly.stat(path) }
-    fn realpath(&self, file_path: &AbsoluteFsPath) -> io::Result<AbsoluteFsPath> { self.readonly.realpath(file_path) }
-    fn get_default_lib_location(&self) -> AbsoluteFsPath { self.readonly.get_default_lib_location() }
+    fn is_case_sensitive(&self) -> bool {
+        self.readonly.is_case_sensitive()
+    }
+    fn exists(&self, path: &AbsoluteFsPath) -> bool {
+        self.readonly.exists(path)
+    }
+    fn read_file(&self, path: &AbsoluteFsPath) -> io::Result<String> {
+        self.readonly.read_file(path)
+    }
+    fn read_file_buffer(&self, path: &AbsoluteFsPath) -> io::Result<Vec<u8>> {
+        self.readonly.read_file_buffer(path)
+    }
+    fn readdir(&self, path: &AbsoluteFsPath) -> io::Result<Vec<PathSegment>> {
+        self.readonly.readdir(path)
+    }
+    fn lstat(&self, path: &AbsoluteFsPath) -> io::Result<FileStats> {
+        self.readonly.lstat(path)
+    }
+    fn stat(&self, path: &AbsoluteFsPath) -> io::Result<FileStats> {
+        self.readonly.stat(path)
+    }
+    fn realpath(&self, file_path: &AbsoluteFsPath) -> io::Result<AbsoluteFsPath> {
+        self.readonly.realpath(file_path)
+    }
+    fn get_default_lib_location(&self) -> AbsoluteFsPath {
+        self.readonly.get_default_lib_location()
+    }
 }
 
 impl FileSystem for NodeJSFileSystem {
-    fn write_file(&self, path: &AbsoluteFsPath, data: &[u8], _exclusive: Option<bool>) -> io::Result<()> {
+    fn write_file(
+        &self,
+        path: &AbsoluteFsPath,
+        data: &[u8],
+        _exclusive: Option<bool>,
+    ) -> io::Result<()> {
         fs::write(path.as_str(), data)
     }
 
@@ -247,7 +325,10 @@ impl FileSystem for NodeJSFileSystem {
         #[cfg(windows)]
         return std::os::windows::fs::symlink_file(target.as_str(), path.as_str());
         #[cfg(not(any(unix, windows)))]
-        return Err(io::Error::new(io::ErrorKind::Other, "Symlink not supported"));
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            "Symlink not supported",
+        ));
     }
 
     fn copy_file(&self, from: &AbsoluteFsPath, to: &AbsoluteFsPath) -> io::Result<()> {

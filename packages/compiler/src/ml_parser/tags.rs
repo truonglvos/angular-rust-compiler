@@ -18,26 +18,29 @@ pub trait TagDefinition {
     fn ignore_first_lf(&self) -> bool;
     fn can_self_close(&self) -> bool;
     fn prevent_namespace_inheritance(&self) -> bool;
-    
+
     fn is_closed_by_child(&self, name: &str) -> bool;
     fn get_content_type(&self, prefix: Option<&str>) -> TagContentType;
 }
 
 /// Split namespace and name from element name
-/// 
+///
 /// Format: `:namespace:name`
 /// Returns: (namespace, name) or (None, name)
 pub fn split_ns_name(element_name: &str, fatal: bool) -> Result<(Option<String>, String), String> {
     if !element_name.starts_with(':') {
         return Ok((None, element_name.to_string()));
     }
-    
+
     let colon_index = element_name[1..].find(':');
-    
+
     match colon_index {
         None => {
             if fatal {
-                Err(format!("Unsupported format \"{}\" expecting \":namespace:name\"", element_name))
+                Err(format!(
+                    "Unsupported format \"{}\" expecting \":namespace:name\"",
+                    element_name
+                ))
             } else {
                 Ok((None, element_name.to_string()))
             }
@@ -150,4 +153,3 @@ mod tests {
         assert_eq!(merge_ns_and_name(Some(""), "div"), "div");
     }
 }
-

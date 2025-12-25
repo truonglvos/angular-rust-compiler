@@ -17,12 +17,12 @@ impl FlatModuleEntryPointGenerator {
             module_name: module_name.into(),
         }
     }
-    
+
     /// Generate flat module file content.
     pub fn generate(&self, exports: &[FlatModuleExport]) -> String {
         let mut output = String::new();
         output.push_str("/**\n * Generated flat module entry point\n */\n");
-        
+
         for export in exports {
             output.push_str(&format!(
                 "export {{ {} }} from '{}';\\n",
@@ -30,15 +30,15 @@ impl FlatModuleEntryPointGenerator {
                 export.from
             ));
         }
-        
+
         output
     }
-    
+
     /// Get output file name.
     pub fn output_name(&self) -> &str {
         &self.output_name
     }
-    
+
     /// Get module name.
     pub fn module_name(&self) -> &str {
         &self.module_name

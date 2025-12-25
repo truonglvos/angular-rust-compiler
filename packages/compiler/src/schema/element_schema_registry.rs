@@ -21,13 +21,23 @@ pub struct NormalizationResult {
 /// Abstract base class for element schema registries
 pub trait ElementSchemaRegistry {
     /// Check if a property exists on an element
-    fn has_property(&self, tag_name: &str, prop_name: &str, schema_metas: &[SchemaMetadata]) -> bool;
+    fn has_property(
+        &self,
+        tag_name: &str,
+        prop_name: &str,
+        schema_metas: &[SchemaMetadata],
+    ) -> bool;
 
     /// Check if an element exists
     fn has_element(&self, tag_name: &str, schema_metas: &[SchemaMetadata]) -> bool;
 
     /// Get security context for a property
-    fn security_context(&self, element_name: &str, prop_name: &str, is_attribute: bool) -> SecurityContext;
+    fn security_context(
+        &self,
+        element_name: &str,
+        prop_name: &str,
+        is_attribute: bool,
+    ) -> SecurityContext;
 
     /// Get all known element names
     fn all_known_element_names(&self) -> Vec<String>;
@@ -55,4 +65,3 @@ pub trait ElementSchemaRegistry {
         val: &str,
     ) -> NormalizationResult;
 }
-

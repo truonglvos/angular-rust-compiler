@@ -4,8 +4,8 @@
 //! Contains class debug info compilation for runtime errors
 
 use crate::output::output_ast::{
-    Expression, ArrowFunctionExpr, ArrowFunctionBody, InvokeFunctionExpr,
-    LiteralExpr, LiteralValue, LiteralMapExpr, LiteralMapEntry, ExternalExpr,
+    ArrowFunctionBody, ArrowFunctionExpr, Expression, ExternalExpr, InvokeFunctionExpr,
+    LiteralExpr, LiteralMapEntry, LiteralMapExpr, LiteralValue,
 };
 
 use super::r3_identifiers::Identifiers as R3;
@@ -80,7 +80,7 @@ pub fn compile_class_debug_info(debug_info: &R3ClassDebugInfo) -> Expression {
 
     let set_class_debug_info_ref = R3::set_class_debug_info();
     let set_class_debug_info_expr = external_expr(set_class_debug_info_ref);
-    
+
     let fn_call = Expression::InvokeFn(InvokeFunctionExpr {
         fn_: Box::new(set_class_debug_info_expr),
         args: vec![

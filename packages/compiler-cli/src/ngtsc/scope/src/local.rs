@@ -2,8 +2,8 @@
 //
 // Responsible for tracking the compilation scope of NgModules.
 
-use std::collections::{HashMap, HashSet};
 use super::api::{CompilationScope, DirectiveInScope, ExportScope};
+use std::collections::{HashMap, HashSet};
 
 /// Registry for local NgModule compilation scopes.
 pub struct LocalModuleScopeRegistry {
@@ -32,7 +32,7 @@ impl LocalModuleScopeRegistry {
             exports_by_module: HashMap::new(),
         }
     }
-    
+
     /// Register a module's declarations, imports, and exports.
     pub fn register_ng_module_metadata(
         &mut self,
@@ -42,19 +42,21 @@ impl LocalModuleScopeRegistry {
         exports: Vec<String>,
     ) {
         let module = module_ref.into();
-        self.declarations_by_module.insert(module.clone(), declarations);
+        self.declarations_by_module
+            .insert(module.clone(), declarations);
         self.imports_by_module.insert(module.clone(), imports);
         self.exports_by_module.insert(module, exports);
     }
-    
+
     /// Get the compilation scope for a component in a module.
     pub fn get_scope_for_component(&mut self, component_ref: &str) -> Option<&CompilationScope> {
         // First find the module (collect to avoid borrow conflict)
-        let module = self.declarations_by_module
+        let module = self
+            .declarations_by_module
             .iter()
             .find(|(_, declarations)| declarations.contains(&component_ref.to_string()))
             .map(|(m, _)| m.clone());
-        
+
         // Then get scope
         if let Some(module_ref) = module {
             self.get_scope_of_module(&module_ref)
@@ -62,7 +64,7 @@ impl LocalModuleScopeRegistry {
             None
         }
     }
-    
+
     /// Get the compilation scope of a module.
     pub fn get_scope_of_module(&mut self, module_ref: &str) -> Option<&CompilationScope> {
         if !self.scope_cache.contains_key(module_ref) {
@@ -70,7 +72,7 @@ impl LocalModuleScopeRegistry {
         }
         self.scope_cache.get(module_ref)
     }
-    
+
     /// Get export scope of a module.
     pub fn get_export_scope_of_module(&self, module_ref: &str) -> Option<ExportScope> {
         // Return exports based on what was registered
@@ -80,17 +82,17 @@ impl LocalModuleScopeRegistry {
             None
         }
     }
-    
+
     /// Check if a module is poisoned.
     pub fn is_poisoned(&self, module_ref: &str) -> bool {
         self.poisoned_modules.contains(module_ref)
     }
-    
+
     /// Compute the scope for a module.
     fn compute_scope_for_module(&mut self, module_ref: &str) {
         let mut scope = CompilationScope::empty();
         scope.ng_module = Some(module_ref.to_string());
-        
+
         // Add declarations to scope
         if let Some(declarations) = self.declarations_by_module.get(module_ref).cloned() {
             for decl in declarations {
@@ -104,18 +106,22 @@ impl LocalModuleScopeRegistry {
                 });
             }
         }
-        
+
         // Process imports (would recursively get export scopes)
         if let Some(_imports) = self.imports_by_module.get(module_ref) {
             // Would add exported directives/pipes from imported modules
         }
-        
+
         self.scope_cache.insert(module_ref.to_string(), scope);
         self.sealed_modules.insert(module_ref.to_string());
     }
-    
+
     /// Register a declaration.
-    pub fn register_declaration(&mut self, declaration: impl Into<String>, ng_module: impl Into<String>) {
+    pub fn register_declaration(
+        &mut self,
+        declaration: impl Into<String>,
+        ng_module: impl Into<String>,
+    ) {
         let module = ng_module.into();
         let decl = declaration.into();
         self.declarations_by_module
@@ -123,7 +129,7 @@ impl LocalModuleScopeRegistry {
             .or_insert_with(Vec::new)
             .push(decl);
     }
-    
+
     /// Get all diagnostics for scope errors.
     pub fn get_diagnostics(&self) -> Vec<String> {
         self.poisoned_modules

@@ -64,11 +64,26 @@ fn should_support_newlines_in_the_same_selector_and_content() {
 
 #[test]
 fn should_handle_complicated_selectors() {
-    assert_equal_css(&shim("one::before {}", "contenta", ""), "one[contenta]::before {}");
-    assert_equal_css(&shim("one two {}", "contenta", ""), "one[contenta] two[contenta] {}");
-    assert_equal_css(&shim("one > two {}", "contenta", ""), "one[contenta] > two[contenta] {}");
-    assert_equal_css(&shim("one + two {}", "contenta", ""), "one[contenta] + two[contenta] {}");
-    assert_equal_css(&shim("one ~ two {}", "contenta", ""), "one[contenta] ~ two[contenta] {}");
+    assert_equal_css(
+        &shim("one::before {}", "contenta", ""),
+        "one[contenta]::before {}",
+    );
+    assert_equal_css(
+        &shim("one two {}", "contenta", ""),
+        "one[contenta] two[contenta] {}",
+    );
+    assert_equal_css(
+        &shim("one > two {}", "contenta", ""),
+        "one[contenta] > two[contenta] {}",
+    );
+    assert_equal_css(
+        &shim("one + two {}", "contenta", ""),
+        "one[contenta] + two[contenta] {}",
+    );
+    assert_equal_css(
+        &shim("one ~ two {}", "contenta", ""),
+        "one[contenta] ~ two[contenta] {}",
+    );
     assert_equal_css(
         &shim(".one.two > three {}", "contenta", ""),
         ".one.two[contenta] > three[contenta] {}",
@@ -105,8 +120,14 @@ fn should_handle_complicated_selectors() {
         &shim("one[attr=\"va lue\"] {}", "contenta", ""),
         "one[attr=\"va lue\"][contenta] {}",
     );
-    assert_equal_css(&shim("one[attr] {}", "contenta", ""), "one[attr][contenta] {}");
-    assert_equal_css(&shim("[is=\"one\"] {}", "contenta", ""), "[is=\"one\"][contenta] {}");
+    assert_equal_css(
+        &shim("one[attr] {}", "contenta", ""),
+        "one[attr][contenta] {}",
+    );
+    assert_equal_css(
+        &shim("[is=\"one\"] {}", "contenta", ""),
+        "[is=\"one\"][contenta] {}",
+    );
     assert_equal_css(&shim("[attr] {}", "contenta", ""), "[attr][contenta] {}");
 }
 
@@ -125,18 +146,37 @@ fn should_transform_host_with_attributes() {
         "[attr][hosta] {}",
     );
     assert_equal_css(
-        &shim(":host[attr]:where(:not(.cm-button)) {}", "contenta", "hosta"),
+        &shim(
+            ":host[attr]:where(:not(.cm-button)) {}",
+            "contenta",
+            "hosta",
+        ),
         "[attr][hosta]:where(:not(.cm-button)) {}",
     );
 }
 
 #[test]
 fn should_handle_escaped_sequences_in_selectors() {
-    assert_equal_css(&shim("one\\/two {}", "contenta", ""), "one\\/two[contenta] {}");
-    assert_equal_css(&shim("one\\:two {}", "contenta", ""), "one\\:two[contenta] {}");
-    assert_equal_css(&shim("one\\\\:two {}", "contenta", ""), "one\\\\[contenta]:two {}");
-    assert_equal_css(&shim(".one\\:two {}", "contenta", ""), ".one\\:two[contenta] {}");
-    assert_equal_css(&shim(".one\\:\\fc ber {}", "contenta", ""), ".one\\:\\fc ber[contenta] {}");
+    assert_equal_css(
+        &shim("one\\/two {}", "contenta", ""),
+        "one\\/two[contenta] {}",
+    );
+    assert_equal_css(
+        &shim("one\\:two {}", "contenta", ""),
+        "one\\:two[contenta] {}",
+    );
+    assert_equal_css(
+        &shim("one\\\\:two {}", "contenta", ""),
+        "one\\\\[contenta]:two {}",
+    );
+    assert_equal_css(
+        &shim(".one\\:two {}", "contenta", ""),
+        ".one\\:two[contenta] {}",
+    );
+    assert_equal_css(
+        &shim(".one\\:\\fc ber {}", "contenta", ""),
+        ".one\\:\\fc ber[contenta] {}",
+    );
     assert_equal_css(
         &shim(".one\\:two .three\\:four {}", "contenta", ""),
         ".one\\:two[contenta] .three\\:four[contenta] {}",
@@ -145,7 +185,10 @@ fn should_handle_escaped_sequences_in_selectors() {
         &shim("div:where(.one) {}", "contenta", "hosta"),
         "div[contenta]:where(.one) {}",
     );
-    assert_equal_css(&shim("div:where() {}", "contenta", "hosta"), "div[contenta]:where() {}");
+    assert_equal_css(
+        &shim("div:where() {}", "contenta", "hosta"),
+        "div[contenta]:where() {}",
+    );
     assert_equal_css(
         &shim(":where(a):where(b) {}", "contenta", "hosta"),
         ":where(a[contenta]):where(b[contenta]) {}",
@@ -300,13 +343,21 @@ fn should_handle_pseudo_functions_correctly() {
         "[contenta]:where(.two):nth-child(3) {}",
     );
     assert_equal_css(
-        &shim("table :where(td, th):hover { color: lime; }", "contenta", "hosta"),
+        &shim(
+            "table :where(td, th):hover { color: lime; }",
+            "contenta",
+            "hosta",
+        ),
         "table[contenta] [contenta]:where(td, th):hover { color:lime;}",
     );
 
     // :nth
     assert_equal_css(
-        &shim(":nth-child(3n of :not(p, a), :is(.foo)) {}", "contenta", "hosta"),
+        &shim(
+            ":nth-child(3n of :not(p, a), :is(.foo)) {}",
+            "contenta",
+            "hosta",
+        ),
         "[contenta]:nth-child(3n of :not(p, a), :is(.foo)) {}",
     );
     assert_equal_css(
@@ -324,15 +375,27 @@ fn should_handle_pseudo_functions_correctly() {
 
     // complex selectors
     assert_equal_css(
-        &shim(":host:is([foo],[foo-2])>div.example-2 {}", "contenta", "a-host"),
+        &shim(
+            ":host:is([foo],[foo-2])>div.example-2 {}",
+            "contenta",
+            "a-host",
+        ),
         "[a-host]:is([foo],[foo-2]) > div.example-2[contenta] {}",
     );
     assert_equal_css(
-        &shim(":host:is([foo], [foo-2]) > div.example-2 {}", "contenta", "a-host"),
+        &shim(
+            ":host:is([foo], [foo-2]) > div.example-2 {}",
+            "contenta",
+            "a-host",
+        ),
         "[a-host]:is([foo], [foo-2]) > div.example-2[contenta] {}",
     );
     assert_equal_css(
-        &shim(":host:has([foo],[foo-2])>div.example-2 {}", "contenta", "a-host"),
+        &shim(
+            ":host:has([foo],[foo-2])>div.example-2 {}",
+            "contenta",
+            "a-host",
+        ),
         "[a-host]:has([foo],[foo-2]) > div.example-2[contenta] {}",
     );
 
@@ -366,11 +429,19 @@ fn should_handle_pseudo_functions_correctly() {
         "[contenta]:has(a, b:where(.foo), :is(.bar)) {}",
     );
     assert_equal_css(
-        &shim(":has(a, b:where(.foo), :is(.bar):first-child):first-letter {}", "contenta", "hosta"),
+        &shim(
+            ":has(a, b:where(.foo), :is(.bar):first-child):first-letter {}",
+            "contenta",
+            "hosta",
+        ),
         "[contenta]:has(a, b:where(.foo), :is(.bar):first-child):first-letter {}",
     );
     assert_equal_css(
-        &shim(":where(a, b:where(.foo), :has(.bar):first-child) {}", "contenta", "hosta"),
+        &shim(
+            ":where(a, b:where(.foo), :has(.bar):first-child) {}",
+            "contenta",
+            "hosta",
+        ),
         ":where(a[contenta], b[contenta]:where(.foo), [contenta]:has(.bar):first-child) {}",
     );
     assert_equal_css(
@@ -390,19 +461,35 @@ fn should_handle_host_inclusions_inside_pseudo_selectors_selectors() {
         ".header[contenta]:not(.admin) {}",
     );
     assert_equal_css(
-        &shim(".header:is(:host > .toolbar, :host ~ .panel) {}", "contenta", "hosta"),
+        &shim(
+            ".header:is(:host > .toolbar, :host ~ .panel) {}",
+            "contenta",
+            "hosta",
+        ),
         ".header[contenta]:is([hosta] > .toolbar, [hosta] ~ .panel) {}",
     );
     assert_equal_css(
-        &shim(".header:where(:host > .toolbar, :host ~ .panel) {}", "contenta", "hosta"),
+        &shim(
+            ".header:where(:host > .toolbar, :host ~ .panel) {}",
+            "contenta",
+            "hosta",
+        ),
         ".header[contenta]:where([hosta] > .toolbar, [hosta] ~ .panel) {}",
     );
     assert_equal_css(
-        &shim(".header:not(.admin, :host.super .header) {}", "contenta", "hosta"),
+        &shim(
+            ".header:not(.admin, :host.super .header) {}",
+            "contenta",
+            "hosta",
+        ),
         ".header[contenta]:not(.admin, .super[hosta] .header) {}",
     );
     assert_equal_css(
-        &shim(".header:not(.admin, :host.super .header, :host.mega .header) {}", "contenta", "hosta"),
+        &shim(
+            ".header:not(.admin, :host.super .header, :host.mega .header) {}",
+            "contenta",
+            "hosta",
+        ),
         ".header[contenta]:not(.admin, .super[hosta] .header, .mega[hosta] .header) {}",
     );
     assert_equal_css(
@@ -418,24 +505,45 @@ fn should_handle_host_inclusions_inside_pseudo_selectors_selectors() {
         ":is(.foo):is([hosta]):is(.two[contenta]) {}",
     );
     assert_equal_css(
-        &shim(":where(.one, :host .two):first-letter {}", "contenta", "hosta"),
+        &shim(
+            ":where(.one, :host .two):first-letter {}",
+            "contenta",
+            "hosta",
+        ),
         "[contenta]:where(.one, [hosta] .two):first-letter {}",
     );
     assert_equal_css(
-        &shim(":first-child:where(.one, :host .two) {}", "contenta", "hosta"),
+        &shim(
+            ":first-child:where(.one, :host .two) {}",
+            "contenta",
+            "hosta",
+        ),
         "[contenta]:first-child:where(.one, [hosta] .two) {}",
     );
     assert_equal_css(
-        &shim(":where(.one, :host .two):nth-child(3):is(.foo, a:where(.bar)) {}", "contenta", "hosta"),
+        &shim(
+            ":where(.one, :host .two):nth-child(3):is(.foo, a:where(.bar)) {}",
+            "contenta",
+            "hosta",
+        ),
         "[contenta]:where(.one, [hosta] .two):nth-child(3):is(.foo, a:where(.bar)) {}",
     );
 }
 
 #[test]
 fn should_handle_escaped_selector_with_space_if_followed_by_a_hex_char() {
-    assert_equal_css(&shim(".\\fc ber {}", "contenta", ""), ".\\fc ber[contenta] {}");
-    assert_equal_css(&shim(".\\fc ker {}", "contenta", ""), ".\\fc[contenta]   ker[contenta] {}");
-    assert_equal_css(&shim(".pr\\fc fung {}", "contenta", ""), ".pr\\fc fung[contenta] {}");
+    assert_equal_css(
+        &shim(".\\fc ber {}", "contenta", ""),
+        ".\\fc ber[contenta] {}",
+    );
+    assert_equal_css(
+        &shim(".\\fc ker {}", "contenta", ""),
+        ".\\fc[contenta]   ker[contenta] {}",
+    );
+    assert_equal_css(
+        &shim(".pr\\fc fung {}", "contenta", ""),
+        ".pr\\fc fung[contenta] {}",
+    );
 }
 
 #[test]
@@ -467,7 +575,11 @@ fn should_shim_rules_with_quoted_content() {
 #[test]
 fn should_handle_when_quoted_content_contains_a_closing_parenthesis() {
     assert_equal_css(
-        &shim("p { background-image: url(\")\") } p { color: red }", "contenta", ""),
+        &shim(
+            "p { background-image: url(\")\") } p { color: red }",
+            "contenta",
+            "",
+        ),
         "p[contenta] { background-image: url(\")\") } p[contenta] { color: red }",
     );
 }
@@ -502,12 +614,18 @@ fn should_keep_retain_multiline_selectors() {
 // Comments tests
 #[test]
 fn should_replace_multiline_comments_with_newline() {
-    assert_eq!(shim("/* b {c} */ b {c}", "contenta", ""), "\n b[contenta] {c}");
+    assert_eq!(
+        shim("/* b {c} */ b {c}", "contenta", ""),
+        "\n b[contenta] {c}"
+    );
 }
 
 #[test]
 fn should_replace_multiline_comments_with_newline_in_the_original_position() {
-    assert_eq!(shim("/* b {c}\n */ b {c}", "contenta", ""), "\n\n b[contenta] {c}");
+    assert_eq!(
+        shim("/* b {c}\n */ b {c}", "contenta", ""),
+        "\n\n b[contenta] {c}"
+    );
 }
 
 #[test]
@@ -537,4 +655,3 @@ fn should_handle_adjacent_comments() {
         "\n \n b[contenta] {c}"
     );
 }
-

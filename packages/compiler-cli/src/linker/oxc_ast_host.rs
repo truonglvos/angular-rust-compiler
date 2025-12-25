@@ -2,9 +2,9 @@
 //!
 //! Implements the `AstHost` trait for the OXC AST.
 
-use oxc_ast::ast::{Expression, ArrayExpressionElement, Argument, Statement, PropertyKey};
-use oxc_span::Span;
 use crate::linker::ast::{AstHost, AstNode, Range};
+use oxc_ast::ast::{Argument, ArrayExpressionElement, Expression, PropertyKey, Statement};
+use oxc_span::Span;
 
 /// Wrapper around various OXC AST node types to satisfy AstNode traits and unify disjoint enum types.
 /// OXC uses `inherit_variants!` which creates distinct enums (Expression, Argument, ArrayExpressionElement)
@@ -44,14 +44,14 @@ use oxc_span::GetSpan;
 impl<'a> AstHost<OxcNode<'a>> for OxcAstHost<'a> {
     fn get_symbol_name(&self, node: &OxcNode<'a>) -> Option<String> {
         match node {
-            OxcNode::Expression(e) => {
-                match e {
-                    Expression::Identifier(ident) => Some(ident.name.to_string()),
-                    _ => None,
-                }
-            }
+            OxcNode::Expression(e) => match e {
+                Expression::Identifier(ident) => Some(ident.name.to_string()),
+                _ => None,
+            },
             // Add other wrappers if necessary
-            OxcNode::ArrayElement(ArrayExpressionElement::Identifier(ident)) => Some(ident.name.to_string()),
+            OxcNode::ArrayElement(ArrayExpressionElement::Identifier(ident)) => {
+                Some(ident.name.to_string())
+            }
             OxcNode::Argument(Argument::Identifier(ident)) => Some(ident.name.to_string()),
             _ => None,
         }
@@ -69,14 +69,16 @@ impl<'a> AstHost<OxcNode<'a>> for OxcAstHost<'a> {
     fn parse_string_literal(&self, node: &OxcNode<'a>) -> Result<String, String> {
         match node {
             OxcNode::Expression(Expression::StringLiteral(l)) => Ok(l.value.to_string()),
-            OxcNode::ArrayElement(ArrayExpressionElement::StringLiteral(l)) => Ok(l.value.to_string()),
+            OxcNode::ArrayElement(ArrayExpressionElement::StringLiteral(l)) => {
+                Ok(l.value.to_string())
+            }
             OxcNode::Argument(Argument::StringLiteral(l)) => Ok(l.value.to_string()),
             _ => Err("Not a string literal".to_string()),
         }
     }
 
     fn is_numeric_literal(&self, node: &OxcNode<'a>) -> bool {
-         match node {
+        match node {
             OxcNode::Expression(Expression::NumericLiteral(_)) => true,
             OxcNode::ArrayElement(ArrayExpressionElement::NumericLiteral(_)) => true,
             OxcNode::Argument(Argument::NumericLiteral(_)) => true,
@@ -103,7 +105,7 @@ impl<'a> AstHost<OxcNode<'a>> for OxcAstHost<'a> {
     }
 
     fn parse_boolean_literal(&self, node: &OxcNode<'a>) -> Result<bool, String> {
-         match node {
+        match node {
             OxcNode::Expression(Expression::BooleanLiteral(l)) => Ok(l.value),
             OxcNode::ArrayElement(ArrayExpressionElement::BooleanLiteral(l)) => Ok(l.value),
             OxcNode::Argument(Argument::BooleanLiteral(l)) => Ok(l.value),
@@ -112,7 +114,7 @@ impl<'a> AstHost<OxcNode<'a>> for OxcAstHost<'a> {
     }
 
     fn is_null(&self, node: &OxcNode<'a>) -> bool {
-         match node {
+        match node {
             OxcNode::Expression(Expression::NullLiteral(_)) => true,
             OxcNode::ArrayElement(ArrayExpressionElement::NullLiteral(_)) => true,
             OxcNode::Argument(Argument::NullLiteral(_)) => true,
@@ -121,7 +123,7 @@ impl<'a> AstHost<OxcNode<'a>> for OxcAstHost<'a> {
     }
 
     fn is_array_literal(&self, node: &OxcNode<'a>) -> bool {
-         match node {
+        match node {
             OxcNode::Expression(Expression::ArrayExpression(_)) => true,
             OxcNode::ArrayElement(ArrayExpressionElement::ArrayExpression(_)) => true,
             OxcNode::Argument(Argument::ArrayExpression(_)) => true,
@@ -131,10 +133,10 @@ impl<'a> AstHost<OxcNode<'a>> for OxcAstHost<'a> {
 
     fn parse_array_literal(&self, node: &OxcNode<'a>) -> Result<Vec<OxcNode<'a>>, String> {
         let elements = match node {
-             OxcNode::Expression(Expression::ArrayExpression(e)) => &e.elements,
-             OxcNode::ArrayElement(ArrayExpressionElement::ArrayExpression(e)) => &e.elements,
-             OxcNode::Argument(Argument::ArrayExpression(e)) => &e.elements,
-             _ => return Err("Not an array literal".to_string()),
+            OxcNode::Expression(Expression::ArrayExpression(e)) => &e.elements,
+            OxcNode::ArrayElement(ArrayExpressionElement::ArrayExpression(e)) => &e.elements,
+            OxcNode::Argument(Argument::ArrayExpression(e)) => &e.elements,
+            _ => return Err("Not an array literal".to_string()),
         };
 
         let mut result = Vec::new();
@@ -143,8 +145,12 @@ impl<'a> AstHost<OxcNode<'a>> for OxcAstHost<'a> {
             // But we need to wrap it in OxcNode::ArrayElement
             // We can check strictly if check explicitly against Elision/Spread.
             match element {
-                ArrayExpressionElement::SpreadElement(_) => return Err("Spread elements not supported in linker array literals".to_string()),
-                ArrayExpressionElement::Elision(_) => return Err("Elisions not supported".to_string()),
+                ArrayExpressionElement::SpreadElement(_) => {
+                    return Err("Spread elements not supported in linker array literals".to_string())
+                }
+                ArrayExpressionElement::Elision(_) => {
+                    return Err("Elisions not supported".to_string())
+                }
                 _ => result.push(OxcNode::ArrayElement(element)),
             }
         }
@@ -160,36 +166,46 @@ impl<'a> AstHost<OxcNode<'a>> for OxcAstHost<'a> {
         }
     }
 
-    fn parse_object_literal(&self, node: &OxcNode<'a>) -> Result<std::collections::HashMap<String, OxcNode<'a>>, String> {
+    fn parse_object_literal(
+        &self,
+        node: &OxcNode<'a>,
+    ) -> Result<std::collections::HashMap<String, OxcNode<'a>>, String> {
         let properties = match node {
-             OxcNode::Expression(Expression::ObjectExpression(e)) => &e.properties,
-             OxcNode::ArrayElement(ArrayExpressionElement::ObjectExpression(e)) => &e.properties,
-             OxcNode::Argument(Argument::ObjectExpression(e)) => &e.properties,
-             _ => return Err("Not an object literal".to_string()),
+            OxcNode::Expression(Expression::ObjectExpression(e)) => &e.properties,
+            OxcNode::ArrayElement(ArrayExpressionElement::ObjectExpression(e)) => &e.properties,
+            OxcNode::Argument(Argument::ObjectExpression(e)) => &e.properties,
+            _ => return Err("Not an object literal".to_string()),
         };
 
         let mut result = std::collections::HashMap::new();
         for prop in properties {
-             match prop {
-                 oxc_ast::ast::ObjectPropertyKind::ObjectProperty(p) => {
-                     let key = match &p.key {
-                         PropertyKey::StaticIdentifier(ident) => ident.name.to_string(),
-                         PropertyKey::StringLiteral(lit) => lit.value.to_string(),
-                         _ => return Err("Unsupported object key type".to_string()),
-                     };
-                     result.insert(key, OxcNode::Expression(&p.value));
-                 }
-                 _ => return Err("Unsupported object property type (spread)".to_string()),
-             }
+            match prop {
+                oxc_ast::ast::ObjectPropertyKind::ObjectProperty(p) => {
+                    let key = match &p.key {
+                        PropertyKey::StaticIdentifier(ident) => ident.name.to_string(),
+                        PropertyKey::StringLiteral(lit) => lit.value.to_string(),
+                        _ => return Err("Unsupported object key type".to_string()),
+                    };
+                    result.insert(key, OxcNode::Expression(&p.value));
+                }
+                _ => return Err("Unsupported object property type (spread)".to_string()),
+            }
         }
         Ok(result)
     }
 
     fn is_function_expression(&self, node: &OxcNode<'a>) -> bool {
         match node {
-            OxcNode::Expression(Expression::FunctionExpression(_) | Expression::ArrowFunctionExpression(_)) => true,
-            OxcNode::ArrayElement(ArrayExpressionElement::FunctionExpression(_) | ArrayExpressionElement::ArrowFunctionExpression(_)) => true,
-            OxcNode::Argument(Argument::FunctionExpression(_) | Argument::ArrowFunctionExpression(_)) => true,
+            OxcNode::Expression(
+                Expression::FunctionExpression(_) | Expression::ArrowFunctionExpression(_),
+            ) => true,
+            OxcNode::ArrayElement(
+                ArrayExpressionElement::FunctionExpression(_)
+                | ArrayExpressionElement::ArrowFunctionExpression(_),
+            ) => true,
+            OxcNode::Argument(
+                Argument::FunctionExpression(_) | Argument::ArrowFunctionExpression(_),
+            ) => true,
             _ => false,
         }
     }
@@ -200,23 +216,25 @@ impl<'a> AstHost<OxcNode<'a>> for OxcAstHost<'a> {
 
         // Helper to extract body from ArrowFunctionExpression
         let (body, is_expr) = match node {
-             OxcNode::Expression(Expression::ArrowFunctionExpression(a)) => (&a.body, a.expression),
-             OxcNode::ArrayElement(ArrayExpressionElement::ArrowFunctionExpression(a)) => (&a.body, a.expression),
-             OxcNode::Argument(Argument::ArrowFunctionExpression(a)) => (&a.body, a.expression),
-             _ => return Err("Not an arrow function expression".to_string()),
+            OxcNode::Expression(Expression::ArrowFunctionExpression(a)) => (&a.body, a.expression),
+            OxcNode::ArrayElement(ArrayExpressionElement::ArrowFunctionExpression(a)) => {
+                (&a.body, a.expression)
+            }
+            OxcNode::Argument(Argument::ArrowFunctionExpression(a)) => (&a.body, a.expression),
+            _ => return Err("Not an arrow function expression".to_string()),
         };
 
         if is_expr {
-             if let Some(Statement::ExpressionStatement(stmt)) = body.statements.first() {
-                 return Ok(OxcNode::Expression(&stmt.expression));
-             }
+            if let Some(Statement::ExpressionStatement(stmt)) = body.statements.first() {
+                return Ok(OxcNode::Expression(&stmt.expression));
+            }
         }
-        
+
         Err("Block body parsing for arrow function not fully implemented".to_string())
     }
 
     fn parse_parameters(&self, _fn_node: &OxcNode<'a>) -> Result<Vec<OxcNode<'a>>, String> {
-         Err("Parameter parsing not implemented".to_string())
+        Err("Parameter parsing not implemented".to_string())
     }
 
     fn is_call_expression(&self, node: &OxcNode<'a>) -> bool {
@@ -230,27 +248,33 @@ impl<'a> AstHost<OxcNode<'a>> for OxcAstHost<'a> {
 
     fn parse_callee(&self, node: &OxcNode<'a>) -> Result<OxcNode<'a>, String> {
         match node {
-             OxcNode::Expression(Expression::CallExpression(e)) => Ok(OxcNode::Expression(&e.callee)),
-             OxcNode::ArrayElement(ArrayExpressionElement::CallExpression(e)) => Ok(OxcNode::Expression(&e.callee)),
-             OxcNode::Argument(Argument::CallExpression(e)) => Ok(OxcNode::Expression(&e.callee)),
-             _ => Err("Not a call expression".to_string()),
+            OxcNode::Expression(Expression::CallExpression(e)) => {
+                Ok(OxcNode::Expression(&e.callee))
+            }
+            OxcNode::ArrayElement(ArrayExpressionElement::CallExpression(e)) => {
+                Ok(OxcNode::Expression(&e.callee))
+            }
+            OxcNode::Argument(Argument::CallExpression(e)) => Ok(OxcNode::Expression(&e.callee)),
+            _ => Err("Not a call expression".to_string()),
         }
     }
 
     fn parse_arguments(&self, node: &OxcNode<'a>) -> Result<Vec<OxcNode<'a>>, String> {
         let args = match node {
-             OxcNode::Expression(Expression::CallExpression(e)) => &e.arguments,
-             OxcNode::ArrayElement(ArrayExpressionElement::CallExpression(e)) => &e.arguments,
-             OxcNode::Argument(Argument::CallExpression(e)) => &e.arguments,
-             _ => return Err("Not a call expression".to_string()),
+            OxcNode::Expression(Expression::CallExpression(e)) => &e.arguments,
+            OxcNode::ArrayElement(ArrayExpressionElement::CallExpression(e)) => &e.arguments,
+            OxcNode::Argument(Argument::CallExpression(e)) => &e.arguments,
+            _ => return Err("Not a call expression".to_string()),
         };
 
         let mut result = Vec::new();
         for arg in args {
             // Check for spreads if necessary
             match arg {
-                 Argument::SpreadElement(_) => return Err("Spread arguments not supported".to_string()),
-                 _ => result.push(OxcNode::Argument(arg)),
+                Argument::SpreadElement(_) => {
+                    return Err("Spread arguments not supported".to_string())
+                }
+                _ => result.push(OxcNode::Argument(arg)),
             }
         }
         Ok(result)
@@ -261,7 +285,7 @@ impl<'a> AstHost<OxcNode<'a>> for OxcAstHost<'a> {
         Ok(Range {
             start_pos: span.start as usize,
             end_pos: span.end as usize,
-            start_line: 0, 
+            start_line: 0,
             start_col: 0,
         })
     }

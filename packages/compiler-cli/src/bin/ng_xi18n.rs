@@ -3,7 +3,6 @@
  *
  * Extract i18n messages from Angular templates
  */
-
 use clap::{Arg, Command};
 use std::process;
 
@@ -30,11 +29,11 @@ fn main() {
     // TODO: Implement actual i18n extraction logic
     println!("Angular i18n Extractor (Rust) - ng-xi18n");
     println!("Version: {}", env!("CARGO_PKG_VERSION"));
-    
+
     if let Some(project) = matches.get_one::<String>("project") {
         println!("Project: {}", project);
     }
-    
+
     if let Some(output) = matches.get_one::<String>("output-path") {
         println!("Output path: {}", output);
     }
@@ -43,4 +42,3 @@ fn main() {
     eprintln!("i18n extraction not yet implemented");
     process::exit(1);
 }
-

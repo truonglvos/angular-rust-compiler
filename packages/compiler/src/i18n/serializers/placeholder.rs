@@ -3,8 +3,8 @@
 //! Corresponds to packages/compiler/src/i18n/serializers/placeholder.ts
 //! Creates unique names for placeholders with different content
 
-use std::collections::HashMap;
 use lazy_static::lazy_static;
+use std::collections::HashMap;
 
 lazy_static! {
     static ref TAG_TO_PLACEHOLDER_NAMES: HashMap<&'static str, &'static str> = {
@@ -116,7 +116,8 @@ impl PlaceholderRegistry {
         }
 
         let unique_name = self.generate_unique_name(&upper_name);
-        self.signature_to_name.insert(signature, unique_name.clone());
+        self.signature_to_name
+            .insert(signature, unique_name.clone());
         unique_name
     }
 
@@ -124,14 +125,20 @@ impl PlaceholderRegistry {
         self.generate_unique_name(&name.to_uppercase())
     }
 
-    pub fn get_start_block_placeholder_name(&mut self, name: &str, parameters: &[String]) -> String {
+    pub fn get_start_block_placeholder_name(
+        &mut self,
+        name: &str,
+        parameters: &[String],
+    ) -> String {
         let signature = self.hash_block(name, parameters);
         if let Some(cached_name) = self.signature_to_name.get(&signature) {
             return cached_name.clone();
         }
 
-        let placeholder = self.generate_unique_name(&format!("START_BLOCK_{}", self.to_snake_case(name)));
-        self.signature_to_name.insert(signature, placeholder.clone());
+        let placeholder =
+            self.generate_unique_name(&format!("START_BLOCK_{}", self.to_snake_case(name)));
+        self.signature_to_name
+            .insert(signature, placeholder.clone());
         placeholder
     }
 
@@ -141,8 +148,10 @@ impl PlaceholderRegistry {
             return cached_name.clone();
         }
 
-        let placeholder = self.generate_unique_name(&format!("CLOSE_BLOCK_{}", self.to_snake_case(name)));
-        self.signature_to_name.insert(signature, placeholder.clone());
+        let placeholder =
+            self.generate_unique_name(&format!("CLOSE_BLOCK_{}", self.to_snake_case(name)));
+        self.signature_to_name
+            .insert(signature, placeholder.clone());
         placeholder
     }
 
@@ -199,7 +208,8 @@ impl PlaceholderRegistry {
         }
 
         let id = *self.place_holder_name_counts.get(base).unwrap();
-        self.place_holder_name_counts.insert(base.to_string(), id + 1);
+        self.place_holder_name_counts
+            .insert(base.to_string(), id + 1);
         format!("{}_{}", base, id)
     }
 }
@@ -209,4 +219,3 @@ impl Default for PlaceholderRegistry {
         Self::new()
     }
 }
-

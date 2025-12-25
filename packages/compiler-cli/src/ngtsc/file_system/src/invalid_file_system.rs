@@ -72,7 +72,12 @@ impl ReadonlyFileSystem for InvalidFileSystem {
 }
 
 impl FileSystem for InvalidFileSystem {
-    fn write_file(&self, _path: &AbsoluteFsPath, _data: &[u8], _exclusive: Option<bool>) -> io::Result<()> {
+    fn write_file(
+        &self,
+        _path: &AbsoluteFsPath,
+        _data: &[u8],
+        _exclusive: Option<bool>,
+    ) -> io::Result<()> {
         Err(make_io_error())
     }
     fn remove_file(&self, _path: &AbsoluteFsPath) -> io::Result<()> {

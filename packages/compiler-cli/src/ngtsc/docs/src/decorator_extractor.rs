@@ -28,14 +28,24 @@ pub struct DecoratorExtractor;
 impl DecoratorExtractor {
     /// Check if a decorator name is an Angular decorator.
     pub fn is_angular_decorator(name: &str) -> bool {
-        matches!(name, 
-            "Component" | "Directive" | "Pipe" | "NgModule" | 
-            "Injectable" | "Input" | "Output" | "HostBinding" |
-            "HostListener" | "ViewChild" | "ViewChildren" |
-            "ContentChild" | "ContentChildren"
+        matches!(
+            name,
+            "Component"
+                | "Directive"
+                | "Pipe"
+                | "NgModule"
+                | "Injectable"
+                | "Input"
+                | "Output"
+                | "HostBinding"
+                | "HostListener"
+                | "ViewChild"
+                | "ViewChildren"
+                | "ContentChild"
+                | "ContentChildren"
         )
     }
-    
+
     /// Get decorator type from name.
     pub fn get_decorator_type(name: &str) -> Option<DecoratorType> {
         match name {
@@ -55,7 +65,7 @@ impl DecoratorExtractor {
             _ => None,
         }
     }
-    
+
     /// Extract decorator entry.
     pub fn extract(name: &str, decorator_type: DecoratorType) -> DocEntry {
         let entry_type = match decorator_type {
@@ -66,7 +76,7 @@ impl DecoratorExtractor {
             DecoratorType::Injectable => EntryType::Injectable,
             _ => EntryType::Decorator,
         };
-        
+
         DocEntry::new(name, entry_type)
     }
 }

@@ -8,13 +8,13 @@ use std::collections::HashSet;
 pub trait SemanticSymbol: std::fmt::Debug {
     /// Get the unique identifier for this symbol.
     fn identifier(&self) -> &str;
-    
+
     /// Get the file path containing this symbol.
     fn file_path(&self) -> &str;
-    
+
     /// Check if the public API of this symbol has changed.
     fn is_public_api_affected(&self, previous: &dyn SemanticSymbol) -> bool;
-    
+
     /// Check if the type-check API of this symbol has changed.
     fn is_type_check_api_affected(&self, previous: &dyn SemanticSymbol) -> bool;
 }
@@ -63,38 +63,41 @@ impl SemanticDependencyGraph {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Add a symbol to the graph.
     pub fn add_symbol(&mut self, id: impl Into<String>, file: impl Into<String>) {
         let id = id.into();
         let file = file.into();
         self.files.insert(file.clone());
-        self.symbols.insert(id.clone(), SymbolData {
-            id,
-            file,
-            public_api_deps: HashSet::new(),
-            type_check_api_deps: HashSet::new(),
-        });
+        self.symbols.insert(
+            id.clone(),
+            SymbolData {
+                id,
+                file,
+                public_api_deps: HashSet::new(),
+                type_check_api_deps: HashSet::new(),
+            },
+        );
     }
-    
+
     /// Add a public API dependency.
     pub fn add_public_api_dep(&mut self, from: &str, to: &str) {
         if let Some(symbol) = self.symbols.get_mut(from) {
             symbol.public_api_deps.insert(to.to_string());
         }
     }
-    
+
     /// Add a type-check API dependency.
     pub fn add_type_check_api_dep(&mut self, from: &str, to: &str) {
         if let Some(symbol) = self.symbols.get_mut(from) {
             symbol.type_check_api_deps.insert(to.to_string());
         }
     }
-    
+
     /// Get symbols affected by changes to a set of symbols.
     pub fn get_affected_symbols(&self, changed: &HashSet<String>) -> HashSet<String> {
         let mut affected = HashSet::new();
-        
+
         for (id, data) in &self.symbols {
             for dep in &data.public_api_deps {
                 if changed.contains(dep) {
@@ -103,10 +106,10 @@ impl SemanticDependencyGraph {
                 }
             }
         }
-        
+
         affected
     }
-    
+
     /// Get all files in the graph.
     pub fn files(&self) -> &HashSet<String> {
         &self.files

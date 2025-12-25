@@ -1,0 +1,10 @@
+node_modules/
+*/node_modules/
+target/
+dist/
+out-tsc/
+rust-output/
+submodule/
+*.lock
+Cargo.lock
+package-lock.json

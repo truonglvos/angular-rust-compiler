@@ -99,17 +99,17 @@ impl TypeCheckContext {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Add a pending type-check block.
     pub fn add_pending_tcb(&mut self, tcb: PendingTypeCheckBlock) {
         self.pending_tcbs.push(tcb);
     }
-    
+
     /// Add an error.
     pub fn add_error(&mut self, error: TypeCheckError) {
         self.errors.push(error);
     }
-    
+
     /// Get all errors.
     pub fn errors(&self) -> &[TypeCheckError] {
         &self.errors

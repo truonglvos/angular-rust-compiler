@@ -21,7 +21,7 @@ impl DefaultImportTracker {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Record that a default import has been used and should be preserved.
     ///
     /// # Arguments
@@ -33,7 +33,7 @@ impl DefaultImportTracker {
             .or_insert_with(HashSet::new)
             .insert(import_clause.to_string());
     }
-    
+
     /// Check if a default import in a file should be preserved.
     ///
     /// # Arguments
@@ -45,12 +45,12 @@ impl DefaultImportTracker {
             .map(|imports| imports.contains(import_clause))
             .unwrap_or(false)
     }
-    
+
     /// Get all preserved imports for a given source file.
     pub fn get_preserved_imports(&self, source_file: &str) -> Option<&HashSet<String>> {
         self.source_file_to_used_imports.get(source_file)
     }
-    
+
     /// Check if there are any used imports for a file.
     pub fn has_used_imports(&self, source_file: &str) -> bool {
         self.source_file_to_used_imports
@@ -62,10 +62,7 @@ impl DefaultImportTracker {
 
 /// Attach a default import declaration to an expression.
 /// Used to indicate the dependency of an expression on a default import.
-pub fn attach_default_import_declaration(
-    _expr: &mut dyn std::any::Any,
-    _import_decl: &str,
-) {
+pub fn attach_default_import_declaration(_expr: &mut dyn std::any::Any, _import_decl: &str) {
     // In Rust, this would typically be handled via a wrapper type or metadata
     // rather than symbol properties like in TypeScript
 }

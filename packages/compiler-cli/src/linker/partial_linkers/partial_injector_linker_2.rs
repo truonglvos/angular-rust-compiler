@@ -1,11 +1,9 @@
-use crate::linker::partial_linker::PartialLinker;
-use crate::linker::ast_value::AstObject;
 use crate::linker::ast::AstNode;
+use crate::linker::ast_value::AstObject;
+use crate::linker::partial_linker::PartialLinker;
 use angular_compiler::constant_pool::ConstantPool;
 use angular_compiler::output::output_ast as o;
-use angular_compiler::render3::r3_injector_compiler::{
-    compile_injector, R3InjectorMetadata
-};
+use angular_compiler::render3::r3_injector_compiler::{compile_injector, R3InjectorMetadata};
 use angular_compiler::render3::util::R3Reference;
 
 pub struct PartialInjectorLinker2;
@@ -28,13 +26,15 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialInjectorLinker2
         // Extract type
         let type_expr = match meta_obj.get_value("type") {
             Ok(v) => v.node,
-            Err(e) => return o::Expression::Literal(o::LiteralExpr {
-                value: o::LiteralValue::String(format!("Error: {}", e)),
-                type_: None,
-                source_span: None,
-            }),
+            Err(e) => {
+                return o::Expression::Literal(o::LiteralExpr {
+                    value: o::LiteralValue::String(format!("Error: {}", e)),
+                    type_: None,
+                    source_span: None,
+                })
+            }
         };
-        
+
         let type_str = meta_obj.host.print_node(&type_expr);
         let wrapped_type = o::Expression::ReadVar(o::ReadVarExpr {
             name: type_str,
@@ -64,23 +64,25 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialInjectorLinker2
 
         // Extract imports
         let imports = if meta_obj.has("imports") {
-             if let Ok(arr) = meta_obj.get_array("imports") {
-                 arr.iter().map(|v| {
-                     let s = v.host.print_node(&v.node);
-                     o::Expression::RawCode(o::RawCodeExpr {
-                        code: s,
-                        source_span: None,
-                     })
-                 }).collect()
-             } else {
-                 vec![]
-             }
+            if let Ok(arr) = meta_obj.get_array("imports") {
+                arr.iter()
+                    .map(|v| {
+                        let s = v.host.print_node(&v.node);
+                        o::Expression::RawCode(o::RawCodeExpr {
+                            code: s,
+                            source_span: None,
+                        })
+                    })
+                    .collect()
+            } else {
+                vec![]
+            }
         } else {
             vec![]
         };
 
         let meta = R3InjectorMetadata {
-            name: "Injector".to_string(), 
+            name: "Injector".to_string(),
             type_: type_ref,
             providers,
             imports,

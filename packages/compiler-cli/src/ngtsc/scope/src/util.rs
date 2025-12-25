@@ -16,16 +16,22 @@ pub enum ReferenceKind {
 }
 
 /// Determine if a selector matches an element.
-pub fn selector_matches_element(selector: &str, element_name: &str, _attrs: &[(&str, &str)]) -> bool {
+pub fn selector_matches_element(
+    selector: &str,
+    element_name: &str,
+    _attrs: &[(&str, &str)],
+) -> bool {
     // Simple selector matching
     if selector.starts_with('[') && selector.ends_with(']') {
         // Attribute selector
-        let attr_name = &selector[1..selector.len()-1];
+        let attr_name = &selector[1..selector.len() - 1];
         _attrs.iter().any(|(name, _)| *name == attr_name)
     } else if selector.starts_with('.') {
         // Class selector
         let class_name = &selector[1..];
-        _attrs.iter().any(|(name, value)| *name == "class" && value.contains(class_name))
+        _attrs
+            .iter()
+            .any(|(name, value)| *name == "class" && value.contains(class_name))
     } else {
         // Element selector
         selector == element_name
@@ -35,14 +41,14 @@ pub fn selector_matches_element(selector: &str, element_name: &str, _attrs: &[(&
 /// Parse a selector string into parts.
 pub fn parse_selector(selector: &str) -> Vec<SelectorPart> {
     let mut parts = Vec::new();
-    
+
     for part in selector.split(',').map(str::trim) {
         if part.is_empty() {
             continue;
         }
-        
+
         if part.starts_with('[') && part.ends_with(']') {
-            parts.push(SelectorPart::Attribute(part[1..part.len()-1].to_string()));
+            parts.push(SelectorPart::Attribute(part[1..part.len() - 1].to_string()));
         } else if part.starts_with('.') {
             parts.push(SelectorPart::Class(part[1..].to_string()));
         } else if part.starts_with('#') {
@@ -51,7 +57,7 @@ pub fn parse_selector(selector: &str) -> Vec<SelectorPart> {
             parts.push(SelectorPart::Element(part.to_string()));
         }
     }
-    
+
     parts
 }
 

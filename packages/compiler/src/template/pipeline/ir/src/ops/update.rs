@@ -35,7 +35,7 @@ impl Interpolation {
                 expressions.len()
             );
         }
-        
+
         // Validate i18n placeholders if provided
         if !i18n_placeholders.is_empty() && i18n_placeholders.len() != expressions.len() {
             panic!(
@@ -44,7 +44,7 @@ impl Interpolation {
                 i18n_placeholders.len()
             );
         }
-        
+
         Interpolation {
             strings,
             expressions,
@@ -65,11 +65,7 @@ pub struct InterpolateTextOp {
 }
 
 impl InterpolateTextOp {
-    pub fn new(
-        target: XrefId,
-        interpolation: Interpolation,
-        source_span: ParseSourceSpan,
-    ) -> Self {
+    pub fn new(target: XrefId, interpolation: Interpolation, source_span: ParseSourceSpan) -> Self {
         InterpolateTextOp {
             target,
             interpolation,
@@ -107,7 +103,7 @@ impl DependsOnSlotContextOpTrait for InterpolateTextOp {
     fn target(&self) -> XrefId {
         self.target
     }
-    
+
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
@@ -185,7 +181,7 @@ impl DependsOnSlotContextOpTrait for StoreLetOp {
     fn target(&self) -> XrefId {
         self.target
     }
-    
+
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
@@ -272,7 +268,7 @@ impl DependsOnSlotContextOpTrait for ConditionalOp {
     fn target(&self) -> XrefId {
         self.target
     }
-    
+
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
@@ -350,7 +346,7 @@ impl DependsOnSlotContextOpTrait for RepeaterOp {
     fn target(&self) -> XrefId {
         self.target
     }
-    
+
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
@@ -367,7 +363,12 @@ pub fn create_repeater_op(
     collection: Expression,
     source_span: ParseSourceSpan,
 ) -> Box<dyn UpdateOp + Send + Sync> {
-    Box::new(RepeaterOp::new(target, target_slot, collection, source_span))
+    Box::new(RepeaterOp::new(
+        target,
+        target_slot,
+        collection,
+        source_span,
+    ))
 }
 
 use crate::core::SecurityContext;
@@ -475,7 +476,7 @@ impl DependsOnSlotContextOpTrait for BindingOp {
     fn target(&self) -> XrefId {
         self.target
     }
-    
+
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
@@ -600,7 +601,7 @@ impl DependsOnSlotContextOpTrait for PropertyOp {
     fn target(&self) -> XrefId {
         self.target
     }
-    
+
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
@@ -717,7 +718,7 @@ impl DependsOnSlotContextOpTrait for TwoWayPropertyOp {
     fn target(&self) -> XrefId {
         self.target
     }
-    
+
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
@@ -839,7 +840,7 @@ impl DependsOnSlotContextOpTrait for AttributeOp {
     fn target(&self) -> XrefId {
         self.target
     }
-    
+
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
@@ -937,7 +938,7 @@ impl DependsOnSlotContextOpTrait for StylePropOp {
     fn target(&self) -> XrefId {
         self.target
     }
-    
+
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
@@ -954,7 +955,13 @@ pub fn create_style_prop_op(
     unit: Option<String>,
     source_span: ParseSourceSpan,
 ) -> Box<dyn UpdateOp + Send + Sync> {
-    Box::new(StylePropOp::new(target, name, expression, unit, source_span))
+    Box::new(StylePropOp::new(
+        target,
+        name,
+        expression,
+        unit,
+        source_span,
+    ))
 }
 
 /// A logical operation representing binding to a class property in the update IR.
@@ -1015,7 +1022,7 @@ impl DependsOnSlotContextOpTrait for ClassPropOp {
     fn target(&self) -> XrefId {
         self.target
     }
-    
+
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
@@ -1088,7 +1095,7 @@ impl DependsOnSlotContextOpTrait for StyleMapOp {
     fn target(&self) -> XrefId {
         self.target
     }
-    
+
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
@@ -1160,7 +1167,7 @@ impl DependsOnSlotContextOpTrait for ClassMapOp {
     fn target(&self) -> XrefId {
         self.target
     }
-    
+
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
@@ -1189,10 +1196,7 @@ pub struct AdvanceOp {
 
 impl AdvanceOp {
     pub fn new(delta: usize, source_span: ParseSourceSpan) -> Self {
-        AdvanceOp {
-            delta,
-            source_span,
-        }
+        AdvanceOp { delta, source_span }
     }
 }
 
@@ -1385,7 +1389,7 @@ impl DependsOnSlotContextOpTrait for DeferWhenOp {
     fn target(&self) -> XrefId {
         self.target
     }
-    
+
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
@@ -1491,7 +1495,7 @@ impl DependsOnSlotContextOpTrait for I18nExpressionOp {
     fn target(&self) -> XrefId {
         self.target
     }
-    
+
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }
@@ -1659,7 +1663,7 @@ impl DependsOnSlotContextOpTrait for ControlOp {
     fn target(&self) -> XrefId {
         self.target
     }
-    
+
     fn source_span(&self) -> &ParseSourceSpan {
         &self.source_span
     }

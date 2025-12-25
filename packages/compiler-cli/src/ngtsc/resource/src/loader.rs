@@ -18,7 +18,7 @@ impl ResourceError {
             message: format!("Resource not found: {}", url),
         }
     }
-    
+
     pub fn load_failed(url: &str, reason: &str) -> Self {
         Self {
             url: url.to_string(),
@@ -44,7 +44,7 @@ impl InMemoryResourceLoader {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     pub fn add(&mut self, url: &str, content: &str) {
         self.resources.insert(url.to_string(), content.to_string());
     }
@@ -54,7 +54,7 @@ impl ResourceLoader for InMemoryResourceLoader {
     fn can_preload(&self, url: &str) -> bool {
         self.resources.contains_key(url)
     }
-    
+
     fn preload(&self, url: &str) -> Result<(), ResourceError> {
         if self.resources.contains_key(url) {
             Ok(())
@@ -62,9 +62,12 @@ impl ResourceLoader for InMemoryResourceLoader {
             Err(ResourceError::not_found(url))
         }
     }
-    
+
     fn load(&self, url: &str) -> Result<String, ResourceError> {
-        self.resources.get(url).cloned().ok_or_else(|| ResourceError::not_found(url))
+        self.resources
+            .get(url)
+            .cloned()
+            .ok_or_else(|| ResourceError::not_found(url))
     }
 }
 
@@ -75,7 +78,9 @@ pub struct FileResourceLoader {
 
 impl FileResourceLoader {
     pub fn new(root_dir: impl Into<String>) -> Self {
-        Self { root_dir: root_dir.into() }
+        Self {
+            root_dir: root_dir.into(),
+        }
     }
 }
 
@@ -84,14 +89,13 @@ impl ResourceLoader for FileResourceLoader {
         let path = format!("{}/{}", self.root_dir, url);
         std::path::Path::new(&path).exists()
     }
-    
+
     fn preload(&self, _url: &str) -> Result<(), ResourceError> {
         Ok(())
     }
-    
+
     fn load(&self, url: &str) -> Result<String, ResourceError> {
         let path = format!("{}/{}", self.root_dir, url);
-        std::fs::read_to_string(&path)
-            .map_err(|e| ResourceError::load_failed(url, &e.to_string()))
+        std::fs::read_to_string(&path).map_err(|e| ResourceError::load_failed(url, &e.to_string()))
     }
 }

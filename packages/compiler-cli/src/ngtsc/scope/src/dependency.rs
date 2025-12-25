@@ -2,8 +2,8 @@
 //
 // Reads dependency scope information from external libraries.
 
-use std::collections::HashMap;
 use super::api::ExportScope;
+use std::collections::HashMap;
 
 /// Reader for .d.ts based scope information.
 pub struct DependencyScopeReader {
@@ -17,21 +17,17 @@ impl DependencyScopeReader {
             export_scope_cache: HashMap::new(),
         }
     }
-    
+
     /// Get the export scope of an external NgModule.
     pub fn get_export_scope(&self, module_ref: &str) -> Option<&ExportScope> {
         self.export_scope_cache.get(module_ref)
     }
-    
+
     /// Register export scope for an external module.
-    pub fn register_export_scope(
-        &mut self,
-        module_ref: impl Into<String>,
-        scope: ExportScope,
-    ) {
+    pub fn register_export_scope(&mut self, module_ref: impl Into<String>, scope: ExportScope) {
         self.export_scope_cache.insert(module_ref.into(), scope);
     }
-    
+
     /// Check if a module has been processed.
     pub fn has_scope(&self, module_ref: &str) -> bool {
         self.export_scope_cache.contains_key(module_ref)

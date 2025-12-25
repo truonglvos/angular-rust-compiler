@@ -4,11 +4,13 @@
 //! Converts sequential calls to chainable instructions into chain calls
 
 use crate::output::output_ast::{Expression, ExternalReference, Statement};
-use crate::template::pipeline::ir as ir;
+use crate::render3::r3_identifiers::Identifiers;
+use crate::template::pipeline::ir;
 use crate::template::pipeline::ir::enums::OpKind;
 use crate::template::pipeline::ir::ops::shared::StatementOp;
-use crate::template::pipeline::src::compilation::{CompilationJob, ComponentCompilationJob, CompilationUnit};
-use crate::render3::r3_identifiers::Identifiers;
+use crate::template::pipeline::src::compilation::{
+    CompilationJob, CompilationUnit, ComponentCompilationJob,
+};
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -28,7 +30,7 @@ impl ExternalRefKey {
 /// Build CHAIN_COMPATIBILITY map
 fn build_chain_compatibility_map() -> HashMap<ExternalRefKey, ExternalReference> {
     let mut map = HashMap::new();
-    
+
     // All chainable instructions map to themselves
     let instructions = vec![
         Identifiers::aria_property(),
@@ -66,12 +68,12 @@ fn build_chain_compatibility_map() -> HashMap<ExternalRefKey, ExternalReference>
         Identifiers::animation_enter_listener(),
         Identifiers::animation_leave_listener(),
     ];
-    
+
     for ref_ in instructions {
         let key = ExternalRefKey::from_ref(&ref_);
         map.insert(key, ref_.clone());
     }
-    
+
     map
 }
 
@@ -95,13 +97,13 @@ pub fn chain(job: &mut dyn CompilationJob) {
         let job_ptr = job_ptr as *mut ComponentCompilationJob;
         &mut *job_ptr
     };
-    
+
     let chain_compat = build_chain_compatibility_map();
-    
+
     // Process root unit
     chain_operations_in_list_create(&mut component_job.root.create_mut(), &chain_compat);
     chain_operations_in_list_update(&mut component_job.root.update_mut(), &chain_compat);
-    
+
     // Process all view units
     for (_, unit) in component_job.views.iter_mut() {
         chain_operations_in_list_create(&mut unit.create_mut(), &chain_compat);
@@ -131,19 +133,19 @@ fn chain_operations_impl_create(
     // For now, we'll inline the logic since macro with generic types is complex
     let mut chain: Option<Chain> = None;
     let mut indices_to_remove: Vec<usize> = Vec::new();
-    
+
     for (index, op) in op_list.iter().enumerate() {
         if op.kind() != OpKind::Statement {
             chain = None;
             continue;
         }
-        
+
         let statement_op = unsafe {
             let op_ptr = op.as_ref() as *const dyn ir::operations::Op;
             let stmt_op_ptr = op_ptr as *const StatementOp<Box<dyn ir::CreateOp + Send + Sync>>;
             &*stmt_op_ptr
         };
-        
+
         let expr_stmt = match statement_op.statement.as_ref() {
             Statement::Expression(expr_stmt) => expr_stmt,
             _ => {
@@ -151,7 +153,7 @@ fn chain_operations_impl_create(
                 continue;
             }
         };
-        
+
         let invoke_expr = match expr_stmt.expr.as_ref() {
             Expression::InvokeFn(invoke) => invoke,
             _ => {
@@ -159,7 +161,7 @@ fn chain_operations_impl_create(
                 continue;
             }
         };
-        
+
         let external_expr = match invoke_expr.fn_.as_ref() {
             Expression::External(ext) => ext,
             _ => {
@@ -167,29 +169,31 @@ fn chain_operations_impl_create(
                 continue;
             }
         };
-        
+
         let instruction = &external_expr.value;
         let instruction_key = ExternalRefKey::from_ref(instruction);
-        
+
         if !chain_compat.contains_key(&instruction_key) {
             chain = None;
             continue;
         }
-        
+
         if let Some(ref mut chain_state) = chain {
             let chain_key = ExternalRefKey::from_ref(&chain_state.instruction);
             let compatible_instruction = chain_compat.get(&chain_key);
             let compatible_key = compatible_instruction.map(|r| ExternalRefKey::from_ref(r));
-            if compatible_key.as_ref() == Some(&instruction_key) && chain_state.length < MAX_CHAIN_LENGTH {
+            if compatible_key.as_ref() == Some(&instruction_key)
+                && chain_state.length < MAX_CHAIN_LENGTH
+            {
                 let new_expr = chain_state.expression.call_fn(
                     invoke_expr.args.clone(),
                     invoke_expr.source_span.clone(),
                     Some(invoke_expr.pure),
                 );
-                
+
                 chain_state.expression = *new_expr;
                 chain_state.length += 1;
-                
+
                 indices_to_remove.push(index);
             } else {
                 chain = Some(Chain {
@@ -208,7 +212,7 @@ fn chain_operations_impl_create(
             });
         }
     }
-    
+
     for index in indices_to_remove.iter().rev() {
         op_list.remove_at(*index);
     }
@@ -221,19 +225,19 @@ fn chain_operations_impl_update(
     // Same logic as create but for UpdateOp
     let mut chain: Option<Chain> = None;
     let mut indices_to_remove: Vec<usize> = Vec::new();
-    
+
     for (index, op) in op_list.iter().enumerate() {
         if op.kind() != OpKind::Statement {
             chain = None;
             continue;
         }
-        
+
         let statement_op = unsafe {
             let op_ptr = op.as_ref() as *const dyn ir::operations::Op;
             let stmt_op_ptr = op_ptr as *const StatementOp<Box<dyn ir::UpdateOp + Send + Sync>>;
             &*stmt_op_ptr
         };
-        
+
         let expr_stmt = match statement_op.statement.as_ref() {
             Statement::Expression(expr_stmt) => expr_stmt,
             _ => {
@@ -241,7 +245,7 @@ fn chain_operations_impl_update(
                 continue;
             }
         };
-        
+
         let invoke_expr = match expr_stmt.expr.as_ref() {
             Expression::InvokeFn(invoke) => invoke,
             _ => {
@@ -249,7 +253,7 @@ fn chain_operations_impl_update(
                 continue;
             }
         };
-        
+
         let external_expr = match invoke_expr.fn_.as_ref() {
             Expression::External(ext) => ext,
             _ => {
@@ -257,29 +261,31 @@ fn chain_operations_impl_update(
                 continue;
             }
         };
-        
+
         let instruction = &external_expr.value;
         let instruction_key = ExternalRefKey::from_ref(instruction);
-        
+
         if !chain_compat.contains_key(&instruction_key) {
             chain = None;
             continue;
         }
-        
+
         if let Some(ref mut chain_state) = chain {
             let chain_key = ExternalRefKey::from_ref(&chain_state.instruction);
             let compatible_instruction = chain_compat.get(&chain_key);
             let compatible_key = compatible_instruction.map(|r| ExternalRefKey::from_ref(r));
-            if compatible_key.as_ref() == Some(&instruction_key) && chain_state.length < MAX_CHAIN_LENGTH {
+            if compatible_key.as_ref() == Some(&instruction_key)
+                && chain_state.length < MAX_CHAIN_LENGTH
+            {
                 let new_expr = chain_state.expression.call_fn(
                     invoke_expr.args.clone(),
                     invoke_expr.source_span.clone(),
                     Some(invoke_expr.pure),
                 );
-                
+
                 chain_state.expression = *new_expr;
                 chain_state.length += 1;
-                
+
                 indices_to_remove.push(index);
             } else {
                 chain = Some(Chain {
@@ -298,7 +304,7 @@ fn chain_operations_impl_update(
             });
         }
     }
-    
+
     for index in indices_to_remove.iter().rev() {
         op_list.remove_at(*index);
     }

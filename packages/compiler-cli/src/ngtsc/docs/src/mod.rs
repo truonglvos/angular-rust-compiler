@@ -2,12 +2,12 @@
 //!
 //! Core documentation extraction logic.
 
-pub mod entities;
-pub mod extractor;
 pub mod class_extractor;
 pub mod constant_extractor;
 pub mod decorator_extractor;
+pub mod entities;
 pub mod enum_extractor;
+pub mod extractor;
 pub mod function_extractor;
 pub mod generics_extractor;
 pub mod interface_extractor;

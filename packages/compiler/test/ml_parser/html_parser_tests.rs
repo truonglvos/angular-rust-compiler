@@ -3,7 +3,7 @@
  *
  * Comprehensive test suite for HTML parser
  * Mirrors angular/packages/compiler/test/ml_parser/html_parser_spec.ts (2055 lines, ~200 test cases)
- * 
+ *
  * IMPLEMENTATION IN PROGRESS - Building section by section
  */
 
@@ -12,10 +12,10 @@ mod utils;
 
 #[cfg(test)]
 mod tests {
+    use super::utils::{humanize_dom, humanize_dom_source_spans, humanize_line_column};
     use angular_compiler::ml_parser::html_parser::HtmlParser;
     use angular_compiler::ml_parser::lexer::TokenizeOptions;
     use angular_compiler::ml_parser::parser::ParseTreeResult;
-    use super::utils::{humanize_dom, humanize_dom_source_spans, humanize_line_column};
 
     fn create_parser() -> HtmlParser {
         HtmlParser::new()
@@ -31,26 +31,29 @@ mod tests {
 
     // Helper to humanize errors
     fn humanize_errors(errors: &[angular_compiler::parse_util::ParseError]) -> Vec<Vec<String>> {
-        errors.iter().map(|e| {
-            if e.msg.starts_with("Unexpected closing tag") {
-                if let Some(start_quote) = e.msg.find('"') {
-                    if let Some(end_quote) = e.msg[start_quote + 1..].find('"') {
-                        let tag_name = &e.msg[start_quote + 1..start_quote + 1 + end_quote];
-                        return vec![
-                            tag_name.to_string(),
-                            e.msg.clone(),
-                            humanize_line_column(&e.span.start),
-                        ];
+        errors
+            .iter()
+            .map(|e| {
+                if e.msg.starts_with("Unexpected closing tag") {
+                    if let Some(start_quote) = e.msg.find('"') {
+                        if let Some(end_quote) = e.msg[start_quote + 1..].find('"') {
+                            let tag_name = &e.msg[start_quote + 1..start_quote + 1 + end_quote];
+                            return vec![
+                                tag_name.to_string(),
+                                e.msg.clone(),
+                                humanize_line_column(&e.span.start),
+                            ];
+                        }
                     }
                 }
-            }
 
-            vec![
-                e.span.start.file.content[e.span.start.offset..e.span.end.offset].to_string(),
-                e.msg.clone(),
-                humanize_line_column(&e.span.start),
-            ]
-        }).collect()
+                vec![
+                    e.span.start.file.content[e.span.start.offset..e.span.end.offset].to_string(),
+                    e.msg.clone(),
+                    humanize_line_column(&e.span.start),
+                ]
+            })
+            .collect()
     }
 
     mod text_nodes {
@@ -59,35 +62,51 @@ mod tests {
         #[test]
         fn should_parse_root_level_text_nodes() {
             let result = parse("a");
-            assert_eq!(humanize_dom(&result, false).unwrap(), vec![
-                vec!["Text".to_string(), "a".to_string(), "0".to_string()],
-            ]);
+            assert_eq!(
+                humanize_dom(&result, false).unwrap(),
+                vec![vec!["Text".to_string(), "a".to_string(), "0".to_string()],]
+            );
         }
 
         #[test]
         fn should_parse_text_nodes_inside_regular_elements() {
             let result = parse("<div>a</div>");
-            assert_eq!(humanize_dom(&result, false).unwrap(), vec![
-                vec!["Element".to_string(), "div".to_string(), "0".to_string()],
-                vec!["Text".to_string(), "a".to_string(), "1".to_string()],
-            ]);
+            assert_eq!(
+                humanize_dom(&result, false).unwrap(),
+                vec![
+                    vec!["Element".to_string(), "div".to_string(), "0".to_string()],
+                    vec!["Text".to_string(), "a".to_string(), "1".to_string()],
+                ]
+            );
         }
 
         #[test]
         fn should_parse_text_nodes_inside_ng_template_elements() {
             let result = parse("<ng-template>a</ng-template>");
-            assert_eq!(humanize_dom(&result, false).unwrap(), vec![
-                vec!["Element".to_string(), "ng-template".to_string(), "0".to_string()],
-                vec!["Text".to_string(), "a".to_string(), "1".to_string()],
-            ]);
+            assert_eq!(
+                humanize_dom(&result, false).unwrap(),
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "ng-template".to_string(),
+                        "0".to_string()
+                    ],
+                    vec!["Text".to_string(), "a".to_string(), "1".to_string()],
+                ]
+            );
         }
 
         #[test]
         fn should_parse_cdata() {
             let result = parse("<![CDATA[text]]>");
-            assert_eq!(humanize_dom(&result, false).unwrap(), vec![
-                vec!["Text".to_string(), "text".to_string(), "0".to_string()],
-            ]);
+            assert_eq!(
+                humanize_dom(&result, false).unwrap(),
+                vec![vec![
+                    "Text".to_string(),
+                    "text".to_string(),
+                    "0".to_string()
+                ],]
+            );
         }
 
         #[test]
@@ -123,27 +142,42 @@ mod tests {
         #[test]
         fn should_parse_root_level_elements() {
             let result = parse("<div></div>");
-            assert_eq!(humanize_dom(&result, false).unwrap(), vec![
-                vec!["Element".to_string(), "div".to_string(), "0".to_string()],
-            ]);
+            assert_eq!(
+                humanize_dom(&result, false).unwrap(),
+                vec![vec![
+                    "Element".to_string(),
+                    "div".to_string(),
+                    "0".to_string()
+                ],]
+            );
         }
 
         #[test]
         fn should_parse_elements_inside_of_regular_elements() {
             let result = parse("<div><span></span></div>");
-            assert_eq!(humanize_dom(&result, false).unwrap(), vec![
-                vec!["Element".to_string(), "div".to_string(), "0".to_string()],
-                vec!["Element".to_string(), "span".to_string(), "1".to_string()],
-            ]);
+            assert_eq!(
+                humanize_dom(&result, false).unwrap(),
+                vec![
+                    vec!["Element".to_string(), "div".to_string(), "0".to_string()],
+                    vec!["Element".to_string(), "span".to_string(), "1".to_string()],
+                ]
+            );
         }
 
         #[test]
         fn should_parse_elements_inside_ng_template_elements() {
             let result = parse("<ng-template><span></span></ng-template>");
-            assert_eq!(humanize_dom(&result, false).unwrap(), vec![
-                vec!["Element".to_string(), "ng-template".to_string(), "0".to_string()],
-                vec!["Element".to_string(), "span".to_string(), "1".to_string()],
-            ]);
+            assert_eq!(
+                humanize_dom(&result, false).unwrap(),
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        "ng-template".to_string(),
+                        "0".to_string()
+                    ],
+                    vec!["Element".to_string(), "span".to_string(), "1".to_string()],
+                ]
+            );
         }
 
         #[test]
@@ -170,7 +204,7 @@ mod tests {
                 "<audio><track></audio>",
                 "<p><wbr></p>",
             ];
-            
+
             for html in test_cases {
                 let result = parse(html);
                 assert!(result.errors.is_empty(), "Expected no errors for: {}", html);
@@ -180,69 +214,102 @@ mod tests {
         #[test]
         fn should_close_void_elements_on_text_nodes() {
             let result = parse("<p>before<br>after</p>");
-            assert_eq!(humanize_dom(&result, false).unwrap(), vec![
-                vec!["Element".to_string(), "p".to_string(), "0".to_string()],
-                vec!["Text".to_string(), "before".to_string(), "1".to_string()],
-                vec!["Element".to_string(), "br".to_string(), "1".to_string()],
-                vec!["Text".to_string(), "after".to_string(), "1".to_string()],
-            ]);
+            assert_eq!(
+                humanize_dom(&result, false).unwrap(),
+                vec![
+                    vec!["Element".to_string(), "p".to_string(), "0".to_string()],
+                    vec!["Text".to_string(), "before".to_string(), "1".to_string()],
+                    vec!["Element".to_string(), "br".to_string(), "1".to_string()],
+                    vec!["Text".to_string(), "after".to_string(), "1".to_string()],
+                ]
+            );
         }
 
         #[test]
         fn should_support_optional_end_tags() {
             let result = parse("<div><p>1<p>2</div>");
-            assert_eq!(humanize_dom(&result, false).unwrap(), vec![
-                vec!["Element".to_string(), "div".to_string(), "0".to_string()],
-                vec!["Element".to_string(), "p".to_string(), "1".to_string()],
-                vec!["Text".to_string(), "1".to_string(), "2".to_string()],
-                vec!["Element".to_string(), "p".to_string(), "1".to_string()],
-                vec!["Text".to_string(), "2".to_string(), "2".to_string()],
-            ]);
+            assert_eq!(
+                humanize_dom(&result, false).unwrap(),
+                vec![
+                    vec!["Element".to_string(), "div".to_string(), "0".to_string()],
+                    vec!["Element".to_string(), "p".to_string(), "1".to_string()],
+                    vec!["Text".to_string(), "1".to_string(), "2".to_string()],
+                    vec!["Element".to_string(), "p".to_string(), "1".to_string()],
+                    vec!["Text".to_string(), "2".to_string(), "2".to_string()],
+                ]
+            );
         }
 
         #[test]
         fn should_support_nested_elements() {
             let result = parse("<ul><li><ul><li></li></ul></li></ul>");
-            assert_eq!(humanize_dom(&result, false).unwrap(), vec![
-                vec!["Element".to_string(), "ul".to_string(), "0".to_string()],
-                vec!["Element".to_string(), "li".to_string(), "1".to_string()],
-                vec!["Element".to_string(), "ul".to_string(), "2".to_string()],
-                vec!["Element".to_string(), "li".to_string(), "3".to_string()],
-            ]);
+            assert_eq!(
+                humanize_dom(&result, false).unwrap(),
+                vec![
+                    vec!["Element".to_string(), "ul".to_string(), "0".to_string()],
+                    vec!["Element".to_string(), "li".to_string(), "1".to_string()],
+                    vec!["Element".to_string(), "ul".to_string(), "2".to_string()],
+                    vec!["Element".to_string(), "li".to_string(), "3".to_string()],
+                ]
+            );
         }
 
         #[test]
         fn should_not_wrap_elements_in_required_parent() {
             let result = parse("<div><tr></tr></div>");
-            assert_eq!(humanize_dom(&result, false).unwrap(), vec![
-                vec!["Element".to_string(), "div".to_string(), "0".to_string()],
-                vec!["Element".to_string(), "tr".to_string(), "1".to_string()],
-            ]);
+            assert_eq!(
+                humanize_dom(&result, false).unwrap(),
+                vec![
+                    vec!["Element".to_string(), "div".to_string(), "0".to_string()],
+                    vec!["Element".to_string(), "tr".to_string(), "1".to_string()],
+                ]
+            );
         }
 
         #[test]
         fn should_support_explicit_namespace() {
             let result = parse("<myns:div></myns:div>");
-            assert_eq!(humanize_dom(&result, false).unwrap(), vec![
-                vec!["Element".to_string(), ":myns:div".to_string(), "0".to_string()],
-            ]);
+            assert_eq!(
+                humanize_dom(&result, false).unwrap(),
+                vec![vec![
+                    "Element".to_string(),
+                    ":myns:div".to_string(),
+                    "0".to_string()
+                ],]
+            );
         }
 
         #[test]
         fn should_support_implicit_namespace() {
             let result = parse("<svg></svg>");
-            assert_eq!(humanize_dom(&result, false).unwrap(), vec![
-                vec!["Element".to_string(), ":svg:svg".to_string(), "0".to_string()],
-            ]);
+            assert_eq!(
+                humanize_dom(&result, false).unwrap(),
+                vec![vec![
+                    "Element".to_string(),
+                    ":svg:svg".to_string(),
+                    "0".to_string()
+                ],]
+            );
         }
 
         #[test]
         fn should_propagate_the_namespace() {
             let result = parse("<myns:div><p></p></myns:div>");
-            assert_eq!(humanize_dom(&result, false).unwrap(), vec![
-                vec!["Element".to_string(), ":myns:div".to_string(), "0".to_string()],
-                vec!["Element".to_string(), ":myns:p".to_string(), "1".to_string()],
-            ]);
+            assert_eq!(
+                humanize_dom(&result, false).unwrap(),
+                vec![
+                    vec![
+                        "Element".to_string(),
+                        ":myns:div".to_string(),
+                        "0".to_string()
+                    ],
+                    vec![
+                        "Element".to_string(),
+                        ":myns:p".to_string(),
+                        "1".to_string()
+                    ],
+                ]
+            );
         }
 
         #[test]
@@ -282,7 +349,8 @@ mod tests {
 
         #[test]
         fn should_ignore_lf_immediately_after_textarea_pre_and_listing() {
-            let result = parse("<p>\n</p><textarea>\n</textarea><pre>\n\n</pre><listing>\n\n</listing>");
+            let result =
+                parse("<p>\n</p><textarea>\n</textarea><pre>\n\n</pre><listing>\n\n</listing>");
             let humanized = humanize_dom(&result, false).unwrap();
             // p should have \n
             // textarea should NOT have leading \n
@@ -294,12 +362,28 @@ mod tests {
         #[test]
         fn should_normalize_line_endings_in_text() {
             let test_cases = vec![
-                ("<title> line 1 \r\n line 2 </title>", "title", " line 1 \n line 2 "),
-                ("<script> line 1 \r\n line 2 </script>", "script", " line 1 \n line 2 "),
-                ("<div> line 1 \r\n line 2 </div>", "div", " line 1 \n line 2 "),
-                ("<span> line 1 \r\n line 2 </span>", "span", " line 1 \n line 2 "),
+                (
+                    "<title> line 1 \r\n line 2 </title>",
+                    "title",
+                    " line 1 \n line 2 ",
+                ),
+                (
+                    "<script> line 1 \r\n line 2 </script>",
+                    "script",
+                    " line 1 \n line 2 ",
+                ),
+                (
+                    "<div> line 1 \r\n line 2 </div>",
+                    "div",
+                    " line 1 \n line 2 ",
+                ),
+                (
+                    "<span> line 1 \r\n line 2 </span>",
+                    "span",
+                    " line 1 \n line 2 ",
+                ),
             ];
-            
+
             for (html, element_name, expected_text) in test_cases {
                 let result = parse(html);
                 let humanized = humanize_dom(&result, false).unwrap();
@@ -312,9 +396,14 @@ mod tests {
         #[test]
         fn should_parse_element_with_javascript_keyword_tag_name() {
             let result = parse("<constructor></constructor>");
-            assert_eq!(humanize_dom(&result, false).unwrap(), vec![
-                vec!["Element".to_string(), "constructor".to_string(), "0".to_string()],
-            ]);
+            assert_eq!(
+                humanize_dom(&result, false).unwrap(),
+                vec![vec![
+                    "Element".to_string(),
+                    "constructor".to_string(),
+                    "0".to_string()
+                ],]
+            );
         }
     }
 
@@ -522,7 +611,9 @@ mod tests {
 
             #[test]
             fn should_parse_combination_of_animate_property_and_event_bindings() {
-                let result = parse(r#"<div [animate.enter]="'foo'" (animate.leave)="onAnimation($event)"></div>"#);
+                let result = parse(
+                    r#"<div [animate.enter]="'foo'" (animate.leave)="onAnimation($event)"></div>"#,
+                );
                 let humanized = humanize_dom(&result, false).unwrap();
                 assert_eq!(humanized[0][1], "div");
                 assert_eq!(humanized[1][1], "[animate.enter]");
@@ -534,7 +625,9 @@ mod tests {
 
         #[test]
         fn should_parse_square_bracketed_attributes_more_permissively() {
-            let result = parse(r#"<foo [class.text-primary/80]="expr" [class.data-active:text-green-300/80]="expr2" [class.data-[size='large']:p-8]="expr3" some-attr/>"#);
+            let result = parse(
+                r#"<foo [class.text-primary/80]="expr" [class.data-active:text-green-300/80]="expr2" [class.data-[size='large']:p-8]="expr3" some-attr/>"#,
+            );
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][1], "foo");
             assert!(humanized[0].contains(&"#selfClosing".to_string()));
@@ -579,7 +672,7 @@ mod tests {
                 "<div>before{messages.length, plural, =0 {You have <b>no</b> messages} =1 {One {{message}}}}after</div>",
                 options
             );
-            
+
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][1], "div");
             assert_eq!(humanized[1][1], "before");
@@ -592,11 +685,8 @@ mod tests {
         fn should_parse_out_expansion_forms_in_span() {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
-            let result = parse_with_options(
-                "<div><span>{a, plural, =0 {b}}</span></div>",
-                options
-            );
-            
+            let result = parse_with_options("<div><span>{a, plural, =0 {b}}</span></div>", options);
+
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][1], "div");
             assert_eq!(humanized[1][1], "span");
@@ -611,9 +701,9 @@ mod tests {
             options.tokenize_expansion_forms = true;
             let result = parse_with_options(
                 "{messages.length, plural, =0 { {p.gender, select, male {m}} }}",
-                options
+                options,
             );
-            
+
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][0], "Expansion");
             assert_eq!(humanized[0][1], "messages.length");
@@ -624,11 +714,8 @@ mod tests {
         fn should_error_when_expansion_form_is_not_closed() {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
-            let result = parse_with_options(
-                "{messages.length, plural, =0 {one}",
-                options
-            );
-            
+            let result = parse_with_options("{messages.length, plural, =0 {one}", options);
+
             assert!(!result.errors.is_empty());
             let errors = humanize_errors(&result.errors);
             assert!(errors[0][1].contains("Invalid ICU") || errors[0][1].contains("Missing"));
@@ -638,11 +725,9 @@ mod tests {
         fn should_support_icu_expressions_with_cases_containing_numbers() {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
-            let result = parse_with_options(
-                "{sex, select, male {m} female {f} 0 {other}}",
-                options
-            );
-            
+            let result =
+                parse_with_options("{sex, select, male {m} female {f} 0 {other}}", options);
+
             assert_eq!(result.errors.len(), 0);
         }
 
@@ -650,11 +735,8 @@ mod tests {
         fn should_support_icu_expressions_with_cases_containing_any_char_except_brace() {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
-            let result = parse_with_options(
-                "{a, select, b {foo} % bar {% bar}}",
-                options
-            );
-            
+            let result = parse_with_options("{a, select, b {foo} % bar {% bar}}", options);
+
             assert_eq!(result.errors.len(), 0);
         }
 
@@ -662,11 +744,8 @@ mod tests {
         fn should_error_when_expansion_case_is_not_closed() {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
-            let result = parse_with_options(
-                "{messages.length, plural, =0 {one",
-                options
-            );
-            
+            let result = parse_with_options("{messages.length, plural, =0 {one", options);
+
             assert!(!result.errors.is_empty());
         }
 
@@ -674,18 +753,16 @@ mod tests {
         fn should_error_when_invalid_html_in_case() {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
-            let result = parse_with_options(
-                "{messages.length, plural, =0 {<b/>}",
-                options
-            );
-            
+            let result = parse_with_options("{messages.length, plural, =0 {<b/>}", options);
+
             assert!(!result.errors.is_empty());
             let errors = humanize_errors(&result.errors);
             assert!(errors[0][1].contains("self closed") || errors[0][1].contains("void"));
         }
 
         #[test]
-        fn should_normalize_line_endings_in_expansion_forms_in_inline_templates_if_i18n_normalize_line_endings_in_icus_is_true() {
+        fn should_normalize_line_endings_in_expansion_forms_in_inline_templates_if_i18n_normalize_line_endings_in_icus_is_true(
+        ) {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
             options.escaped_string = true;
@@ -694,7 +771,7 @@ mod tests {
                 "<div>\r\n  {\r\n    messages.length,\r\n    plural,\r\n    =0 {You have \r\nno\r\n messages}\r\n    =1 {One {{message}}}}\r\n</div>",
                 options
             );
-            
+
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][1], "div");
             assert_eq!(humanized[2][0], "Expansion");
@@ -702,7 +779,8 @@ mod tests {
         }
 
         #[test]
-        fn should_not_normalize_line_endings_in_icu_expressions_in_external_templates_when_i18n_normalize_line_endings_in_icus_is_not_set() {
+        fn should_not_normalize_line_endings_in_icu_expressions_in_external_templates_when_i18n_normalize_line_endings_in_icus_is_not_set(
+        ) {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
             options.escaped_string = true;
@@ -711,7 +789,7 @@ mod tests {
                 "<div>\r\n  {\r\n    messages.length,\r\n    plural,\r\n    =0 {You have \r\nno\r\n messages}\r\n    =1 {One {{message}}}}\r\n</div>",
                 options
             );
-            
+
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][1], "div");
             assert_eq!(humanized[2][0], "Expansion");
@@ -719,7 +797,8 @@ mod tests {
         }
 
         #[test]
-        fn should_normalize_line_endings_in_expansion_forms_in_external_templates_if_i18n_normalize_line_endings_in_icus_is_true() {
+        fn should_normalize_line_endings_in_expansion_forms_in_external_templates_if_i18n_normalize_line_endings_in_icus_is_true(
+        ) {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
             options.escaped_string = false;
@@ -728,7 +807,7 @@ mod tests {
                 "<div>\r\n  {\r\n    messages.length,\r\n    plural,\r\n    =0 {You have \r\nno\r\n messages}\r\n    =1 {One {{message}}}}\r\n</div>",
                 options
             );
-            
+
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][1], "div");
             assert_eq!(humanized[2][0], "Expansion");
@@ -736,7 +815,8 @@ mod tests {
         }
 
         #[test]
-        fn should_normalize_line_endings_in_nested_expansion_forms_for_inline_templates_when_i18n_normalize_line_endings_in_icus_is_true() {
+        fn should_normalize_line_endings_in_nested_expansion_forms_for_inline_templates_when_i18n_normalize_line_endings_in_icus_is_true(
+        ) {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
             options.escaped_string = true;
@@ -745,7 +825,7 @@ mod tests {
                 "{\r\n  messages.length, plural,\r\n  =0 { zero \r\n       {\r\n         p.gender, select,\r\n         male {m}\r\n       }\r\n     }\r\n}",
                 options
             );
-            
+
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][0], "Expansion");
             assert_eq!(humanized[0][1], "messages.length");
@@ -753,7 +833,8 @@ mod tests {
         }
 
         #[test]
-        fn should_not_normalize_line_endings_in_nested_expansion_forms_for_inline_templates_when_i18n_normalize_line_endings_in_icus_is_not_defined() {
+        fn should_not_normalize_line_endings_in_nested_expansion_forms_for_inline_templates_when_i18n_normalize_line_endings_in_icus_is_not_defined(
+        ) {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
             options.escaped_string = true;
@@ -762,7 +843,7 @@ mod tests {
                 "{\r\n  messages.length, plural,\r\n  =0 { zero \r\n       {\r\n         p.gender, select,\r\n         male {m}\r\n       }\r\n     }\r\n}",
                 options
             );
-            
+
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][0], "Expansion");
             assert_eq!(humanized[0][1], "messages.length");
@@ -770,7 +851,8 @@ mod tests {
         }
 
         #[test]
-        fn should_not_normalize_line_endings_in_nested_expansion_forms_for_external_templates_when_i18n_normalize_line_endings_in_icus_is_not_set() {
+        fn should_not_normalize_line_endings_in_nested_expansion_forms_for_external_templates_when_i18n_normalize_line_endings_in_icus_is_not_set(
+        ) {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
             // escaped_string and i18n_normalize_line_endings_in_icus not set
@@ -778,7 +860,7 @@ mod tests {
                 "{\r\n  messages.length, plural,\r\n  =0 { zero \r\n       {\r\n         p.gender, select,\r\n         male {m}\r\n       }\r\n     }\r\n}",
                 options
             );
-            
+
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][0], "Expansion");
             assert_eq!(humanized[0][1], "messages.length");
@@ -789,11 +871,8 @@ mod tests {
         fn should_error_when_expansion_case_is_not_properly_closed() {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
-            let result = parse_with_options(
-                "{a, select, b {foo} % { bar {% bar}}",
-                options
-            );
-            
+            let result = parse_with_options("{a, select, b {foo} % { bar {% bar}}", options);
+
             assert!(!result.errors.is_empty());
         }
     }
@@ -827,7 +906,7 @@ mod tests {
         #[test]
         fn should_parse_block_with_mixed_text_and_html() {
             let result = parse(
-                "@switch (expr) {@case (1) {hello<my-cmp/>there}@case (two) {<p>Two...</p>}}"
+                "@switch (expr) {@case (1) {hello<my-cmp/>there}@case (two) {<p>Two...</p>}}",
             );
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][0], "Block");
@@ -964,7 +1043,9 @@ mod tests {
             let result = parse_with_options("<div @MyDir></div>", options);
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][1], "div");
-            assert!(humanized.iter().any(|h| h[0] == "Directive" && h[1] == "MyDir"));
+            assert!(humanized
+                .iter()
+                .any(|h| h[0] == "Directive" && h[1] == "MyDir"));
         }
 
         #[test]
@@ -989,7 +1070,10 @@ mod tests {
         fn should_parse_directives_on_component_node() {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = parse_with_options("<MyComp @Dir @OtherDir(a=\"1\" [b]=\"two\" (c)=\"c()\")></MyComp>", options);
+            let result = parse_with_options(
+                "<MyComp @Dir @OtherDir(a=\"1\" [b]=\"two\" (c)=\"c()\")></MyComp>",
+                options,
+            );
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][0], "Component");
             assert!(humanized.iter().any(|h| h[0] == "Directive"));
@@ -999,7 +1083,10 @@ mod tests {
         fn should_parse_directive_mixed_with_other_attributes() {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = parse_with_options(r#"<div before="foo" @Dir middle @OtherDir([a]="a" (b)="b()") after="123"></div>"#, options);
+            let result = parse_with_options(
+                r#"<div before="foo" @Dir middle @OtherDir([a]="a" (b)="b()") after="123"></div>"#,
+                options,
+            );
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][1], "div");
             assert!(humanized.iter().any(|h| h[0] == "Directive"));
@@ -1009,7 +1096,10 @@ mod tests {
         fn should_store_source_locations_of_directives() {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = parse_with_options(r#"<div @Dir @OtherDir(a="1" [b]="two" (c)="c()")></div>"#, options);
+            let result = parse_with_options(
+                r#"<div @Dir @OtherDir(a="1" [b]="two" (c)="c()")></div>"#,
+                options,
+            );
             let humanized = humanize_dom_source_spans(&result).unwrap();
             assert!(humanized.iter().any(|h| h[0] == "Directive"));
         }
@@ -1051,10 +1141,7 @@ mod tests {
         fn should_parse_component_nested_within_markup() {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = parse_with_options(
-                "<div><MyComp>content</MyComp></div>",
-                options
-            );
+            let result = parse_with_options("<div><MyComp>content</MyComp></div>", options);
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][1], "div");
             assert!(humanized.iter().any(|h| h[0] == "Component"));
@@ -1084,17 +1171,22 @@ mod tests {
         fn should_parse_component_node_with_inferred_namespace_and_tag_name() {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = parse_with_options("<svg><MyComp:button>Hello</MyComp:button></svg>", options);
+            let result =
+                parse_with_options("<svg><MyComp:button>Hello</MyComp:button></svg>", options);
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][1], ":svg:svg");
             assert!(humanized.iter().any(|h| h[0] == "Component"));
         }
 
         #[test]
-        fn should_parse_component_node_with_inferred_namespace_plus_explicit_namespace_and_tag_name() {
+        fn should_parse_component_node_with_inferred_namespace_plus_explicit_namespace_and_tag_name(
+        ) {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = parse_with_options("<math><MyComp:svg:title>Hello</MyComp:svg:title></math>", options);
+            let result = parse_with_options(
+                "<math><MyComp:svg:title>Hello</MyComp:svg:title></math>",
+                options,
+            );
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][1], ":math:math");
             assert!(humanized.iter().any(|h| h[0] == "Component"));
@@ -1104,9 +1196,14 @@ mod tests {
         fn should_distinguish_components_with_tag_names_from_ones_without() {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = parse_with_options("<MyComp:button><MyComp>Hello</MyComp></MyComp:button>", options);
+            let result = parse_with_options(
+                "<MyComp:button><MyComp>Hello</MyComp></MyComp:button>",
+                options,
+            );
             let humanized = humanize_dom(&result, false).unwrap();
-            assert!(humanized.iter().any(|h| h[0] == "Component" && h[1] == "MyComp"));
+            assert!(humanized
+                .iter()
+                .any(|h| h[0] == "Component" && h[1] == "MyComp"));
         }
 
         #[test]
@@ -1123,7 +1220,10 @@ mod tests {
         fn should_parse_component_tag_nested_within_other_markup() {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = parse_with_options("@if (expr) {<div>Hello: <MyComp><span><OtherComp/></span></MyComp></div>}", options);
+            let result = parse_with_options(
+                "@if (expr) {<div>Hello: <MyComp><span><OtherComp/></span></MyComp></div>}",
+                options,
+            );
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][0], "Block");
             assert!(humanized.iter().any(|h| h[0] == "Component"));
@@ -1141,7 +1241,10 @@ mod tests {
         fn should_parse_component_node_with_attributes_and_directives() {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = parse_with_options(r#"<MyComp before="foo" @Dir middle @OtherDir([a]="a" (b)="b()") after="123">Hello</MyComp>"#, options);
+            let result = parse_with_options(
+                r#"<MyComp before="foo" @Dir middle @OtherDir([a]="a" (b)="b()") after="123">Hello</MyComp>"#,
+                options,
+            );
             let humanized = humanize_dom(&result, false).unwrap();
             assert_eq!(humanized[0][0], "Component");
             assert!(humanized.iter().any(|h| h[0] == "Directive"));
@@ -1151,7 +1254,8 @@ mod tests {
         fn should_store_source_locations_of_component_with_attributes_and_content() {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = parse_with_options(r#"<MyComp one="1" two [three]="3">Hello</MyComp>"#, options);
+            let result =
+                parse_with_options(r#"<MyComp one="1" two [three]="3">Hello</MyComp>"#, options);
             let humanized = humanize_dom_source_spans(&result).unwrap();
             assert_eq!(humanized[0][0], "Component");
         }
@@ -1160,7 +1264,10 @@ mod tests {
         fn should_store_source_locations_of_self_closing_components() {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = parse_with_options(r#"<MyComp one="1" two [three]="3"/>Hello<MyOtherComp/><MyThirdComp:button/>"#, options);
+            let result = parse_with_options(
+                r#"<MyComp one="1" two [three]="3"/>Hello<MyOtherComp/><MyThirdComp:button/>"#,
+                options,
+            );
             let humanized = humanize_dom_source_spans(&result).unwrap();
             assert!(humanized.iter().any(|h| h[0] == "Component"));
         }
@@ -1246,10 +1353,7 @@ mod tests {
         fn should_support_expansion_form_in_source_spans() {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
-            let result = parse_with_options(
-                "<div>{count, plural, =0 {msg}}</div>",
-                options
-            );
+            let result = parse_with_options("<div>{count, plural, =0 {msg}}</div>", options);
             let humanized = humanize_dom_source_spans(&result).unwrap();
             assert!(humanized.iter().any(|h| h[0] == "Expansion"));
         }
@@ -1258,7 +1362,8 @@ mod tests {
         fn should_not_include_leading_trivia_from_following_node_in_end_source() {
             let mut options = TokenizeOptions::default();
             options.leading_trivia_chars = Some(vec![' ', '\n', '\r', '\t']);
-            let result = parse_with_options("<input type=\"text\" />\n\n\n  <span>\n</span>", options);
+            let result =
+                parse_with_options("<input type=\"text\" />\n\n\n  <span>\n</span>", options);
             let humanized = humanize_dom_source_spans(&result).unwrap();
             assert!(humanized.iter().any(|h| h[1] == "input"));
         }
@@ -1308,7 +1413,9 @@ mod tests {
         fn should_visit_attribute_nodes() {
             let result = parse(r#"<div id="foo"></div>"#);
             let humanized = humanize_dom(&result, false).unwrap();
-            assert!(humanized.iter().any(|h| h[0] == "Attribute" && h[1] == "id"));
+            assert!(humanized
+                .iter()
+                .any(|h| h[0] == "Attribute" && h[1] == "id"));
         }
 
         #[test]
@@ -1518,4 +1625,3 @@ mod tests {
     //
     // Next: Complete remaining edge cases, then move to lexer_spec.ts
 }
-

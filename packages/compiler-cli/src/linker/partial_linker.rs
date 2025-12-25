@@ -1,7 +1,7 @@
-use angular_compiler::constant_pool::ConstantPool;
-use angular_compiler::output::output_ast as o;
 use crate::linker::ast::AstNode;
 use crate::linker::ast_value::AstObject;
+use angular_compiler::constant_pool::ConstantPool;
+use angular_compiler::output::output_ast as o;
 
 /// Trait implemented by all partial linkers (component, directive, etc.).
 pub trait PartialLinker<TExpression: AstNode> {

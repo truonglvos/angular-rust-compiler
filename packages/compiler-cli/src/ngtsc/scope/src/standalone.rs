@@ -2,8 +2,8 @@
 //
 // Responsible for computing compilation scope for standalone components.
 
-use std::collections::{HashMap, HashSet};
 use super::api::{CompilationScope, DirectiveInScope, PipeInScope};
+use std::collections::{HashMap, HashSet};
 
 /// Registry for standalone component scopes.
 pub struct StandaloneComponentScopeReader {
@@ -20,7 +20,7 @@ impl StandaloneComponentScopeReader {
             poisoned_components: HashSet::new(),
         }
     }
-    
+
     /// Get the scope for a standalone component.
     pub fn get_scope_for_component(&mut self, component_ref: &str) -> Option<&CompilationScope> {
         if !self.scope_cache.contains_key(component_ref) {
@@ -28,7 +28,7 @@ impl StandaloneComponentScopeReader {
         }
         self.scope_cache.get(component_ref)
     }
-    
+
     /// Register a standalone component's imports.
     pub fn register_standalone_component(
         &mut self,
@@ -37,11 +37,15 @@ impl StandaloneComponentScopeReader {
     ) {
         let component = component_ref.into();
         let mut scope = CompilationScope::empty();
-        
+
         // Process each import
         for import in imports {
             match import {
-                StandaloneImport::Directive { name, selector, is_component } => {
+                StandaloneImport::Directive {
+                    name,
+                    selector,
+                    is_component,
+                } => {
                     scope.directives.push(DirectiveInScope {
                         directive: name,
                         selector,
@@ -63,25 +67,23 @@ impl StandaloneComponentScopeReader {
                 }
             }
         }
-        
+
         self.scope_cache.insert(component, scope);
     }
-    
+
     /// Check if a component has scope errors.
     pub fn is_poisoned(&self, component_ref: &str) -> bool {
         self.poisoned_components.contains(component_ref)
     }
-    
+
     fn compute_scope_for_component(&mut self, component_ref: &str) {
         // If not pre-registered, create empty scope
         if !self.scope_cache.contains_key(component_ref) {
-            self.scope_cache.insert(
-                component_ref.to_string(),
-                CompilationScope::empty(),
-            );
+            self.scope_cache
+                .insert(component_ref.to_string(), CompilationScope::empty());
         }
     }
-    
+
     /// Get remote scoping requirements for a component.
     pub fn get_remote_scope(&self, _component_ref: &str) -> Option<RemoteScope> {
         // Standalone components don't use remote scoping
@@ -105,14 +107,9 @@ pub enum StandaloneImport {
         is_component: bool,
     },
     /// A pipe import.
-    Pipe {
-        name: String,
-        pipe_name: String,
-    },
+    Pipe { name: String, pipe_name: String },
     /// An NgModule import.
-    Module {
-        name: String,
-    },
+    Module { name: String },
 }
 
 /// Remote scope information.

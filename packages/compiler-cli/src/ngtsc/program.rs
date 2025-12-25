@@ -1,5 +1,5 @@
-use std::path::Path;
 use crate::ngtsc::core::NgCompilerOptions;
+use std::path::Path;
 // use crate::compiler::CompilationResult; // Removed to resolve conflict with ngtsc::core::CompilationResult
 // Let's use the one from ngtsc::core if exported, or fully qualify.
 // Actually, let's remove this import and use the one NgCompiler uses.
@@ -9,7 +9,7 @@ use crate::ngtsc::core::NgCompilerOptions;
 // I should change `program.rs` to use `crate::ngtsc::core::compiler::CompilationResult` (if that's what core one is).
 // Or check where NgCompiler comes from.
 // Import:
-use crate::ngtsc::core::{NgCompiler, CompilationTicket, CompilationTicketKind, CompilationResult};
+use crate::ngtsc::core::{CompilationResult, CompilationTicket, CompilationTicketKind, NgCompiler};
 use crate::ngtsc::file_system::FileSystem;
 
 pub struct NgtscProgram<'a, T: FileSystem> {
@@ -47,10 +47,9 @@ impl<'a, T: FileSystem> NgtscProgram<'a, T> {
         // Ensure analysis happens if not already done (simplified)
         // In reality, load_ng_structure is called before emit.
         if let Some(result) = &self.result {
-             self.compiler.emit(result)
+            self.compiler.emit(result)
         } else {
             Err("Compilation result not available. Did you call load_ng_structure?".to_string())
         }
     }
 }
-

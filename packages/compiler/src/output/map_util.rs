@@ -32,17 +32,8 @@ pub fn map_literal(
 ) -> Box<o::Expression> {
     let entries: Vec<o::LiteralMapEntry> = obj
         .into_iter()
-        .map(|(key, value)| o::LiteralMapEntry {
-            key,
-            quoted,
-            value,
-        })
+        .map(|(key, value)| o::LiteralMapEntry { key, quoted, value })
         .collect();
 
     o::literal_map(entries)
 }
-
-
-
-
-

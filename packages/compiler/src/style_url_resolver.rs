@@ -4,13 +4,11 @@
 //! Some code comes from WebComponents.JS
 //! https://github.com/webcomponents/webcomponentsjs/blob/master/src/HTMLImports/path.js
 
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
 
 /// Regex to match URL schema
-static URL_WITH_SCHEMA_REGEXP: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^([^:/?#]+):").unwrap()
-});
+static URL_WITH_SCHEMA_REGEXP: Lazy<Regex> = Lazy::new(|| Regex::new(r"^([^:/?#]+):").unwrap());
 
 /// Check if style URL is resolvable
 ///

@@ -3,14 +3,24 @@
 //! Corresponds to packages/compiler/src/template/pipeline/src/phases/binding_specialization.ts
 //! Specializes BindingOp into more specific operation types
 
-use crate::template::pipeline::ir as ir;
-use crate::template::pipeline::ir::enums::{OpKind, BindingKind, AnimationKind, AnimationBindingKind};
-use crate::template::pipeline::ir::ops::update::BindingOp;
-use crate::template::pipeline::ir::ops::create::{ElementStartOp, ElementOp, ContainerStartOp, ContainerOp, ElementOrContainerOpBase};
-use crate::template::pipeline::ir::ops::update::{create_attribute_op, create_property_op, create_animation_binding_op, create_control_op, create_two_way_property_op};
-use crate::template::pipeline::src::compilation::{CompilationJob, ComponentCompilationJob, CompilationJobKind, TemplateCompilationMode, CompilationUnit};
-use crate::template::pipeline::src::util::attributes::is_aria_attribute;
 use crate::ml_parser::tags::split_ns_name;
+use crate::template::pipeline::ir;
+use crate::template::pipeline::ir::enums::{
+    AnimationBindingKind, AnimationKind, BindingKind, OpKind,
+};
+use crate::template::pipeline::ir::ops::create::{
+    ContainerOp, ContainerStartOp, ElementOp, ElementOrContainerOpBase, ElementStartOp,
+};
+use crate::template::pipeline::ir::ops::update::BindingOp;
+use crate::template::pipeline::ir::ops::update::{
+    create_animation_binding_op, create_attribute_op, create_control_op, create_property_op,
+    create_two_way_property_op,
+};
+use crate::template::pipeline::src::compilation::{
+    CompilationJob, CompilationJobKind, CompilationUnit, ComponentCompilationJob,
+    TemplateCompilationMode,
+};
+use crate::template::pipeline::src::util::attributes::is_aria_attribute;
 
 /// Looks up an element in the given map by xref ID.
 fn lookup_element<'a>(
@@ -18,43 +28,44 @@ fn lookup_element<'a>(
     unit: &'a mut crate::template::pipeline::src::compilation::ViewCompilationUnit,
     xref: ir::XrefId,
 ) -> &'a mut ElementOrContainerOpBase {
-    let index = elements.get(&xref)
+    let index = elements
+        .get(&xref)
         .expect("All attributes should have an element-like target.");
-    
+
     // Need to downcast to get mutable access to non_bindable
     // This is complex - we'll use unsafe
     unsafe {
         let op = unit.create_mut().get_mut(*index).unwrap();
         let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
-        
+
         // Try ElementStartOp first
         if op.kind() == OpKind::ElementStart {
             let elem_start_ptr = op_ptr as *mut ElementStartOp;
             let elem_start = &mut *elem_start_ptr;
             return &mut elem_start.base.base;
         }
-        
+
         // Try ElementOp
         if op.kind() == OpKind::Element {
             let elem_ptr = op_ptr as *mut ElementOp;
             let elem = &mut *elem_ptr;
             return &mut elem.base.base;
         }
-        
+
         // Try ContainerStartOp
         if op.kind() == OpKind::ContainerStart {
             let container_ptr = op_ptr as *mut ContainerStartOp;
             let container = &mut *container_ptr;
             return &mut container.base;
         }
-        
+
         // Try ContainerOp
         if op.kind() == OpKind::Container {
             let container_ptr = op_ptr as *mut ContainerOp;
             let container = &mut *container_ptr;
             return &mut container.base;
         }
-        
+
         panic!("Expected element or container op");
     }
 }
@@ -65,10 +76,11 @@ pub fn specialize_bindings(job: &mut dyn CompilationJob) {
         let job_ptr = job_ptr as *mut ComponentCompilationJob;
         &mut *job_ptr
     };
-    
+
     // Build map of elements - collect indices for all element/container ops
-    let mut elements_map: std::collections::HashMap<ir::XrefId, usize> = std::collections::HashMap::new();
-    
+    let mut elements_map: std::collections::HashMap<ir::XrefId, usize> =
+        std::collections::HashMap::new();
+
     // Collect from root unit
     for (index, op) in component_job.root.create().iter().enumerate() {
         match op.kind() {
@@ -78,22 +90,25 @@ pub fn specialize_bindings(job: &mut dyn CompilationJob) {
             _ => {}
         }
     }
-    
+
     // Collect from all view units
     for (_, unit) in component_job.views.iter() {
         for (index, op) in unit.create().iter().enumerate() {
             match op.kind() {
-                OpKind::ElementStart | OpKind::Element | OpKind::ContainerStart | OpKind::Container => {
+                OpKind::ElementStart
+                | OpKind::Element
+                | OpKind::ContainerStart
+                | OpKind::Container => {
                     elements_map.insert(op.xref(), index);
                 }
                 _ => {}
             }
         }
     }
-    
+
     // Process root unit
     process_unit(&mut component_job.root, job, &elements_map);
-    
+
     // Process all view units
     for (_, unit) in component_job.views.iter_mut() {
         process_unit(unit, job, &elements_map);
@@ -107,7 +122,7 @@ fn process_unit(
 ) {
     // Collect BindingOps to replace
     let mut ops_to_replace: Vec<(usize, BindingOp)> = Vec::new();
-    
+
     // First pass: collect all BindingOps
     for (index, op) in unit.update().iter().enumerate() {
         if op.kind() == OpKind::Binding {
@@ -119,7 +134,7 @@ fn process_unit(
             }
         }
     }
-    
+
     // Second pass: replace ops (iterate in reverse to maintain indices)
     for (index, binding_op) in ops_to_replace.iter().rev() {
         let replacement = match binding_op.binding_kind {
@@ -183,7 +198,9 @@ fn process_unit(
             }
             BindingKind::Property | BindingKind::LegacyAnimation => {
                 // Convert property binding to appropriate op
-                if job.mode() == TemplateCompilationMode::DomOnly && is_aria_attribute(&binding_op.name) {
+                if job.mode() == TemplateCompilationMode::DomOnly
+                    && is_aria_attribute(&binding_op.name)
+                {
                     // Convert ARIA property to attribute in DomOnly mode
                     Some(create_attribute_op(
                         binding_op.target,
@@ -273,25 +290,29 @@ fn process_unit(
                         })
                     }
                 };
-                Some(crate::template::pipeline::ir::ops::update::create_class_prop_op(
-                    binding_op.target,
-                    binding_op.name.clone(),
-                    expression,
-                    binding_op.source_span.clone(),
-                ))
+                Some(
+                    crate::template::pipeline::ir::ops::update::create_class_prop_op(
+                        binding_op.target,
+                        binding_op.name.clone(),
+                        expression,
+                        binding_op.source_span.clone(),
+                    ),
+                )
             }
             BindingKind::StyleProperty => {
                 // Convert to StylePropOp
-                Some(crate::template::pipeline::ir::ops::update::create_style_prop_op(
-                    binding_op.target,
-                    binding_op.name.clone(),
-                    binding_op.expression.clone(),
-                    binding_op.unit.clone(),
-                    binding_op.source_span.clone(),
-                ))
+                Some(
+                    crate::template::pipeline::ir::ops::update::create_style_prop_op(
+                        binding_op.target,
+                        binding_op.name.clone(),
+                        binding_op.expression.clone(),
+                        binding_op.unit.clone(),
+                        binding_op.source_span.clone(),
+                    ),
+                )
             }
         };
-        
+
         if let Some(new_op) = replacement {
             unit.update_mut().replace_at(*index, new_op);
         } else {
@@ -300,4 +321,3 @@ fn process_unit(
         }
     }
 }
-

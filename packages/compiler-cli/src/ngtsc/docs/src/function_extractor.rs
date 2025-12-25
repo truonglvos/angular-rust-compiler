@@ -9,11 +9,7 @@ pub struct FunctionExtractor;
 
 impl FunctionExtractor {
     /// Extract function entry.
-    pub fn extract(
-        name: &str,
-        params: Vec<ParameterEntry>,
-        return_type: &str,
-    ) -> FunctionEntry {
+    pub fn extract(name: &str, params: Vec<ParameterEntry>, return_type: &str) -> FunctionEntry {
         FunctionEntry {
             base: DocEntry::new(name, EntryType::Function),
             params,
@@ -21,7 +17,7 @@ impl FunctionExtractor {
             type_params: Vec::new(),
         }
     }
-    
+
     /// Extract parameter entry.
     pub fn extract_param(
         name: &str,

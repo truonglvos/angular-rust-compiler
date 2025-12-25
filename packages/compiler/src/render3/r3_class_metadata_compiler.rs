@@ -3,12 +3,11 @@
 //! Corresponds to packages/compiler/src/render3/r3_class_metadata_compiler.ts
 //! Contains class metadata compilation for TestBed APIs
 
-use crate::output::output_ast::{
-    Expression, ArrowFunctionExpr, ArrowFunctionBody, InvokeFunctionExpr, FnParam,
-    LiteralExpr, LiteralValue, LiteralArrayExpr, DynamicImportExpr, ReadPropExpr,
-    ReadVarExpr, ExternalExpr,
-};
 use crate::output::output_ast::dynamic_type;
+use crate::output::output_ast::{
+    ArrowFunctionBody, ArrowFunctionExpr, DynamicImportExpr, Expression, ExternalExpr, FnParam,
+    InvokeFunctionExpr, LiteralArrayExpr, LiteralExpr, LiteralValue, ReadPropExpr, ReadVarExpr,
+};
 
 use super::r3_identifiers::Identifiers as R3;
 use super::util::dev_only_guarded_expression;
@@ -55,7 +54,7 @@ pub struct R3DeferPerComponentDependency {
 /// Compile class metadata
 pub fn compile_class_metadata(metadata: &R3ClassMetadata) -> Expression {
     let fn_call = internal_compile_class_metadata(metadata);
-    
+
     // Wrap in arrow function with devOnlyGuardedExpression
     let guarded = dev_only_guarded_expression(Expression::InvokeFn(fn_call));
     let arrow = Expression::ArrowFn(ArrowFunctionExpr {
@@ -64,7 +63,7 @@ pub fn compile_class_metadata(metadata: &R3ClassMetadata) -> Expression {
         type_: None,
         source_span: None,
     });
-    
+
     Expression::InvokeFn(InvokeFunctionExpr {
         fn_: Box::new(arrow),
         args: vec![],
@@ -78,14 +77,20 @@ pub fn compile_class_metadata(metadata: &R3ClassMetadata) -> Expression {
 fn internal_compile_class_metadata(metadata: &R3ClassMetadata) -> InvokeFunctionExpr {
     let set_class_metadata_ref = R3::set_class_metadata();
     let set_class_metadata_expr = external_expr(set_class_metadata_ref);
-    
+
     InvokeFunctionExpr {
         fn_: Box::new(set_class_metadata_expr),
         args: vec![
             metadata.type_.clone(),
             metadata.decorators.clone(),
-            metadata.ctor_parameters.clone().unwrap_or_else(|| literal(LiteralValue::Null)),
-            metadata.prop_decorators.clone().unwrap_or_else(|| literal(LiteralValue::Null)),
+            metadata
+                .ctor_parameters
+                .clone()
+                .unwrap_or_else(|| literal(LiteralValue::Null)),
+            metadata
+                .prop_decorators
+                .clone()
+                .unwrap_or_else(|| literal(LiteralValue::Null)),
         ],
         type_: None,
         source_span: None,
@@ -109,7 +114,11 @@ pub fn compile_component_class_metadata(
                 })
                 .collect();
             let resolver = compile_component_metadata_async_resolver(deps);
-            internal_compile_set_class_metadata_async(metadata, wrapper_params, Expression::ArrowFn(resolver))
+            internal_compile_set_class_metadata_async(
+                metadata,
+                wrapper_params,
+                Expression::ArrowFn(resolver),
+            )
         }
     }
 }
@@ -137,17 +146,19 @@ fn internal_compile_set_class_metadata_async(
     dependency_resolver_fn: Expression,
 ) -> Expression {
     let set_class_metadata_call = internal_compile_class_metadata(metadata);
-    
+
     let set_class_meta_wrapper = Expression::ArrowFn(ArrowFunctionExpr {
         params: wrapper_params,
-        body: ArrowFunctionBody::Statements(vec![Expression::InvokeFn(set_class_metadata_call).to_stmt()]),
+        body: ArrowFunctionBody::Statements(vec![
+            Expression::InvokeFn(set_class_metadata_call).to_stmt()
+        ]),
         type_: None,
         source_span: None,
     });
-    
+
     let set_class_metadata_async_ref = R3::set_class_metadata_async();
     let set_class_metadata_async_expr = external_expr(set_class_metadata_async_ref);
-    
+
     let set_class_meta_async = Expression::InvokeFn(InvokeFunctionExpr {
         fn_: Box::new(set_class_metadata_async_expr),
         args: vec![
@@ -159,7 +170,7 @@ fn internal_compile_set_class_metadata_async(
         source_span: None,
         pure: false,
     });
-    
+
     let guarded = dev_only_guarded_expression(set_class_meta_async);
     let outer_arrow = Expression::ArrowFn(ArrowFunctionExpr {
         params: vec![],
@@ -167,7 +178,7 @@ fn internal_compile_set_class_metadata_async(
         type_: None,
         source_span: None,
     });
-    
+
     Expression::InvokeFn(InvokeFunctionExpr {
         fn_: Box::new(outer_arrow),
         args: vec![],
@@ -190,34 +201,32 @@ pub fn compile_component_metadata_async_resolver(
             } else {
                 dep.symbol_name.clone()
             };
-            
+
             let inner_fn = Expression::ArrowFn(ArrowFunctionExpr {
                 params: vec![FnParam {
                     name: "m".to_string(),
                     type_: Some(dynamic_type()),
                 }],
-                body: ArrowFunctionBody::Expression(Box::new(
-                    Expression::ReadProp(ReadPropExpr {
-                        receiver: Box::new(Expression::ReadVar(ReadVarExpr {
-                            name: "m".to_string(),
-                            type_: None,
-                            source_span: None,
-                        })),
-                        name: prop_name,
+                body: ArrowFunctionBody::Expression(Box::new(Expression::ReadProp(ReadPropExpr {
+                    receiver: Box::new(Expression::ReadVar(ReadVarExpr {
+                        name: "m".to_string(),
                         type_: None,
                         source_span: None,
-                    })
-                )),
+                    })),
+                    name: prop_name,
+                    type_: None,
+                    source_span: None,
+                }))),
                 type_: None,
                 source_span: None,
             });
-            
+
             // e.g. `import('./cmp-a').then(...)`
             let dynamic_import = Expression::DynamicImport(DynamicImportExpr {
                 url: dep.import_path.clone(),
                 source_span: None,
             });
-            
+
             Expression::InvokeFn(InvokeFunctionExpr {
                 fn_: Box::new(Expression::ReadProp(ReadPropExpr {
                     receiver: Box::new(dynamic_import),
@@ -232,7 +241,7 @@ pub fn compile_component_metadata_async_resolver(
             })
         })
         .collect();
-    
+
     // e.g. `() => [ ... ]`
     ArrowFunctionExpr {
         params: vec![],

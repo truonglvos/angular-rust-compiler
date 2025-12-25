@@ -4,10 +4,14 @@
 //! Replace sequences of mergable instructions (e.g. `ElementStart` and `ElementEnd`) with a
 //! consolidated instruction (e.g. `Element`).
 
-use crate::template::pipeline::ir as ir;
+use crate::template::pipeline::ir;
 use crate::template::pipeline::ir::enums::OpKind;
-use crate::template::pipeline::ir::ops::create::{ElementStartOp, ElementOp, ElementOpBase, ContainerStartOp, ContainerOp, I18nStartOp, I18nOp};
-use crate::template::pipeline::src::compilation::{CompilationJob, ComponentCompilationJob, CompilationUnit, CompilationJobKind};
+use crate::template::pipeline::ir::ops::create::{
+    ContainerOp, ContainerStartOp, ElementOp, ElementOpBase, ElementStartOp, I18nOp, I18nStartOp,
+};
+use crate::template::pipeline::src::compilation::{
+    CompilationJob, CompilationJobKind, CompilationUnit, ComponentCompilationJob,
+};
 
 /// Op kinds that should not prevent merging of start/end ops.
 const IGNORED_OP_KINDS: &[OpKind] = &[OpKind::Pipe];
@@ -16,17 +20,20 @@ const IGNORED_OP_KINDS: &[OpKind] = &[OpKind::Pipe];
 /// consolidated instruction (e.g. `Element`).
 pub fn collapse_empty_instructions(job: &mut dyn CompilationJob) {
     let job_kind = job.kind();
-    
-    if matches!(job_kind, CompilationJobKind::Tmpl | CompilationJobKind::Both) {
+
+    if matches!(
+        job_kind,
+        CompilationJobKind::Tmpl | CompilationJobKind::Both
+    ) {
         let component_job = unsafe {
             let job_ptr = job as *mut dyn CompilationJob;
             let job_ptr = job_ptr as *mut ComponentCompilationJob;
             &mut *job_ptr
         };
-        
+
         // Process root unit
         process_unit(&mut component_job.root);
-        
+
         // Process all view units
         for (_, unit) in component_job.views.iter_mut() {
             process_unit(unit);
@@ -36,11 +43,11 @@ pub fn collapse_empty_instructions(job: &mut dyn CompilationJob) {
 
 fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewCompilationUnit) {
     let mut indices_to_remove: Vec<usize> = Vec::new();
-    
+
     // Store replacement data (index and data to create merged op)
     #[derive(Debug)]
     enum ReplacementData {
-        Element { 
+        Element {
             tag: Option<String>,
             namespace: crate::template::pipeline::ir::enums::Namespace,
             base: crate::template::pipeline::ir::ops::create::ElementOrContainerOpBase,
@@ -55,7 +62,7 @@ fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewComp
         },
     }
     let mut replacements: Vec<(usize, ReplacementData)> = Vec::new();
-    
+
     // Iterate through ops to find end ops that can be merged
     for (index, op) in unit.create().iter().enumerate() {
         let (start_kind, _merged_kind) = match op.kind() {
@@ -64,7 +71,7 @@ fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewComp
             OpKind::I18nEnd => (OpKind::I18nStart, OpKind::I18n),
             _ => continue,
         };
-        
+
         // Find previous non-ignored op
         let mut prev_index = index;
         while prev_index > 0 {
@@ -74,7 +81,7 @@ fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewComp
                 if IGNORED_OP_KINDS.contains(&prev_op.kind()) {
                     continue;
                 }
-                
+
                 // Check if previous op is the corresponding start op
                 if prev_op.kind() == start_kind && prev_op.xref() == op.xref() {
                     // Store replacement data
@@ -123,45 +130,44 @@ fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewComp
             }
         }
     }
-    
+
     // Sort indices_to_remove to adjust replacement indices correctly
     indices_to_remove.sort();
-    
+
     // Remove end ops first (in reverse order)
     for index in indices_to_remove.iter().rev() {
         unit.create_mut().remove_at(*index);
     }
-    
+
     // Then apply replacements (in reverse order, after adjusting indices)
     for (index, replacement_data) in replacements.iter().rev() {
         // Adjust index based on removals that came before it
         let removals_before = indices_to_remove.iter().filter(|&&r| r < *index).count();
         let adjusted_index = *index - removals_before;
-        
+
         let merged_op = match replacement_data {
-            ReplacementData::Element { tag, namespace, base, i18n_placeholder } => {
-                Box::new(ElementOp {
-                    base: ElementOpBase {
-                        base: base.clone(),
-                        tag: tag.clone(),
-                        namespace: *namespace,
-                    },
-                    i18n_placeholder: i18n_placeholder.clone(),
-                }) as Box<dyn ir::CreateOp + Send + Sync>
-            }
+            ReplacementData::Element {
+                tag,
+                namespace,
+                base,
+                i18n_placeholder,
+            } => Box::new(ElementOp {
+                base: ElementOpBase {
+                    base: base.clone(),
+                    tag: tag.clone(),
+                    namespace: *namespace,
+                },
+                i18n_placeholder: i18n_placeholder.clone(),
+            }) as Box<dyn ir::CreateOp + Send + Sync>,
             ReplacementData::Container { base } => {
-                Box::new(ContainerOp {
-                    base: base.clone(),
-                }) as Box<dyn ir::CreateOp + Send + Sync>
+                Box::new(ContainerOp { base: base.clone() }) as Box<dyn ir::CreateOp + Send + Sync>
             }
-            ReplacementData::I18n { base, source_span } => {
-                Box::new(I18nOp {
-                    base: base.clone(),
-                    source_span: source_span.clone(),
-                }) as Box<dyn ir::CreateOp + Send + Sync>
-            }
+            ReplacementData::I18n { base, source_span } => Box::new(I18nOp {
+                base: base.clone(),
+                source_span: source_span.clone(),
+            })
+                as Box<dyn ir::CreateOp + Send + Sync>,
         };
         unit.create_mut().replace_at(adjusted_index, merged_op);
     }
 }
-

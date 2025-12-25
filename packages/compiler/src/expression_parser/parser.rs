@@ -4,11 +4,12 @@
  * Recursive descent parser for Angular template expressions
  * Mirrors packages/compiler/src/expression_parser/parser.ts (1796 lines)
  */
-
 use super::ast::*;
 use super::lexer::{Lexer, Token, TokenType};
 use crate::error::{CompilerError, Result};
-use crate::parse_util::{ParseError as ParseUtilError, ParseLocation, ParseSourceFile, ParseSourceSpan};
+use crate::parse_util::{
+    ParseError as ParseUtilError, ParseLocation, ParseSourceFile, ParseSourceSpan,
+};
 
 /// Interpolation piece (part of interpolation)
 #[derive(Debug, Clone)]
@@ -73,8 +74,6 @@ impl Parser {
         let mut parse_ast = ParseAST::new(input, absolute_offset, tokens, ParseFlags::Action);
         let ast = parse_ast.parse_chain()?;
 
-
-        
         Ok(ast)
     }
 
@@ -90,17 +89,21 @@ impl Parser {
                 message: format!("Unexpected token '{:?}'", token),
             });
         }
-        
+
         if !parse_ast.errors.is_empty() {
-             return Err(CompilerError::ParseError {
+            return Err(CompilerError::ParseError {
                 message: parse_ast.errors[0].msg.clone(),
-             });
+            });
         }
         Ok(ast)
     }
 
     /// Parse an action expression with error collection (for tests)
-    pub fn parse_action_with_errors(&self, input: &str, absolute_offset: usize) -> ParseActionResult {
+    pub fn parse_action_with_errors(
+        &self,
+        input: &str,
+        absolute_offset: usize,
+    ) -> ParseActionResult {
         let tokens = self.lexer.tokenize(input);
         let mut parse_ast = ParseAST::new(input, absolute_offset, tokens, ParseFlags::Action);
         match parse_ast.parse_chain() {
@@ -129,7 +132,11 @@ impl Parser {
     }
 
     /// Parse a binding expression with error collection (for tests)
-    pub fn parse_binding_with_errors(&self, input: &str, absolute_offset: usize) -> ParseActionResult {
+    pub fn parse_binding_with_errors(
+        &self,
+        input: &str,
+        absolute_offset: usize,
+    ) -> ParseActionResult {
         let tokens = self.lexer.tokenize(input);
         let mut parse_ast = ParseAST::new(input, absolute_offset, tokens, ParseFlags::None);
         match parse_ast.parse_chain() {
@@ -166,7 +173,7 @@ impl Parser {
 
     fn check_simple_binding_restrictions(&self, ast: &AST) -> Result<()> {
         if self.contains_pipe(ast) {
-             return Err(CompilerError::ParseError {
+            return Err(CompilerError::ParseError {
                 message: "Bindings cannot contain pipes".to_string(),
             });
         }
@@ -178,27 +185,48 @@ impl Parser {
             AST::BindingPipe(_) => true,
             AST::Binary(b) => self.contains_pipe(&b.left) || self.contains_pipe(&b.right),
             AST::Chain(c) => c.expressions.iter().any(|e| self.contains_pipe(e)),
-            AST::Conditional(c) => self.contains_pipe(&c.condition) || self.contains_pipe(&c.true_exp) || self.contains_pipe(&c.false_exp),
+            AST::Conditional(c) => {
+                self.contains_pipe(&c.condition)
+                    || self.contains_pipe(&c.true_exp)
+                    || self.contains_pipe(&c.false_exp)
+            }
             AST::PropertyRead(p) => self.contains_pipe(&p.receiver),
             AST::SafePropertyRead(p) => self.contains_pipe(&p.receiver),
             AST::KeyedRead(k) => self.contains_pipe(&k.receiver) || self.contains_pipe(&k.key),
             AST::SafeKeyedRead(k) => self.contains_pipe(&k.receiver) || self.contains_pipe(&k.key),
             AST::LiteralArray(a) => a.expressions.iter().any(|e| self.contains_pipe(e)),
             AST::LiteralMap(m) => m.values.iter().any(|v| self.contains_pipe(v)),
-            AST::Call(c) => self.contains_pipe(&c.receiver) || c.args.iter().any(|a| self.contains_pipe(a)),
-            AST::SafeCall(c) => self.contains_pipe(&c.receiver) || c.args.iter().any(|a| self.contains_pipe(a)),
+            AST::Call(c) => {
+                self.contains_pipe(&c.receiver) || c.args.iter().any(|a| self.contains_pipe(a))
+            }
+            AST::SafeCall(c) => {
+                self.contains_pipe(&c.receiver) || c.args.iter().any(|a| self.contains_pipe(a))
+            }
             AST::PrefixNot(p) => self.contains_pipe(&p.expression),
             AST::Unary(u) => self.contains_pipe(&u.expr),
             AST::NonNullAssert(n) => self.contains_pipe(&n.expression),
-            AST::PropertyWrite(p) => self.contains_pipe(&p.receiver) || self.contains_pipe(&p.value),
-            AST::KeyedWrite(k) => self.contains_pipe(&k.receiver) || self.contains_pipe(&k.key) || self.contains_pipe(&k.value),
+            AST::PropertyWrite(p) => {
+                self.contains_pipe(&p.receiver) || self.contains_pipe(&p.value)
+            }
+            AST::KeyedWrite(k) => {
+                self.contains_pipe(&k.receiver)
+                    || self.contains_pipe(&k.key)
+                    || self.contains_pipe(&k.value)
+            }
             AST::TypeofExpression(t) => self.contains_pipe(&t.expression),
             AST::VoidExpression(v) => self.contains_pipe(&v.expression),
             AST::TemplateLiteral(t) => t.expressions.iter().any(|e| self.contains_pipe(e)),
-            AST::TaggedTemplateLiteral(t) => self.contains_pipe(&t.tag) || t.template.expressions.iter().any(|e| self.contains_pipe(e)),
+            AST::TaggedTemplateLiteral(t) => {
+                self.contains_pipe(&t.tag)
+                    || t.template.expressions.iter().any(|e| self.contains_pipe(e))
+            }
             AST::ParenthesizedExpression(p) => self.contains_pipe(&p.expression),
-            AST::ImplicitReceiver(_) | AST::ThisReceiver(_) | AST::LiteralPrimitive(_) |
-            AST::RegularExpressionLiteral(_) | AST::Interpolation(_) | AST::EmptyExpr(_) => false,
+            AST::ImplicitReceiver(_)
+            | AST::ThisReceiver(_)
+            | AST::LiteralPrimitive(_)
+            | AST::RegularExpressionLiteral(_)
+            | AST::Interpolation(_)
+            | AST::EmptyExpr(_) => false,
         }
     }
 
@@ -220,26 +248,29 @@ impl Parser {
             let expr_text = piece.text.trim();
             if expr_text.is_empty() {
                 return Err(CompilerError::ParseError {
-                    message: "Blank expressions are not allowed in interpolated strings".to_string(),
+                    message: "Blank expressions are not allowed in interpolated strings"
+                        .to_string(),
                 });
             }
             let tokens = self.lexer.tokenize(&piece.text);
             if tokens.is_empty() {
                 return Err(CompilerError::ParseError {
-                    message: "Blank expressions are not allowed in interpolated strings".to_string(),
+                    message: "Blank expressions are not allowed in interpolated strings"
+                        .to_string(),
                 });
             }
             let mut parse_ast = ParseAST::new(&piece.text, piece.start, tokens, ParseFlags::Action);
             let ast = parse_ast.parse_chain()?;
             expressions.push(Box::new(ast));
-            
+
             if parse_ast.index < parse_ast.tokens.len() {
                 return Err(CompilerError::ParseError {
-                    message: format!("Unexpected token {:?} at column {} in expression [{}]", 
-                        parse_ast.tokens[parse_ast.index], 
-                        parse_ast.tokens[parse_ast.index].index, 
+                    message: format!(
+                        "Unexpected token {:?} at column {} in expression [{}]",
+                        parse_ast.tokens[parse_ast.index],
+                        parse_ast.tokens[parse_ast.index].index,
                         piece.text
-                    )
+                    ),
                 });
             }
         }
@@ -296,7 +327,10 @@ impl Parser {
                 while i < input.len() {
                     loop_count += 1;
                     if loop_count > 10000 {
-                         panic!("Parser infinite loop detected at i={} in input: '{}'", i, input);
+                        panic!(
+                            "Parser infinite loop detected at i={} in input: '{}'",
+                            i, input
+                        );
                     }
                     let char = input[i..].chars().next().unwrap();
 
@@ -318,13 +352,13 @@ impl Parser {
                     }
                     if in_double_quote {
                         if char == '\\' {
-                             i += 1; // Skip backslash
-                             if i < input.len() {
+                            i += 1; // Skip backslash
+                            if i < input.len() {
                                 if let Some(escaped) = input[i..].chars().next() {
                                     i += escaped.len_utf8();
                                 }
-                             }
-                             continue;
+                            }
+                            continue;
                         }
                         if char == '"' {
                             in_double_quote = false;
@@ -333,14 +367,14 @@ impl Parser {
                         continue;
                     }
                     if in_backtick {
-                         if char == '\\' {
-                             i += 1; // Skip backslash
-                             if i < input.len() {
+                        if char == '\\' {
+                            i += 1; // Skip backslash
+                            if i < input.len() {
                                 if let Some(escaped) = input[i..].chars().next() {
                                     i += escaped.len_utf8();
                                 }
-                             }
-                             continue;
+                            }
+                            continue;
                         }
                         if char == '`' {
                             in_backtick = false;
@@ -398,7 +432,7 @@ impl Parser {
                             continue;
                         }
                     }
-                    
+
                     i += char.len_utf8();
                 }
 
@@ -408,7 +442,8 @@ impl Parser {
                     // This matches TypeScript behavior where text is not trimmed, only checked
                     if expr_text.trim().is_empty() {
                         return Err(CompilerError::ParseError {
-                            message: "Blank expressions are not allowed in interpolated strings".to_string(),
+                            message: "Blank expressions are not allowed in interpolated strings"
+                                .to_string(),
                         });
                     }
                     expressions.push(InterpolationPiece {
@@ -596,8 +631,21 @@ impl ParseAST {
                 let op = &token.str_value;
                 if matches!(
                     op.as_str(),
-                    "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "^=" | "|=" | "<<=" | ">>="
-                        | ">>>=" | "**=" | "&&=" | "||=" | "??="
+                    "=" | "+="
+                        | "-="
+                        | "*="
+                        | "/="
+                        | "%="
+                        | "&="
+                        | "^="
+                        | "|="
+                        | "<<="
+                        | ">>="
+                        | ">>>="
+                        | "**="
+                        | "&&="
+                        | "||="
+                        | "??="
                 ) {
                     if !self.is_assignable(&left) {
                         return Err(CompilerError::ParseError {
@@ -686,15 +734,15 @@ impl ParseAST {
                     args.push(Box::new(self.parse_assignment()?)); // Parse pipe args
                 }
 
-            result = AST::BindingPipe(BindingPipe {
-                span: self.span(start),
-                source_span: self.source_span(start),
-                name_span,
-                exp: Box::new(result),
-                name,
-                args,
-                pipe_type: BindingPipeType::ReferencedByName,
-            });
+                result = AST::BindingPipe(BindingPipe {
+                    span: self.span(start),
+                    source_span: self.source_span(start),
+                    name_span,
+                    exp: Box::new(result),
+                    name,
+                    args,
+                    pipe_type: BindingPipeType::ReferencedByName,
+                });
             } else {
                 break;
             }
@@ -702,7 +750,6 @@ impl ParseAST {
 
         Ok(result)
     }
-
 
     /// Parse logical OR (||)
     fn parse_logical_or(&mut self) -> Result<AST> {
@@ -1068,19 +1115,22 @@ impl ParseAST {
                     });
                 } else if let Some(token) = self.current() {
                     if token.is_template_literal_part() || token.is_template_literal_end() {
-                         let template = if let AST::TemplateLiteral(t) = self.parse_template_literal()? {
-                             t
-                         } else {
-                             // Should calculate span/error appropriately
-                             return Err(CompilerError::ParseError { message: "Expected template literal".to_string() });
-                         };
-                         
-                         result = AST::TaggedTemplateLiteral(TaggedTemplateLiteral {
-                             span: self.span(start),
-                             source_span: self.source_span(start),
-                             tag: Box::new(result),
-                             template,
-                         });
+                        let template =
+                            if let AST::TemplateLiteral(t) = self.parse_template_literal()? {
+                                t
+                            } else {
+                                // Should calculate span/error appropriately
+                                return Err(CompilerError::ParseError {
+                                    message: "Expected template literal".to_string(),
+                                });
+                            };
+
+                        result = AST::TaggedTemplateLiteral(TaggedTemplateLiteral {
+                            span: self.span(start),
+                            source_span: self.source_span(start),
+                            tag: Box::new(result),
+                            template,
+                        });
                     } else if token.is_operator("=") {
                         if self.flags != ParseFlags::Action {
                             if !matches!(result, AST::KeyedRead(_)) {
@@ -1094,7 +1144,7 @@ impl ParseAST {
                         }
                         self.advance();
                         let value = self.parse_conditional()?;
-                        
+
                         result = match result {
                             AST::PropertyRead(r) => AST::PropertyWrite(PropertyWrite {
                                 span: self.span(start),
@@ -1110,9 +1160,11 @@ impl ParseAST {
                                 key: r.key,
                                 value: Box::new(value),
                             }),
-                            _ => return Err(CompilerError::ParseError {
-                                message: format!("Expression {:?} is not assignable", result),
-                            }),
+                            _ => {
+                                return Err(CompilerError::ParseError {
+                                    message: format!("Expression {:?} is not assignable", result),
+                                })
+                            }
                         };
                     } else if token.is_operator("!") {
                         self.advance();
@@ -1231,7 +1283,10 @@ impl ParseAST {
             // Private Identifier
             if token.is_private_identifier() {
                 return Err(CompilerError::ParseError {
-                    message: format!("Private identifier '{}' is not supported on implicit receiver", token.str_value),
+                    message: format!(
+                        "Private identifier '{}' is not supported on implicit receiver",
+                        token.str_value
+                    ),
                 });
             }
 
@@ -1299,7 +1354,7 @@ impl ParseAST {
                     }))
                 }
             } else {
-                // Record error for invalid member name (number, string, or other non-identifiers)  
+                // Record error for invalid member name (number, string, or other non-identifiers)
                 if let Some(current_token) = self.current() {
                     self.record_error(format!(
                         "Unexpected {:?}, expected identifier or keyword",
@@ -1308,12 +1363,12 @@ impl ParseAST {
                 } else {
                     self.record_error("expected identifier or keyword".to_string());
                 }
-                
+
                 // Return PropertyRead with empty name for error recovery
                 let name = "".to_string();
                 let name_span = self.source_span(self.input_index()); // Empty span
 
-                 if is_safe {
+                if is_safe {
                     Ok(AST::SafePropertyRead(SafePropertyRead {
                         span: self.span(start),
                         source_span: self.source_span(start),
@@ -1336,7 +1391,7 @@ impl ParseAST {
             self.record_error("expected identifier or keyword".to_string());
             let name = "".to_string();
             let name_span = self.source_span(self.input_index());
-            
+
             if is_safe {
                 Ok(AST::SafePropertyRead(SafePropertyRead {
                     span: self.span(start),
@@ -1421,7 +1476,10 @@ impl ParseAST {
                     });
                 };
 
-                keys.push(LiteralMapKey { key: key.clone(), quoted });
+                keys.push(LiteralMapKey {
+                    key: key.clone(),
+                    quoted,
+                });
 
                 // Check for property shorthand - if no colon, use key as value
                 if self.consume_optional_character(':') {
@@ -1469,9 +1527,9 @@ impl ParseAST {
             if !token.is_character(')') {
                 loop {
                     if let Some(token) = self.current() {
-                         if token.is_character(')') {
-                             break;
-                         }
+                        if token.is_character(')') {
+                            break;
+                        }
                     }
                     args.push(Box::new(self.parse_pipe()?));
 
@@ -1516,10 +1574,7 @@ impl ParseAST {
         } else {
             self.input_index()
         };
-        AbsoluteSourceSpan::new(
-            self.absolute_offset + start,
-            self.absolute_offset + end,
-        )
+        AbsoluteSourceSpan::new(self.absolute_offset + start, self.absolute_offset + end)
     }
 
     /// Parse template literal: `text ${expr} text`
@@ -1554,7 +1609,8 @@ impl ParseAST {
 
                 // Parse next template part
                 let is_end = if let Some(next_token) = self.current() {
-                    if next_token.is_template_literal_part() || next_token.is_template_literal_end() {
+                    if next_token.is_template_literal_part() || next_token.is_template_literal_end()
+                    {
                         let text = next_token.str_value.clone();
                         let is_end = next_token.is_template_literal_end();
                         let span = self.span(self.input_index());
@@ -1593,7 +1649,7 @@ impl ParseAST {
     /// Parse regular expression literal: /pattern/flags
     fn parse_regexp_literal(&mut self) -> Result<AST> {
         let start = self.input_index();
-        
+
         if let Some(token) = self.current() {
             if token.is_regexp_body() {
                 let body = token.str_value.clone();
@@ -1626,7 +1682,10 @@ impl ParseAST {
     }
 
     /// Parse template bindings (e.g., "let item of items")
-    fn parse_template_bindings(&mut self, directive_name: Option<&str>) -> TemplateBindingParseResult {
+    fn parse_template_bindings(
+        &mut self,
+        directive_name: Option<&str>,
+    ) -> TemplateBindingParseResult {
         let mut bindings = Vec::new();
         let warnings = Vec::new();
         let mut errors = Vec::new();
@@ -1649,7 +1708,6 @@ impl ParseAST {
             // Track original key name for 'as' binding (before directive prefix transformation)
             let mut original_key_for_as: Option<String> = None;
 
-
             if let Some(token) = self.current() {
                 if token.is_keyword_let() {
                     // Variable binding: let item [= value]
@@ -1663,227 +1721,312 @@ impl ParseAST {
                             key_span = Some(self.source_span(start));
                         } else {
                             // Error: expected identifier
-                             let span = self.source_span(self.input_index());
-                             errors.push(ParseUtilError::new(
-                                ParseSourceSpan::new(ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.start, 0, 0), ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.end, 0, 0)),
+                            let span = self.source_span(self.input_index());
+                            errors.push(ParseUtilError::new(
+                                ParseSourceSpan::new(
+                                    ParseLocation::new(
+                                        ParseSourceFile::new(self.input.clone(), "".to_string()),
+                                        span.start,
+                                        0,
+                                        0,
+                                    ),
+                                    ParseLocation::new(
+                                        ParseSourceFile::new(self.input.clone(), "".to_string()),
+                                        span.end,
+                                        0,
+                                        0,
+                                    ),
+                                ),
                                 "Expected identifier after 'let'".to_string(),
                             ));
                         }
                     } else {
-                         // Error
+                        // Error
                     }
-                    
+
                     // Check for optional value assignment: = value
-                     if self.consume_optional_operator("=") {
-                         match self.parse_pipe() {
-                             Ok(expr) => value = Some(Box::new(expr)),
-                             Err(e) => {
-                                 let span = self.source_span(self.input_index());
-                                 errors.push(ParseUtilError::new(
-                                     ParseSourceSpan::new(ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.start, 0, 0), ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.end, 0, 0)),
-                                     e.to_string(),
-                                 ));
-                             }
-                         }
-                     }
+                    if self.consume_optional_operator("=") {
+                        match self.parse_pipe() {
+                            Ok(expr) => value = Some(Box::new(expr)),
+                            Err(e) => {
+                                let span = self.source_span(self.input_index());
+                                errors.push(ParseUtilError::new(
+                                    ParseSourceSpan::new(
+                                        ParseLocation::new(
+                                            ParseSourceFile::new(
+                                                self.input.clone(),
+                                                "".to_string(),
+                                            ),
+                                            span.start,
+                                            0,
+                                            0,
+                                        ),
+                                        ParseLocation::new(
+                                            ParseSourceFile::new(
+                                                self.input.clone(),
+                                                "".to_string(),
+                                            ),
+                                            span.end,
+                                            0,
+                                            0,
+                                        ),
+                                    ),
+                                    e.to_string(),
+                                ));
+                            }
+                        }
+                    }
                 } else {
                     // Expression binding
                     // Could be:
                     // 1. directive_name [as alias] (if first binding)
                     // 2. key [assignments]
                     // 3. key [as alias]
-                    
+
                     // We try to parse an identifier as key first?
                     // Angular logic: check if it is a keyword?
-                    
+
                     let _start = self.input_index();
                     // Peek ahead logic would be best, but we'll try to parse chain and see.
                     // But parsing chain consumes tokens.
-                    
-                    // If we have directive_name, and this is the first binding (bindings.is_empty()), 
+
+                    // If we have directive_name, and this is the first binding (bindings.is_empty()),
                     // we treat the expression as value for directive_name.
                     // UNLESS the expression is a simple identifier AND followed by another expression?
-                    
+
                     // Simplification: Parse chain.
                     let start_token_index = self.index;
                     match self.parse_pipe() {
                         Ok(expr) => {
-                             let mut is_key = false;
-                             
-                             // If expr is a simple PropertyRead (identifier), check if we should treat it as a key.
-                             // It is a key if:
-                             // 1. It is followed by 'as' (e.g. exportAs) ? NO, 'as' binds the result.
-                             // 2. It is followed by ':' ? YES.
-                             // 3. It is followed by another expression (no comma/semicolon)? YES. (e.g. of items)
-                             
-                             if let AST::PropertyRead(ref prop) = expr {
-                                 if prop.receiver.is_implicit_receiver() {
-                                     // Simple identifier
-                                     if self.consume_optional_character(':') {
-                                       is_key = true;
-                                     } else if !bindings.is_empty() {
-                                         // If not empty, assumed to be key (unless followed by 'as' which is handled as Alias?)
-                                         // But even if followed by 'as': `ngIf as y`. `ngIf` is Key.
-                                         is_key = true;
+                            let mut is_key = false;
+
+                            // If expr is a simple PropertyRead (identifier), check if we should treat it as a key.
+                            // It is a key if:
+                            // 1. It is followed by 'as' (e.g. exportAs) ? NO, 'as' binds the result.
+                            // 2. It is followed by ':' ? YES.
+                            // 3. It is followed by another expression (no comma/semicolon)? YES. (e.g. of items)
+
+                            if let AST::PropertyRead(ref prop) = expr {
+                                if prop.receiver.is_implicit_receiver() {
+                                    // Simple identifier
+                                    if self.consume_optional_character(':') {
+                                        is_key = true;
+                                    } else if !bindings.is_empty() {
+                                        // If not empty, assumed to be key (unless followed by 'as' which is handled as Alias?)
+                                        // But even if followed by 'as': `ngIf as y`. `ngIf` is Key.
+                                        is_key = true;
                                     }
-                                 }
-                             }
-                             
-                             if is_key {
-                                 // The expr was actually a key.
-                                 if let AST::PropertyRead(prop) = expr {
-                                      // Save original key for 'as' binding before any transformation
-                                      original_key_for_as = Some(prop.name.clone());
-                                      key_name = Some(prop.name);
-                                      key_span = Some(prop.source_span);
-                                 }
+                                }
+                            }
 
-                                 
-                                 // Parse actual value
-                                 if self.current().map_or(false, |t| !t.is_keyword_as() && t.str_value != ";" && t.str_value != ",") {
-                                     match self.parse_pipe() {
-                                         Ok(val_expr) => value = Some(Box::new(val_expr)),
-                                         Err(e) => {
-                                             let span = self.source_span(self.input_index());
-                                             errors.push(ParseUtilError::new(
-                                                 ParseSourceSpan::new(ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.start, 0, 0), ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.end, 0, 0)),
-                                                 e.to_string(),
-                                             ));
-                                         }
-                                     }
-                                 }
-                                 
-                                 if let Some(ref dir) = directive_name {
-                                     // Transform key: prefix + Capitalized
-                                     // (original_key_for_as already saved above)
-                                     if let Some(ref k) = key_name {
-                                         let mut result = dir.to_string();
-                                         let mut chars = k.chars();
-                                         if let Some(first) = chars.next() {
-                                             result.push(first.to_ascii_uppercase());
-                                             result.push_str(chars.as_str());
-                                         }
-                                         key_name = Some(result);
-                                     }
-                                 }
+                            if is_key {
+                                // The expr was actually a key.
+                                if let AST::PropertyRead(prop) = expr {
+                                    // Save original key for 'as' binding before any transformation
+                                    original_key_for_as = Some(prop.name.clone());
+                                    key_name = Some(prop.name);
+                                    key_span = Some(prop.source_span);
+                                }
 
+                                // Parse actual value
+                                if self.current().map_or(false, |t| {
+                                    !t.is_keyword_as() && t.str_value != ";" && t.str_value != ","
+                                }) {
+                                    match self.parse_pipe() {
+                                        Ok(val_expr) => value = Some(Box::new(val_expr)),
+                                        Err(e) => {
+                                            let span = self.source_span(self.input_index());
+                                            errors.push(ParseUtilError::new(
+                                                ParseSourceSpan::new(
+                                                    ParseLocation::new(
+                                                        ParseSourceFile::new(
+                                                            self.input.clone(),
+                                                            "".to_string(),
+                                                        ),
+                                                        span.start,
+                                                        0,
+                                                        0,
+                                                    ),
+                                                    ParseLocation::new(
+                                                        ParseSourceFile::new(
+                                                            self.input.clone(),
+                                                            "".to_string(),
+                                                        ),
+                                                        span.end,
+                                                        0,
+                                                        0,
+                                                    ),
+                                                ),
+                                                e.to_string(),
+                                            ));
+                                        }
+                                    }
+                                }
 
-                             } else {
-                                 // It was the value.
-                                 value = Some(Box::new(expr));
-                                 if let Some(dir) = directive_name {
-                                     if bindings.is_empty() {
-                                         key_name = Some(dir.to_string());
-                                         // source span? should be empty or cover value?
-                                         // For "ngIf", source is "ngIf". But we don't have it in input.
-                                         // We'll use a synthetic span or the directive name if available?
-                                         // Actually let's use the directive name as source for now.
-                                         // key_span?
-                                     }
-                                 }
-                             }
-                             
-                             // Check for 'as'
-                             if let Some(token) = self.current() {
-                                 if token.is_keyword_as() {
-                                     self.advance();
-                                     if let Some(ident) = self.current() {
-                                         if ident.is_identifier() {
-                                             name = Some(ident.str_value.clone());
-                                             self.advance();
-                                         } else {
-                                             // Error
-                                             let span = self.source_span(self.input_index());
-                                             errors.push(ParseUtilError::new(
-                                                ParseSourceSpan::new(ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.start, 0, 0), ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.end, 0, 0)),
+                                if let Some(ref dir) = directive_name {
+                                    // Transform key: prefix + Capitalized
+                                    // (original_key_for_as already saved above)
+                                    if let Some(ref k) = key_name {
+                                        let mut result = dir.to_string();
+                                        let mut chars = k.chars();
+                                        if let Some(first) = chars.next() {
+                                            result.push(first.to_ascii_uppercase());
+                                            result.push_str(chars.as_str());
+                                        }
+                                        key_name = Some(result);
+                                    }
+                                }
+                            } else {
+                                // It was the value.
+                                value = Some(Box::new(expr));
+                                if let Some(dir) = directive_name {
+                                    if bindings.is_empty() {
+                                        key_name = Some(dir.to_string());
+                                        // source span? should be empty or cover value?
+                                        // For "ngIf", source is "ngIf". But we don't have it in input.
+                                        // We'll use a synthetic span or the directive name if available?
+                                        // Actually let's use the directive name as source for now.
+                                        // key_span?
+                                    }
+                                }
+                            }
+
+                            // Check for 'as'
+                            if let Some(token) = self.current() {
+                                if token.is_keyword_as() {
+                                    self.advance();
+                                    if let Some(ident) = self.current() {
+                                        if ident.is_identifier() {
+                                            name = Some(ident.str_value.clone());
+                                            self.advance();
+                                        } else {
+                                            // Error
+                                            let span = self.source_span(self.input_index());
+                                            errors.push(ParseUtilError::new(
+                                                ParseSourceSpan::new(
+                                                    ParseLocation::new(
+                                                        ParseSourceFile::new(
+                                                            self.input.clone(),
+                                                            "".to_string(),
+                                                        ),
+                                                        span.start,
+                                                        0,
+                                                        0,
+                                                    ),
+                                                    ParseLocation::new(
+                                                        ParseSourceFile::new(
+                                                            self.input.clone(),
+                                                            "".to_string(),
+                                                        ),
+                                                        span.end,
+                                                        0,
+                                                        0,
+                                                    ),
+                                                ),
                                                 "Expected identifier after 'as'".to_string(),
                                             ));
-                                         }
-                                     }
-                                 }
-                             }
+                                        }
+                                    }
+                                }
+                            }
                         }
                         Err(e) => {
-                             let span = self.source_span(self.input_index());
-                             errors.push(ParseUtilError::new(
-                                 ParseSourceSpan::new(ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.start, 0, 0), ParseLocation::new(ParseSourceFile::new(self.input.clone(), "".to_string()), span.end, 0, 0)),
-                                 e.to_string(),
-                             ));
-                             // Fix infinite loop: Advance if parsing failed to consume token
-                             if self.index == start_token_index {
-                                 self.advance();
-                             }
+                            let span = self.source_span(self.input_index());
+                            errors.push(ParseUtilError::new(
+                                ParseSourceSpan::new(
+                                    ParseLocation::new(
+                                        ParseSourceFile::new(self.input.clone(), "".to_string()),
+                                        span.start,
+                                        0,
+                                        0,
+                                    ),
+                                    ParseLocation::new(
+                                        ParseSourceFile::new(self.input.clone(), "".to_string()),
+                                        span.end,
+                                        0,
+                                        0,
+                                    ),
+                                ),
+                                e.to_string(),
+                            ));
+                            // Fix infinite loop: Advance if parsing failed to consume token
+                            if self.index == start_token_index {
+                                self.advance();
+                            }
                         }
                     }
                 }
             } else {
-                break; 
+                break;
             }
-            
+
             // Push bindings
             if key_is_var {
-                 if let Some(k) = key_name {
-                     bindings.push(TemplateBinding::Variable(VariableBinding {
-                         key: TemplateBindingIdentifier {
-                             source: k,
-                             span: key_span.unwrap_or(AbsoluteSourceSpan::new(0,0)), // TODO: correct span
-                         },
-                         value: value,
-                         span: AbsoluteSourceSpan::new(0,0), // TODO: correct span
-                     }));
-                 }
+                if let Some(k) = key_name {
+                    bindings.push(TemplateBinding::Variable(VariableBinding {
+                        key: TemplateBindingIdentifier {
+                            source: k,
+                            span: key_span.unwrap_or(AbsoluteSourceSpan::new(0, 0)), // TODO: correct span
+                        },
+                        value: value,
+                        span: AbsoluteSourceSpan::new(0, 0), // TODO: correct span
+                    }));
+                }
             } else if let Some(k) = key_name {
-                         let b_span = if let Some(v) = &value { v.source_span().clone() } else { AbsoluteSourceSpan::new(0,0) };
-                         // If there is a value, OR if there is no alias ('as'), we emit the expression binding.
-                         // If we have `key as alias` (and no value), TS only emits the VariableBinding for alias.
-                         if value.is_some() || name.is_none() {
-                             bindings.push(TemplateBinding::Expression(ExpressionBinding {
-                                 key: TemplateBindingIdentifier {
-                                     source: k,
-                                     span: key_span.unwrap_or(AbsoluteSourceSpan::new(0,0)), // TODO
-                                 },
-                                 value: value,
-                                 span: b_span, // TOOD: correct binding span
-                             }));
-                         }
-                         
-                         // If there was an 'as' binding
-                     if let Some(n) = name {
-                         // For "key as alias", create a VariableBinding:
-                         // - key = alias name (e.g., "i" for "index as i")  
-                         // - value = PropertyRead(original key) (e.g., "index" for "index as i")
-                         //
-                         // Use original_key_for_as which is the untransformed key name
-                         // (before directive prefix like "ngFor" is added)
-                         let value_name = original_key_for_as.unwrap_or_else(|| 
-                             directive_name.map(|d| d.to_string()).unwrap_or_default()
-                         );
+                let b_span = if let Some(v) = &value {
+                    v.source_span().clone()
+                } else {
+                    AbsoluteSourceSpan::new(0, 0)
+                };
+                // If there is a value, OR if there is no alias ('as'), we emit the expression binding.
+                // If we have `key as alias` (and no value), TS only emits the VariableBinding for alias.
+                if value.is_some() || name.is_none() {
+                    bindings.push(TemplateBinding::Expression(ExpressionBinding {
+                        key: TemplateBindingIdentifier {
+                            source: k,
+                            span: key_span.unwrap_or(AbsoluteSourceSpan::new(0, 0)), // TODO
+                        },
+                        value: value,
+                        span: b_span, // TOOD: correct binding span
+                    }));
+                }
 
+                // If there was an 'as' binding
+                if let Some(n) = name {
+                    // For "key as alias", create a VariableBinding:
+                    // - key = alias name (e.g., "i" for "index as i")
+                    // - value = PropertyRead(original key) (e.g., "index" for "index as i")
+                    //
+                    // Use original_key_for_as which is the untransformed key name
+                    // (before directive prefix like "ngFor" is added)
+                    let value_name = original_key_for_as.unwrap_or_else(|| {
+                        directive_name.map(|d| d.to_string()).unwrap_or_default()
+                    });
 
-                         
-                         let v = AST::PropertyRead(PropertyRead {
-                             span: ParseSpan::new(0,0), 
-                             source_span: AbsoluteSourceSpan::new(0,0),
-                             name_span: AbsoluteSourceSpan::new(0,0),
-                             receiver: Box::new(AST::ImplicitReceiver(ImplicitReceiver{ span: ParseSpan::new(0,0), source_span: AbsoluteSourceSpan::new(0,0) })),
-                             name: value_name,
-                         });
-                         bindings.push(TemplateBinding::Variable(VariableBinding {
-                             key: TemplateBindingIdentifier {
-                                 source: n,
-                                 span: AbsoluteSourceSpan::new(0,0),
-                             },
-                             value: Some(Box::new(v)),
-                             span: AbsoluteSourceSpan::new(0,0),
-                         }));
-                     }
+                    let v = AST::PropertyRead(PropertyRead {
+                        span: ParseSpan::new(0, 0),
+                        source_span: AbsoluteSourceSpan::new(0, 0),
+                        name_span: AbsoluteSourceSpan::new(0, 0),
+                        receiver: Box::new(AST::ImplicitReceiver(ImplicitReceiver {
+                            span: ParseSpan::new(0, 0),
+                            source_span: AbsoluteSourceSpan::new(0, 0),
+                        })),
+                        name: value_name,
+                    });
+                    bindings.push(TemplateBinding::Variable(VariableBinding {
+                        key: TemplateBindingIdentifier {
+                            source: n,
+                            span: AbsoluteSourceSpan::new(0, 0),
+                        },
+                        value: Some(Box::new(v)),
+                        span: AbsoluteSourceSpan::new(0, 0),
+                    }));
+                }
+            } else if let Some(_v) = value {
+                // No key name? Should only happen if directive_name missing?
+                // Or logic error.
+            }
 
-                 } else if let Some(_v) = value {
-                     // No key name? Should only happen if directive_name missing?
-                     // Or logic error.
-                 }
-
-            
             // Consume optional separator
             if let Some(token) = self.current() {
                 if token.str_value == ";" || token.str_value == "," {
@@ -1908,14 +2051,17 @@ impl ParseAST {
             });
 
             if !has_dir_binding {
-                bindings.insert(0, TemplateBinding::Expression(ExpressionBinding {
-                    key: TemplateBindingIdentifier {
-                        source: dir.to_string(),
-                        span: AbsoluteSourceSpan::new(0,0), // Synthetic span
-                    },
-                    value: None,
-                    span: AbsoluteSourceSpan::new(0,0),
-                }));
+                bindings.insert(
+                    0,
+                    TemplateBinding::Expression(ExpressionBinding {
+                        key: TemplateBindingIdentifier {
+                            source: dir.to_string(),
+                            span: AbsoluteSourceSpan::new(0, 0), // Synthetic span
+                        },
+                        value: None,
+                        span: AbsoluteSourceSpan::new(0, 0),
+                    }),
+                );
             }
         }
 
@@ -1926,8 +2072,6 @@ impl ParseAST {
         }
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

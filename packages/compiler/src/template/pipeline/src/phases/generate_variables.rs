@@ -4,37 +4,50 @@
 //! Generate a preamble sequence for each view creation block and listener function which declares
 //! any variables that be referenced in other operations in the block.
 
-use crate::template::pipeline::ir as ir;
-use crate::template::pipeline::ir::enums::OpKind;
-use crate::template::pipeline::ir::expression::{NextContextExpr, ReferenceExpr, ContextExpr, ContextLetReferenceExpr};
-use crate::template::pipeline::ir::ops::shared::create_variable_op;
-use crate::template::pipeline::ir::variable::{ContextVariable, IdentifierVariable, SemanticVariable, CTX_REF};
-use crate::template::pipeline::ir::handle::SlotHandle;
-use crate::template::pipeline::src::compilation::{ComponentCompilationJob, CompilationJobKind, CompilationUnit};
-use crate::template::pipeline::src::compilation::CompilationJob;
-use crate::template::pipeline::ir::enums::VariableFlags;
 use crate::output::output_ast::{Expression, ReadVarExpr};
+use crate::template::pipeline::ir;
+use crate::template::pipeline::ir::enums::OpKind;
+use crate::template::pipeline::ir::enums::VariableFlags;
+use crate::template::pipeline::ir::expression::{
+    ContextExpr, ContextLetReferenceExpr, NextContextExpr, ReferenceExpr,
+};
+use crate::template::pipeline::ir::handle::SlotHandle;
+use crate::template::pipeline::ir::ops::shared::create_variable_op;
+use crate::template::pipeline::ir::variable::{
+    ContextVariable, IdentifierVariable, SemanticVariable, CTX_REF,
+};
+use crate::template::pipeline::src::compilation::CompilationJob;
+use crate::template::pipeline::src::compilation::{
+    CompilationJobKind, CompilationUnit, ComponentCompilationJob,
+};
 use indexmap::IndexMap;
 
 /// Generate a preamble sequence for each view creation block and listener function which declares
 /// any variables that be referenced in other operations in the block.
 pub fn phase(job: &mut dyn CompilationJob) {
     let job_kind = job.kind();
-    
-    if matches!(job_kind, CompilationJobKind::Tmpl | CompilationJobKind::Both) {
+
+    if matches!(
+        job_kind,
+        CompilationJobKind::Tmpl | CompilationJobKind::Both
+    ) {
         let component_job_ptr = {
             let job_ptr = job as *mut dyn CompilationJob;
             job_ptr as *mut ComponentCompilationJob
         };
-        
+
         unsafe {
-            recursively_process_view(&mut (*component_job_ptr).root, None, &mut *component_job_ptr);
+            recursively_process_view(
+                &mut (*component_job_ptr).root,
+                None,
+                &mut *component_job_ptr,
+            );
         }
     }
 }
 
 /// Process the given `ViewCompilationUnit` and generate preambles for it and any listeners that it declares.
-/// 
+///
 /// `parent_scope`: a scope extracted from the parent view which captures any variables which
 /// should be inherited by this view. `None` if the current view is the root view.
 fn recursively_process_view(
@@ -59,13 +72,16 @@ fn recursively_process_view(
             OpKind::RepeaterCreate => {
                 ops_to_process.push((OpKind::RepeaterCreate, op.xref()));
             }
-            OpKind::Animation | OpKind::AnimationListener | OpKind::Listener | OpKind::TwoWayListener => {
+            OpKind::Animation
+            | OpKind::AnimationListener
+            | OpKind::Listener
+            | OpKind::TwoWayListener => {
                 ops_to_process.push((op.kind(), op.xref()));
             }
             _ => {}
         }
     }
-    
+
     // Process each op
     for (kind, xref) in ops_to_process {
         match kind {
@@ -74,7 +90,9 @@ fn recursively_process_view(
                 // Use raw pointer to avoid multiple borrows
                 let component_job_ptr = component_job as *mut ComponentCompilationJob;
                 if let Some(child_view) = unsafe { &mut *component_job_ptr }.views.get_mut(&xref) {
-                    recursively_process_view(child_view, Some(scope.clone()), unsafe { &mut *component_job_ptr });
+                    recursively_process_view(child_view, Some(scope.clone()), unsafe {
+                        &mut *component_job_ptr
+                    });
                 }
             }
             OpKind::Projection => {
@@ -87,8 +105,14 @@ fn recursively_process_view(
                         let proj_ptr = op_ptr as *const ProjectionOp;
                         let proj = &*proj_ptr;
                         if let Some(fallback_view) = proj.fallback_view {
-                            if let Some(fallback) = (&mut *component_job_ptr).views.get_mut(&fallback_view) {
-                                recursively_process_view(fallback, Some(scope.clone()), &mut *component_job_ptr);
+                            if let Some(fallback) =
+                                (&mut *component_job_ptr).views.get_mut(&fallback_view)
+                            {
+                                recursively_process_view(
+                                    fallback,
+                                    Some(scope.clone()),
+                                    &mut *component_job_ptr,
+                                );
                             }
                         }
                     }
@@ -99,7 +123,11 @@ fn recursively_process_view(
                 let component_job_ptr = component_job as *mut ComponentCompilationJob;
                 unsafe {
                     if let Some(child_view) = (&mut *component_job_ptr).views.get_mut(&xref) {
-                        recursively_process_view(child_view, Some(scope.clone()), &mut *component_job_ptr);
+                        recursively_process_view(
+                            child_view,
+                            Some(scope.clone()),
+                            &mut *component_job_ptr,
+                        );
                     }
                     // Check for empty view and trackByOps
                     if let Some(repeater_op) = find_op_by_xref(view, xref) {
@@ -108,13 +136,24 @@ fn recursively_process_view(
                         let rep_ptr = op_ptr as *const RepeaterCreateOp;
                         let rep = &*rep_ptr;
                         if let Some(empty_view) = rep.empty_view {
-                            if let Some(empty) = (&mut *component_job_ptr).views.get_mut(&empty_view) {
-                                recursively_process_view(empty, Some(scope.clone()), &mut *component_job_ptr);
+                            if let Some(empty) =
+                                (&mut *component_job_ptr).views.get_mut(&empty_view)
+                            {
+                                recursively_process_view(
+                                    empty,
+                                    Some(scope.clone()),
+                                    &mut *component_job_ptr,
+                                );
                             }
                         }
                         // Generate variables for trackByOps
                         if rep.track_by_ops.is_some() {
-                            let var_ops = generate_variables_in_scope_for_view(view.xref(), &scope, false, &mut *component_job_ptr);
+                            let var_ops = generate_variables_in_scope_for_view(
+                                view.xref(),
+                                &scope,
+                                false,
+                                &mut *component_job_ptr,
+                            );
                             // Prepend to track_by_ops - need mutable access
                             // Find the op again in the mutable list
                             for op_mut in view.create_mut().iter_mut() {
@@ -132,26 +171,32 @@ fn recursively_process_view(
                     }
                 }
             }
-            OpKind::Animation | OpKind::AnimationListener | OpKind::Listener | OpKind::TwoWayListener => {
+            OpKind::Animation
+            | OpKind::AnimationListener
+            | OpKind::Listener
+            | OpKind::TwoWayListener => {
                 // Prepend variables to listener handler functions
-                let var_ops = generate_variables_in_scope_for_view(view.xref(), &scope, true, component_job);
-                for op in &var_ops {
-                }
+                let var_ops =
+                    generate_variables_in_scope_for_view(view.xref(), &scope, true, component_job);
+                for op in &var_ops {}
                 prepend_variables_to_listener(view, xref, kind, var_ops);
             }
             _ => {}
         }
     }
-    
+
     // Generate variables for this view
     // Generate variables for this view
     let vars = generate_variables_in_scope_for_view(view.xref(), &scope, false, component_job);
     for op in &vars {
-        if let Some(var_op) = op.as_any().downcast_ref::<ir::ops::shared::VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>() {
+        if let Some(var_op) = op
+            .as_any()
+            .downcast_ref::<ir::ops::shared::VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>()
+        {
         }
     }
     view.update_mut().prepend(vars);
-    
+
     // Generate variables for listeners in this view
     // Redundant loop removed.
 }
@@ -169,21 +214,21 @@ fn find_op_by_xref(
 struct Scope {
     /// `XrefId` of the view to which this scope corresponds.
     view: ir::XrefId,
-    
+
     view_context_variable: SemanticVariable,
-    
+
     context_variables: IndexMap<String, SemanticVariable>,
-    
+
     /// Aliases from the view (cloned for recursive calls, but accessed via scope_view in generate_variables_in_scope_for_view)
     #[allow(dead_code)]
     aliases: Vec<ir::AliasVariable>,
-    
+
     /// Local references collected from elements within the view.
     references: Vec<Reference>,
-    
+
     /// `@let` declarations collected from the view.
     let_declarations: Vec<LetDeclaration>,
-    
+
     /// `Scope` of the parent view, if any.
     parent: Option<Box<Scope>>,
 }
@@ -195,15 +240,15 @@ struct Reference {
     /// (Stored but accessed via variable.identifier in practice)
     #[allow(dead_code)]
     name: String,
-    
+
     /// `XrefId` of the element-like node which this reference targets.
     target_id: ir::XrefId,
-    
+
     target_slot: SlotHandle,
-    
+
     /// A generated offset of this reference among all the references on a specific element.
     offset: usize,
-    
+
     variable: SemanticVariable,
 }
 
@@ -212,10 +257,10 @@ struct Reference {
 struct LetDeclaration {
     /// `XrefId` of the `@let` declaration that the reference is pointing to.
     target_id: ir::XrefId,
-    
+
     /// Slot in which the declaration is stored.
     target_slot: SlotHandle,
-    
+
     /// Variable referring to the declaration.
     variable: IdentifierVariable,
 }
@@ -239,17 +284,17 @@ fn get_scope_for_view(
     for (identifier, _value) in &view.context_variables {
         scope.context_variables.insert(
             identifier.clone(),
-            SemanticVariable::Identifier(IdentifierVariable::new(
-                identifier.clone(),
-                false,
-            )),
+            SemanticVariable::Identifier(IdentifierVariable::new(identifier.clone(), false)),
         );
     }
 
     // Collect local references and let declarations from create ops
     for op in view.create() {
         match op.kind() {
-            OpKind::ElementStart | OpKind::ConditionalCreate | OpKind::ConditionalBranchCreate | OpKind::Template => {
+            OpKind::ElementStart
+            | OpKind::ConditionalCreate
+            | OpKind::ConditionalBranchCreate
+            | OpKind::Template => {
                 // Record available local references from this element
                 unsafe {
                     let op_ptr = op.as_ref() as *const dyn ir::CreateOp;
@@ -268,22 +313,17 @@ fn get_scope_for_view(
                     }
                 }
             }
-            OpKind::DeclareLet => {
-                unsafe {
-                    let op_ptr = op.as_ref() as *const dyn ir::CreateOp;
-                    use crate::template::pipeline::ir::ops::create::DeclareLetOp;
-                    let let_ptr = op_ptr as *const DeclareLetOp;
-                    let let_op = &*let_ptr;
-                    scope.let_declarations.push(LetDeclaration {
-                        target_id: op.xref(),
-                        target_slot: let_op.handle,
-                        variable: IdentifierVariable::new(
-                            let_op.declared_name.clone(),
-                            false,
-                        ),
-                    });
-                }
-            }
+            OpKind::DeclareLet => unsafe {
+                let op_ptr = op.as_ref() as *const dyn ir::CreateOp;
+                use crate::template::pipeline::ir::ops::create::DeclareLetOp;
+                let let_ptr = op_ptr as *const DeclareLetOp;
+                let let_op = &*let_ptr;
+                scope.let_declarations.push(LetDeclaration {
+                    target_id: op.xref(),
+                    target_slot: let_op.handle,
+                    variable: IdentifierVariable::new(let_op.declared_name.clone(), false),
+                });
+            },
             _ => {}
         }
     }
@@ -360,7 +400,7 @@ unsafe fn get_slot_from_op(
 }
 
 /// Generate declarations for all variables that are in scope for a given view.
-/// 
+///
 /// This is a recursive process, as views inherit variables available from their parent view, which
 /// itself may have inherited variables, etc.
 fn generate_variables_in_scope_for_view(
@@ -371,24 +411,26 @@ fn generate_variables_in_scope_for_view(
 ) -> Vec<Box<dyn ir::UpdateOp + Send + Sync>> {
     let mut new_ops: Vec<Box<dyn ir::UpdateOp + Send + Sync>> = Vec::new();
 
-
     if scope.view != view_xref || is_callback {
         // Before generating variables for a parent view, we need to switch to the context of the parent
         // view with a `nextContext` expression. This context switching operation itself declares a
         // variable, because the context of the view may be referenced directly.
         let next_context_xref = component_job.allocate_xref_id();
-        
+
         let (next_context_expr, flags) = if scope.view == view_xref && is_callback {
-             (
-                 Expression::ReadVar(ReadVarExpr {
-                     name: "ctx".to_string(),
-                     type_: None,
-                     source_span: None,
-                 }),
-                 VariableFlags::ALWAYS_INLINE
-             )
+            (
+                Expression::ReadVar(ReadVarExpr {
+                    name: "ctx".to_string(),
+                    type_: None,
+                    source_span: None,
+                }),
+                VariableFlags::ALWAYS_INLINE,
+            )
         } else {
-             (Expression::NextContext(NextContextExpr::new()), VariableFlags::NONE)
+            (
+                Expression::NextContext(NextContextExpr::new()),
+                VariableFlags::NONE,
+            )
         };
 
         let variable_op = create_variable_op::<Box<dyn ir::UpdateOp + Send + Sync>>(
@@ -405,15 +447,27 @@ fn generate_variables_in_scope_for_view(
     // Sort to ensure consistent order: $implicit first, then $index, then $count, then alphabetical
     let context_var_data: Vec<(String, String)> = {
         if scope.view == component_job.root.xref {
-            component_job.root.context_variables.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+            component_job
+                .root
+                .context_variables
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect()
         } else {
-            let scope_view = component_job.views.get(&scope.view).expect("Scope view should exist");
-            scope_view.context_variables.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+            let scope_view = component_job
+                .views
+                .get(&scope.view)
+                .expect("Scope view should exist");
+            scope_view
+                .context_variables
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect()
         }
     };
     // No manual sorting needed - IndexMap preserves insertion order from ingestion
     // This ensures variables are generated in the exact order they appear in the source template
-    
+
     for (name, value) in context_var_data {
         let context = Expression::Context(ContextExpr::new(scope.view));
         // We either read the context, or, if the variable is CTX_REF, use the context directly.
@@ -427,7 +481,7 @@ fn generate_variables_in_scope_for_view(
                 source_span: None,
             })
         };
-        
+
         // Add the variable declaration.
         if let Some(context_var) = scope.context_variables.get(&name) {
             let var_xref = component_job.allocate_xref_id();
@@ -437,7 +491,7 @@ fn generate_variables_in_scope_for_view(
                 Box::new(variable_expr),
                 VariableFlags::NONE,
             );
-            
+
             new_ops.push(Box::new(variable_op));
         } else {
         }
@@ -449,11 +503,14 @@ fn generate_variables_in_scope_for_view(
         if scope.view == component_job.root.xref {
             component_job.root.aliases.clone()
         } else {
-            let scope_view = component_job.views.get(&scope.view).expect("Scope view should exist");
+            let scope_view = component_job
+                .views
+                .get(&scope.view)
+                .expect("Scope view should exist");
             scope_view.aliases.clone()
         }
     };
-    
+
     for alias in aliases_data {
         let alias_xref = component_job.allocate_xref_id();
         let variable_op = create_variable_op::<Box<dyn ir::UpdateOp + Send + Sync>>(
@@ -502,7 +559,8 @@ fn generate_variables_in_scope_for_view(
 
     // Recursively add variables from parent scope
     if let Some(parent_scope) = &scope.parent {
-        let parent_ops = generate_variables_in_scope_for_view(view_xref, parent_scope, false, component_job);
+        let parent_ops =
+            generate_variables_in_scope_for_view(view_xref, parent_scope, false, component_job);
         new_ops.extend(parent_ops);
     }
 
@@ -520,7 +578,7 @@ fn prepend_variables_to_listener(
     if var_ops.is_empty() {
         return;
     }
-    
+
     // Find the listener op and prepend variables to its handler_ops
     for op in view.create_mut().iter_mut() {
         if op.xref() == xref {
@@ -548,7 +606,9 @@ fn prepend_variables_to_listener(
                 }
                 OpKind::AnimationListener => {
                     use crate::template::pipeline::ir::ops::create::AnimationListenerOp;
-                    if let Some(anim_listener) = op.as_any_mut().downcast_mut::<AnimationListenerOp>() {
+                    if let Some(anim_listener) =
+                        op.as_any_mut().downcast_mut::<AnimationListenerOp>()
+                    {
                         anim_listener.handler_ops.prepend(var_ops);
                         return;
                     }
@@ -558,4 +618,3 @@ fn prepend_variables_to_listener(
         }
     }
 }
-

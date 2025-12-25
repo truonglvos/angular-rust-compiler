@@ -28,10 +28,7 @@ pub struct ContextVariable {
 
 impl ContextVariable {
     pub fn new(view: XrefId) -> Self {
-        ContextVariable {
-            view,
-            name: None,
-        }
+        ContextVariable { view, name: None }
     }
 }
 
@@ -87,10 +84,7 @@ pub struct SavedViewVariable {
 
 impl SavedViewVariable {
     pub fn new(view: XrefId) -> Self {
-        SavedViewVariable {
-            view,
-            name: None,
-        }
+        SavedViewVariable { view, name: None }
     }
 }
 
@@ -202,7 +196,7 @@ impl From<AliasVariable> for SemanticVariable {
 }
 
 /// Marker constant for context reference
-/// 
+///
 /// When referenced in the template's context parameters, this indicates a reference to the entire
 /// context object, rather than a specific parameter.
 pub const CTX_REF: &str = "CTX_REF_MARKER";

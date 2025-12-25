@@ -3,9 +3,9 @@
 //! Corresponds to packages/compiler-cli/src/perform_watch.ts
 //! Watch mode compilation with incremental rebuilds.
 
+use crate::transformers::api::{CompilerOptions, Diagnostic};
 use std::collections::HashSet;
 use std::time::Duration;
-use crate::transformers::api::{CompilerOptions, Diagnostic};
 
 /// Watch mode configuration.
 #[derive(Debug, Clone)]
@@ -87,14 +87,14 @@ where
     F: Fn(&[Diagnostic]),
 {
     println!("Starting watch mode for project: {}", host.project);
-    
+
     // In a real implementation, this would:
     // 1. Do initial compilation
     // 2. Set up file watchers
     // 3. Run in a loop detecting changes and recompiling
-    
+
     let first_compile_result = vec![];
-    
+
     WatchResult {
         success: true,
         diagnostics: Vec::new(),
@@ -121,23 +121,23 @@ impl WatchCompiler {
             file_times: std::collections::HashMap::new(),
         }
     }
-    
+
     /// Start watching.
     pub fn start(&mut self) {
         println!("Starting watch mode...");
         self.initial_compile();
     }
-    
+
     /// Perform initial compilation.
     fn initial_compile(&mut self) {
         println!("Performing initial compilation...");
         // Use perform_compile::perform_compilation
     }
-    
+
     /// Check for file changes.
     pub fn check_for_changes(&mut self) -> Vec<FileChangeEvent> {
         let mut changes = Vec::new();
-        
+
         for file in &self.watched {
             if let Ok(metadata) = std::fs::metadata(file) {
                 if let Ok(modified) = metadata.modified() {
@@ -157,25 +157,25 @@ impl WatchCompiler {
                 }
             }
         }
-        
+
         changes
     }
-    
+
     /// Handle file changes (incremental recompile).
     pub fn on_file_change(&mut self, changes: &[FileChangeEvent]) -> WatchResult {
         println!("Files changed, recompiling...");
-        
+
         let changed_files: Vec<String> = changes
             .iter()
             .map(|c| match c {
-                FileChangeEvent::Created(f) |
-                FileChangeEvent::Modified(f) |
-                FileChangeEvent::Deleted(f) => f.clone(),
+                FileChangeEvent::Created(f)
+                | FileChangeEvent::Modified(f)
+                | FileChangeEvent::Deleted(f) => f.clone(),
             })
             .collect();
-        
+
         // Would trigger incremental compilation here
-        
+
         WatchResult {
             success: true,
             diagnostics: Vec::new(),
@@ -183,7 +183,7 @@ impl WatchCompiler {
             first_compile_result: Vec::new(),
         }
     }
-    
+
     /// Add a file to watch list.
     pub fn add_file(&mut self, file: impl Into<String>) {
         self.watched.insert(file.into());
@@ -196,12 +196,12 @@ pub fn perform_watch_compilation_simple(project: &str) -> i32 {
         project: project.to_string(),
         ..Default::default()
     };
-    
+
     let mut compiler = WatchCompiler::new(options);
     compiler.start();
-    
+
     // In a real implementation, this would run a watch loop
     println!("Watch mode would run here...");
-    
+
     0
 }

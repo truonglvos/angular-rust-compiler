@@ -5,10 +5,10 @@
 //! parentheses are needed for the expression to be considered valid JavaScript or for Typescript to
 //! generate the correct output.
 
-use crate::template::pipeline::ir;
-use crate::template::pipeline::src::compilation::{ComponentCompilationJob, CompilationUnit};
-use crate::output::output_ast::{Expression, BinaryOperatorExpr, ParenthesizedExpr};
 use crate::output::output_ast::BinaryOperator;
+use crate::output::output_ast::{BinaryOperatorExpr, Expression, ParenthesizedExpr};
+use crate::template::pipeline::ir;
+use crate::template::pipeline::src::compilation::{CompilationUnit, ComponentCompilationJob};
 use std::collections::HashSet;
 
 /// In most cases we can drop user added parentheses from expressions. However, in some cases
@@ -33,24 +33,24 @@ use std::collections::HashSet;
 pub fn strip_nonrequired_parentheses(job: &mut ComponentCompilationJob) {
     // Check which parentheses are required.
     let mut required_parens: HashSet<*const ParenthesizedExpr> = HashSet::new();
-    
+
     // Process root view
     {
         let unit = &mut job.root;
         collect_required_parens_in_unit(unit, &mut required_parens);
     }
-    
+
     // Process all other views
     for (_, unit) in job.views.iter_mut() {
         collect_required_parens_in_unit(unit, &mut required_parens);
     }
-    
+
     // Remove any non-required parentheses.
     {
         let unit = &mut job.root;
         strip_nonrequired_parens_in_unit(unit, &required_parens);
     }
-    
+
     for (_, unit) in job.views.iter_mut() {
         strip_nonrequired_parens_in_unit(unit, &required_parens);
     }
@@ -61,27 +61,21 @@ fn collect_required_parens_in_unit(
     required_parens: &mut HashSet<*const ParenthesizedExpr>,
 ) {
     use crate::template::pipeline::ir::expression::visit_expressions_in_op;
-    
+
     // Process create ops
     for op in unit.create_mut().iter_mut() {
-        visit_expressions_in_op(
-            op.as_mut(),
-            &mut |expr: &Expression, _flags| {
-                check_nested_expressions(expr, required_parens);
-            },
-        );
+        visit_expressions_in_op(op.as_mut(), &mut |expr: &Expression, _flags| {
+            check_nested_expressions(expr, required_parens);
+        });
     }
-    
+
     // Process update ops
     for op in unit.update_mut().iter_mut() {
-        visit_expressions_in_op(
-            op.as_mut(),
-            &mut |expr: &Expression, _flags| {
-                check_nested_expressions(expr, required_parens);
-            },
-        );
+        visit_expressions_in_op(op.as_mut(), &mut |expr: &Expression, _flags| {
+            check_nested_expressions(expr, required_parens);
+        });
     }
-    
+
     // Process nested operations (listeners, trackByOps)
     for op in unit.create_mut().iter_mut() {
         match op.kind() {
@@ -91,7 +85,7 @@ fn collect_required_parens_in_unit(
                     let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                     let listener_ptr = op_ptr as *mut ListenerOp;
                     let listener = &mut *listener_ptr;
-                    
+
                     for handler_op in listener.handler_ops.iter_mut() {
                         visit_expressions_in_op(
                             handler_op.as_mut(),
@@ -108,7 +102,7 @@ fn collect_required_parens_in_unit(
                     let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                     let two_way_ptr = op_ptr as *mut TwoWayListenerOp;
                     let two_way = &mut *two_way_ptr;
-                    
+
                     for handler_op in two_way.handler_ops.iter_mut() {
                         visit_expressions_in_op(
                             handler_op.as_mut(),
@@ -125,7 +119,7 @@ fn collect_required_parens_in_unit(
                     let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                     let anim_ptr = op_ptr as *mut AnimationOp;
                     let anim = &mut *anim_ptr;
-                    
+
                     for handler_op in anim.handler_ops.iter_mut() {
                         visit_expressions_in_op(
                             handler_op.as_mut(),
@@ -142,7 +136,7 @@ fn collect_required_parens_in_unit(
                     let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                     let anim_listener_ptr = op_ptr as *mut AnimationListenerOp;
                     let anim_listener = &mut *anim_listener_ptr;
-                    
+
                     for handler_op in anim_listener.handler_ops.iter_mut() {
                         visit_expressions_in_op(
                             handler_op.as_mut(),
@@ -159,7 +153,7 @@ fn collect_required_parens_in_unit(
                     let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                     let repeater_ptr = op_ptr as *mut RepeaterCreateOp;
                     let repeater = &mut *repeater_ptr;
-                    
+
                     if let Some(ref mut track_by_ops) = repeater.track_by_ops {
                         for track_by_op in track_by_ops.iter_mut() {
                             visit_expressions_in_op(
@@ -182,7 +176,7 @@ fn strip_nonrequired_parens_in_unit(
     required_parens: &HashSet<*const ParenthesizedExpr>,
 ) {
     use crate::template::pipeline::ir::expression::transform_expressions_in_op;
-    
+
     // Process create ops
     for op in unit.create_mut().iter_mut() {
         transform_expressions_in_op(
@@ -199,7 +193,7 @@ fn strip_nonrequired_parens_in_unit(
             ir::VisitorContextFlag::NONE,
         );
     }
-    
+
     // Process update ops
     for op in unit.update_mut().iter_mut() {
         transform_expressions_in_op(
@@ -216,7 +210,7 @@ fn strip_nonrequired_parens_in_unit(
             ir::VisitorContextFlag::NONE,
         );
     }
-    
+
     // Process nested operations (listeners, trackByOps)
     for op in unit.create_mut().iter_mut() {
         match op.kind() {
@@ -226,7 +220,7 @@ fn strip_nonrequired_parens_in_unit(
                     let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                     let listener_ptr = op_ptr as *mut ListenerOp;
                     let listener = &mut *listener_ptr;
-                    
+
                     for handler_op in listener.handler_ops.iter_mut() {
                         transform_expressions_in_op(
                             handler_op.as_mut(),
@@ -250,7 +244,7 @@ fn strip_nonrequired_parens_in_unit(
                     let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                     let two_way_ptr = op_ptr as *mut TwoWayListenerOp;
                     let two_way = &mut *two_way_ptr;
-                    
+
                     for handler_op in two_way.handler_ops.iter_mut() {
                         transform_expressions_in_op(
                             handler_op.as_mut(),
@@ -274,7 +268,7 @@ fn strip_nonrequired_parens_in_unit(
                     let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                     let anim_ptr = op_ptr as *mut AnimationOp;
                     let anim = &mut *anim_ptr;
-                    
+
                     for handler_op in anim.handler_ops.iter_mut() {
                         transform_expressions_in_op(
                             handler_op.as_mut(),
@@ -298,7 +292,7 @@ fn strip_nonrequired_parens_in_unit(
                     let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                     let anim_listener_ptr = op_ptr as *mut AnimationListenerOp;
                     let anim_listener = &mut *anim_listener_ptr;
-                    
+
                     for handler_op in anim_listener.handler_ops.iter_mut() {
                         transform_expressions_in_op(
                             handler_op.as_mut(),
@@ -322,7 +316,7 @@ fn strip_nonrequired_parens_in_unit(
                     let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                     let repeater_ptr = op_ptr as *mut RepeaterCreateOp;
                     let repeater = &mut *repeater_ptr;
-                    
+
                     if let Some(ref mut track_by_ops) = repeater.track_by_ops {
                         for track_by_op in track_by_ops.iter_mut() {
                             transform_expressions_in_op(
@@ -388,12 +382,16 @@ fn check_nullish_coalescing_parens(
     required_parens: &mut HashSet<*const ParenthesizedExpr>,
 ) {
     if let Expression::Parens(ref parens_expr) = *expr.lhs {
-        if is_logical_and_or(&*parens_expr.expr) || matches!(*parens_expr.expr, Expression::Conditional(_)) {
+        if is_logical_and_or(&*parens_expr.expr)
+            || matches!(*parens_expr.expr, Expression::Conditional(_))
+        {
             required_parens.insert(parens_expr as *const ParenthesizedExpr);
         }
     }
     if let Expression::Parens(ref parens_expr) = *expr.rhs {
-        if is_logical_and_or(&*parens_expr.expr) || matches!(*parens_expr.expr, Expression::Conditional(_)) {
+        if is_logical_and_or(&*parens_expr.expr)
+            || matches!(*parens_expr.expr, Expression::Conditional(_))
+        {
             required_parens.insert(parens_expr as *const ParenthesizedExpr);
         }
     }
@@ -419,4 +417,3 @@ fn is_logical_and_or(expr: &Expression) -> bool {
         false
     }
 }
-

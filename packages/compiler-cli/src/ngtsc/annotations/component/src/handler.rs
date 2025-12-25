@@ -1,34 +1,42 @@
-use crate::ngtsc::transform::src::api::{DecoratorHandler, HandlerPrecedence, DetectResult, AnalysisOutput, CompileResult, ConstantPool};
+use crate::ngtsc::metadata::{extract_directive_metadata, DecoratorMetadata, DirectiveMetadata};
 use crate::ngtsc::reflection::{ClassDeclaration, ReflectionHost, TypeScriptReflectionHost};
-use crate::ngtsc::metadata::{
-    DirectiveMetadata, DecoratorMetadata, extract_directive_metadata
+use crate::ngtsc::transform::src::api::{
+    AnalysisOutput, CompileResult, ConstantPool, DecoratorHandler, DetectResult, HandlerPrecedence,
 };
 use angular_compiler::render3::view::api::{
-    R3ComponentMetadata, R3DirectiveMetadata, R3ComponentTemplate, R3ComponentDeferMetadata, DeclarationListEmitMode,
-    R3LifecycleMetadata
+    DeclarationListEmitMode, R3ComponentDeferMetadata, R3ComponentMetadata, R3ComponentTemplate,
+    R3DirectiveMetadata, R3LifecycleMetadata,
 };
 // use angular_compiler::render3::view::compiler::compile_component_from_metadata;
-use angular_compiler::render3::view::template::{parse_template, ParseTemplateOptions};
-use angular_compiler::render3::r3_template_transform::{html_ast_to_render3_ast, Render3ParseOptions};
-use angular_compiler::core::{ViewEncapsulation};
-use angular_compiler::output::output_ast::{ExpressionTrait};
-use angular_compiler::output::abstract_js_emitter::AbstractJsEmitterVisitor;
+use angular_compiler::core::ViewEncapsulation;
+use angular_compiler::ml_parser::html_whitespaces::{
+    visit_all_with_siblings_nodes, WhitespaceVisitor,
+};
 use angular_compiler::output::abstract_emitter::EmitterVisitorContext;
-use angular_compiler::ml_parser::html_whitespaces::{WhitespaceVisitor, visit_all_with_siblings_nodes};
+use angular_compiler::output::abstract_js_emitter::AbstractJsEmitterVisitor;
+use angular_compiler::output::output_ast::ExpressionTrait;
+use angular_compiler::render3::r3_template_transform::{
+    html_ast_to_render3_ast, Render3ParseOptions,
+};
+use angular_compiler::render3::view::template::{parse_template, ParseTemplateOptions};
 // use std::collections::HashMap;
-use std::any::Any;
+use angular_compiler::template::pipeline::src::compilation::TemplateCompilationMode;
+use angular_compiler::template::pipeline::src::emit::emit_component;
 use angular_compiler::template::pipeline::src::ingest::ingest_component;
 use angular_compiler::template::pipeline::src::phases;
-use angular_compiler::template::pipeline::src::emit::emit_component;
-use angular_compiler::template::pipeline::src::compilation::TemplateCompilationMode;
+use std::any::Any;
 // use angular_compiler::constant_pool::ConstantPool as CompilerConstantPool; // Distinct from ngtsc ConstantPool if needed
 
 /// Get metadata for known Angular directives (NgFor, NgIf, etc.)
 /// This is a workaround until proper static analysis of imported modules is implemented.
-fn get_known_directive_metadata(name: &str) -> Option<angular_compiler::render3::view::api::R3DirectiveDependencyMetadata> {
-    use angular_compiler::render3::view::api::{R3DirectiveDependencyMetadata, R3TemplateDependencyKind};
+fn get_known_directive_metadata(
+    name: &str,
+) -> Option<angular_compiler::render3::view::api::R3DirectiveDependencyMetadata> {
     use angular_compiler::output::output_ast::{Expression, ReadVarExpr};
-    
+    use angular_compiler::render3::view::api::{
+        R3DirectiveDependencyMetadata, R3TemplateDependencyKind,
+    };
+
     match name {
         "NgForOf" | "NgFor" => Some(R3DirectiveDependencyMetadata {
             selector: "[ngFor][ngForOf]".to_string(),
@@ -37,7 +45,11 @@ fn get_known_directive_metadata(name: &str) -> Option<angular_compiler::render3:
                 type_: None,
                 source_span: None,
             }),
-            inputs: vec!["ngForOf".to_string(), "ngForTrackBy".to_string(), "ngForTemplate".to_string()],
+            inputs: vec![
+                "ngForOf".to_string(),
+                "ngForTrackBy".to_string(),
+                "ngForTemplate".to_string(),
+            ],
             outputs: vec![],
             export_as: vec![].into(),
             kind: R3TemplateDependencyKind::Directive,
@@ -50,7 +62,11 @@ fn get_known_directive_metadata(name: &str) -> Option<angular_compiler::render3:
                 type_: None,
                 source_span: None,
             }),
-            inputs: vec!["ngIf".to_string(), "ngIfThen".to_string(), "ngIfElse".to_string()],
+            inputs: vec![
+                "ngIf".to_string(),
+                "ngIfThen".to_string(),
+                "ngIfElse".to_string(),
+            ],
             outputs: vec![],
             export_as: vec![].into(),
             kind: R3TemplateDependencyKind::Directive,
@@ -146,7 +162,9 @@ impl ComponentDecoratorHandler {
     }
 }
 
-impl DecoratorHandler<DirectiveMetadata<'static>, DirectiveMetadata<'static>, (), ()> for ComponentDecoratorHandler {
+impl DecoratorHandler<DirectiveMetadata<'static>, DirectiveMetadata<'static>, (), ()>
+    for ComponentDecoratorHandler
+{
     fn name(&self) -> &str {
         "ComponentDecoratorHandler"
     }
@@ -155,41 +173,57 @@ impl DecoratorHandler<DirectiveMetadata<'static>, DirectiveMetadata<'static>, ()
         HandlerPrecedence::Primary
     }
 
-    fn detect(&self, node: &ClassDeclaration, _decorators: &[String]) -> Option<DetectResult<DirectiveMetadata<'static>>> {
+    fn detect(
+        &self,
+        node: &ClassDeclaration,
+        _decorators: &[String],
+    ) -> Option<DetectResult<DirectiveMetadata<'static>>> {
         let reflection_host = TypeScriptReflectionHost::new();
         // unsafe transmute because ClassDeclaration is same as Declaration for our purposes here
-        let decl = oxc_ast::ast::Declaration::ClassDeclaration(unsafe { std::mem::transmute(node) });
+        let decl =
+            oxc_ast::ast::Declaration::ClassDeclaration(unsafe { std::mem::transmute(node) });
         let converted_decorators = reflection_host.get_decorators_of_declaration(&decl);
 
         for decorator in converted_decorators {
             if decorator.name == "Component" {
-                 if let Some(metadata) = extract_directive_metadata(node, &decorator, true, std::path::Path::new("")) {
-                     // Clear the decorator reference to avoid lifetime issues
-                     let owned_metadata = match metadata {
-                         DecoratorMetadata::Directive(mut d) => {
-                             d.decorator = None; // Clear the lifetime-bound reference
-                             DecoratorMetadata::Directive(d)
-                         }
-                         other => other,
-                     };
-                     // Safety: We cleared the decorator reference, so there's no dangling pointer
-                     let static_metadata: DirectiveMetadata<'static> = unsafe { std::mem::transmute(owned_metadata) };
-                     return Some(DetectResult {
-                         trigger: Some("Component".to_string()),
-                         decorator: Some("Component".to_string()),
-                         metadata: static_metadata,
-                     });
-                 }
+                if let Some(metadata) =
+                    extract_directive_metadata(node, &decorator, true, std::path::Path::new(""))
+                {
+                    // Clear the decorator reference to avoid lifetime issues
+                    let owned_metadata = match metadata {
+                        DecoratorMetadata::Directive(mut d) => {
+                            d.decorator = None; // Clear the lifetime-bound reference
+                            DecoratorMetadata::Directive(d)
+                        }
+                        other => other,
+                    };
+                    // Safety: We cleared the decorator reference, so there's no dangling pointer
+                    let static_metadata: DirectiveMetadata<'static> =
+                        unsafe { std::mem::transmute(owned_metadata) };
+                    return Some(DetectResult {
+                        trigger: Some("Component".to_string()),
+                        decorator: Some("Component".to_string()),
+                        metadata: static_metadata,
+                    });
+                }
             }
         }
         None
     }
 
-    fn analyze(&self, _node: &ClassDeclaration, metadata: &DirectiveMetadata<'static>) -> AnalysisOutput<DirectiveMetadata<'static>> {
+    fn analyze(
+        &self,
+        _node: &ClassDeclaration,
+        metadata: &DirectiveMetadata<'static>,
+    ) -> AnalysisOutput<DirectiveMetadata<'static>> {
         AnalysisOutput::of(metadata.clone())
     }
 
-    fn symbol(&self, _node: &ClassDeclaration, _analysis: &DirectiveMetadata<'static>) -> Option<()> {
+    fn symbol(
+        &self,
+        _node: &ClassDeclaration,
+        _analysis: &DirectiveMetadata<'static>,
+    ) -> Option<()> {
         None
     }
 
@@ -211,13 +245,15 @@ impl ComponentDecoratorHandler {
             DecoratorMetadata::Directive(d) if d.t2.is_component => d,
             _ => return vec![], // Not a component, cannot compile
         };
-        
+
         // Manually construct R3Reference since From isn't implemented
-        let type_expr = angular_compiler::output::output_ast::Expression::ReadVar(angular_compiler::output::output_ast::ReadVarExpr {
-            name: dir.t2.name.clone(),
-            type_: None,
-            source_span: None,
-        });
+        let type_expr = angular_compiler::output::output_ast::Expression::ReadVar(
+            angular_compiler::output::output_ast::ReadVarExpr {
+                name: dir.t2.name.clone(),
+                type_: None,
+                source_span: None,
+            },
+        );
 
         let type_ref = angular_compiler::render3::util::R3Reference {
             value: type_expr.clone(),
@@ -228,32 +264,55 @@ impl ComponentDecoratorHandler {
 
         // Parse Template
         let template_str = comp_meta.template.clone().unwrap_or_else(|| "".to_string());
-        let template_url = comp_meta.template_url.clone().unwrap_or_else(|| "inline-template.html".to_string());
+        let template_url = comp_meta
+            .template_url
+            .clone()
+            .unwrap_or_else(|| "inline-template.html".to_string());
 
         let expression_parser = angular_compiler::expression_parser::parser::Parser::new();
-        let schema_registry = angular_compiler::schema::dom_element_schema_registry::DomElementSchemaRegistry::new();
-        let mut binding_parser = angular_compiler::template_parser::binding_parser::BindingParser::new(
-             &expression_parser,
-             &schema_registry,
-             vec![], 
-        );
+        let schema_registry =
+            angular_compiler::schema::dom_element_schema_registry::DomElementSchemaRegistry::new();
+        let mut binding_parser =
+            angular_compiler::template_parser::binding_parser::BindingParser::new(
+                &expression_parser,
+                &schema_registry,
+                vec![],
+            );
 
-        let (nodes, ng_content_selectors, preserve_whitespaces, styles) = if let Some(ast) = comp_meta.template_ast.as_ref() {
-            println!("DEBUG: compile_ivy for {} - template_ast has {} nodes", dir.t2.name, ast.len());
+        let (nodes, ng_content_selectors, preserve_whitespaces, styles) = if let Some(ast) =
+            comp_meta.template_ast.as_ref()
+        {
+            println!(
+                "DEBUG: compile_ivy for {} - template_ast has {} nodes",
+                dir.t2.name,
+                ast.len()
+            );
             let options = Render3ParseOptions {
                 collect_comment_nodes: false,
                 ..Default::default()
             };
-            
+
             // Apply whitespace visitor
             let mut visitor = WhitespaceVisitor::new(false, None, false);
             let processed_nodes = visit_all_with_siblings_nodes(&mut visitor, ast);
-            println!("DEBUG: compile_ivy for {} - after whitespace visitor: {} nodes", dir.t2.name, processed_nodes.len());
-            
-            let result = html_ast_to_render3_ast(&processed_nodes, &mut binding_parser, &options);
-            println!("DEBUG: compile_ivy for {} - after R3 transform: {} nodes", dir.t2.name, result.nodes.len());
-            (result.nodes, result.ng_content_selectors, false, result.styles)
+            println!(
+                "DEBUG: compile_ivy for {} - after whitespace visitor: {} nodes",
+                dir.t2.name,
+                processed_nodes.len()
+            );
 
+            let result = html_ast_to_render3_ast(&processed_nodes, &mut binding_parser, &options);
+            println!(
+                "DEBUG: compile_ivy for {} - after R3 transform: {} nodes",
+                dir.t2.name,
+                result.nodes.len()
+            );
+            (
+                result.nodes,
+                result.ng_content_selectors,
+                false,
+                result.styles,
+            )
         } else {
             let parsed_template = parse_template(
                 &template_str,
@@ -261,14 +320,18 @@ impl ComponentDecoratorHandler {
                 ParseTemplateOptions {
                     preserve_whitespaces: Some(false),
                     ..Default::default()
-                }
+                },
             );
-            (parsed_template.nodes, parsed_template.ng_content_selectors, parsed_template.preserve_whitespaces.unwrap_or(false), parsed_template.styles)
+            (
+                parsed_template.nodes,
+                parsed_template.ng_content_selectors,
+                parsed_template.preserve_whitespaces.unwrap_or(false),
+                parsed_template.styles,
+            )
         };
 
         // TODO: Handle parsing errors?
         // if let Some(errors) = parsed_template.errors { ... }
-
 
         let r3_metadata = R3ComponentMetadata {
             directive: R3DirectiveMetadata {
@@ -278,7 +341,7 @@ impl ComponentDecoratorHandler {
                 type_source_span: angular_compiler::parse_util::ParseSourceSpan::new(
                     angular_compiler::parse_util::ParseLocation::new(angular_compiler::parse_util::ParseSourceFile::new("".to_string(), "".to_string()), 0, 0, 0),
                     angular_compiler::parse_util::ParseLocation::new(angular_compiler::parse_util::ParseSourceFile::new("".to_string(), "".to_string()), 0, 0, 0)
-                ), 
+                ),
                 selector: dir.t2.selector.clone(),
                 queries: vec![],
                 view_queries: vec![],
@@ -293,7 +356,7 @@ impl ComponentDecoratorHandler {
                 outputs: dir.t2.outputs.iter().map(|(k, v)| (k.clone(), v.binding_property_name.clone())).collect(),
                 lifecycle: R3LifecycleMetadata::default(),
                 providers: None,
-                uses_inheritance: false, 
+                uses_inheritance: false,
                 export_as: dir.t2.export_as.clone(),
                 is_standalone: dir.is_standalone,
                 is_signal: dir.is_signal,
@@ -346,38 +409,37 @@ impl ComponentDecoratorHandler {
         };
 
         let real_constant_pool = angular_compiler::constant_pool::ConstantPool::new(false);
-        
+
         // Use template pipeline instead of placeholder compile_component_from_metadata
         // 1. Ingest template into compilation job
         let mut job = ingest_component(
             dir.t2.name.clone(),
-            nodes,  // Template AST nodes
+            nodes, // Template AST nodes
             real_constant_pool,
             TemplateCompilationMode::Full,
             r3_metadata.relative_context_file_path.clone(),
             r3_metadata.i18n_use_external_ids,
             r3_metadata.defer.clone(),
-            None,  // all_deferrable_deps_fn
+            None, // all_deferrable_deps_fn
             r3_metadata.relative_template_path.clone(),
             false, // enable_debug_locations
         );
-        
+
         // 2. Run all pipeline phases
         phases::run(&mut job);
-        
+
         // 3. Emit component definition
         let compiled = emit_component(&job, &r3_metadata);
 
-        
         // Emit AST to String
         let mut emitter = AbstractJsEmitterVisitor::new();
         let mut ctx = EmitterVisitorContext::create_root();
         let context: &mut dyn Any = &mut ctx;
-        
+
         compiled.expression.visit_expression(&mut emitter, context);
-        
+
         let initializer = ctx.to_source();
-        
+
         // Emit statements (hoisted functions like _forTrack)
         let mut emitted_statements = vec![];
         for stmt in &compiled.statements {
@@ -390,7 +452,7 @@ impl ComponentDecoratorHandler {
         vec![CompileResult {
             name: "ɵcmp".to_string(),
             initializer: Some(initializer),
-            statements: emitted_statements, 
+            statements: emitted_statements,
             type_desc: "ComponentDef".to_string(),
             deferrable_imports: None,
         }]
@@ -400,8 +462,8 @@ impl ComponentDecoratorHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ngtsc::transform::src::api::HandlerPrecedence;
     use crate::ngtsc::metadata::{ClassPropertyMapping, DirectiveMeta};
+    use crate::ngtsc::transform::src::api::HandlerPrecedence;
 
     #[test]
     fn test_handler_basic_properties() {
@@ -409,7 +471,7 @@ mod tests {
         assert_eq!(handler.name(), "ComponentDecoratorHandler");
         assert!(matches!(handler.precedence(), HandlerPrecedence::Primary));
     }
-    
+
     #[test]
     fn test_compile_full_basic() {
         // Mock a DirectiveMetadata using the new structure
@@ -429,15 +491,15 @@ mod tests {
             source_file: None,
             ..Default::default()
         });
-        
+
         let handler = ComponentDecoratorHandler::new();
-        
+
         let results = handler.compile_ivy(&metadata);
         assert_eq!(results.len(), 1);
         let result = &results[0];
         assert_eq!(result.name, "ɵcmp");
         assert!(result.initializer.is_some());
-        
+
         let initializer = result.initializer.as_ref().unwrap();
         println!("DEBUG: Initializer: {}", initializer);
         // Check for key Ivy definition parts

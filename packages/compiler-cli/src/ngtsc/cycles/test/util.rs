@@ -1,7 +1,7 @@
-use crate::ngtsc::file_system::{AbsoluteFsPath, FileSystem};
 use crate::ngtsc::file_system::testing::MockFileSystem;
-use ts::{SourceFile, SyntaxKind, NodeFlags, LanguageVariant, ScriptTarget, Node};
+use crate::ngtsc::file_system::{AbsoluteFsPath, FileSystem};
 use std::fmt::Debug;
+use ts::{LanguageVariant, Node, NodeFlags, ScriptTarget, SourceFile, SyntaxKind};
 
 #[derive(Debug)]
 pub struct MockSourceFile {
@@ -10,59 +10,97 @@ pub struct MockSourceFile {
 }
 
 impl Node for MockSourceFile {
-    fn kind(&self) -> SyntaxKind { SyntaxKind::SourceFile }
-    fn flags(&self) -> NodeFlags { NodeFlags::None }
-    fn pos(&self) -> usize { 0 }
-    fn end(&self) -> usize { self.text.len() }
-    fn get_start(&self, _source_file: Option<&dyn SourceFile>) -> usize { 0 }
-    fn get_width(&self, _source_file: Option<&dyn SourceFile>) -> usize { self.text.len() }
-    fn get_source_file(&self) -> Option<&dyn SourceFile> { Some(self) }
-    fn parent(&self) -> Option<&dyn Node> { None }
+    fn kind(&self) -> SyntaxKind {
+        SyntaxKind::SourceFile
+    }
+    fn flags(&self) -> NodeFlags {
+        NodeFlags::None
+    }
+    fn pos(&self) -> usize {
+        0
+    }
+    fn end(&self) -> usize {
+        self.text.len()
+    }
+    fn get_start(&self, _source_file: Option<&dyn SourceFile>) -> usize {
+        0
+    }
+    fn get_width(&self, _source_file: Option<&dyn SourceFile>) -> usize {
+        self.text.len()
+    }
+    fn get_source_file(&self) -> Option<&dyn SourceFile> {
+        Some(self)
+    }
+    fn parent(&self) -> Option<&dyn Node> {
+        None
+    }
 }
 
 impl SourceFile for MockSourceFile {
-    fn text(&self) -> &str { &self.text }
-    fn file_name(&self) -> &str { &self.file_name }
-    fn language_variant(&self) -> LanguageVariant { LanguageVariant::Standard }
-    fn is_declaration_file(&self) -> bool { self.file_name.ends_with(".d.ts") }
-    fn has_no_default_lib(&self) -> bool { false }
-    fn language_version(&self) -> ScriptTarget { ScriptTarget::ES2015 }
+    fn text(&self) -> &str {
+        &self.text
+    }
+    fn file_name(&self) -> &str {
+        &self.file_name
+    }
+    fn language_variant(&self) -> LanguageVariant {
+        LanguageVariant::Standard
+    }
+    fn is_declaration_file(&self) -> bool {
+        self.file_name.ends_with(".d.ts")
+    }
+    fn has_no_default_lib(&self) -> bool {
+        false
+    }
+    fn language_version(&self) -> ScriptTarget {
+        ScriptTarget::ES2015
+    }
 }
 
 pub fn create_fs_from_graph(graph: &str) -> MockFileSystem {
     let fs = MockFileSystem::new_native(); // Use native style paths for simplicity
-    
+
     // Graph string format: "a:b,c;b"
     // "file:imports"
     for segment in graph.split(';') {
         let parts: Vec<&str> = segment.split(':').collect();
         let name = parts[0];
         let deps = if parts.len() > 1 { parts[1] } else { "" };
-        
+
         let mut content = String::new();
         if !deps.is_empty() {
             for dep in deps.split(',') {
                 let is_type_only = dep.ends_with('!');
-                let dep_clean = dep.trim_end_matches('!'); 
+                let dep_clean = dep.trim_end_matches('!');
                 if dep_clean.starts_with('*') {
-                     let sym = &dep_clean[1..];
-                     let export_kw = if is_type_only { "export type" } else { "export" };
-                     content.push_str(&format!("{} {{{}}} from './{}';\n", export_kw, sym, sym));
+                    let sym = &dep_clean[1..];
+                    let export_kw = if is_type_only {
+                        "export type"
+                    } else {
+                        "export"
+                    };
+                    content.push_str(&format!("{} {{{}}} from './{}';\n", export_kw, sym, sym));
                 } else {
-                     let import_kw = if is_type_only { "import type" } else { "import" };
-                     content.push_str(&format!("{} {{{}}} from './{}';\n", import_kw, dep_clean, dep_clean));
+                    let import_kw = if is_type_only {
+                        "import type"
+                    } else {
+                        "import"
+                    };
+                    content.push_str(&format!(
+                        "{} {{{}}} from './{}';\n",
+                        import_kw, dep_clean, dep_clean
+                    ));
                 }
             }
         }
-        
-        let sf_name = format!("/{}.ts", name);
-        fs.write_file(&AbsoluteFsPath::new(sf_name), content.as_bytes(), None).unwrap();
 
+        let sf_name = format!("/{}.ts", name);
+        fs.write_file(&AbsoluteFsPath::new(sf_name), content.as_bytes(), None)
+            .unwrap();
     }
-    
+
     fs
 }
-
 
 pub fn import_path_to_string(fs: &dyn FileSystem, path: &[AbsoluteFsPath]) -> String {
     path.iter()

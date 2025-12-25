@@ -3,17 +3,17 @@
 //! Corresponds to packages/compiler/src/render3/r3_factory.ts
 //! Contains factory function generation for Angular
 
+use super::r3_identifiers::Identifiers as R3;
+use super::util::{type_with_parameters, R3CompiledExpression, R3Reference};
 use crate::core::InjectFlags;
 use crate::output::output_ast::{
-    Expression, Statement, Type, ExternalReference, BinaryOperator, BinaryOperatorExpr,
-    ReadVarExpr, InstantiateExpr, InvokeFunctionExpr, DeclareVarStmt, ReturnStatement,
-    IfStmt, FunctionExpr, FnParam, ArrowFunctionExpr, ArrowFunctionBody, ExternalExpr,
-    LiteralExpr, LiteralValue, LiteralArrayExpr, LiteralMapExpr, LiteralMapEntry, WriteVarExpr,
-    ExpressionType, ExpressionStatement, TypeModifier, StmtModifier,
-    null_expr, inferred_type, dynamic_type, none_type,
+    dynamic_type, inferred_type, none_type, null_expr, ArrowFunctionBody, ArrowFunctionExpr,
+    BinaryOperator, BinaryOperatorExpr, DeclareVarStmt, Expression, ExpressionStatement,
+    ExpressionType, ExternalExpr, ExternalReference, FnParam, FunctionExpr, IfStmt,
+    InstantiateExpr, InvokeFunctionExpr, LiteralArrayExpr, LiteralExpr, LiteralMapEntry,
+    LiteralMapExpr, LiteralValue, ReadVarExpr, ReturnStatement, Statement, StmtModifier, Type,
+    TypeModifier, WriteVarExpr,
 };
-use super::r3_identifiers::Identifiers as R3;
-use super::util::{R3CompiledExpression, R3Reference, type_with_parameters};
 
 /// Target types for factory generation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -177,7 +177,7 @@ pub fn compile_factory_function(meta: &R3FactoryMetadata) -> R3CompiledExpressio
             type_: None,
             source_span: None,
         };
-        
+
         body.push(Statement::DeclareVar(DeclareVarStmt {
             name: r.name.clone(),
             value: Some(null_expr()),
@@ -252,7 +252,12 @@ pub fn compile_factory_function(meta: &R3FactoryMetadata) -> R3CompiledExpressio
                     pure: false,
                 })
             };
-            ret_expr = Some(make_conditional_factory(&mut body, &t, &ctor_expr, factory_expr));
+            ret_expr = Some(make_conditional_factory(
+                &mut body,
+                &t,
+                &ctor_expr,
+                factory_expr,
+            ));
         }
         R3FactoryMetadata::Expression(expr_meta) => {
             ret_expr = Some(make_conditional_factory(

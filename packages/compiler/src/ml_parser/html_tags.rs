@@ -82,7 +82,10 @@ impl HtmlTagDefinition {
         default: TagContentType,
         namespaces: HashMap<String, TagContentType>,
     ) -> Self {
-        self.content_type = ContentTypeConfig::WithNamespaces { default, namespaces };
+        self.content_type = ContentTypeConfig::WithNamespaces {
+            default,
+            namespaces,
+        };
         self
     }
 
@@ -134,11 +137,12 @@ impl TagDefinition for HtmlTagDefinition {
     fn get_content_type(&self, prefix: Option<&str>) -> TagContentType {
         match &self.content_type {
             ContentTypeConfig::Simple(ct) => *ct,
-            ContentTypeConfig::WithNamespaces { default, namespaces } => {
-                prefix
-                    .and_then(|p| namespaces.get(p).copied())
-                    .unwrap_or(*default)
-            }
+            ContentTypeConfig::WithNamespaces {
+                default,
+                namespaces,
+            } => prefix
+                .and_then(|p| namespaces.get(p).copied())
+                .unwrap_or(*default),
         }
     }
 }
@@ -157,15 +161,30 @@ static TAG_DEFINITIONS: Lazy<HashMap<String, HtmlTagDefinition>> = Lazy::new(|| 
     defs.insert("base".to_string(), HtmlTagDefinition::new().with_void(true));
     defs.insert("meta".to_string(), HtmlTagDefinition::new().with_void(true));
     defs.insert("area".to_string(), HtmlTagDefinition::new().with_void(true));
-    defs.insert("embed".to_string(), HtmlTagDefinition::new().with_void(true));
+    defs.insert(
+        "embed".to_string(),
+        HtmlTagDefinition::new().with_void(true),
+    );
     defs.insert("link".to_string(), HtmlTagDefinition::new().with_void(true));
     defs.insert("img".to_string(), HtmlTagDefinition::new().with_void(true));
-    defs.insert("input".to_string(), HtmlTagDefinition::new().with_void(true));
-    defs.insert("param".to_string(), HtmlTagDefinition::new().with_void(true));
+    defs.insert(
+        "input".to_string(),
+        HtmlTagDefinition::new().with_void(true),
+    );
+    defs.insert(
+        "param".to_string(),
+        HtmlTagDefinition::new().with_void(true),
+    );
     defs.insert("hr".to_string(), HtmlTagDefinition::new().with_void(true));
     defs.insert("br".to_string(), HtmlTagDefinition::new().with_void(true));
-    defs.insert("source".to_string(), HtmlTagDefinition::new().with_void(true));
-    defs.insert("track".to_string(), HtmlTagDefinition::new().with_void(true));
+    defs.insert(
+        "source".to_string(),
+        HtmlTagDefinition::new().with_void(true),
+    );
+    defs.insert(
+        "track".to_string(),
+        HtmlTagDefinition::new().with_void(true),
+    );
     defs.insert("wbr".to_string(), HtmlTagDefinition::new().with_void(true));
     defs.insert("col".to_string(), HtmlTagDefinition::new().with_void(true));
 
@@ -174,9 +193,32 @@ static TAG_DEFINITIONS: Lazy<HashMap<String, HtmlTagDefinition>> = Lazy::new(|| 
         "p".to_string(),
         HtmlTagDefinition::new()
             .with_closed_by_children(vec![
-                "address", "article", "aside", "blockquote", "div", "dl", "fieldset",
-                "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hgroup",
-                "hr", "main", "nav", "ol", "p", "pre", "section", "table", "ul",
+                "address",
+                "article",
+                "aside",
+                "blockquote",
+                "div",
+                "dl",
+                "fieldset",
+                "footer",
+                "form",
+                "h1",
+                "h2",
+                "h3",
+                "h4",
+                "h5",
+                "h6",
+                "header",
+                "hgroup",
+                "hr",
+                "main",
+                "nav",
+                "ol",
+                "p",
+                "pre",
+                "section",
+                "table",
+                "ul",
             ])
             .with_closed_by_parent(true),
     );
@@ -318,10 +360,8 @@ static TAG_DEFINITIONS: Lazy<HashMap<String, HtmlTagDefinition>> = Lazy::new(|| 
     title_namespaces.insert("svg".to_string(), TagContentType::ParsableData);
     defs.insert(
         "title".to_string(),
-        HtmlTagDefinition::new().with_content_type_namespaced(
-            TagContentType::EscapableRawText,
-            title_namespaces,
-        ),
+        HtmlTagDefinition::new()
+            .with_content_type_namespaced(TagContentType::EscapableRawText, title_namespaces),
     );
 
     // Textarea
@@ -337,7 +377,10 @@ static TAG_DEFINITIONS: Lazy<HashMap<String, HtmlTagDefinition>> = Lazy::new(|| 
     for tag_name in registry.all_known_element_names() {
         let tag_lower = tag_name.to_lowercase();
         if !defs.contains_key(&tag_lower) && get_ns_prefix(Some(&tag_name)).is_none() {
-            defs.insert(tag_lower, HtmlTagDefinition::new().with_can_self_close(false));
+            defs.insert(
+                tag_lower,
+                HtmlTagDefinition::new().with_can_self_close(false),
+            );
         }
     }
 
@@ -345,9 +388,8 @@ static TAG_DEFINITIONS: Lazy<HashMap<String, HtmlTagDefinition>> = Lazy::new(|| 
 });
 
 /// Default tag definition
-static DEFAULT_TAG_DEFINITION: Lazy<HtmlTagDefinition> = Lazy::new(|| {
-    HtmlTagDefinition::new().with_can_self_close(true)
-});
+static DEFAULT_TAG_DEFINITION: Lazy<HtmlTagDefinition> =
+    Lazy::new(|| HtmlTagDefinition::new().with_can_self_close(true));
 
 /// Get HTML tag definition for a given tag name
 pub fn check_is_known_tag(tag_name: &str) -> bool {
@@ -434,10 +476,15 @@ mod tests {
         let title_def = get_html_tag_definition("title");
 
         // Default (HTML) should be ESCAPABLE_RAW_TEXT
-        assert_eq!(title_def.get_content_type(None), TagContentType::EscapableRawText);
+        assert_eq!(
+            title_def.get_content_type(None),
+            TagContentType::EscapableRawText
+        );
 
         // SVG namespace should be PARSABLE_DATA
-        assert_eq!(title_def.get_content_type(Some("svg")), TagContentType::ParsableData);
+        assert_eq!(
+            title_def.get_content_type(Some("svg")),
+            TagContentType::ParsableData
+        );
     }
 }
-

@@ -5,15 +5,14 @@
 
 use crate::core::{ChangeDetectionStrategy, ViewEncapsulation};
 use crate::output::output_ast::{
-    Expression, LiteralExpr, LiteralValue, LiteralArrayExpr, ReadPropExpr,
-    ExternalExpr, InvokeFunctionExpr,
+    Expression, ExternalExpr, InvokeFunctionExpr, LiteralArrayExpr, LiteralExpr, LiteralValue,
+    ReadPropExpr,
 };
 use crate::parse_util::{ParseLocation, ParseSourceFile, ParseSourceSpan};
 use crate::render3::r3_identifiers::Identifiers as R3;
-use crate::render3::util::{R3CompiledExpression, generate_forward_ref};
+use crate::render3::util::{generate_forward_ref, R3CompiledExpression};
 use crate::render3::view::api::{
-    R3ComponentMetadata, R3TemplateDependencyMetadata,
-    DeclarationListEmitMode,
+    DeclarationListEmitMode, R3ComponentMetadata, R3TemplateDependencyMetadata,
 };
 use crate::render3::view::util::DefinitionMap;
 
@@ -76,7 +75,7 @@ pub fn compile_declare_component_from_metadata(
 
     let declare_component_ref = R3::declare_component();
     let declare_component_expr = external_expr(declare_component_ref);
-    
+
     let expression = Expression::InvokeFn(InvokeFunctionExpr {
         fn_: Box::new(declare_component_expr),
         args: vec![Expression::LiteralMap(definition_map.to_literal_map())],
@@ -98,11 +97,14 @@ pub fn create_component_definition_map(
     template_info: &DeclareComponentTemplateInfo,
 ) -> DefinitionMap {
     let mut definition_map = create_directive_definition_map(&meta.directive);
-    
+
     // Check if template has blocks
     let has_blocks = check_has_blocks(&template.nodes);
 
-    definition_map.set("template", Some(get_template_expression(template, template_info)));
+    definition_map.set(
+        "template",
+        Some(get_template_expression(template, template_info)),
+    );
 
     if template_info.is_inline {
         definition_map.set("isInline", Some(literal(LiteralValue::Bool(true))));
@@ -110,20 +112,27 @@ pub fn create_component_definition_map(
 
     // Set the minVersion to 17.0.0 if the component is using at least one block
     if has_blocks {
-        definition_map.set("minVersion", Some(literal(LiteralValue::String("17.0.0".to_string()))));
+        definition_map.set(
+            "minVersion",
+            Some(literal(LiteralValue::String("17.0.0".to_string()))),
+        );
     }
 
     // styles
     if !meta.styles.is_empty() {
-        let styles_exprs: Vec<Expression> = meta.styles
+        let styles_exprs: Vec<Expression> = meta
+            .styles
             .iter()
             .map(|s| literal(LiteralValue::String(s.clone())))
             .collect();
-        definition_map.set("styles", Some(Expression::LiteralArray(LiteralArrayExpr {
-            entries: styles_exprs,
-            type_: None,
-            source_span: None,
-        })));
+        definition_map.set(
+            "styles",
+            Some(Expression::LiteralArray(LiteralArrayExpr {
+                entries: styles_exprs,
+                type_: None,
+                source_span: None,
+            })),
+        );
     }
 
     // dependencies
@@ -185,7 +194,10 @@ pub fn create_component_definition_map(
 
     // preserveWhitespaces
     if template.preserve_whitespaces {
-        definition_map.set("preserveWhitespaces", Some(literal(LiteralValue::Bool(true))));
+        definition_map.set(
+            "preserveWhitespaces",
+            Some(literal(LiteralValue::Bool(true))),
+        );
     }
 
     // deferBlockDependencies
@@ -204,11 +216,14 @@ pub fn create_component_definition_map(
             }
 
             if has_resolvers {
-                definition_map.set("deferBlockDependencies", Some(Expression::LiteralArray(LiteralArrayExpr {
-                    entries: resolvers,
-                    type_: None,
-                    source_span: None,
-                })));
+                definition_map.set(
+                    "deferBlockDependencies",
+                    Some(Expression::LiteralArray(LiteralArrayExpr {
+                        entries: resolvers,
+                        type_: None,
+                        source_span: None,
+                    })),
+                );
             }
         }
         crate::render3::view::api::R3ComponentDeferMetadata::PerComponent { .. } => {
@@ -240,7 +255,7 @@ fn get_template_expression(
     let start = ParseLocation::new(file, 0, 0, 0);
     let end = compute_end_location(file_clone, contents);
     let span = ParseSourceSpan::new(start, end);
-    
+
     literal_with_span(LiteralValue::String(contents.clone()), Some(span))
 }
 
@@ -269,7 +284,10 @@ fn compile_used_dependencies_metadata(meta: &R3ComponentMetadata) -> Option<Expr
         _ => Box::new(generate_forward_ref),
     };
 
-    if matches!(meta.declaration_list_emit_mode, DeclarationListEmitMode::RuntimeResolved) {
+    if matches!(
+        meta.declaration_list_emit_mode,
+        DeclarationListEmitMode::RuntimeResolved
+    ) {
         panic!("Unsupported emit mode");
     }
 
@@ -277,68 +295,97 @@ fn compile_used_dependencies_metadata(meta: &R3ComponentMetadata) -> Option<Expr
         return None;
     }
 
-    let exprs: Vec<Expression> = meta.declarations
+    let exprs: Vec<Expression> = meta
+        .declarations
         .iter()
-        .map(|decl| {
-            match decl {
-                R3TemplateDependencyMetadata::Directive(dir) => {
-                    let mut dir_meta = DefinitionMap::new();
-                    let kind = if dir.is_component { "component" } else { "directive" };
-                    dir_meta.set("kind", Some(literal(LiteralValue::String(kind.to_string()))));
-                    dir_meta.set("type", Some(wrap_type(dir.type_.clone())));
-                    dir_meta.set("selector", Some(literal(LiteralValue::String(dir.selector.clone()))));
-                    
-                    if !dir.inputs.is_empty() {
-                        let inputs_exprs: Vec<Expression> = dir.inputs
-                            .iter()
-                            .map(|s| literal(LiteralValue::String(s.clone())))
-                            .collect();
-                        dir_meta.set("inputs", Some(Expression::LiteralArray(LiteralArrayExpr {
+        .map(|decl| match decl {
+            R3TemplateDependencyMetadata::Directive(dir) => {
+                let mut dir_meta = DefinitionMap::new();
+                let kind = if dir.is_component {
+                    "component"
+                } else {
+                    "directive"
+                };
+                dir_meta.set(
+                    "kind",
+                    Some(literal(LiteralValue::String(kind.to_string()))),
+                );
+                dir_meta.set("type", Some(wrap_type(dir.type_.clone())));
+                dir_meta.set(
+                    "selector",
+                    Some(literal(LiteralValue::String(dir.selector.clone()))),
+                );
+
+                if !dir.inputs.is_empty() {
+                    let inputs_exprs: Vec<Expression> = dir
+                        .inputs
+                        .iter()
+                        .map(|s| literal(LiteralValue::String(s.clone())))
+                        .collect();
+                    dir_meta.set(
+                        "inputs",
+                        Some(Expression::LiteralArray(LiteralArrayExpr {
                             entries: inputs_exprs,
                             type_: None,
                             source_span: None,
-                        })));
-                    }
-                    
-                    if !dir.outputs.is_empty() {
-                        let outputs_exprs: Vec<Expression> = dir.outputs
-                            .iter()
-                            .map(|s| literal(LiteralValue::String(s.clone())))
-                            .collect();
-                        dir_meta.set("outputs", Some(Expression::LiteralArray(LiteralArrayExpr {
+                        })),
+                    );
+                }
+
+                if !dir.outputs.is_empty() {
+                    let outputs_exprs: Vec<Expression> = dir
+                        .outputs
+                        .iter()
+                        .map(|s| literal(LiteralValue::String(s.clone())))
+                        .collect();
+                    dir_meta.set(
+                        "outputs",
+                        Some(Expression::LiteralArray(LiteralArrayExpr {
                             entries: outputs_exprs,
                             type_: None,
                             source_span: None,
-                        })));
-                    }
-                    
-                    if let Some(ref export_as) = dir.export_as {
-                        let export_as_exprs: Vec<Expression> = export_as
-                            .iter()
-                            .map(|s| literal(LiteralValue::String(s.clone())))
-                            .collect();
-                        dir_meta.set("exportAs", Some(Expression::LiteralArray(LiteralArrayExpr {
+                        })),
+                    );
+                }
+
+                if let Some(ref export_as) = dir.export_as {
+                    let export_as_exprs: Vec<Expression> = export_as
+                        .iter()
+                        .map(|s| literal(LiteralValue::String(s.clone())))
+                        .collect();
+                    dir_meta.set(
+                        "exportAs",
+                        Some(Expression::LiteralArray(LiteralArrayExpr {
                             entries: export_as_exprs,
                             type_: None,
                             source_span: None,
-                        })));
-                    }
-                    
-                    Expression::LiteralMap(dir_meta.to_literal_map())
+                        })),
+                    );
                 }
-                R3TemplateDependencyMetadata::Pipe(pipe) => {
-                    let mut pipe_meta = DefinitionMap::new();
-                    pipe_meta.set("kind", Some(literal(LiteralValue::String("pipe".to_string()))));
-                    pipe_meta.set("type", Some(wrap_type(pipe.type_.clone())));
-                    pipe_meta.set("name", Some(literal(LiteralValue::String(pipe.name.clone()))));
-                    Expression::LiteralMap(pipe_meta.to_literal_map())
-                }
-                R3TemplateDependencyMetadata::NgModule(ng_module) => {
-                    let mut ng_meta = DefinitionMap::new();
-                    ng_meta.set("kind", Some(literal(LiteralValue::String("ngmodule".to_string()))));
-                    ng_meta.set("type", Some(wrap_type(ng_module.type_.clone())));
-                    Expression::LiteralMap(ng_meta.to_literal_map())
-                }
+
+                Expression::LiteralMap(dir_meta.to_literal_map())
+            }
+            R3TemplateDependencyMetadata::Pipe(pipe) => {
+                let mut pipe_meta = DefinitionMap::new();
+                pipe_meta.set(
+                    "kind",
+                    Some(literal(LiteralValue::String("pipe".to_string()))),
+                );
+                pipe_meta.set("type", Some(wrap_type(pipe.type_.clone())));
+                pipe_meta.set(
+                    "name",
+                    Some(literal(LiteralValue::String(pipe.name.clone()))),
+                );
+                Expression::LiteralMap(pipe_meta.to_literal_map())
+            }
+            R3TemplateDependencyMetadata::NgModule(ng_module) => {
+                let mut ng_meta = DefinitionMap::new();
+                ng_meta.set(
+                    "kind",
+                    Some(literal(LiteralValue::String("ngmodule".to_string()))),
+                );
+                ng_meta.set("type", Some(wrap_type(ng_module.type_.clone())));
+                Expression::LiteralMap(ng_meta.to_literal_map())
             }
         })
         .collect();

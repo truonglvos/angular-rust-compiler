@@ -2,8 +2,8 @@
 //
 // Public interface for partial evaluator.
 
-use std::collections::HashMap;
 use super::result::ResolvedValue;
+use std::collections::HashMap;
 
 /// Partial evaluator interface.
 pub struct PartialEvaluator {
@@ -16,15 +16,15 @@ impl PartialEvaluator {
             known_values: HashMap::new(),
         }
     }
-    
+
     pub fn set_known(&mut self, name: &str, value: ResolvedValue) {
         self.known_values.insert(name.to_string(), value);
     }
-    
+
     pub fn get_known(&self, name: &str) -> Option<&ResolvedValue> {
         self.known_values.get(name)
     }
-    
+
     pub fn evaluate(&self, _expression: &str) -> ResolvedValue {
         ResolvedValue::Unknown
     }

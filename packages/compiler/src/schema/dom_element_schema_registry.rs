@@ -17,11 +17,13 @@
 //! =================================================================================================
 //! ```
 
+use super::dom_security_schema::security_schema;
+use super::element_schema_registry::{
+    ElementSchemaRegistry, NormalizationResult, ValidationResult,
+};
 use crate::core::{SchemaMetadata, SecurityContext};
 use crate::ml_parser::tags::{is_ng_container, is_ng_content};
 use crate::util::dash_case_to_camel_case;
-use super::dom_security_schema::security_schema;
-use super::element_schema_registry::{ElementSchemaRegistry, ValidationResult, NormalizationResult};
 use once_cell::sync::Lazy;
 use std::collections::{HashMap, HashSet};
 
@@ -302,12 +304,8 @@ pub static ATTR_TO_PROP: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|
 });
 
 /// Inverted map from property names to attribute names
-static PROP_TO_ATTR: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
-    ATTR_TO_PROP
-        .iter()
-        .map(|(k, v)| (*v, *k))
-        .collect()
-});
+static PROP_TO_ATTR: Lazy<HashMap<&'static str, &'static str>> =
+    Lazy::new(|| ATTR_TO_PROP.iter().map(|(k, v)| (*v, *k)).collect());
 
 /// NO_ERRORS_SCHEMA constant
 fn no_errors_schema_name() -> &'static str {
@@ -419,27 +417,30 @@ impl DomElementSchemaRegistry {
 
     /// Get all known attributes of an element
     pub fn all_known_attributes_of_element(&self, tag_name: &str) -> Vec<String> {
-        let element_properties = self.schema.get(&tag_name.to_lowercase())
+        let element_properties = self
+            .schema
+            .get(&tag_name.to_lowercase())
             .or_else(|| self.schema.get("unknown"));
 
         match element_properties {
-            Some(props) => {
-                props.keys()
-                    .map(|prop| {
-                        PROP_TO_ATTR.get(prop.as_str())
-                            .copied()
-                            .unwrap_or(prop.as_str())
-                            .to_string()
-                    })
-                    .collect()
-            }
+            Some(props) => props
+                .keys()
+                .map(|prop| {
+                    PROP_TO_ATTR
+                        .get(prop.as_str())
+                        .copied()
+                        .unwrap_or(prop.as_str())
+                        .to_string()
+                })
+                .collect(),
             None => Vec::new(),
         }
     }
 
     /// Get all known events of an element
     pub fn all_known_events_of_element(&self, tag_name: &str) -> Vec<String> {
-        self.event_schema.get(&tag_name.to_lowercase())
+        self.event_schema
+            .get(&tag_name.to_lowercase())
             .map(|events| events.iter().cloned().collect())
             .unwrap_or_default()
     }
@@ -452,9 +453,17 @@ impl Default for DomElementSchemaRegistry {
 }
 
 impl ElementSchemaRegistry for DomElementSchemaRegistry {
-    fn has_property(&self, tag_name: &str, prop_name: &str, schema_metas: &[SchemaMetadata]) -> bool {
+    fn has_property(
+        &self,
+        tag_name: &str,
+        prop_name: &str,
+        schema_metas: &[SchemaMetadata],
+    ) -> bool {
         // NO_ERRORS_SCHEMA allows all properties
-        if schema_metas.iter().any(|s| s.name == no_errors_schema_name()) {
+        if schema_metas
+            .iter()
+            .any(|s| s.name == no_errors_schema_name())
+        {
             return true;
         }
 
@@ -464,14 +473,19 @@ impl ElementSchemaRegistry for DomElementSchemaRegistry {
                 return false;
             }
 
-            if schema_metas.iter().any(|s| s.name == custom_elements_schema_name()) {
+            if schema_metas
+                .iter()
+                .any(|s| s.name == custom_elements_schema_name())
+            {
                 // Can't tell now as we don't know which properties a custom element will get
                 // once it is instantiated
                 return true;
             }
         }
 
-        let element_properties = self.schema.get(&tag_name.to_lowercase())
+        let element_properties = self
+            .schema
+            .get(&tag_name.to_lowercase())
             .or_else(|| self.schema.get("unknown"));
 
         element_properties
@@ -481,7 +495,10 @@ impl ElementSchemaRegistry for DomElementSchemaRegistry {
 
     fn has_element(&self, tag_name: &str, schema_metas: &[SchemaMetadata]) -> bool {
         // NO_ERRORS_SCHEMA allows all elements
-        if schema_metas.iter().any(|s| s.name == no_errors_schema_name()) {
+        if schema_metas
+            .iter()
+            .any(|s| s.name == no_errors_schema_name())
+        {
             return true;
         }
 
@@ -491,7 +508,10 @@ impl ElementSchemaRegistry for DomElementSchemaRegistry {
                 return true;
             }
 
-            if schema_metas.iter().any(|s| s.name == custom_elements_schema_name()) {
+            if schema_metas
+                .iter()
+                .any(|s| s.name == custom_elements_schema_name())
+            {
                 // Allow any custom elements
                 return true;
             }
@@ -500,7 +520,12 @@ impl ElementSchemaRegistry for DomElementSchemaRegistry {
         self.schema.contains_key(&tag_name.to_lowercase())
     }
 
-    fn security_context(&self, element_name: &str, prop_name: &str, is_attribute: bool) -> SecurityContext {
+    fn security_context(
+        &self,
+        element_name: &str,
+        prop_name: &str,
+        is_attribute: bool,
+    ) -> SecurityContext {
         let prop_name = if is_attribute {
             // NB: For security purposes, use the mapped property name, not the attribute name.
             self.get_mapped_prop_name(prop_name)
@@ -523,7 +548,8 @@ impl ElementSchemaRegistry for DomElementSchemaRegistry {
 
         // Check wildcard context
         let wildcard_key = format!("*|{}", prop_lower);
-        schema.get(&wildcard_key)
+        schema
+            .get(&wildcard_key)
             .copied()
             .unwrap_or(SecurityContext::NONE)
     }
@@ -533,7 +559,8 @@ impl ElementSchemaRegistry for DomElementSchemaRegistry {
     }
 
     fn get_mapped_prop_name(&self, prop_name: &str) -> String {
-        ATTR_TO_PROP.get(prop_name)
+        ATTR_TO_PROP
+            .get(prop_name)
             .copied()
             .unwrap_or(prop_name)
             .to_string()
@@ -608,7 +635,10 @@ impl ElementSchemaRegistry for DomElementSchemaRegistry {
                 let re = regex::Regex::new(r"^[+-]?[\d\.]+([a-z]*)$").unwrap();
                 if let Some(caps) = re.captures(val) {
                     if caps.get(1).map(|m| m.as_str()).unwrap_or("").is_empty() {
-                        error_msg = format!("Please provide a CSS unit value for {}:{}", user_provided_prop, val);
+                        error_msg = format!(
+                            "Please provide a CSS unit value for {}:{}",
+                            user_provided_prop, val
+                        );
                     }
                 }
             }
@@ -625,14 +655,34 @@ impl ElementSchemaRegistry for DomElementSchemaRegistry {
 fn is_pixel_dimension_style(prop: &str) -> bool {
     matches!(
         prop,
-        "width" | "height" | "minWidth" | "minHeight" | "maxWidth" | "maxHeight" |
-        "left" | "top" | "bottom" | "right" | "fontSize" |
-        "outlineWidth" | "outlineOffset" |
-        "paddingTop" | "paddingLeft" | "paddingBottom" | "paddingRight" |
-        "marginTop" | "marginLeft" | "marginBottom" | "marginRight" |
-        "borderRadius" | "borderWidth" |
-        "borderTopWidth" | "borderLeftWidth" | "borderRightWidth" | "borderBottomWidth" |
-        "textIndent"
+        "width"
+            | "height"
+            | "minWidth"
+            | "minHeight"
+            | "maxWidth"
+            | "maxHeight"
+            | "left"
+            | "top"
+            | "bottom"
+            | "right"
+            | "fontSize"
+            | "outlineWidth"
+            | "outlineOffset"
+            | "paddingTop"
+            | "paddingLeft"
+            | "paddingBottom"
+            | "paddingRight"
+            | "marginTop"
+            | "marginLeft"
+            | "marginBottom"
+            | "marginRight"
+            | "borderRadius"
+            | "borderWidth"
+            | "borderTopWidth"
+            | "borderLeftWidth"
+            | "borderRightWidth"
+            | "borderBottomWidth"
+            | "textIndent"
     )
 }
 
@@ -712,7 +762,9 @@ mod tests {
     #[test]
     fn test_get_default_component_element_name() {
         let registry = DomElementSchemaRegistry::new();
-        assert_eq!(registry.get_default_component_element_name(), "ng-component");
+        assert_eq!(
+            registry.get_default_component_element_name(),
+            "ng-component"
+        );
     }
 }
-

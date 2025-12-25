@@ -8,10 +8,14 @@
 
 use crate::template::pipeline::ir;
 use crate::template::pipeline::ir::enums::OpKind;
-use crate::template::pipeline::ir::handle::{XrefId, SlotHandle};
-use crate::template::pipeline::ir::ops::create::{DeferOp, DeferOnOp, DeferTrigger, ElementOrContainerOpBase};
-use crate::template::pipeline::ir::ops::create::{ElementStartOp, ElementOp, ContainerStartOp, ContainerOp};
-use crate::template::pipeline::src::compilation::{ComponentCompilationJob, CompilationUnit};
+use crate::template::pipeline::ir::handle::{SlotHandle, XrefId};
+use crate::template::pipeline::ir::ops::create::{
+    ContainerOp, ContainerStartOp, ElementOp, ElementStartOp,
+};
+use crate::template::pipeline::ir::ops::create::{
+    DeferOnOp, DeferOp, DeferTrigger, ElementOrContainerOpBase,
+};
+use crate::template::pipeline::src::compilation::{CompilationUnit, ComponentCompilationJob};
 use std::collections::HashMap;
 
 /// Scope for tracking local references in a view
@@ -48,7 +52,9 @@ fn is_element_or_container_op(kind: OpKind) -> bool {
 }
 
 /// Helper function to get ElementOrContainerOpBase from an op
-unsafe fn get_element_or_container_base(op: &dyn ir::CreateOp) -> Option<&ElementOrContainerOpBase> {
+unsafe fn get_element_or_container_base(
+    op: &dyn ir::CreateOp,
+) -> Option<&ElementOrContainerOpBase> {
     match op.kind() {
         OpKind::ElementStart => {
             let op_ptr = op as *const dyn ir::CreateOp;
@@ -84,23 +90,23 @@ fn get_scope_for_view<'a>(
     scopes: &'a mut HashMap<XrefId, Scope>,
 ) -> &'a Scope {
     let view_xref = view.xref();
-    
+
     if !scopes.contains_key(&view_xref) {
         let mut scope = Scope::new();
-        
+
         for op in view.create().iter() {
             // Add everything that can be referenced
             if !is_element_or_container_op(op.kind()) {
                 continue;
             }
-            
+
             let base = unsafe { get_element_or_container_base(op.as_ref()) };
             if let Some(base) = base {
                 // Check if local_refs is still an array (not yet processed)
                 if base.local_refs_index.is_some() {
                     panic!("LocalRefs were already processed, but were needed to resolve defer targets.");
                 }
-                
+
                 for ref_item in &base.local_refs {
                     if ref_item.target != "" {
                         continue;
@@ -115,10 +121,10 @@ fn get_scope_for_view<'a>(
                 }
             }
         }
-        
+
         scopes.insert(view_xref, scope);
     }
-    
+
     scopes.get(&view_xref).unwrap()
 }
 
@@ -147,10 +153,10 @@ unsafe fn get_slot_handle(op: &dyn ir::CreateOp) -> Option<SlotHandle> {
 
 pub fn resolve_defer_target_names(job: &mut ComponentCompilationJob) {
     let mut scopes: HashMap<XrefId, Scope> = HashMap::new();
-    
+
     // First pass: collect all DeferOps and store their info
     let mut defer_ops_info: HashMap<XrefId, (Option<XrefId>, Option<XrefId>)> = HashMap::new(); // defer xref -> (main_view, placeholder_view)
-    
+
     // Collect from root unit
     for op in job.root.create().iter() {
         if op.kind() == OpKind::Defer {
@@ -162,7 +168,7 @@ pub fn resolve_defer_target_names(job: &mut ComponentCompilationJob) {
             }
         }
     }
-    
+
     // Collect from all view units
     for (_, unit) in job.views.iter() {
         for op in unit.create().iter() {
@@ -171,12 +177,13 @@ pub fn resolve_defer_target_names(job: &mut ComponentCompilationJob) {
                     let op_ptr = op.as_ref() as *const dyn ir::CreateOp;
                     let defer_ptr = op_ptr as *const DeferOp;
                     let defer = &*defer_ptr;
-                    defer_ops_info.insert(defer.xref, (Some(defer.main_view), defer.placeholder_view));
+                    defer_ops_info
+                        .insert(defer.xref, (Some(defer.main_view), defer.placeholder_view));
                 }
             }
         }
     }
-    
+
     // Second pass: resolve triggers for DeferOnOps
     // Process root unit
     {
@@ -187,20 +194,23 @@ pub fn resolve_defer_target_names(job: &mut ComponentCompilationJob) {
                     let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                     let defer_on_ptr = op_ptr as *mut DeferOnOp;
                     let defer_on = &mut *defer_on_ptr;
-                    
+
                     // Get the associated DeferOp info
-                    let (main_view, placeholder_view_from_defer) = defer_ops_info.get(&defer_on.defer)
+                    let (main_view, placeholder_view_from_defer) = defer_ops_info
+                        .get(&defer_on.defer)
                         .expect("DeferOp not found for DeferOnOp");
-                    
-                    let placeholder_view = if defer_on.modifier == ir::enums::DeferOpModifierKind::Hydrate {
-                        *main_view
-                    } else {
-                        *placeholder_view_from_defer
-                    };
-                    
+
+                    let placeholder_view =
+                        if defer_on.modifier == ir::enums::DeferOpModifierKind::Hydrate {
+                            *main_view
+                        } else {
+                            *placeholder_view_from_defer
+                        };
+
                     // Resolve trigger - use immutable reference via raw pointer
                     let job_ref: &ComponentCompilationJob = &*job_ptr;
-                    let root_ptr = &(*job_ptr).root as *const crate::template::pipeline::src::compilation::ViewCompilationUnit;
+                    let root_ptr = &(*job_ptr).root
+                        as *const crate::template::pipeline::src::compilation::ViewCompilationUnit;
                     let root_ref: &dyn CompilationUnit = &*root_ptr as &dyn CompilationUnit;
                     resolve_trigger_inner(
                         defer_on,
@@ -213,30 +223,33 @@ pub fn resolve_defer_target_names(job: &mut ComponentCompilationJob) {
             }
         }
     }
-    
+
     // Process all view units
     {
         let job_ptr = job as *mut ComponentCompilationJob;
         for (_, unit) in job.views.iter_mut() {
             // Save unit pointer before mutating ops
-            let unit_ptr = unit as *const crate::template::pipeline::src::compilation::ViewCompilationUnit;
+            let unit_ptr =
+                unit as *const crate::template::pipeline::src::compilation::ViewCompilationUnit;
             for op in unit.create_mut().iter_mut() {
                 if op.kind() == OpKind::DeferOn {
                     unsafe {
                         let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
                         let defer_on_ptr = op_ptr as *mut DeferOnOp;
                         let defer_on = &mut *defer_on_ptr;
-                        
+
                         // Get the associated DeferOp info
-                        let (main_view, placeholder_view_from_defer) = defer_ops_info.get(&defer_on.defer)
+                        let (main_view, placeholder_view_from_defer) = defer_ops_info
+                            .get(&defer_on.defer)
                             .expect("DeferOp not found for DeferOnOp");
-                        
-                        let placeholder_view = if defer_on.modifier == ir::enums::DeferOpModifierKind::Hydrate {
-                            *main_view
-                        } else {
-                            *placeholder_view_from_defer
-                        };
-                        
+
+                        let placeholder_view =
+                            if defer_on.modifier == ir::enums::DeferOpModifierKind::Hydrate {
+                                *main_view
+                            } else {
+                                *placeholder_view_from_defer
+                            };
+
                         // Resolve trigger - use immutable references via raw pointers
                         let job_ref: &ComponentCompilationJob = &*job_ptr;
                         let unit_ref: &dyn CompilationUnit = &*unit_ptr as &dyn CompilationUnit;
@@ -293,13 +306,14 @@ fn resolve_trigger_inner(
         } => {
             // Handle null target name (default to first element in placeholder block)
             if target_name.is_none() {
-                let placeholder = placeholder_view.expect(
-                    "defer on trigger with no target name must have a placeholder block"
-                );
-                
-                let placeholder_unit = job.views.get(&placeholder)
+                let placeholder = placeholder_view
+                    .expect("defer on trigger with no target name must have a placeholder block");
+
+                let placeholder_unit = job
+                    .views
+                    .get(&placeholder)
                     .expect("AssertionError: could not find placeholder view for defer on trigger");
-                
+
                 // Find first element/container/projection op in placeholder view
                 for op in placeholder_unit.create().iter() {
                     if op.kind() == OpKind::Projection
@@ -310,7 +324,7 @@ fn resolve_trigger_inner(
                         *target_xref = Some(op.xref());
                         *target_view = Some(placeholder);
                         *target_slot_view_steps = Some(0); // Use 0 as sentinel for placeholder (-1 in TS)
-                        
+
                         // Get slot handle
                         if let Some(slot) = unsafe { get_slot_handle(op.as_ref()) } {
                             *target_slot = Some(slot);
@@ -320,12 +334,12 @@ fn resolve_trigger_inner(
                 }
                 return;
             }
-            
+
             // Search for target name in views (starting from placeholder or defer owner view)
             let target_name_str = target_name.as_ref().unwrap();
             let mut current_view_xref: Option<XrefId> = placeholder_view;
             let mut step: isize = if placeholder_view.is_some() { -1 } else { 0 }; // -1 for placeholder
-            
+
             loop {
                 let view = if let Some(xref) = current_view_xref {
                     if xref == defer_owner_view.xref() {
@@ -340,10 +354,10 @@ fn resolve_trigger_inner(
                         None
                     }
                 };
-                
+
                 if let Some(view) = view {
                     let scope = get_scope_for_view(view, scopes);
-                    
+
                     if let Some(target_info) = scope.targets.get(target_name_str) {
                         *target_xref = Some(target_info.xref);
                         *target_view = Some(view.xref());
@@ -351,7 +365,7 @@ fn resolve_trigger_inner(
                         *target_slot = Some(target_info.slot.clone());
                         return;
                     }
-                    
+
                     // Move to parent view
                     if view.xref() == defer_owner_view.xref() {
                         // Access parent through ViewCompilationUnit's parent field
@@ -368,7 +382,7 @@ fn resolve_trigger_inner(
                             current_view_xref = (*view_unit_ptr).parent;
                         }
                     }
-                    
+
                     if current_view_xref.is_none() {
                         break;
                     }
@@ -403,4 +417,3 @@ fn op_kind_has_consumes_slot_trait(kind: OpKind) -> bool {
             | OpKind::Pipe
     )
 }
-

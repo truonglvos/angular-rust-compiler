@@ -11,39 +11,39 @@ use crate::parse_util::{ParseError, ParseSourceSpan};
 use crate::template_parser::binding_parser::BindingParser;
 
 use super::r3_ast::{
-    DeferredBlock, DeferredBlockPlaceholder, DeferredBlockLoading,
-    DeferredBlockError, DeferredBlockTriggers, BlockNode,
+    BlockNode, DeferredBlock, DeferredBlockError, DeferredBlockLoading, DeferredBlockPlaceholder,
+    DeferredBlockTriggers,
 };
 use super::r3_deferred_triggers::{
-    get_trigger_parameters_start, parse_deferred_time, parse_never_trigger,
-    parse_on_trigger, parse_when_trigger,
+    get_trigger_parameters_start, parse_deferred_time, parse_never_trigger, parse_on_trigger,
+    parse_when_trigger,
 };
 
 lazy_static! {
     /// Pattern to identify a `prefetch when` trigger
     static ref PREFETCH_WHEN_PATTERN: Regex = Regex::new(r"^prefetch\s+when\s").unwrap();
-    
+
     /// Pattern to identify a `prefetch on` trigger
     static ref PREFETCH_ON_PATTERN: Regex = Regex::new(r"^prefetch\s+on\s").unwrap();
-    
+
     /// Pattern to identify a `hydrate when` trigger
     static ref HYDRATE_WHEN_PATTERN: Regex = Regex::new(r"^hydrate\s+when\s").unwrap();
-    
+
     /// Pattern to identify a `hydrate on` trigger
     static ref HYDRATE_ON_PATTERN: Regex = Regex::new(r"^hydrate\s+on\s").unwrap();
-    
+
     /// Pattern to identify a `hydrate never` trigger
     static ref HYDRATE_NEVER_PATTERN: Regex = Regex::new(r"^hydrate\s+never(\s*)$").unwrap();
-    
+
     /// Pattern to identify a `minimum` parameter in a block
     static ref MINIMUM_PARAMETER_PATTERN: Regex = Regex::new(r"^minimum\s").unwrap();
-    
+
     /// Pattern to identify a `after` parameter in a block
     static ref AFTER_PARAMETER_PATTERN: Regex = Regex::new(r"^after\s").unwrap();
-    
+
     /// Pattern to identify a `when` parameter in a block
     static ref WHEN_PARAMETER_PATTERN: Regex = Regex::new(r"^when\s").unwrap();
-    
+
     /// Pattern to identify a `on` parameter in a block
     static ref ON_PARAMETER_PATTERN: Regex = Regex::new(r"^on\s").unwrap();
 }
@@ -66,29 +66,23 @@ pub fn create_deferred_block(
     binding_parser: &mut BindingParser,
 ) -> CreateDeferredBlockResult {
     let mut errors: Vec<ParseError> = Vec::new();
-    
+
     let (placeholder, loading, error) = parse_connected_blocks(connected_blocks, &mut errors);
-    let (triggers, prefetch_triggers, hydrate_triggers) = parse_primary_triggers(
-        ast,
-        binding_parser,
-        &mut errors,
-        placeholder.as_ref(),
-    );
+    let (triggers, prefetch_triggers, hydrate_triggers) =
+        parse_primary_triggers(ast, binding_parser, &mut errors, placeholder.as_ref());
 
     // The `defer` block has a main span encompassing all of the connected branches as well
     let mut last_end_source_span = ast.end_source_span.clone();
     let mut end_of_last_source_span = ast.source_span.end.clone();
-    
+
     if !connected_blocks.is_empty() {
         let last_connected_block = &connected_blocks[connected_blocks.len() - 1];
         last_end_source_span = last_connected_block.end_source_span.clone();
         end_of_last_source_span = last_connected_block.source_span.end.clone();
     }
 
-    let source_span_with_connected_blocks = ParseSourceSpan::new(
-        ast.source_span.start.clone(),
-        end_of_last_source_span,
-    );
+    let source_span_with_connected_blocks =
+        ParseSourceSpan::new(ast.source_span.start.clone(), end_of_last_source_span);
 
     let node = DeferredBlock {
         children: vec![], // Would be populated by visitor
@@ -114,7 +108,11 @@ pub fn create_deferred_block(
 fn parse_connected_blocks(
     connected_blocks: &[html::Block],
     errors: &mut Vec<ParseError>,
-) -> (Option<DeferredBlockPlaceholder>, Option<DeferredBlockLoading>, Option<DeferredBlockError>) {
+) -> (
+    Option<DeferredBlockPlaceholder>,
+    Option<DeferredBlockLoading>,
+    Option<DeferredBlockError>,
+) {
     let mut placeholder: Option<DeferredBlockPlaceholder> = None;
     let mut loading: Option<DeferredBlockLoading> = None;
     let mut error: Option<DeferredBlockError> = None;
@@ -175,15 +173,15 @@ fn parse_connected_blocks(
     (placeholder, loading, error)
 }
 
-fn parse_placeholder_block(
-    ast: &html::Block,
-) -> Result<DeferredBlockPlaceholder, String> {
+fn parse_placeholder_block(ast: &html::Block) -> Result<DeferredBlockPlaceholder, String> {
     let mut minimum_time: Option<i64> = None;
 
     for param in &ast.parameters {
         if MINIMUM_PARAMETER_PATTERN.is_match(&param.expression) {
             if minimum_time.is_some() {
-                return Err("@placeholder block can only have one \"minimum\" parameter".to_string());
+                return Err(
+                    "@placeholder block can only have one \"minimum\" parameter".to_string()
+                );
             }
 
             let start = get_trigger_parameters_start(&param.expression, 0);
@@ -215,9 +213,7 @@ fn parse_placeholder_block(
     })
 }
 
-fn parse_loading_block(
-    ast: &html::Block,
-) -> Result<DeferredBlockLoading, String> {
+fn parse_loading_block(ast: &html::Block) -> Result<DeferredBlockLoading, String> {
     let mut after_time: Option<i64> = None;
     let mut minimum_time: Option<i64> = None;
 
@@ -270,9 +266,7 @@ fn parse_loading_block(
     })
 }
 
-fn parse_error_block(
-    ast: &html::Block,
-) -> Result<DeferredBlockError, String> {
+fn parse_error_block(ast: &html::Block) -> Result<DeferredBlockError, String> {
     if !ast.parameters.is_empty() {
         return Err("@error block cannot have parameters".to_string());
     }
@@ -294,7 +288,11 @@ fn parse_primary_triggers(
     binding_parser: &mut BindingParser,
     errors: &mut Vec<ParseError>,
     placeholder: Option<&DeferredBlockPlaceholder>,
-) -> (DeferredBlockTriggers, DeferredBlockTriggers, DeferredBlockTriggers) {
+) -> (
+    DeferredBlockTriggers,
+    DeferredBlockTriggers,
+    DeferredBlockTriggers,
+) {
     let mut triggers = DeferredBlockTriggers::default();
     let mut prefetch_triggers = DeferredBlockTriggers::default();
     let mut hydrate_triggers = DeferredBlockTriggers::default();
@@ -307,11 +305,23 @@ fn parse_primary_triggers(
         } else if PREFETCH_WHEN_PATTERN.is_match(&param.expression) {
             parse_when_trigger(param, binding_parser, &mut prefetch_triggers, errors);
         } else if PREFETCH_ON_PATTERN.is_match(&param.expression) {
-            parse_on_trigger(param, binding_parser, &mut prefetch_triggers, errors, placeholder);
+            parse_on_trigger(
+                param,
+                binding_parser,
+                &mut prefetch_triggers,
+                errors,
+                placeholder,
+            );
         } else if HYDRATE_WHEN_PATTERN.is_match(&param.expression) {
             parse_when_trigger(param, binding_parser, &mut hydrate_triggers, errors);
         } else if HYDRATE_ON_PATTERN.is_match(&param.expression) {
-            parse_on_trigger(param, binding_parser, &mut hydrate_triggers, errors, placeholder);
+            parse_on_trigger(
+                param,
+                binding_parser,
+                &mut hydrate_triggers,
+                errors,
+                placeholder,
+            );
         } else if HYDRATE_NEVER_PATTERN.is_match(&param.expression) {
             parse_never_trigger(param, &mut hydrate_triggers, errors);
         } else {
@@ -335,7 +345,8 @@ fn parse_primary_triggers(
         if has_other_hydrate_triggers {
             errors.push(ParseError::new(
                 ast.start_source_span.clone(),
-                "Cannot specify additional `hydrate` triggers if `hydrate never` is present".to_string(),
+                "Cannot specify additional `hydrate` triggers if `hydrate never` is present"
+                    .to_string(),
             ));
         }
     }

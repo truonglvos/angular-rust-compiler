@@ -24,7 +24,8 @@ impl UniqueIdentifierGenerator {
         symbol_name: &str,
     ) -> Option<String> {
         let is_generated = |name: &str| {
-            self.generated_identifiers.contains(&format!("{}@@{}", file.file_name(), name))
+            self.generated_identifiers
+                .contains(&format!("{}@@{}", file.file_name(), name))
         };
 
         // If the name is free in the file and hasn't been generated yet, just return None (use original)
@@ -45,6 +46,7 @@ impl UniqueIdentifierGenerator {
     }
 
     fn mark_as_generated<F: IdentifierScope + ?Sized>(&mut self, file: &F, name: &str) {
-        self.generated_identifiers.insert(format!("{}@@{}", file.file_name(), name));
+        self.generated_identifiers
+            .insert(format!("{}@@{}", file.file_name(), name));
     }
 }

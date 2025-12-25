@@ -5,33 +5,40 @@
 //! either the `ctx` parameter to component functions (for the current view context) or to variables
 //! that store those contexts (for contexts accessed via the `nextContext()` instruction).
 
-use crate::template::pipeline::ir as ir;
+use crate::output::output_ast::Expression;
+use crate::template::pipeline::ir;
 use crate::template::pipeline::ir::enums::OpKind;
-use crate::template::pipeline::ir::variable::SemanticVariableKind;
 use crate::template::pipeline::ir::expression::transform_expressions_in_op;
 use crate::template::pipeline::ir::expression::ReadVariableExpr;
-use crate::template::pipeline::src::compilation::{CompilationJob, ComponentCompilationJob, CompilationJobKind, CompilationUnit};
-use crate::output::output_ast::Expression;
-use crate::template::pipeline::ir::ops::create::{ListenerOp, AnimationListenerOp, TwoWayListenerOp, RepeaterCreateOp};
+use crate::template::pipeline::ir::ops::create::{
+    AnimationListenerOp, ListenerOp, RepeaterCreateOp, TwoWayListenerOp,
+};
 use crate::template::pipeline::ir::ops::shared::VariableOp;
+use crate::template::pipeline::ir::variable::SemanticVariableKind;
+use crate::template::pipeline::src::compilation::{
+    CompilationJob, CompilationJobKind, CompilationUnit, ComponentCompilationJob,
+};
 
 /// Resolves `ir.ContextExpr` expressions (which represent embedded view or component contexts) to
 /// either the `ctx` parameter to component functions (for the current view context) or to variables
 /// that store those contexts (for contexts accessed via the `nextContext()` instruction).
 pub fn phase(job: &mut dyn CompilationJob) {
     let job_kind = job.kind();
-    
-    if matches!(job_kind, CompilationJobKind::Tmpl | CompilationJobKind::Both) {
+
+    if matches!(
+        job_kind,
+        CompilationJobKind::Tmpl | CompilationJobKind::Both
+    ) {
         let component_job = unsafe {
             let job_ptr = job as *mut dyn CompilationJob;
             let job_ptr = job_ptr as *mut ComponentCompilationJob;
             &mut *job_ptr
         };
-        
+
         // Process root unit
         let root_xref = component_job.root.xref();
         process_lexical_scope(&mut component_job.root, root_xref);
-        
+
         // Process all view units
         let view_keys: Vec<_> = component_job.views.keys().cloned().collect();
         for key in view_keys {
@@ -49,70 +56,88 @@ fn process_lexical_scope(
 ) {
     // Track the expressions used to access all available contexts within the current view, by the
     // view `ir.XrefId`.
-    let mut scope: std::collections::HashMap<ir::XrefId, Expression> = std::collections::HashMap::new();
-    
+    let mut scope: std::collections::HashMap<ir::XrefId, Expression> =
+        std::collections::HashMap::new();
+
     let unit_xref = unit.xref();
-    
+
     // The current view's context is accessible via the `ctx` parameter.
-    println!("DEBUG resolve_contexts: scope.insert current_view={:?} -> ReadVar(ctx)", unit_xref);
-    scope.insert(unit_xref, Expression::ReadVar(crate::output::output_ast::ReadVarExpr {
-        name: "ctx".to_string(),
-        type_: None,
-        source_span: None,
-    }));
-    
+    println!(
+        "DEBUG resolve_contexts: scope.insert current_view={:?} -> ReadVar(ctx)",
+        unit_xref
+    );
+    scope.insert(
+        unit_xref,
+        Expression::ReadVar(crate::output::output_ast::ReadVarExpr {
+            name: "ctx".to_string(),
+            type_: None,
+            source_span: None,
+        }),
+    );
+
     // First pass: build scope by processing VariableOps
     for op in unit.create().iter() {
         if op.kind() == OpKind::Variable {
             unsafe {
                 let op_ptr = op.as_ref() as *const dyn ir::CreateOp;
-                let variable_op_ptr = op_ptr as *const VariableOp<Box<dyn ir::CreateOp + Send + Sync>>;
+                let variable_op_ptr =
+                    op_ptr as *const VariableOp<Box<dyn ir::CreateOp + Send + Sync>>;
                 let variable_op = &*variable_op_ptr;
-                
+
                 if matches!(variable_op.variable.kind(), SemanticVariableKind::Context) {
                     // Get the view from the variable
                     if let ir::SemanticVariable::Context(ctx_var) = &variable_op.variable {
                         println!("DEBUG resolve_contexts: scope.insert view={:?} -> ReadVariable({:?}) (from create)", ctx_var.view, variable_op.xref);
-                        scope.insert(ctx_var.view, Expression::ReadVariable(ReadVariableExpr {
-                            xref: variable_op.xref,
-                            name: variable_op.variable.name().map(|s| s.to_string()),
-                            source_span: None,
-                        }));
+                        scope.insert(
+                            ctx_var.view,
+                            Expression::ReadVariable(ReadVariableExpr {
+                                xref: variable_op.xref,
+                                name: variable_op.variable.name().map(|s| s.to_string()),
+                                source_span: None,
+                            }),
+                        );
                     }
                 }
             }
         }
     }
-    
+
     for op in unit.update().iter() {
         if op.kind() == OpKind::Variable {
             unsafe {
                 let op_ptr = op.as_ref() as *const dyn ir::UpdateOp;
-                let variable_op_ptr = op_ptr as *const VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>;
+                let variable_op_ptr =
+                    op_ptr as *const VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>;
                 let variable_op = &*variable_op_ptr;
-                
+
                 if matches!(variable_op.variable.kind(), SemanticVariableKind::Context) {
                     if let ir::SemanticVariable::Context(ctx_var) = &variable_op.variable {
-                        scope.insert(ctx_var.view, Expression::ReadVariable(ReadVariableExpr {
-                            xref: variable_op.xref,
-                            name: variable_op.variable.name().map(|s| s.to_string()),
-                            source_span: None,
-                        }));
+                        scope.insert(
+                            ctx_var.view,
+                            Expression::ReadVariable(ReadVariableExpr {
+                                xref: variable_op.xref,
+                                name: variable_op.variable.name().map(|s| s.to_string()),
+                                source_span: None,
+                            }),
+                        );
                     }
                 }
             }
         }
     }
-    
+
     // Prefer `ctx` of the root view to any variables which happen to contain the root context.
     if unit_xref == root_xref {
-        scope.insert(unit_xref, Expression::ReadVar(crate::output::output_ast::ReadVarExpr {
-            name: "ctx".to_string(),
-            type_: None,
-            source_span: None,
-        }));
+        scope.insert(
+            unit_xref,
+            Expression::ReadVar(crate::output::output_ast::ReadVarExpr {
+                name: "ctx".to_string(),
+                type_: None,
+                source_span: None,
+            }),
+        );
     }
-    
+
     // Second pass: transform ContextExpr using scope
     // Process create ops
     for op in unit.create_mut().iter_mut() {
@@ -121,19 +146,19 @@ fn process_lexical_scope(
             OpKind::Listener | OpKind::AnimationListener | OpKind::TwoWayListener => continue,
             _ => {}
         }
-        
+
         unsafe {
             let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
             let op_ptr = op_ptr as *mut dyn ir::Op;
             transform_context_exprs_in_op(&mut *op_ptr, &scope);
         }
     }
-    
+
     // Process update ops
     for op in unit.update_mut().iter_mut() {
         transform_context_exprs_in_op(op.as_mut(), &scope);
     }
-    
+
     // Recursively process nested scopes (listeners, trackByOps)
     for op in unit.create_mut().iter_mut() {
         match op.kind() {
@@ -174,27 +199,21 @@ fn process_listener_scope(
     parent_scope: &std::collections::HashMap<ir::XrefId, Expression>,
 ) {
     match op.kind() {
-        OpKind::Listener => {
-            unsafe {
-                let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
-                let listener = &mut *(op_ptr as *mut ListenerOp);
-                process_ops_with_scope(&mut listener.handler_ops, parent_scope, "Listener");
-            }
-        }
-        OpKind::AnimationListener => {
-            unsafe {
-                let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
-                let listener = &mut *(op_ptr as *mut AnimationListenerOp);
-                process_ops_with_scope(&mut listener.handler_ops, parent_scope, "AnimationListener");
-            }
-        }
-        OpKind::TwoWayListener => {
-            unsafe {
-                let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
-                let listener = &mut *(op_ptr as *mut TwoWayListenerOp);
-                process_ops_with_scope(&mut listener.handler_ops, parent_scope, "TwoWayListener");
-            }
-        }
+        OpKind::Listener => unsafe {
+            let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
+            let listener = &mut *(op_ptr as *mut ListenerOp);
+            process_ops_with_scope(&mut listener.handler_ops, parent_scope, "Listener");
+        },
+        OpKind::AnimationListener => unsafe {
+            let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
+            let listener = &mut *(op_ptr as *mut AnimationListenerOp);
+            process_ops_with_scope(&mut listener.handler_ops, parent_scope, "AnimationListener");
+        },
+        OpKind::TwoWayListener => unsafe {
+            let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
+            let listener = &mut *(op_ptr as *mut TwoWayListenerOp);
+            process_ops_with_scope(&mut listener.handler_ops, parent_scope, "TwoWayListener");
+        },
         _ => {}
     }
 }
@@ -206,36 +225,43 @@ fn process_ops_with_scope(
 ) {
     // Build scope from handler_ops VariableOps
     let mut scope = parent_scope.clone();
-    
+
     // First pass: collect VariableOps with Context or SavedView variables
     for handler_op in handler_ops.iter() {
         if handler_op.kind() == OpKind::Variable {
             unsafe {
                 let handler_op_ptr = handler_op.as_ref() as *const dyn ir::UpdateOp;
-                let variable_op_ptr = handler_op_ptr as *const VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>;
+                let variable_op_ptr =
+                    handler_op_ptr as *const VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>;
                 let variable_op = &*variable_op_ptr;
-                
+
                 match &variable_op.variable {
                     ir::SemanticVariable::Context(ctx_var) => {
-                        scope.insert(ctx_var.view, Expression::ReadVariable(ReadVariableExpr {
-                            xref: variable_op.xref,
-                            name: variable_op.variable.name().map(|s| s.to_string()),
-                            source_span: None,
-                        }));
+                        scope.insert(
+                            ctx_var.view,
+                            Expression::ReadVariable(ReadVariableExpr {
+                                xref: variable_op.xref,
+                                name: variable_op.variable.name().map(|s| s.to_string()),
+                                source_span: None,
+                            }),
+                        );
                     }
                     ir::SemanticVariable::SavedView(saved_view) => {
-                        scope.insert(saved_view.view, Expression::ReadVariable(ReadVariableExpr {
-                            xref: variable_op.xref,
-                            name: variable_op.variable.name().map(|s| s.to_string()),
-                            source_span: None,
-                        }));
+                        scope.insert(
+                            saved_view.view,
+                            Expression::ReadVariable(ReadVariableExpr {
+                                xref: variable_op.xref,
+                                name: variable_op.variable.name().map(|s| s.to_string()),
+                                source_span: None,
+                            }),
+                        );
                     }
                     _ => {}
                 }
             }
         }
     }
-    
+
     // Second pass: transform context expressions using the built scope
     for handler_op in handler_ops.iter_mut() {
         transform_context_exprs_in_op(handler_op.as_mut(), &scope);
@@ -250,7 +276,7 @@ fn process_repeater_scope(
         let op_ptr = op.as_mut() as *mut dyn ir::CreateOp;
         let repeater_ptr = op_ptr as *mut RepeaterCreateOp;
         let repeater = &mut *repeater_ptr;
-        
+
         if let Some(ref mut track_by_ops) = repeater.track_by_ops {
             for track_op in track_by_ops.iter_mut() {
                 transform_context_exprs_in_op(track_op.as_mut(), parent_scope);

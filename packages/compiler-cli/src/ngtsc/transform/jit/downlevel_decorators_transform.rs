@@ -7,12 +7,13 @@
 //
 // Based on tsickle's decorator_downlevel_transformer.
 
+use crate::ngtsc::reflection::Decorator;
 use std::collections::HashMap;
 use ts::Diagnostic;
-use crate::ngtsc::reflection::Decorator;
 
 /// JSDoc type for decorator invocation arrays (for Closure Compiler).
-const DECORATOR_INVOCATION_JSDOC_TYPE: &str = "!Array<{type: !Function, args: (undefined|!Array<?>)}>";
+const DECORATOR_INVOCATION_JSDOC_TYPE: &str =
+    "!Array<{type: !Function, args: (undefined|!Array<?>)}>";
 
 // ============================================================================
 // Types
@@ -65,11 +66,11 @@ pub fn is_angular_decorator(decorator: &Decorator, is_core: bool) -> bool {
     if is_core {
         return true;
     }
-    
+
     if let Some(import) = &decorator.import {
         return import.from == "@angular/core";
     }
-    
+
     false
 }
 
@@ -84,9 +85,10 @@ pub fn extract_metadata_from_single_decorator(
     DecoratorMetadata {
         type_name: decorator.name.clone(),
         // Simplified: just count args, actual stringification would need AST printing
-        args: decorator.args.as_ref().map(|args| {
-            args.iter().map(|_| "<expr>".to_string()).collect()
-        }),
+        args: decorator
+            .args
+            .as_ref()
+            .map(|args| args.iter().map(|_| "<expr>".to_string()).collect()),
     }
 }
 
@@ -135,7 +137,10 @@ pub fn create_prop_decorators_class_property(
     PropDecoratorsProperty {
         properties: properties.clone(),
         closure_annotation: if is_closure_compiler_enabled {
-            Some(format!("/** @type {{!Object<string, {}>}} */", DECORATOR_INVOCATION_JSDOC_TYPE))
+            Some(format!(
+                "/** @type {{!Object<string, {}>}} */",
+                DECORATOR_INVOCATION_JSDOC_TYPE
+            ))
         } else {
             None
         },
@@ -209,7 +214,7 @@ impl DownlevelDecoratorsTransform {
         // 2. Analyze property decorators
         // 3. Create ctorParameters property if needed
         // 4. Create propDecorators property if needed
-        
+
         DownleveledClass {
             ctor_parameters: None,
             prop_decorators: None,
@@ -228,10 +233,8 @@ pub fn get_downlevel_decorators_transform(
     is_core: bool,
     is_closure_compiler_enabled: bool,
 ) -> DownlevelDecoratorsTransform {
-    DownlevelDecoratorsTransform::new(
-        DownlevelDecoratorsConfig {
-            is_core,
-            is_closure_compiler_enabled,
-        },
-    )
+    DownlevelDecoratorsTransform::new(DownlevelDecoratorsConfig {
+        is_core,
+        is_closure_compiler_enabled,
+    })
 }

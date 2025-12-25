@@ -24,7 +24,8 @@ impl IcuSerializerVisitor {
     }
 
     pub fn visit_container(&self, container: &i18n::Container) -> String {
-        container.children
+        container
+            .children
             .iter()
             .map(|child| self.visit_node(child))
             .collect::<Vec<_>>()
@@ -32,16 +33,18 @@ impl IcuSerializerVisitor {
     }
 
     pub fn visit_icu(&self, icu: &i18n::Icu) -> String {
-        let str_cases: Vec<String> = icu.cases
+        let str_cases: Vec<String> = icu
+            .cases
             .iter()
             .map(|(k, v)| format!("{} {{{}}}", k, self.visit_node(v)))
             .collect();
-        
+
         // Use expression_placeholder if available, otherwise use expression
-        let placeholder = icu.expression_placeholder
+        let placeholder = icu
+            .expression_placeholder
             .as_ref()
             .unwrap_or(&icu.expression);
-        
+
         format!(
             "{{{}, {}, {}}}",
             placeholder,
@@ -54,7 +57,8 @@ impl IcuSerializerVisitor {
         if ph.is_void {
             self.format_ph(&ph.start_name)
         } else {
-            let children: String = ph.children
+            let children: String = ph
+                .children
                 .iter()
                 .map(|child| self.visit_node(child))
                 .collect();
@@ -72,7 +76,8 @@ impl IcuSerializerVisitor {
     }
 
     pub fn visit_block_placeholder(&self, ph: &i18n::BlockPlaceholder) -> String {
-        let children: String = ph.children
+        let children: String = ph
+            .children
             .iter()
             .map(|child| self.visit_node(child))
             .collect();
@@ -115,4 +120,3 @@ lazy_static::lazy_static! {
 pub fn serialize_icu_node(icu: &i18n::Icu) -> String {
     SERIALIZER.visit_icu(icu)
 }
-

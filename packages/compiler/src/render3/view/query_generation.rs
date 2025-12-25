@@ -6,10 +6,9 @@
 use crate::constant_pool::ConstantPool;
 use crate::core::RenderFlags;
 use crate::output::output_ast::{
-    Expression, Statement, FnParam, FunctionExpr, IfStmt, ExternalExpr,
-    ReadVarExpr, LiteralExpr, LiteralValue, InvokeFunctionExpr, ReadPropExpr,
-    BinaryOperatorExpr, BinaryOperator, ExpressionStatement, WriteVarExpr,
-    WritePropExpr, LiteralArrayExpr, ExternalReference,
+    BinaryOperator, BinaryOperatorExpr, Expression, ExpressionStatement, ExternalExpr,
+    ExternalReference, FnParam, FunctionExpr, IfStmt, InvokeFunctionExpr, LiteralArrayExpr,
+    LiteralExpr, LiteralValue, ReadPropExpr, ReadVarExpr, Statement, WritePropExpr, WriteVarExpr,
 };
 use crate::render3::r3_identifiers::Identifiers as R3;
 use crate::render3::util::ForwardRefHandling;
@@ -34,7 +33,7 @@ pub enum QueryFlags {
 /// Translates query flags into `TQueryFlags` type.
 fn to_query_flags(query: &R3QueryMetadata) -> u32 {
     let mut flags = QueryFlags::None as u32;
-    
+
     if query.descendants {
         flags |= QueryFlags::Descendants as u32;
     }
@@ -44,7 +43,7 @@ fn to_query_flags(query: &R3QueryMetadata) -> u32 {
     if query.emit_distinct_changes_only {
         flags |= QueryFlags::EmitDistinctChangesOnly as u32;
     }
-    
+
     flags
 }
 
@@ -112,12 +111,10 @@ pub fn get_query_predicate(
                 ForwardRefHandling::None | ForwardRefHandling::Unwrapped => {
                     maybe_forward_ref.expression.clone()
                 }
-                ForwardRefHandling::Wrapped => {
-                    invoke_fn(
-                        external_expr(R3::resolve_forward_ref()),
-                        vec![maybe_forward_ref.expression.clone()],
-                    )
-                }
+                ForwardRefHandling::Wrapped => invoke_fn(
+                    external_expr(R3::resolve_forward_ref()),
+                    vec![maybe_forward_ref.expression.clone()],
+                ),
             }
         }
     }
@@ -138,11 +135,11 @@ pub fn create_query_create_call(
     prepend_params: Option<Vec<Expression>>,
 ) -> Expression {
     let mut parameters: Vec<Expression> = vec![];
-    
+
     if let Some(prepend) = prepend_params {
         parameters.extend(prepend);
     }
-    
+
     if query.is_signal {
         let ctx_prop = Expression::ReadProp(ReadPropExpr {
             receiver: Box::new(read_var(CONTEXT_NAME)),
@@ -152,20 +149,20 @@ pub fn create_query_create_call(
         });
         parameters.push(ctx_prop);
     }
-    
+
     parameters.push(get_query_predicate(query, constant_pool));
     parameters.push(literal(LiteralValue::Number(to_query_flags(query) as f64)));
-    
+
     if let Some(ref read) = query.read {
         parameters.push(read.clone());
     }
-    
+
     let query_create_fn = if query.is_signal {
         &query_type_fns.signal_based
     } else {
         &query_type_fns.non_signal
     };
-    
+
     invoke_fn(external_expr(query_create_fn.clone()), parameters)
 }
 
@@ -180,7 +177,7 @@ fn render_flag_check_if_stmt(flags: RenderFlags, statements: Vec<Statement>) -> 
         type_: None,
         source_span: None,
     });
-    
+
     Statement::IfStmt(IfStmt {
         condition: Box::new(condition),
         true_case: statements,
@@ -205,7 +202,7 @@ pub fn create_view_queries_function(
 ) -> Expression {
     let mut create_statements: Vec<Statement> = vec![];
     let mut update_statements: Vec<Statement> = vec![];
-    
+
     for query in view_queries {
         // Creation call
         let query_definition_call = create_query_create_call(
@@ -218,31 +215,29 @@ pub fn create_view_queries_function(
             None,
         );
         create_statements.push(expr_stmt(query_definition_call));
-        
+
         // Signal queries update lazily
         if query.is_signal {
-            update_statements.push(expr_stmt(
-                invoke_fn(external_expr(R3::query_advance()), vec![])
-            ));
+            update_statements.push(expr_stmt(invoke_fn(
+                external_expr(R3::query_advance()),
+                vec![],
+            )));
             continue;
         }
-        
+
         // Non-signal query update
         let temporary = read_var(TEMPORARY_NAME);
         let get_query_list = invoke_fn(external_expr(R3::load_query()), vec![]);
-        
+
         let write_tmp = Expression::WriteVar(WriteVarExpr {
             name: TEMPORARY_NAME.to_string(),
             value: Box::new(get_query_list),
             type_: None,
             source_span: None,
         });
-        
-        let refresh = invoke_fn(
-            external_expr(R3::query_refresh()),
-            vec![write_tmp],
-        );
-        
+
+        let refresh = invoke_fn(external_expr(R3::query_refresh()), vec![write_tmp]);
+
         let update_value: Expression = if query.first {
             Expression::ReadProp(ReadPropExpr {
                 receiver: Box::new(temporary.clone()),
@@ -253,7 +248,7 @@ pub fn create_view_queries_function(
         } else {
             temporary.clone()
         };
-        
+
         let update_directive = Expression::WriteProp(WritePropExpr {
             receiver: Box::new(read_var(CONTEXT_NAME)),
             name: query.property_name.clone(),
@@ -261,7 +256,7 @@ pub fn create_view_queries_function(
             type_: None,
             source_span: None,
         });
-        
+
         let and_expr = Expression::BinaryOp(BinaryOperatorExpr {
             operator: BinaryOperator::And,
             lhs: Box::new(refresh),
@@ -269,12 +264,12 @@ pub fn create_view_queries_function(
             type_: None,
             source_span: None,
         });
-        
+
         update_statements.push(expr_stmt(and_expr));
     }
-    
+
     let view_query_fn_name = name.map(|n| format!("{}_Query", n));
-    
+
     Expression::Fn(FunctionExpr {
         params: vec![
             FnParam {
@@ -304,7 +299,7 @@ pub fn create_content_queries_function(
 ) -> Expression {
     let mut create_statements: Vec<Statement> = vec![];
     let mut update_statements: Vec<Statement> = vec![];
-    
+
     for query in queries {
         // Creation call with dirIndex prepended
         let query_definition_call = create_query_create_call(
@@ -317,31 +312,29 @@ pub fn create_content_queries_function(
             Some(vec![read_var("dirIndex")]),
         );
         create_statements.push(expr_stmt(query_definition_call));
-        
+
         // Signal queries update lazily
         if query.is_signal {
-            update_statements.push(expr_stmt(
-                invoke_fn(external_expr(R3::query_advance()), vec![])
-            ));
+            update_statements.push(expr_stmt(invoke_fn(
+                external_expr(R3::query_advance()),
+                vec![],
+            )));
             continue;
         }
-        
+
         // Non-signal query update
         let temporary = read_var(TEMPORARY_NAME);
         let get_query_list = invoke_fn(external_expr(R3::load_query()), vec![]);
-        
+
         let write_tmp = Expression::WriteVar(WriteVarExpr {
             name: TEMPORARY_NAME.to_string(),
             value: Box::new(get_query_list),
             type_: None,
             source_span: None,
         });
-        
-        let refresh = invoke_fn(
-            external_expr(R3::query_refresh()),
-            vec![write_tmp],
-        );
-        
+
+        let refresh = invoke_fn(external_expr(R3::query_refresh()), vec![write_tmp]);
+
         let update_value: Expression = if query.first {
             Expression::ReadProp(ReadPropExpr {
                 receiver: Box::new(temporary.clone()),
@@ -352,7 +345,7 @@ pub fn create_content_queries_function(
         } else {
             temporary.clone()
         };
-        
+
         let update_directive = Expression::WriteProp(WritePropExpr {
             receiver: Box::new(read_var(CONTEXT_NAME)),
             name: query.property_name.clone(),
@@ -360,7 +353,7 @@ pub fn create_content_queries_function(
             type_: None,
             source_span: None,
         });
-        
+
         let and_expr = Expression::BinaryOp(BinaryOperatorExpr {
             operator: BinaryOperator::And,
             lhs: Box::new(refresh),
@@ -368,12 +361,12 @@ pub fn create_content_queries_function(
             type_: None,
             source_span: None,
         });
-        
+
         update_statements.push(expr_stmt(and_expr));
     }
-    
+
     let content_queries_fn_name = name.map(|n| format!("{}_ContentQueries", n));
-    
+
     Expression::Fn(FunctionExpr {
         params: vec![
             FnParam {

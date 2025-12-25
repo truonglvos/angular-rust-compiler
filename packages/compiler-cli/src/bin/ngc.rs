@@ -3,7 +3,6 @@
  *
  * Main entry point for Angular compilation
  */
-
 use clap::{Arg, Command};
 use std::process;
 
@@ -21,7 +20,7 @@ fn main() {
         .get_matches();
 
     // TODO: Handle watch mode via perform_watch
-    
+
     let temp_project;
     let project = if let Some(p) = matches.get_one::<String>("project") {
         Some(p.as_str())
@@ -36,9 +35,9 @@ fn main() {
     };
 
     use angular_compiler_cli::perform_compile::perform_compilation_simple;
-    
+
     let result = perform_compilation_simple(project, None, None);
-    
+
     if !result.diagnostics.is_empty() {
         for diag in result.diagnostics {
             eprintln!("Error: {}", diag);

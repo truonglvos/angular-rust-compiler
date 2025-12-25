@@ -504,8 +504,10 @@ pub static NAMED_ENTITIES: Lazy<HashMap<&'static str, &'static str>> = Lazy::new
     map.insert("NegativeThinSpace", "​");
     map.insert("NegativeVeryThinSpace", "​");
     map.insert("ZeroWidthSpace", "​");
-    map.insert("NewLine", "
-");
+    map.insert(
+        "NewLine", "
+",
+    );
     map.insert("Nfr", "𝔑");
     map.insert("NoBreak", "⁠");
     map.insert("NonBreakingSpace", " ");

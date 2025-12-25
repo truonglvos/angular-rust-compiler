@@ -23,24 +23,24 @@ impl SourceMapBuilder {
             mappings: vec![Vec::new()],
         }
     }
-    
+
     pub fn version(&self) -> u32 {
         3
     }
-    
+
     pub fn add_source(&mut self, source: &str, content: Option<&str>) -> usize {
         let idx = self.sources.len();
         self.sources.push(source.to_string());
         self.sources_content.push(content.map(|s| s.to_string()));
         idx
     }
-    
+
     pub fn add_name(&mut self, name: &str) -> usize {
         let idx = self.names.len();
         self.names.push(name.to_string());
         idx
     }
-    
+
     pub fn add_mapping(
         &mut self,
         gen_line: u32,
@@ -53,17 +53,16 @@ impl SourceMapBuilder {
         while self.mappings.len() <= gen_line as usize {
             self.mappings.push(Vec::new());
         }
-        
-        let mut marker = SegmentMarker::new(src_line, src_col)
-            .with_source(source_idx as u32);
-        
+
+        let mut marker = SegmentMarker::new(src_line, src_col).with_source(source_idx as u32);
+
         if let Some(idx) = name_idx {
             marker = marker.with_name(idx as u32);
         }
-        
+
         self.mappings[gen_line as usize].push(marker);
     }
-    
+
     pub fn build(self) -> super::raw_source_map::SourceMap {
         let mappings = self.encode_mappings();
         super::raw_source_map::SourceMap {
@@ -77,7 +76,6 @@ impl SourceMapBuilder {
         }
     }
 
-    
     fn encode_mappings(&self) -> String {
         // Simplified encoding
         "AAAA".to_string()

@@ -1,10 +1,11 @@
-use crate::linker::partial_linker::PartialLinker;
-use crate::linker::ast_value::AstObject;
 use crate::linker::ast::AstNode;
+use crate::linker::ast_value::AstObject;
+use crate::linker::partial_linker::PartialLinker;
 use angular_compiler::constant_pool::ConstantPool;
 use angular_compiler::output::output_ast as o;
 use angular_compiler::render3::r3_factory::{
-    compile_factory_function, R3FactoryMetadata, R3ConstructorFactoryMetadata, FactoryTarget, DepsOrInvalid, R3DependencyMetadata
+    compile_factory_function, DepsOrInvalid, FactoryTarget, R3ConstructorFactoryMetadata,
+    R3DependencyMetadata, R3FactoryMetadata,
 };
 use angular_compiler::render3::util::R3Reference;
 
@@ -28,13 +29,15 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialFactoryLinker2 
         // Extract type
         let type_expr = match meta_obj.get_value("type") {
             Ok(v) => v.node,
-            Err(e) => return o::Expression::Literal(o::LiteralExpr {
-                value: o::LiteralValue::String(format!("Error: {}", e)),
-                type_: None,
-                source_span: None,
-            }),
+            Err(e) => {
+                return o::Expression::Literal(o::LiteralExpr {
+                    value: o::LiteralValue::String(format!("Error: {}", e)),
+                    type_: None,
+                    source_span: None,
+                })
+            }
         };
-        
+
         let type_str = meta_obj.host.print_node(&type_expr);
         let wrapped_type = o::Expression::ReadVar(o::ReadVarExpr {
             name: type_str,
@@ -49,23 +52,23 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialFactoryLinker2 
 
         // Extract target
         let target = if meta_obj.has("target") {
-             // target is often an enum access like i0.ɵɵFactoryTarget.Injectable
-             // We need to resolve this. 
-             // Ideally we might want to check the numeric value if possible, or string.
-             // But partial declaration usually sends the enum member access.
-             // If we can't resolve it easily, we might default to Injectable or check known patterns.
-             // For now let's assume it's Injectable (2) if complex, or try to read number.
-             match meta_obj.get_number("target") {
-                 Ok(val) => match val as u32 {
-                     0 => FactoryTarget::Directive,
-                     1 => FactoryTarget::Component,
-                     2 => FactoryTarget::Injectable,
-                     3 => FactoryTarget::Pipe,
-                     4 => FactoryTarget::NgModule,
-                     _ => FactoryTarget::Injectable,
-                 },
-                 Err(_) => FactoryTarget::Injectable, // Default/Fallback
-             }
+            // target is often an enum access like i0.ɵɵFactoryTarget.Injectable
+            // We need to resolve this.
+            // Ideally we might want to check the numeric value if possible, or string.
+            // But partial declaration usually sends the enum member access.
+            // If we can't resolve it easily, we might default to Injectable or check known patterns.
+            // For now let's assume it's Injectable (2) if complex, or try to read number.
+            match meta_obj.get_number("target") {
+                Ok(val) => match val as u32 {
+                    0 => FactoryTarget::Directive,
+                    1 => FactoryTarget::Component,
+                    2 => FactoryTarget::Injectable,
+                    3 => FactoryTarget::Pipe,
+                    4 => FactoryTarget::NgModule,
+                    _ => FactoryTarget::Injectable,
+                },
+                Err(_) => FactoryTarget::Injectable, // Default/Fallback
+            }
         } else {
             FactoryTarget::Injectable
         };
@@ -92,12 +95,12 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialFactoryLinker2 
                         } else {
                             None
                         };
-                        
+
                         let optional = dep_obj.get_bool("optional").unwrap_or(false);
                         let self_ = dep_obj.get_bool("self").unwrap_or(false);
                         let skip_self = dep_obj.get_bool("skipSelf").unwrap_or(false);
                         let host = dep_obj.get_bool("host").unwrap_or(false);
-                        
+
                         // Check for attribute injection
                         let attribute_name_type = if dep_obj.has("attribute") {
                             if let Ok(attr_val) = dep_obj.get_value("attribute") {
@@ -113,7 +116,7 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialFactoryLinker2 
                         } else {
                             None
                         };
-                        
+
                         parsed_deps.push(R3DependencyMetadata {
                             token,
                             attribute_name_type,
@@ -135,7 +138,7 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialFactoryLinker2 
         let meta = R3FactoryMetadata::Constructor(R3ConstructorFactoryMetadata {
             name: "Factory".to_string(), // TODO: extract name from type string
             type_: type_ref,
-            type_argument_count: 0, 
+            type_argument_count: 0,
             deps,
             target,
         });

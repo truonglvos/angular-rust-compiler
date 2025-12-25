@@ -5,8 +5,13 @@
 use angular_compiler::directive_matching::{CssSelector, SelectorMatcher, SelectorlessMatcher};
 use angular_compiler::expression_parser::AST;
 use angular_compiler::render3::r3_ast as t;
-use angular_compiler::render3::view::t2_api::{DirectiveMeta, InputOutputPropertySet, Target, TargetBinder, DirectiveOwner, ConsumerOfBinding, ReferenceTarget};
-use angular_compiler::render3::view::t2_binder::{R3TargetBinder, DirectiveMatcher, find_matching_directives_and_pipes};
+use angular_compiler::render3::view::t2_api::{
+    ConsumerOfBinding, DirectiveMeta, DirectiveOwner, InputOutputPropertySet, ReferenceTarget,
+    Target, TargetBinder,
+};
+use angular_compiler::render3::view::t2_binder::{
+    find_matching_directives_and_pipes, DirectiveMatcher, R3TargetBinder,
+};
 use angular_compiler::render3::view::template::{parse_template, ParseTemplateOptions};
 use std::collections::HashSet;
 // Include test utilities
@@ -43,7 +48,8 @@ struct TestDirectiveMeta {
     outputs: IdentityInputMapping,
     is_component: bool,
     is_structural: bool,
-    animation_trigger_names: Option<angular_compiler::render3::view::t2_api::LegacyAnimationTriggerNames>,
+    animation_trigger_names:
+        Option<angular_compiler::render3::view::t2_api::LegacyAnimationTriggerNames>,
     ng_content_selectors: Option<Vec<String>>,
     preserve_whitespaces: bool,
 }
@@ -52,159 +58,217 @@ impl DirectiveMeta for TestDirectiveMeta {
     fn name(&self) -> &str {
         &self.name
     }
-    
+
     fn selector(&self) -> Option<&str> {
         Some(&self.selector)
     }
-    
+
     fn is_component(&self) -> bool {
         self.is_component
     }
-    
+
     fn inputs(&self) -> &dyn InputOutputPropertySet {
         &self.inputs
     }
-    
+
     fn outputs(&self) -> &dyn InputOutputPropertySet {
         &self.outputs
     }
-    
+
     fn export_as(&self) -> Option<&[String]> {
         self.export_as.as_deref()
     }
-    
+
     fn is_structural(&self) -> bool {
         self.is_structural
     }
-    
+
     fn ng_content_selectors(&self) -> Option<&[String]> {
         self.ng_content_selectors.as_deref()
     }
-    
+
     fn preserve_whitespaces(&self) -> bool {
         self.preserve_whitespaces
     }
-    
-    fn animation_trigger_names(&self) -> Option<&angular_compiler::render3::view::t2_api::LegacyAnimationTriggerNames> {
+
+    fn animation_trigger_names(
+        &self,
+    ) -> Option<&angular_compiler::render3::view::t2_api::LegacyAnimationTriggerNames> {
         self.animation_trigger_names.as_ref()
     }
 }
 
 fn make_selector_matcher() -> DirectiveMatcher<TestDirectiveMeta> {
     let mut matcher = SelectorMatcher::<Vec<TestDirectiveMeta>>::new();
-    
+
     // Add NgFor directive
-    let ng_for_selector = CssSelector::parse("[ngFor][ngForOf]").unwrap().into_iter().next().unwrap();
-    matcher.add_selectable(ng_for_selector, vec![TestDirectiveMeta {
-        name: "NgFor".to_string(),
-        selector: "[ngFor][ngForOf]".to_string(),
-        export_as: None,
-        inputs: IdentityInputMapping::new(vec!["ngForOf".to_string()]),
-        outputs: IdentityInputMapping::new(vec![]),
-        is_component: false,
-        is_structural: true,
-        animation_trigger_names: None,
-        ng_content_selectors: None,
-        preserve_whitespaces: false,
-    }]);
-    
-    // Add Dir directive
-    let dir_selector = CssSelector::parse("[dir]").unwrap().into_iter().next().unwrap();
-    matcher.add_selectable(dir_selector, vec![TestDirectiveMeta {
-        name: "Dir".to_string(),
-        selector: "[dir]".to_string(),
-        export_as: Some(vec!["dir".to_string()]),
-        inputs: IdentityInputMapping::new(vec![]),
-        outputs: IdentityInputMapping::new(vec![]),
-        is_component: false,
-        is_structural: false,
-        animation_trigger_names: None,
-        ng_content_selectors: None,
-        preserve_whitespaces: false,
-    }]);
-    
-    // Add HasOutput directive
-    let has_output_selector = CssSelector::parse("[hasOutput]").unwrap().into_iter().next().unwrap();
-    matcher.add_selectable(has_output_selector, vec![TestDirectiveMeta {
-        name: "HasOutput".to_string(),
-        selector: "[hasOutput]".to_string(),
-        export_as: None,
-        inputs: IdentityInputMapping::new(vec![]),
-        outputs: IdentityInputMapping::new(vec!["outputBinding".to_string()]),
-        is_component: false,
-        is_structural: false,
-        animation_trigger_names: None,
-        ng_content_selectors: None,
-        preserve_whitespaces: false,
-    }]);
-    
-    // Add HasInput directive
-    let has_input_selector = CssSelector::parse("[hasInput]").unwrap().into_iter().next().unwrap();
-    matcher.add_selectable(has_input_selector, vec![TestDirectiveMeta {
-        name: "HasInput".to_string(),
-        selector: "[hasInput]".to_string(),
-        export_as: None,
-        inputs: IdentityInputMapping::new(vec!["inputBinding".to_string()]),
-        outputs: IdentityInputMapping::new(vec![]),
-        is_component: false,
-        is_structural: false,
-        animation_trigger_names: None,
-        ng_content_selectors: None,
-        preserve_whitespaces: false,
-    }]);
-    
-    // Add SameSelectorAsInput directive
-    let same_selector_selector = CssSelector::parse("[sameSelectorAsInput]").unwrap().into_iter().next().unwrap();
-    matcher.add_selectable(same_selector_selector, vec![TestDirectiveMeta {
-        name: "SameSelectorAsInput".to_string(),
-        selector: "[sameSelectorAsInput]".to_string(),
-        export_as: None,
-        inputs: IdentityInputMapping::new(vec!["sameSelectorAsInput".to_string()]),
-        outputs: IdentityInputMapping::new(vec![]),
-        is_component: false,
-        is_structural: false,
-        animation_trigger_names: None,
-        ng_content_selectors: None,
-        preserve_whitespaces: false,
-    }]);
-    
-    // Add Comp component
-    let comp_selector = CssSelector::parse("comp").unwrap().into_iter().next().unwrap();
-    matcher.add_selectable(comp_selector, vec![TestDirectiveMeta {
-        name: "Comp".to_string(),
-        selector: "comp".to_string(),
-        export_as: None,
-        inputs: IdentityInputMapping::new(vec![]),
-        outputs: IdentityInputMapping::new(vec![]),
-        is_component: true,
-        is_structural: false,
-        animation_trigger_names: None,
-        ng_content_selectors: None,
-        preserve_whitespaces: false,
-    }]);
-    
-    // Add simple directives (a, b, c, d, e, f) and defer block directives (loading, error, placeholder)
-    let simple_directives = vec!["a", "b", "c", "d", "e", "f"];
-    let defer_block_directives = vec!["loading", "error", "placeholder"];
-    
-    for dir in simple_directives.iter().chain(defer_block_directives.iter()) {
-        let name = format!("{}{}", dir.chars().next().unwrap().to_uppercase(), &dir[1..].to_lowercase());
-        let selector_str = format!("[{}]", dir);
-        let selector = CssSelector::parse(&selector_str).unwrap().into_iter().next().unwrap();
-        matcher.add_selectable(selector, vec![TestDirectiveMeta {
-            name: format!("Dir{}", name),
-            selector: selector_str.clone(),
+    let ng_for_selector = CssSelector::parse("[ngFor][ngForOf]")
+        .unwrap()
+        .into_iter()
+        .next()
+        .unwrap();
+    matcher.add_selectable(
+        ng_for_selector,
+        vec![TestDirectiveMeta {
+            name: "NgFor".to_string(),
+            selector: "[ngFor][ngForOf]".to_string(),
             export_as: None,
-            inputs: IdentityInputMapping::new(vec![]),
+            inputs: IdentityInputMapping::new(vec!["ngForOf".to_string()]),
             outputs: IdentityInputMapping::new(vec![]),
             is_component: false,
             is_structural: true,
             animation_trigger_names: None,
             ng_content_selectors: None,
             preserve_whitespaces: false,
-        }]);
+        }],
+    );
+
+    // Add Dir directive
+    let dir_selector = CssSelector::parse("[dir]")
+        .unwrap()
+        .into_iter()
+        .next()
+        .unwrap();
+    matcher.add_selectable(
+        dir_selector,
+        vec![TestDirectiveMeta {
+            name: "Dir".to_string(),
+            selector: "[dir]".to_string(),
+            export_as: Some(vec!["dir".to_string()]),
+            inputs: IdentityInputMapping::new(vec![]),
+            outputs: IdentityInputMapping::new(vec![]),
+            is_component: false,
+            is_structural: false,
+            animation_trigger_names: None,
+            ng_content_selectors: None,
+            preserve_whitespaces: false,
+        }],
+    );
+
+    // Add HasOutput directive
+    let has_output_selector = CssSelector::parse("[hasOutput]")
+        .unwrap()
+        .into_iter()
+        .next()
+        .unwrap();
+    matcher.add_selectable(
+        has_output_selector,
+        vec![TestDirectiveMeta {
+            name: "HasOutput".to_string(),
+            selector: "[hasOutput]".to_string(),
+            export_as: None,
+            inputs: IdentityInputMapping::new(vec![]),
+            outputs: IdentityInputMapping::new(vec!["outputBinding".to_string()]),
+            is_component: false,
+            is_structural: false,
+            animation_trigger_names: None,
+            ng_content_selectors: None,
+            preserve_whitespaces: false,
+        }],
+    );
+
+    // Add HasInput directive
+    let has_input_selector = CssSelector::parse("[hasInput]")
+        .unwrap()
+        .into_iter()
+        .next()
+        .unwrap();
+    matcher.add_selectable(
+        has_input_selector,
+        vec![TestDirectiveMeta {
+            name: "HasInput".to_string(),
+            selector: "[hasInput]".to_string(),
+            export_as: None,
+            inputs: IdentityInputMapping::new(vec!["inputBinding".to_string()]),
+            outputs: IdentityInputMapping::new(vec![]),
+            is_component: false,
+            is_structural: false,
+            animation_trigger_names: None,
+            ng_content_selectors: None,
+            preserve_whitespaces: false,
+        }],
+    );
+
+    // Add SameSelectorAsInput directive
+    let same_selector_selector = CssSelector::parse("[sameSelectorAsInput]")
+        .unwrap()
+        .into_iter()
+        .next()
+        .unwrap();
+    matcher.add_selectable(
+        same_selector_selector,
+        vec![TestDirectiveMeta {
+            name: "SameSelectorAsInput".to_string(),
+            selector: "[sameSelectorAsInput]".to_string(),
+            export_as: None,
+            inputs: IdentityInputMapping::new(vec!["sameSelectorAsInput".to_string()]),
+            outputs: IdentityInputMapping::new(vec![]),
+            is_component: false,
+            is_structural: false,
+            animation_trigger_names: None,
+            ng_content_selectors: None,
+            preserve_whitespaces: false,
+        }],
+    );
+
+    // Add Comp component
+    let comp_selector = CssSelector::parse("comp")
+        .unwrap()
+        .into_iter()
+        .next()
+        .unwrap();
+    matcher.add_selectable(
+        comp_selector,
+        vec![TestDirectiveMeta {
+            name: "Comp".to_string(),
+            selector: "comp".to_string(),
+            export_as: None,
+            inputs: IdentityInputMapping::new(vec![]),
+            outputs: IdentityInputMapping::new(vec![]),
+            is_component: true,
+            is_structural: false,
+            animation_trigger_names: None,
+            ng_content_selectors: None,
+            preserve_whitespaces: false,
+        }],
+    );
+
+    // Add simple directives (a, b, c, d, e, f) and defer block directives (loading, error, placeholder)
+    let simple_directives = vec!["a", "b", "c", "d", "e", "f"];
+    let defer_block_directives = vec!["loading", "error", "placeholder"];
+
+    for dir in simple_directives
+        .iter()
+        .chain(defer_block_directives.iter())
+    {
+        let name = format!(
+            "{}{}",
+            dir.chars().next().unwrap().to_uppercase(),
+            &dir[1..].to_lowercase()
+        );
+        let selector_str = format!("[{}]", dir);
+        let selector = CssSelector::parse(&selector_str)
+            .unwrap()
+            .into_iter()
+            .next()
+            .unwrap();
+        matcher.add_selectable(
+            selector,
+            vec![TestDirectiveMeta {
+                name: format!("Dir{}", name),
+                selector: selector_str.clone(),
+                export_as: None,
+                inputs: IdentityInputMapping::new(vec![]),
+                outputs: IdentityInputMapping::new(vec![]),
+                is_component: false,
+                is_structural: true,
+                animation_trigger_names: None,
+                ng_content_selectors: None,
+                preserve_whitespaces: false,
+            }],
+        );
     }
-    
+
     DirectiveMatcher::Selector(matcher)
 }
 
@@ -297,14 +361,12 @@ fn find_expression_in_node(node: &t::R3Node, expr: &str) -> Option<AST> {
 fn to_string_expression(expr: &AST) -> String {
     // In Rust, AST doesn't have ASTWithSource wrapper
     // ExprAST is directly AST, not wrapped
-    
+
     match expr {
-        AST::PropertyRead(prop) => {
-            match prop.receiver.as_ref() {
-                AST::ImplicitReceiver(_) => prop.name.clone(),
-                _ => format!("{}.{}", to_string_expression(&prop.receiver), prop.name),
-            }
-        }
+        AST::PropertyRead(prop) => match prop.receiver.as_ref() {
+            AST::ImplicitReceiver(_) => prop.name.clone(),
+            _ => format!("{}.{}", to_string_expression(&prop.receiver), prop.name),
+        },
         AST::ImplicitReceiver(_) => String::new(),
         AST::Interpolation(interp) => {
             let mut result = String::from("{{");
@@ -332,7 +394,7 @@ fn to_string_expression(expr: &AST) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use angular_compiler::render3::view::t2_api::{TemplateEntity, ScopedNode};
+    use angular_compiler::render3::view::t2_api::{ScopedNode, TemplateEntity};
 
     mod find_matching_directives_and_pipes {
         use super::*;
@@ -345,20 +407,44 @@ mod tests {
         <my-defer-cmp [label]="abc | lowercase" />
       } @placeholder {}
     "#;
-            let directive_selectors = vec!["[title]".to_string(), "my-defer-cmp".to_string(), "not-matching".to_string()];
+            let directive_selectors = vec![
+                "[title]".to_string(),
+                "my-defer-cmp".to_string(),
+                "not-matching".to_string(),
+            ];
             let result = find_matching_directives_and_pipes(template, &directive_selectors);
-            
+
             // Verify directives
-            assert!(result.directives.regular.iter().any(|s| s == "[title]"), 
-                "Expected '[title]' in regular directives, got: {:?}", result.directives.regular);
-            assert!(result.directives.defer_candidates.iter().any(|s| s == "my-defer-cmp"), 
-                "Expected 'my-defer-cmp' in defer candidates, got: {:?}", result.directives.defer_candidates);
-            
+            assert!(
+                result.directives.regular.iter().any(|s| s == "[title]"),
+                "Expected '[title]' in regular directives, got: {:?}",
+                result.directives.regular
+            );
+            assert!(
+                result
+                    .directives
+                    .defer_candidates
+                    .iter()
+                    .any(|s| s == "my-defer-cmp"),
+                "Expected 'my-defer-cmp' in defer candidates, got: {:?}",
+                result.directives.defer_candidates
+            );
+
             // Verify pipes
-            assert!(result.pipes.regular.iter().any(|s| s == "uppercase"), 
-                "Expected 'uppercase' in regular pipes, got: {:?}", result.pipes.regular);
-            assert!(result.pipes.defer_candidates.iter().any(|s| s == "lowercase"), 
-                "Expected 'lowercase' in defer candidates, got: {:?}", result.pipes.defer_candidates);
+            assert!(
+                result.pipes.regular.iter().any(|s| s == "uppercase"),
+                "Expected 'uppercase' in regular pipes, got: {:?}",
+                result.pipes.regular
+            );
+            assert!(
+                result
+                    .pipes
+                    .defer_candidates
+                    .iter()
+                    .any(|s| s == "lowercase"),
+                "Expected 'lowercase' in defer candidates, got: {:?}",
+                result.pipes.defer_candidates
+            );
         }
 
         #[test]
@@ -371,16 +457,26 @@ mod tests {
       "#;
             let directive_selectors: Vec<String> = vec![];
             let result = find_matching_directives_and_pipes(template, &directive_selectors);
-            
+
             // Should have no directives when no selectors provided
             assert_eq!(result.directives.regular.len(), 0);
             assert_eq!(result.directives.defer_candidates.len(), 0);
-            
+
             // Should still have pipes:
-            assert!(result.pipes.regular.iter().any(|s| s == "uppercase"), 
-                "Expected 'uppercase' in regular pipes, got: {:?}", result.pipes.regular);
-            assert!(result.pipes.defer_candidates.iter().any(|s| s == "lowercase"), 
-                "Expected 'lowercase' in defer candidates, got: {:?}", result.pipes.defer_candidates);
+            assert!(
+                result.pipes.regular.iter().any(|s| s == "uppercase"),
+                "Expected 'uppercase' in regular pipes, got: {:?}",
+                result.pipes.regular
+            );
+            assert!(
+                result
+                    .pipes
+                    .defer_candidates
+                    .iter()
+                    .any(|s| s == "lowercase"),
+                "Expected 'lowercase' in defer candidates, got: {:?}",
+                result.pipes.defer_candidates
+            );
         }
 
         #[test]
@@ -391,28 +487,47 @@ mod tests {
           <my-defer-cmp [label]="abc | lowercase" [title]="abc | uppercase" />
         } @placeholder {}
       "#;
-            let directive_selectors = vec!["[title]".to_string(), "my-defer-cmp".to_string(), "not-matching".to_string()];
+            let directive_selectors = vec![
+                "[title]".to_string(),
+                "my-defer-cmp".to_string(),
+                "not-matching".to_string(),
+            ];
             let result = find_matching_directives_and_pipes(template, &directive_selectors);
-            
+
             // TypeScript expects:
             // directives: { regular: ['my-defer-cmp', '[title]'], deferCandidates: [] }
             // pipes: { regular: ['lowercase', 'uppercase'], deferCandidates: [] }
-            
+
             // Verify directives: all in regular, none deferred (both used outside @defer)
-            assert!(result.directives.regular.contains(&"my-defer-cmp".to_string()), 
-                "Expected 'my-defer-cmp' in regular directives");
-            assert!(result.directives.regular.contains(&"[title]".to_string()), 
-                "Expected '[title]' in regular directives");
-            assert!(result.directives.defer_candidates.is_empty(), 
-                "Expected defer_candidates to be empty (all directives used eagerly)");
-            
+            assert!(
+                result
+                    .directives
+                    .regular
+                    .contains(&"my-defer-cmp".to_string()),
+                "Expected 'my-defer-cmp' in regular directives"
+            );
+            assert!(
+                result.directives.regular.contains(&"[title]".to_string()),
+                "Expected '[title]' in regular directives"
+            );
+            assert!(
+                result.directives.defer_candidates.is_empty(),
+                "Expected defer_candidates to be empty (all directives used eagerly)"
+            );
+
             // Verify pipes: all in regular, none deferred (both used outside @defer)
-            assert!(result.pipes.regular.contains(&"lowercase".to_string()), 
-                "Expected 'lowercase' in regular pipes");
-            assert!(result.pipes.regular.contains(&"uppercase".to_string()), 
-                "Expected 'uppercase' in regular pipes");
-            assert!(result.pipes.defer_candidates.is_empty(), 
-                "Expected pipe defer_candidates to be empty (all pipes used eagerly)");
+            assert!(
+                result.pipes.regular.contains(&"lowercase".to_string()),
+                "Expected 'lowercase' in regular pipes"
+            );
+            assert!(
+                result.pipes.regular.contains(&"uppercase".to_string()),
+                "Expected 'uppercase' in regular pipes"
+            );
+            assert!(
+                result.pipes.defer_candidates.is_empty(),
+                "Expected pipe defer_candidates to be empty (all pipes used eagerly)"
+            );
         }
 
         #[test]
@@ -431,12 +546,14 @@ mod tests {
                 "not-matching".to_string(),
             ];
             let result = find_matching_directives_and_pipes(template, &directive_selectors);
-            
+
             // Should match ngModel in regular (eager) and defer candidates
             // Note: ngModel selector matching may need more complex logic
             // For now, just verify the function doesn't panic
-            assert!(!result.pipes.regular.is_empty() || !result.pipes.defer_candidates.is_empty(),
-                "Should extract some pipes");
+            assert!(
+                !result.pipes.regular.is_empty() || !result.pipes.defer_candidates.is_empty(),
+                "Should extract some pipes"
+            );
         }
     }
 
@@ -445,7 +562,11 @@ mod tests {
 
         #[test]
         fn should_bind_a_simple_template() {
-            let parse_result = parse_template("<div *ngFor=\"let item of items\">{{item.name}}</div>", "", Default::default());
+            let parse_result = parse_template(
+                "<div *ngFor=\"let item of items\">{{item.name}}</div>",
+                "",
+                Default::default(),
+            );
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(None);
             let target = Target {
                 template: Some(parse_result.nodes.clone()),
@@ -462,11 +583,13 @@ mod tests {
                                 // Verify it points to a Variable with value '$implicit'
                                 if let TemplateEntity::Variable(ref var) = item_target {
                                     assert_eq!(var.name, "item");
-                                    // Note: Variable.value contains the template variable value, 
+                                    // Note: Variable.value contains the template variable value,
                                     // which should be '$implicit' for *ngFor
                                 }
-                                    
-                                if let Some(definition_node) = res.get_definition_node_of_symbol(&item_target) {
+
+                                if let Some(definition_node) =
+                                    res.get_definition_node_of_symbol(&item_target)
+                                {
                                     let nesting_level = res.get_nesting_level(&definition_node);
                                     assert_eq!(nesting_level, 1);
                                 }
@@ -479,7 +602,11 @@ mod tests {
 
         #[test]
         fn should_match_directives_when_binding_a_simple_template() {
-            let parse_result = parse_template("<div *ngFor=\"let item of items\">{{item.name}}</div>", "", Default::default());
+            let parse_result = parse_template(
+                "<div *ngFor=\"let item of items\">{{item.name}}</div>",
+                "",
+                Default::default(),
+            );
             let matcher = make_selector_matcher();
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
             let target = Target {
@@ -487,9 +614,11 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             if let Some(t::R3Node::Template(tmpl)) = parse_result.nodes.first() {
-                if let Some(directives) = res.get_directives_of_node(&DirectiveOwner::Template(tmpl.clone())) {
+                if let Some(directives) =
+                    res.get_directives_of_node(&DirectiveOwner::Template(tmpl.clone()))
+                {
                     assert_eq!(directives.len(), 1);
                     assert_eq!(directives[0].name(), "NgFor");
                 }
@@ -498,32 +627,43 @@ mod tests {
 
         #[test]
         fn should_match_directives_on_namespaced_elements() {
-            let parse_result = parse_template("<svg><text dir>SVG</text></svg>", "", Default::default());
+            let parse_result =
+                parse_template("<svg><text dir>SVG</text></svg>", "", Default::default());
             let mut matcher = SelectorMatcher::<Vec<TestDirectiveMeta>>::new();
-            let text_dir_selector = CssSelector::parse("text[dir]").unwrap().into_iter().next().unwrap();
-            matcher.add_selectable(text_dir_selector, vec![TestDirectiveMeta {
-                name: "Dir".to_string(),
-                selector: "text[dir]".to_string(),
-                export_as: None,
-                inputs: IdentityInputMapping::new(vec![]),
-                outputs: IdentityInputMapping::new(vec![]),
-                is_component: false,
-                is_structural: false,
-                animation_trigger_names: None,
-                ng_content_selectors: None,
-                preserve_whitespaces: false,
-            }]);
-            
-            let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(DirectiveMatcher::Selector(matcher)));
+            let text_dir_selector = CssSelector::parse("text[dir]")
+                .unwrap()
+                .into_iter()
+                .next()
+                .unwrap();
+            matcher.add_selectable(
+                text_dir_selector,
+                vec![TestDirectiveMeta {
+                    name: "Dir".to_string(),
+                    selector: "text[dir]".to_string(),
+                    export_as: None,
+                    inputs: IdentityInputMapping::new(vec![]),
+                    outputs: IdentityInputMapping::new(vec![]),
+                    is_component: false,
+                    is_structural: false,
+                    animation_trigger_names: None,
+                    ng_content_selectors: None,
+                    preserve_whitespaces: false,
+                }],
+            );
+
+            let binder =
+                R3TargetBinder::<TestDirectiveMeta>::new(Some(DirectiveMatcher::Selector(matcher)));
             let target = Target {
                 template: Some(parse_result.nodes.clone()),
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             if let Some(t::R3Node::Element(svg_node)) = parse_result.nodes.first() {
                 if let Some(t::R3Node::Element(text_node)) = svg_node.children.first() {
-                    if let Some(directives) = res.get_directives_of_node(&DirectiveOwner::Element(text_node.clone())) {
+                    if let Some(directives) =
+                        res.get_directives_of_node(&DirectiveOwner::Element(text_node.clone()))
+                    {
                         assert_eq!(directives.len(), 1);
                         assert_eq!(directives[0].name(), "Dir");
                     }
@@ -533,7 +673,11 @@ mod tests {
 
         #[test]
         fn should_not_match_directives_intended_for_an_element_on_a_microsyntax_template() {
-            let parse_result = parse_template("<div *ngFor=\"let item of items\" dir></div>", "", Default::default());
+            let parse_result = parse_template(
+                "<div *ngFor=\"let item of items\" dir></div>",
+                "",
+                Default::default(),
+            );
             let matcher = make_selector_matcher();
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
             let target = Target {
@@ -541,15 +685,19 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             if let Some(t::R3Node::Template(tmpl)) = parse_result.nodes.first() {
-                if let Some(directives) = res.get_directives_of_node(&DirectiveOwner::Template(tmpl.clone())) {
+                if let Some(directives) =
+                    res.get_directives_of_node(&DirectiveOwner::Template(tmpl.clone()))
+                {
                     assert_eq!(directives.len(), 1);
                     assert_eq!(directives[0].name(), "NgFor");
-                    
+
                     // Check directives on the element inside template
                     if let Some(t::R3Node::Element(el)) = tmpl.children.first() {
-                        if let Some(el_directives) = res.get_directives_of_node(&DirectiveOwner::Element(el.clone())) {
+                        if let Some(el_directives) =
+                            res.get_directives_of_node(&DirectiveOwner::Element(el.clone()))
+                        {
                             assert_eq!(el_directives.len(), 1);
                             assert_eq!(el_directives[0].name(), "Dir");
                         }
@@ -575,16 +723,17 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             let entities = res.get_entities_in_scope(None);
-            let entity_names: Vec<String> = entities.iter().map(|e| {
-                match e {
+            let entity_names: Vec<String> = entities
+                .iter()
+                .map(|e| match e {
                     TemplateEntity::LetDeclaration(decl) => decl.name.clone(),
                     TemplateEntity::Variable(var) => var.name.clone(),
                     TemplateEntity::Reference(ref_) => ref_.name.clone(),
-                }
-            }).collect();
-            
+                })
+                .collect();
+
             // Verify that entities contain 'one', 'two', 'sum'
             assert!(entity_names.contains(&"one".to_string()));
             assert!(entity_names.contains(&"two".to_string()));
@@ -614,18 +763,19 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             let root_entities = res.get_entities_in_scope(None);
-            let root_names: Vec<String> = root_entities.iter().map(|e| {
-                match e {
+            let root_names: Vec<String> = root_entities
+                .iter()
+                .map(|e| match e {
                     TemplateEntity::LetDeclaration(decl) => decl.name.clone(),
                     TemplateEntity::Variable(var) => var.name.clone(),
                     TemplateEntity::Reference(ref_) => ref_.name.clone(),
-                }
-            }).collect();
+                })
+                .collect();
             assert!(root_names.contains(&"one".to_string()));
             assert_eq!(root_names.len(), 1);
-            
+
             let parse_result = parse_template(
                 r#"
                 @let one = 1;
@@ -648,30 +798,44 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             // Get root scope entities
             let root_entities = res.get_entities_in_scope(None);
-            let root_names: Vec<String> = root_entities.iter()
+            let root_names: Vec<String> = root_entities
+                .iter()
                 .filter_map(|e| match e {
                     TemplateEntity::LetDeclaration(l) => Some(l.name.clone()),
                     _ => None,
                 })
                 .collect();
-            assert!(root_names.contains(&"one".to_string()), "Root scope should contain 'one'");
-            
+            assert!(
+                root_names.contains(&"one".to_string()),
+                "Root scope should contain 'one'"
+            );
+
             // Find first IfBlockBranch and get its entities
-            if let Some(t::R3Node::IfBlock(if_block)) = parse_result.nodes.iter().find(|n| matches!(n, t::R3Node::IfBlock(_))) {
+            if let Some(t::R3Node::IfBlock(if_block)) = parse_result
+                .nodes
+                .iter()
+                .find(|n| matches!(n, t::R3Node::IfBlock(_)))
+            {
                 if let Some(first_branch) = if_block.branches.first() {
-                    let branch_entities = res.get_entities_in_scope(Some(&ScopedNode::IfBlockBranch(first_branch.clone())));
-                    let branch_names: Vec<String> = branch_entities.iter()
+                    let branch_entities = res.get_entities_in_scope(Some(
+                        &ScopedNode::IfBlockBranch(first_branch.clone()),
+                    ));
+                    let branch_names: Vec<String> = branch_entities
+                        .iter()
                         .filter_map(|e| match e {
                             TemplateEntity::LetDeclaration(l) => Some(l.name.clone()),
                             _ => None,
                         })
                         .collect();
                     // Should contain both 'one' (from parent) and 'two' (from this branch)
-                    assert!(branch_names.contains(&"one".to_string()) || branch_names.contains(&"two".to_string()),
-                        "Branch scope should contain 'one' or 'two'");
+                    assert!(
+                        branch_names.contains(&"one".to_string())
+                            || branch_names.contains(&"two".to_string()),
+                        "Branch scope should contain 'one' or 'two'"
+                    );
                 }
             }
         }
@@ -692,7 +856,7 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             // Find the property read 'value'
             if let Some(ast) = find_expression(&parse_result.nodes, "value") {
                 if let AST::PropertyRead(_prop) = &ast {
@@ -723,26 +887,33 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             // Find 'this.value' expression
             if let Some(ast) = find_expression(&parse_result.nodes, "this.value") {
                 if let AST::PropertyRead(_prop) = &ast {
                     let target = res.get_expression_target(&ast);
-                    assert!(target.is_none(), "this.value should not resolve to a template reference");
+                    assert!(
+                        target.is_none(),
+                        "this.value should not resolve to a template reference"
+                    );
                 }
             }
         }
 
         #[test]
         fn should_not_resolve_this_access_to_template_variable() {
-            let parse_result = parse_template("<ng-template let-value>{{this.value}}</ng-template>", "", Default::default());
+            let parse_result = parse_template(
+                "<ng-template let-value>{{this.value}}</ng-template>",
+                "",
+                Default::default(),
+            );
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(None);
             let target = Target {
                 template: Some(parse_result.nodes.clone()),
                 host: None,
             };
             let _res = binder.bind(target);
-            
+
             let parse_result = parse_template(
                 r#"
                 @let value = 1;
@@ -758,7 +929,7 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             // Find the PropertyRead for "this.value"
             if let Some(ast) = find_expression(&parse_result.nodes, "value") {
                 if let AST::PropertyRead(prop) = ast {
@@ -766,7 +937,10 @@ mod tests {
                     // In actual Angular, "this.value" would have a ThisReceiver, not ImplicitReceiver
                     let target = res.get_expression_target(&AST::PropertyRead(prop.clone()));
                     // Should return None since "this" access doesn't resolve to template entities
-                    assert!(target.is_none(), "this.value should not resolve to @let declaration");
+                    assert!(
+                        target.is_none(),
+                        "this.value should not resolve to @let declaration"
+                    );
                 }
             }
         }
@@ -787,12 +961,15 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             // Verify this.value does not resolve
             if let Some(ast) = find_expression(&parse_result.nodes, "this.value") {
                 if let AST::PropertyRead(_prop) = &ast {
                     let target = res.get_expression_target(&ast);
-                    assert!(target.is_none(), "this.value should not resolve to a let declaration");
+                    assert!(
+                        target.is_none(),
+                        "this.value should not resolve to a let declaration"
+                    );
                 }
             }
         }
@@ -806,12 +983,14 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             if let Some(t::R3Node::Component(comp)) = parse_result.nodes.first() {
                 if let Some(reference) = comp.references.first() {
                     if let Some(ref_target) = res.get_reference_target(reference) {
                         match ref_target {
-                            angular_compiler::render3::view::t2_api::ReferenceTarget::Element(el) => {
+                            angular_compiler::render3::view::t2_api::ReferenceTarget::Element(
+                                el,
+                            ) => {
                                 assert_eq!(el.name, "div");
                             }
                             _ => panic!("Expected element reference"),
@@ -826,7 +1005,11 @@ mod tests {
 
             #[test]
             fn should_work_for_bound_attributes() {
-                let parse_result = parse_template("<div hasInput [inputBinding]=\"myValue\"></div>", "", Default::default());
+                let parse_result = parse_template(
+                    "<div hasInput [inputBinding]=\"myValue\"></div>",
+                    "",
+                    Default::default(),
+                );
                 let matcher = make_selector_matcher();
                 let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
                 let target = Target {
@@ -834,7 +1017,7 @@ mod tests {
                     host: None,
                 };
                 let _res = binder.bind(target);
-                
+
                 if let Some(t::R3Node::Element(el)) = parse_result.nodes.first() {
                     if let Some(_attr) = el.inputs.first() {
                         // get_consumer_of_binding takes &dyn Any, so we need to pass the BoundAttribute directly
@@ -855,7 +1038,11 @@ mod tests {
 
             #[test]
             fn should_work_for_text_attributes_on_elements() {
-                let parse_result = parse_template("<div hasInput inputBinding=\"text\"></div>", "", Default::default());
+                let parse_result = parse_template(
+                    "<div hasInput inputBinding=\"text\"></div>",
+                    "",
+                    Default::default(),
+                );
                 let matcher = make_selector_matcher();
                 let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
                 let target = Target {
@@ -863,10 +1050,12 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 if let Some(t::R3Node::Element(el)) = parse_result.nodes.first() {
                     if let Some(attr) = el.attributes.iter().find(|a| a.name == "inputBinding") {
-                        if let Some(consumer) = res.get_consumer_of_binding(attr as &dyn std::any::Any) {
+                        if let Some(consumer) =
+                            res.get_consumer_of_binding(attr as &dyn std::any::Any)
+                        {
                             match consumer {
                                 ConsumerOfBinding::Directive(dir) => {
                                     assert_eq!(dir.name(), "HasInput");
@@ -895,10 +1084,12 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 if let Some(t::R3Node::Template(tmpl)) = parse_result.nodes.first() {
                     if let Some(attr) = tmpl.attributes.iter().find(|a| a.name == "inputBinding") {
-                        if let Some(consumer) = res.get_consumer_of_binding(attr as &dyn std::any::Any) {
+                        if let Some(consumer) =
+                            res.get_consumer_of_binding(attr as &dyn std::any::Any)
+                        {
                             match consumer {
                                 ConsumerOfBinding::Directive(dir) => {
                                     assert_eq!(dir.name(), "HasInput");
@@ -919,7 +1110,11 @@ mod tests {
 
             #[test]
             fn should_work_for_bound_events() {
-                let parse_result = parse_template("<div hasOutput (outputBinding)=\"handler()\"></div>", "", Default::default());
+                let parse_result = parse_template(
+                    "<div hasOutput (outputBinding)=\"handler()\"></div>",
+                    "",
+                    Default::default(),
+                );
                 let matcher = make_selector_matcher();
                 let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
                 let target = Target {
@@ -927,10 +1122,12 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 if let Some(t::R3Node::Element(el)) = parse_result.nodes.first() {
                     if let Some(output) = el.outputs.first() {
-                        if let Some(consumer) = res.get_consumer_of_binding(output as &dyn std::any::Any) {
+                        if let Some(consumer) =
+                            res.get_consumer_of_binding(output as &dyn std::any::Any)
+                        {
                             match consumer {
                                 ConsumerOfBinding::Directive(dir) => {
                                     assert_eq!(dir.name(), "HasOutput");
@@ -957,7 +1154,11 @@ mod tests {
 
             #[test]
             fn should_resolve_expressions_to_template_variables() {
-                let parse_result = parse_template("<ng-template let-value=\"1\">{{value}}</ng-template>", "", Default::default());
+                let parse_result = parse_template(
+                    "<ng-template let-value=\"1\">{{value}}</ng-template>",
+                    "",
+                    Default::default(),
+                );
                 let matcher = make_selector_matcher();
                 let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
                 let target = Target {
@@ -965,11 +1166,13 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 // Find the PropertyRead expression for "value"
                 if let Some(ast) = find_expression(&parse_result.nodes, "value") {
                     if let AST::PropertyRead(prop) = ast {
-                        if let Some(value_target) = res.get_expression_target(&AST::PropertyRead(prop.clone())) {
+                        if let Some(value_target) =
+                            res.get_expression_target(&AST::PropertyRead(prop.clone()))
+                        {
                             // Should resolve to a Variable from template
                             if let TemplateEntity::Variable(var) = value_target {
                                 assert_eq!(var.name, "value");
@@ -991,13 +1194,16 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 // Component properties are not in scope, so should return None
                 if let Some(ast) = find_expression(&parse_result.nodes, "myProp") {
                     if let AST::PropertyRead(prop) = ast {
                         let target = res.get_expression_target(&AST::PropertyRead(prop.clone()));
                         // Component properties are not in template scope, so should be None
-                        assert!(target.is_none(), "Component properties should not resolve to template entities");
+                        assert!(
+                            target.is_none(),
+                            "Component properties should not resolve to template entities"
+                        );
                     }
                 }
             }
@@ -1007,7 +1213,8 @@ mod tests {
                 // Note: Directive properties are typically not in template scope
                 // This test verifies that expressions like "{{dirProp}}" don't resolve to template entities
                 // Directives properties are accessed via component context, not template scope
-                let parse_result = parse_template("<div dir>{{dirProp}}</div>", "", Default::default());
+                let parse_result =
+                    parse_template("<div dir>{{dirProp}}</div>", "", Default::default());
                 let matcher = make_selector_matcher();
                 let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
                 let target = Target {
@@ -1015,20 +1222,27 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 // Directive properties are not in template scope, so should return None
                 if let Some(ast) = find_expression(&parse_result.nodes, "dirProp") {
                     if let AST::PropertyRead(prop) = ast {
                         let target = res.get_expression_target(&AST::PropertyRead(prop.clone()));
                         // Component/directive properties are not in template scope, so should be None
-                        assert!(target.is_none(), "Directive properties should not resolve to template entities");
+                        assert!(
+                            target.is_none(),
+                            "Directive properties should not resolve to template entities"
+                        );
                     }
                 }
             }
 
             #[test]
             fn should_resolve_template_references() {
-                let parse_result = parse_template("<ng-template #myTemplate></ng-template>", "", Default::default());
+                let parse_result = parse_template(
+                    "<ng-template #myTemplate></ng-template>",
+                    "",
+                    Default::default(),
+                );
                 let matcher = make_selector_matcher();
                 let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
                 let target = Target {
@@ -1036,7 +1250,7 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 if let Some(t::R3Node::Template(tmpl)) = parse_result.nodes.first() {
                     if let Some(reference) = tmpl.references.first() {
                         if reference.name == "myTemplate" {
@@ -1059,7 +1273,7 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 if let Some(t::R3Node::Element(el)) = parse_result.nodes.first() {
                     if let Some(reference) = el.references.first() {
                         if reference.name == "myDiv" {
@@ -1074,7 +1288,8 @@ mod tests {
 
             #[test]
             fn should_resolve_references_to_directives() {
-                let parse_result = parse_template("<div dir #myDir=\"dir\"></div>", "", Default::default());
+                let parse_result =
+                    parse_template("<div dir #myDir=\"dir\"></div>", "", Default::default());
                 let matcher = make_selector_matcher();
                 let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
                 let target = Target {
@@ -1082,11 +1297,15 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 if let Some(t::R3Node::Element(el)) = parse_result.nodes.first() {
                     if let Some(reference) = el.references.iter().find(|r| r.value == "dir") {
                         let target = res.get_reference_target(reference);
-                        if let Some(ReferenceTarget::DirectiveOnNode { directive: _, node: _ }) = target {
+                        if let Some(ReferenceTarget::DirectiveOnNode {
+                            directive: _,
+                            node: _,
+                        }) = target
+                        {
                             // Successfully resolved to directive
                         }
                     }
@@ -1103,7 +1322,7 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 if let Some(t::R3Node::Component(comp)) = parse_result.nodes.first() {
                     if let Some(reference) = comp.references.first() {
                         let target = res.get_reference_target(reference);
@@ -1137,11 +1356,12 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 // Find the ForLoopBlock and Template
                 if let Some(t::R3Node::ForLoopBlock(for_loop)) = parse_result.nodes.first() {
                     // ForLoopBlock should have nesting level 1 (top-level)
-                    let nesting = res.get_nesting_level(&ScopedNode::ForLoopBlock(for_loop.clone()));
+                    let nesting =
+                        res.get_nesting_level(&ScopedNode::ForLoopBlock(for_loop.clone()));
                     assert_eq!(nesting, 1, "ForLoopBlock should have nesting level 1");
                 }
             }
@@ -1164,15 +1384,22 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 // Find outer and inner templates
                 if let Some(t::R3Node::Template(outer)) = parse_result.nodes.first() {
                     let outer_nesting = res.get_nesting_level(&ScopedNode::Template(outer.clone()));
-                    assert_eq!(outer_nesting, 1, "Outer template should have nesting level 1");
-                    
+                    assert_eq!(
+                        outer_nesting, 1,
+                        "Outer template should have nesting level 1"
+                    );
+
                     if let Some(t::R3Node::Template(inner)) = outer.children.first() {
-                        let inner_nesting = res.get_nesting_level(&ScopedNode::Template(inner.clone()));
-                        assert_eq!(inner_nesting, 2, "Inner template should have nesting level 2");
+                        let inner_nesting =
+                            res.get_nesting_level(&ScopedNode::Template(inner.clone()));
+                        assert_eq!(
+                            inner_nesting, 2,
+                            "Inner template should have nesting level 2"
+                        );
                     }
                 }
             }
@@ -1220,7 +1447,12 @@ mod tests {
                 };
                 let res = binder.bind(target);
                 let defer_blocks = res.get_defer_blocks();
-                assert_eq!(defer_blocks.len(), 2, "Expected 2 defer blocks, got: {}", defer_blocks.len());
+                assert_eq!(
+                    defer_blocks.len(),
+                    2,
+                    "Expected 2 defer blocks, got: {}",
+                    defer_blocks.len()
+                );
             }
 
             #[test]
@@ -1261,14 +1493,31 @@ mod tests {
                 };
                 let res = binder.bind(target);
                 let defer_blocks = res.get_defer_blocks();
-                assert_eq!(defer_blocks.len(), 5, "Expected 5 defer blocks (1 main + 4 nested), got: {}", defer_blocks.len());
-                
+                assert_eq!(
+                    defer_blocks.len(),
+                    5,
+                    "Expected 5 defer blocks (1 main + 4 nested), got: {}",
+                    defer_blocks.len()
+                );
+
                 let eager_pipes = res.get_eagerly_used_pipes();
                 // Should include pipes from placeholder, loading, error blocks and main template
-                assert!(eager_pipes.iter().any(|s| s == "placeholder"), "Expected 'placeholder' in eager pipes");
-                assert!(eager_pipes.iter().any(|s| s == "loading"), "Expected 'loading' in eager pipes");
-                assert!(eager_pipes.iter().any(|s| s == "error"), "Expected 'error' in eager pipes");
-                assert!(eager_pipes.iter().any(|s| s == "pipeF"), "Expected 'pipeF' in eager pipes");
+                assert!(
+                    eager_pipes.iter().any(|s| s == "placeholder"),
+                    "Expected 'placeholder' in eager pipes"
+                );
+                assert!(
+                    eager_pipes.iter().any(|s| s == "loading"),
+                    "Expected 'loading' in eager pipes"
+                );
+                assert!(
+                    eager_pipes.iter().any(|s| s == "error"),
+                    "Expected 'error' in eager pipes"
+                );
+                assert!(
+                    eager_pipes.iter().any(|s| s == "pipeF"),
+                    "Expected 'pipeF' in eager pipes"
+                );
             }
 
             #[test]
@@ -1293,16 +1542,28 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 // pipeC is after a nested defer block, so it should be in the main defer block (lazy)
                 let all_pipes = res.get_used_pipes();
-                assert!(all_pipes.iter().any(|s| s == "pipeA"), "Expected 'pipeA' in used pipes");
-                assert!(all_pipes.iter().any(|s| s == "pipeB"), "Expected 'pipeB' in used pipes");
-                assert!(all_pipes.iter().any(|s| s == "pipeC"), "Expected 'pipeC' in used pipes");
-                
+                assert!(
+                    all_pipes.iter().any(|s| s == "pipeA"),
+                    "Expected 'pipeA' in used pipes"
+                );
+                assert!(
+                    all_pipes.iter().any(|s| s == "pipeB"),
+                    "Expected 'pipeB' in used pipes"
+                );
+                assert!(
+                    all_pipes.iter().any(|s| s == "pipeC"),
+                    "Expected 'pipeC' in used pipes"
+                );
+
                 // pipeC should not be in eager pipes since it's inside the defer block
                 let eager_pipes = res.get_eagerly_used_pipes();
-                assert!(!eager_pipes.iter().any(|s| s == "pipeC"), "Expected 'pipeC' not in eager pipes");
+                assert!(
+                    !eager_pipes.iter().any(|s| s == "pipeC"),
+                    "Expected 'pipeC' not in eager pipes"
+                );
             }
 
             #[test]
@@ -1347,7 +1608,10 @@ mod tests {
                 let all_directives = res.get_used_directives();
                 let eager_directives = res.get_eagerly_used_directives();
                 // All directives from defer blocks should be in used_directives
-                assert!(all_directives.len() > 0 || eager_directives.len() > 0, "Expected some directives");
+                assert!(
+                    all_directives.len() > 0 || eager_directives.len() > 0,
+                    "Expected some directives"
+                );
             }
 
             #[test]
@@ -1370,18 +1634,32 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 // DirC is after a nested defer block, so it should be lazy (not eager)
                 let all_dirs = res.get_used_directives();
-                let dir_names: Vec<String> = all_dirs.iter().map(|d| d.name().to_string()).collect();
-                assert!(dir_names.contains(&"DirA".to_string()), "Expected 'DirA' in used directives");
-                assert!(dir_names.contains(&"DirB".to_string()), "Expected 'DirB' in used directives");
-                assert!(dir_names.contains(&"DirC".to_string()), "Expected 'DirC' in used directives");
-                
+                let dir_names: Vec<String> =
+                    all_dirs.iter().map(|d| d.name().to_string()).collect();
+                assert!(
+                    dir_names.contains(&"DirA".to_string()),
+                    "Expected 'DirA' in used directives"
+                );
+                assert!(
+                    dir_names.contains(&"DirB".to_string()),
+                    "Expected 'DirB' in used directives"
+                );
+                assert!(
+                    dir_names.contains(&"DirC".to_string()),
+                    "Expected 'DirC' in used directives"
+                );
+
                 // DirC should not be in eager directives since it's inside the defer block
                 let eager_dirs = res.get_eagerly_used_directives();
-                let eager_dir_names: Vec<String> = eager_dirs.iter().map(|d| d.name().to_string()).collect();
-                assert!(!eager_dir_names.contains(&"DirC".to_string()), "Expected 'DirC' not in eager directives");
+                let eager_dir_names: Vec<String> =
+                    eager_dirs.iter().map(|d| d.name().to_string()).collect();
+                assert!(
+                    !eager_dir_names.contains(&"DirC".to_string()),
+                    "Expected 'DirC' not in eager directives"
+                );
             }
 
             #[test]
@@ -1402,11 +1680,14 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 let defer_blocks = res.get_defer_blocks();
                 if let Some(block) = defer_blocks.first() {
                     if let Some(ref viewport_trigger) = block.triggers.viewport {
-                        let trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
+                        let trigger_el = res.get_deferred_trigger_target(
+                            block,
+                            &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                        );
                         if let Some(el) = trigger_el {
                             assert_eq!(el.name, "div");
                         }
@@ -1438,11 +1719,14 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 let defer_blocks = res.get_defer_blocks();
                 if let Some(block) = defer_blocks.first() {
                     if let Some(ref viewport_trigger) = block.triggers.viewport {
-                        let trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
+                        let trigger_el = res.get_deferred_trigger_target(
+                            block,
+                            &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                        );
                         if let Some(el) = trigger_el {
                             assert_eq!(el.name, "button");
                         }
@@ -1476,13 +1760,19 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 let defer_blocks = res.get_defer_blocks();
                 if let Some(block) = defer_blocks.first() {
                     if let Some(ref viewport_trigger) = block.triggers.viewport {
-                        let _trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
+                        let _trigger_el = res.get_deferred_trigger_target(
+                            block,
+                            &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                        );
                         // Verify that trigger can be found in parent embedded view (ngFor)
-                        let trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
+                        let trigger_el = res.get_deferred_trigger_target(
+                            block,
+                            &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                        );
                         if let Some(el) = trigger_el {
                             assert_eq!(el.name, "button", "Expected trigger to be button element");
                         } else {
@@ -1513,11 +1803,14 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 let defer_blocks = res.get_defer_blocks();
                 if let Some(block) = defer_blocks.first() {
                     if let Some(ref viewport_trigger) = block.triggers.viewport {
-                        let trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
+                        let trigger_el = res.get_deferred_trigger_target(
+                            block,
+                            &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                        );
                         if let Some(el) = trigger_el {
                             assert_eq!(el.name, "button");
                         }
@@ -1541,13 +1834,19 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 let defer_blocks = res.get_defer_blocks();
                 if let Some(block) = defer_blocks.first() {
                     if let Some(ref viewport_trigger) = block.triggers.viewport {
-                        let trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
+                        let trigger_el = res.get_deferred_trigger_target(
+                            block,
+                            &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                        );
                         // Should return None since trigger is inside main content block
-                        assert!(trigger_el.is_none(), "Expected None for trigger inside main content block");
+                        assert!(
+                            trigger_el.is_none(),
+                            "Expected None for trigger inside main content block"
+                        );
                     }
                 }
             }
@@ -1570,11 +1869,14 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 let defer_blocks = res.get_defer_blocks();
                 if let Some(block) = defer_blocks.first() {
                     if let Some(ref viewport_trigger) = block.triggers.viewport {
-                        let trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
+                        let trigger_el = res.get_deferred_trigger_target(
+                            block,
+                            &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                        );
                         // Component reference should resolve to element representation
                         if let Some(el) = trigger_el {
                             assert_eq!(el.name, "comp");
@@ -1601,11 +1903,14 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 let defer_blocks = res.get_defer_blocks();
                 if let Some(block) = defer_blocks.first() {
                     if let Some(ref viewport_trigger) = block.triggers.viewport {
-                        let trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
+                        let trigger_el = res.get_deferred_trigger_target(
+                            block,
+                            &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                        );
                         // Directive reference should resolve to element representation
                         if let Some(el) = trigger_el {
                             assert_eq!(el.name, "button");
@@ -1632,13 +1937,16 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 let defer_blocks = res.get_defer_blocks();
                 if let Some(block) = defer_blocks.first() {
                     if let Some(ref viewport_trigger) = block.triggers.viewport {
                         // Implicit trigger - reference should be None
                         if viewport_trigger.reference.is_none() {
-                            let trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
+                            let trigger_el = res.get_deferred_trigger_target(
+                                block,
+                                &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                            );
                             if let Some(el) = trigger_el {
                                 assert_eq!(el.name, "button");
                             }
@@ -1669,19 +1977,27 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 let defer_blocks = res.get_defer_blocks();
                 if let Some(block) = defer_blocks.first() {
                     if let Some(ref viewport_trigger) = block.triggers.viewport {
                         // Should skip comments and find the button
-                        if viewport_trigger.reference.as_ref().map(|s| s.as_str()) == Some("trigger") {
-                            let trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
+                        if viewport_trigger.reference.as_ref().map(|s| s.as_str())
+                            == Some("trigger")
+                        {
+                            let trigger_el = res.get_deferred_trigger_target(
+                                block,
+                                &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                            );
                             if let Some(el) = trigger_el {
                                 assert_eq!(el.name, "button");
                             }
                         } else if viewport_trigger.reference.is_none() {
                             // Implicit trigger
-                            let trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
+                            let trigger_el = res.get_deferred_trigger_target(
+                                block,
+                                &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                            );
                             if let Some(el) = trigger_el {
                                 assert_eq!(el.name, "button");
                             }
@@ -1691,7 +2007,8 @@ mod tests {
             }
 
             #[test]
-            fn should_not_identify_an_implicit_trigger_if_the_placeholder_has_multiple_root_nodes() {
+            fn should_not_identify_an_implicit_trigger_if_the_placeholder_has_multiple_root_nodes()
+            {
                 let parse_result = parse_template(
                     r#"
             <div #trigger>
@@ -1708,15 +2025,21 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 // Verify that trigger with multiple root nodes should return None
                 let defer_blocks = res.get_defer_blocks();
                 if let Some(block) = defer_blocks.first() {
                     if let Some(ref viewport_trigger) = block.triggers.viewport {
                         if viewport_trigger.reference.is_none() {
                             // Implicit trigger with multiple root nodes should return None
-                            let trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
-                            assert!(trigger_el.is_none(), "Implicit trigger with multiple root nodes should return None");
+                            let trigger_el = res.get_deferred_trigger_target(
+                                block,
+                                &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                            );
+                            assert!(
+                                trigger_el.is_none(),
+                                "Implicit trigger with multiple root nodes should return None"
+                            );
                         }
                     }
                 }
@@ -1741,22 +2064,29 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 // Verify that trigger with multiple root nodes should return None
                 let defer_blocks = res.get_defer_blocks();
                 if let Some(block) = defer_blocks.first() {
                     if let Some(ref viewport_trigger) = block.triggers.viewport {
                         if viewport_trigger.reference.is_none() {
                             // Implicit trigger with multiple root nodes should return None
-                            let trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
-                            assert!(trigger_el.is_none(), "Implicit trigger with multiple root nodes should return None");
+                            let trigger_el = res.get_deferred_trigger_target(
+                                block,
+                                &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                            );
+                            assert!(
+                                trigger_el.is_none(),
+                                "Implicit trigger with multiple root nodes should return None"
+                            );
                         }
                     }
                 }
             }
 
             #[test]
-            fn should_not_identify_an_implicit_trigger_if_the_placeholder_has_a_single_root_text_node() {
+            fn should_not_identify_an_implicit_trigger_if_the_placeholder_has_a_single_root_text_node(
+            ) {
                 let parse_result = parse_template(
                     r#"
               <div #trigger>
@@ -1773,15 +2103,21 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 // Verify that trigger with multiple root nodes should return None
                 let defer_blocks = res.get_defer_blocks();
                 if let Some(block) = defer_blocks.first() {
                     if let Some(ref viewport_trigger) = block.triggers.viewport {
                         if viewport_trigger.reference.is_none() {
                             // Implicit trigger with multiple root nodes should return None
-                            let trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
-                            assert!(trigger_el.is_none(), "Implicit trigger with multiple root nodes should return None");
+                            let trigger_el = res.get_deferred_trigger_target(
+                                block,
+                                &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                            );
+                            assert!(
+                                trigger_el.is_none(),
+                                "Implicit trigger with multiple root nodes should return None"
+                            );
                         }
                     }
                 }
@@ -1807,15 +2143,21 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 // Verify that trigger with multiple root nodes should return None
                 let defer_blocks = res.get_defer_blocks();
                 if let Some(block) = defer_blocks.first() {
                     if let Some(ref viewport_trigger) = block.triggers.viewport {
                         if viewport_trigger.reference.is_none() {
                             // Implicit trigger with multiple root nodes should return None
-                            let trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
-                            assert!(trigger_el.is_none(), "Implicit trigger with multiple root nodes should return None");
+                            let trigger_el = res.get_deferred_trigger_target(
+                                block,
+                                &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                            );
+                            assert!(
+                                trigger_el.is_none(),
+                                "Implicit trigger with multiple root nodes should return None"
+                            );
                         }
                     }
                 }
@@ -1841,22 +2183,29 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 // Verify that trigger with multiple root nodes should return None
                 let defer_blocks = res.get_defer_blocks();
                 if let Some(block) = defer_blocks.first() {
                     if let Some(ref viewport_trigger) = block.triggers.viewport {
                         if viewport_trigger.reference.is_none() {
                             // Implicit trigger with multiple root nodes should return None
-                            let trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
-                            assert!(trigger_el.is_none(), "Implicit trigger with multiple root nodes should return None");
+                            let trigger_el = res.get_deferred_trigger_target(
+                                block,
+                                &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                            );
+                            assert!(
+                                trigger_el.is_none(),
+                                "Implicit trigger with multiple root nodes should return None"
+                            );
                         }
                     }
                 }
             }
 
             #[test]
-            fn should_not_identify_a_trigger_element_inside_the_a_deferred_block_within_the_placeholder() {
+            fn should_not_identify_a_trigger_element_inside_the_a_deferred_block_within_the_placeholder(
+            ) {
                 let parse_result = parse_template(
                     r#"
                 @defer (on viewport(trigger)) {
@@ -1877,15 +2226,21 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 // Verify that trigger with multiple root nodes should return None
                 let defer_blocks = res.get_defer_blocks();
                 if let Some(block) = defer_blocks.first() {
                     if let Some(ref viewport_trigger) = block.triggers.viewport {
                         if viewport_trigger.reference.is_none() {
                             // Implicit trigger with multiple root nodes should return None
-                            let trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
-                            assert!(trigger_el.is_none(), "Implicit trigger with multiple root nodes should return None");
+                            let trigger_el = res.get_deferred_trigger_target(
+                                block,
+                                &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                            );
+                            assert!(
+                                trigger_el.is_none(),
+                                "Implicit trigger with multiple root nodes should return None"
+                            );
                         }
                     }
                 }
@@ -1909,15 +2264,21 @@ mod tests {
                     host: None,
                 };
                 let res = binder.bind(target);
-                
+
                 // Verify that trigger with multiple root nodes should return None
                 let defer_blocks = res.get_defer_blocks();
                 if let Some(block) = defer_blocks.first() {
                     if let Some(ref viewport_trigger) = block.triggers.viewport {
                         if viewport_trigger.reference.is_none() {
                             // Implicit trigger with multiple root nodes should return None
-                            let trigger_el = res.get_deferred_trigger_target(block, &t::DeferredTrigger::Viewport(viewport_trigger.clone()));
-                            assert!(trigger_el.is_none(), "Implicit trigger with multiple root nodes should return None");
+                            let trigger_el = res.get_deferred_trigger_target(
+                                block,
+                                &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
+                            );
+                            assert!(
+                                trigger_el.is_none(),
+                                "Implicit trigger with multiple root nodes should return None"
+                            );
                         }
                     }
                 }
@@ -1939,13 +2300,20 @@ mod tests {
             };
             let res = binder.bind(target);
             let used_pipes = res.get_used_pipes();
-            assert!(used_pipes.iter().any(|s| s == "date"), 
-                "Expected 'date' in used pipes, got: {:?}", used_pipes);
+            assert!(
+                used_pipes.iter().any(|s| s == "date"),
+                "Expected 'date' in used pipes, got: {:?}",
+                used_pipes
+            );
         }
 
         #[test]
         fn should_record_pipes_used_in_bound_attributes() {
-            let parse_result = parse_template("<person [age]=\"age|number\"></person>", "", Default::default());
+            let parse_result = parse_template(
+                "<person [age]=\"age|number\"></person>",
+                "",
+                Default::default(),
+            );
             let matcher = make_selector_matcher();
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
             let target = Target {
@@ -1954,13 +2322,20 @@ mod tests {
             };
             let res = binder.bind(target);
             let used_pipes = res.get_used_pipes();
-            assert!(used_pipes.iter().any(|s| s == "number"), 
-                "Expected 'number' in used pipes, got: {:?}", used_pipes);
+            assert!(
+                used_pipes.iter().any(|s| s == "number"),
+                "Expected 'number' in used pipes, got: {:?}",
+                used_pipes
+            );
         }
 
         #[test]
         fn should_record_pipes_used_in_bound_template_attributes() {
-            let parse_result = parse_template("<ng-template [ngIf]=\"obs|async\"></ng-template>", "", Default::default());
+            let parse_result = parse_template(
+                "<ng-template [ngIf]=\"obs|async\"></ng-template>",
+                "",
+                Default::default(),
+            );
             let matcher = make_selector_matcher();
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
             let target = Target {
@@ -1969,8 +2344,11 @@ mod tests {
             };
             let res = binder.bind(target);
             let used_pipes = res.get_used_pipes();
-            assert!(used_pipes.iter().any(|s| s == "async"), 
-                "Expected 'async' in used pipes, got: {:?}", used_pipes);
+            assert!(
+                used_pipes.iter().any(|s| s == "async"),
+                "Expected 'async' in used pipes, got: {:?}",
+                used_pipes
+            );
         }
 
         #[test]
@@ -2002,7 +2380,9 @@ mod tests {
         use super::*;
 
         // Helper to create a SelectorlessMatcher for testing
-        fn make_selectorless_matcher(directives: Vec<TestDirectiveMeta>) -> DirectiveMatcher<TestDirectiveMeta> {
+        fn make_selectorless_matcher(
+            directives: Vec<TestDirectiveMeta>,
+        ) -> DirectiveMatcher<TestDirectiveMeta> {
             let mut matcher = SelectorlessMatcher::new();
             for dir in directives {
                 matcher.add(dir.name().to_string(), dir);
@@ -2017,7 +2397,7 @@ mod tests {
             // For now, we structure the test but it may not fully work until parsing is implemented
             let mut options = ParseTemplateOptions::default();
             options.enable_selectorless = Some(true);
-            
+
             let parse_result = parse_template("<MyComp @Dir @OtherDir/>", "", options);
             let my_comp_meta = TestDirectiveMeta {
                 name: "MyComp".to_string(),
@@ -2055,22 +2435,30 @@ mod tests {
                 ng_content_selectors: None,
                 preserve_whitespaces: false,
             };
-            
-            let matcher = make_selectorless_matcher(vec![my_comp_meta.clone(), dir_meta.clone(), other_dir_meta.clone()]);
+
+            let matcher = make_selectorless_matcher(vec![
+                my_comp_meta.clone(),
+                dir_meta.clone(),
+                other_dir_meta.clone(),
+            ]);
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
             let target = Target {
                 template: Some(parse_result.nodes.clone()),
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             // Find Component node if parsed correctly
             if let Some(t::R3Node::Component(comp)) = parse_result.nodes.first() {
-                let directives = res.get_directives_of_node(&DirectiveOwner::Component(comp.clone()));
+                let directives =
+                    res.get_directives_of_node(&DirectiveOwner::Component(comp.clone()));
                 if let Some(dirs) = directives {
                     let names: Vec<String> = dirs.iter().map(|d| d.name().to_string()).collect();
                     // Should contain MyComp and potentially other directives
-                    assert!(names.contains(&"MyComp".to_string()), "Expected MyComp directive");
+                    assert!(
+                        names.contains(&"MyComp".to_string()),
+                        "Expected MyComp directive"
+                    );
                 }
             }
         }
@@ -2079,7 +2467,7 @@ mod tests {
         fn should_resolve_directives_applied_on_a_directive_node() {
             let mut options = ParseTemplateOptions::default();
             options.enable_selectorless = Some(true);
-            
+
             let parse_result = parse_template("<MyComp @Dir @OtherDir/>", "", options);
             let my_comp_meta = TestDirectiveMeta {
                 name: "MyComp".to_string(),
@@ -2117,20 +2505,25 @@ mod tests {
                 ng_content_selectors: None,
                 preserve_whitespaces: false,
             };
-            
-            let matcher = make_selectorless_matcher(vec![my_comp_meta.clone(), dir_meta.clone(), other_dir_meta.clone()]);
+
+            let matcher = make_selectorless_matcher(vec![
+                my_comp_meta.clone(),
+                dir_meta.clone(),
+                other_dir_meta.clone(),
+            ]);
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
             let target = Target {
                 template: Some(parse_result.nodes.clone()),
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             // Find Directive nodes on Component if parsed correctly
             if let Some(t::R3Node::Component(comp)) = parse_result.nodes.first() {
                 // In selectorless mode, Component may have directives as children
                 // Check if directives are matched
-                let comp_directives = res.get_directives_of_node(&DirectiveOwner::Component(comp.clone()));
+                let comp_directives =
+                    res.get_directives_of_node(&DirectiveOwner::Component(comp.clone()));
                 if let Some(dirs) = comp_directives {
                     let names: Vec<String> = dirs.iter().map(|d| d.name().to_string()).collect();
                     // Should contain matched directives
@@ -2143,7 +2536,7 @@ mod tests {
         fn should_not_apply_selectorless_directives_on_an_element_node() {
             let mut options = ParseTemplateOptions::default();
             options.enable_selectorless = Some(true);
-            
+
             let parse_result = parse_template("<div @Dir @OtherDir></div>", "", options);
             let dir_meta = TestDirectiveMeta {
                 name: "Dir".to_string(),
@@ -2169,7 +2562,7 @@ mod tests {
                 ng_content_selectors: None,
                 preserve_whitespaces: false,
             };
-            
+
             let matcher = make_selectorless_matcher(vec![dir_meta.clone(), other_dir_meta.clone()]);
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
             let target = Target {
@@ -2177,12 +2570,15 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             // Element nodes should not have selectorless directives
             if let Some(t::R3Node::Element(el)) = parse_result.nodes.first() {
                 let directives = res.get_directives_of_node(&DirectiveOwner::Element(el.clone()));
                 // Element should not match selectorless directives
-                assert!(directives.is_none(), "Element should not have selectorless directives");
+                assert!(
+                    directives.is_none(),
+                    "Element should not have selectorless directives"
+                );
             }
         }
 
@@ -2190,7 +2586,7 @@ mod tests {
         fn should_resolve_a_reference_on_a_component_node_to_the_component() {
             let mut options = ParseTemplateOptions::default();
             options.enable_selectorless = Some(true);
-            
+
             let parse_result = parse_template("<MyComp #foo/>", "", options);
             let my_comp_meta = TestDirectiveMeta {
                 name: "MyComp".to_string(),
@@ -2204,7 +2600,7 @@ mod tests {
                 ng_content_selectors: None,
                 preserve_whitespaces: false,
             };
-            
+
             let matcher = make_selectorless_matcher(vec![my_comp_meta.clone()]);
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
             let target = Target {
@@ -2212,7 +2608,7 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             // Reference on component should resolve to component
             if let Some(t::R3Node::Component(comp)) = parse_result.nodes.first() {
                 if let Some(reference) = comp.references.first() {
@@ -2228,7 +2624,7 @@ mod tests {
         fn should_resolve_a_reference_on_a_directive_node_to_the_component() {
             let mut options = ParseTemplateOptions::default();
             options.enable_selectorless = Some(true);
-            
+
             // Note: This syntax might be different in actual implementation
             let parse_result = parse_template("<div @Dir(#foo)></div>", "", options);
             let dir_meta = TestDirectiveMeta {
@@ -2243,7 +2639,7 @@ mod tests {
                 ng_content_selectors: None,
                 preserve_whitespaces: false,
             };
-            
+
             let matcher = make_selectorless_matcher(vec![dir_meta.clone()]);
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
             let target = Target {
@@ -2251,7 +2647,7 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             // Reference on directive node should resolve to directive
             // Implementation depends on how directive references are parsed
             let _ = res; // Suppress unused warning
@@ -2261,7 +2657,7 @@ mod tests {
         fn should_resolve_a_reference_on_an_element_when_using_a_selectorless_matcher() {
             let mut options = ParseTemplateOptions::default();
             options.enable_selectorless = Some(true);
-            
+
             let parse_result = parse_template("<div #foo></div>", "", options);
             let matcher = make_selectorless_matcher(vec![]); // Empty matcher
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
@@ -2270,7 +2666,7 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             // Reference on element should resolve to element
             if let Some(t::R3Node::Element(el)) = parse_result.nodes.first() {
                 if let Some(reference) = el.references.first() {
@@ -2286,7 +2682,7 @@ mod tests {
         fn should_get_consumer_of_component_bindings() {
             let mut options = ParseTemplateOptions::default();
             options.enable_selectorless = Some(true);
-            
+
             let parse_result = parse_template("<MyComp [input]=\"value\"></MyComp>", "", options);
             let my_comp_meta = TestDirectiveMeta {
                 name: "MyComp".to_string(),
@@ -2300,7 +2696,7 @@ mod tests {
                 ng_content_selectors: None,
                 preserve_whitespaces: false,
             };
-            
+
             let matcher = make_selectorless_matcher(vec![my_comp_meta.clone()]);
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
             let target = Target {
@@ -2308,11 +2704,12 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             // Check that binding resolves to component
             if let Some(t::R3Node::Component(comp)) = parse_result.nodes.first() {
                 if let Some(input) = comp.inputs.first() {
-                    if let Some(consumer) = res.get_consumer_of_binding(input as &dyn std::any::Any) {
+                    if let Some(consumer) = res.get_consumer_of_binding(input as &dyn std::any::Any)
+                    {
                         match consumer {
                             ConsumerOfBinding::Directive(dir) => {
                                 assert_eq!(dir.name(), "MyComp");
@@ -2328,8 +2725,9 @@ mod tests {
         fn should_get_consumer_of_directive_bindings() {
             let mut options = ParseTemplateOptions::default();
             options.enable_selectorless = Some(true);
-            
-            let parse_result = parse_template("<MyComp @Dir [input]=\"value\"></MyComp>", "", options);
+
+            let parse_result =
+                parse_template("<MyComp @Dir [input]=\"value\"></MyComp>", "", options);
             let my_comp_meta = TestDirectiveMeta {
                 name: "MyComp".to_string(),
                 selector: "".to_string(),
@@ -2354,7 +2752,7 @@ mod tests {
                 ng_content_selectors: None,
                 preserve_whitespaces: false,
             };
-            
+
             let matcher = make_selectorless_matcher(vec![my_comp_meta.clone(), dir_meta.clone()]);
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
             let target = Target {
@@ -2362,7 +2760,7 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             // Binding should resolve to directive if directive has the input
             let _ = res; // Suppress unused warning - implementation depends on parsing
         }
@@ -2371,7 +2769,7 @@ mod tests {
         fn should_get_eagerly_used_selectorless_directives() {
             let mut options = ParseTemplateOptions::default();
             options.enable_selectorless = Some(true);
-            
+
             let parse_result = parse_template("<MyComp @Dir></MyComp>", "", options);
             let my_comp_meta = TestDirectiveMeta {
                 name: "MyComp".to_string(),
@@ -2397,7 +2795,7 @@ mod tests {
                 ng_content_selectors: None,
                 preserve_whitespaces: false,
             };
-            
+
             let matcher = make_selectorless_matcher(vec![my_comp_meta.clone(), dir_meta.clone()]);
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
             let target = Target {
@@ -2405,19 +2803,24 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             // Check eagerly used directives
             let eager_directives = res.get_eagerly_used_directives();
-            let names: Vec<String> = eager_directives.iter().map(|d| d.name().to_string()).collect();
-            assert!(names.contains(&"MyComp".to_string()) || names.contains(&"Dir".to_string()),
-                "Expected selectorless directives in eager list");
+            let names: Vec<String> = eager_directives
+                .iter()
+                .map(|d| d.name().to_string())
+                .collect();
+            assert!(
+                names.contains(&"MyComp".to_string()) || names.contains(&"Dir".to_string()),
+                "Expected selectorless directives in eager list"
+            );
         }
 
         #[test]
         fn should_get_deferred_selectorless_directives() {
             let mut options = ParseTemplateOptions::default();
             options.enable_selectorless = Some(true);
-            
+
             let parse_result = parse_template(
                 r#"
                 @defer {
@@ -2451,7 +2854,7 @@ mod tests {
                 ng_content_selectors: None,
                 preserve_whitespaces: false,
             };
-            
+
             let matcher = make_selectorless_matcher(vec![my_comp_meta.clone(), dir_meta.clone()]);
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
             let target = Target {
@@ -2459,21 +2862,27 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             // Check that directives in defer blocks are in used_directives but not eager
             let all_directives = res.get_used_directives();
             let _eager_directives = res.get_eagerly_used_directives();
-            let names_all: Vec<String> = all_directives.iter().map(|d| d.name().to_string()).collect();
-            
+            let names_all: Vec<String> = all_directives
+                .iter()
+                .map(|d| d.name().to_string())
+                .collect();
+
             // Directives in defer should be in all but may not be in eager
-            assert!(names_all.len() > 0, "Expected some directives in used_directives");
+            assert!(
+                names_all.len() > 0,
+                "Expected some directives in used_directives"
+            );
         }
 
         #[test]
         fn should_get_selectorless_directives_nested_in_other_code() {
             let mut options = ParseTemplateOptions::default();
             options.enable_selectorless = Some(true);
-            
+
             let parse_result = parse_template(
                 r#"
                 @if (true) {
@@ -2507,7 +2916,7 @@ mod tests {
                 ng_content_selectors: None,
                 preserve_whitespaces: false,
             };
-            
+
             let matcher = make_selectorless_matcher(vec![my_comp_meta.clone(), dir_meta.clone()]);
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
             let target = Target {
@@ -2515,18 +2924,24 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             // Nested selectorless directives should still be detected
             let all_directives = res.get_used_directives();
-            let names: Vec<String> = all_directives.iter().map(|d| d.name().to_string()).collect();
-            assert!(names.len() > 0, "Expected nested selectorless directives to be detected");
+            let names: Vec<String> = all_directives
+                .iter()
+                .map(|d| d.name().to_string())
+                .collect();
+            assert!(
+                names.len() > 0,
+                "Expected nested selectorless directives to be detected"
+            );
         }
 
         #[test]
         fn should_check_whether_a_referenced_directive_exists() {
             let mut options = ParseTemplateOptions::default();
             options.enable_selectorless = Some(true);
-            
+
             let parse_result = parse_template("<MyComp></MyComp>", "", options);
             let my_comp_meta = TestDirectiveMeta {
                 name: "MyComp".to_string(),
@@ -2540,7 +2955,7 @@ mod tests {
                 ng_content_selectors: None,
                 preserve_whitespaces: false,
             };
-            
+
             let matcher = make_selectorless_matcher(vec![my_comp_meta.clone()]);
             let binder = R3TargetBinder::<TestDirectiveMeta>::new(Some(matcher));
             let target = Target {
@@ -2548,10 +2963,16 @@ mod tests {
                 host: None,
             };
             let res = binder.bind(target);
-            
+
             // Check if referenced directive exists
-            assert!(res.referenced_directive_exists("MyComp"), "MyComp should exist");
-            assert!(!res.referenced_directive_exists("NonExistent"), "NonExistent should not exist");
+            assert!(
+                res.referenced_directive_exists("MyComp"),
+                "MyComp should exist"
+            );
+            assert!(
+                !res.referenced_directive_exists("NonExistent"),
+                "NonExistent should not exist"
+            );
         }
     }
 }

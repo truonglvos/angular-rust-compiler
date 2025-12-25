@@ -7,7 +7,7 @@
 
 #[cfg(test)]
 mod tests {
-    use angular_compiler::expression_parser::{AST, parser::Parser, serializer::serialize};
+    use angular_compiler::expression_parser::{parser::Parser, serializer::serialize, AST};
 
     fn parse(expression: &str) -> AST {
         let parser = Parser::new();
@@ -151,10 +151,7 @@ mod tests {
 
     #[test]
     fn serializes_safe_keyed_reads() {
-        assert_eq!(
-            serialize(&parse(" foo   ?.   [   bar   ] ")),
-            "foo?.[bar]"
-        );
+        assert_eq!(serialize(&parse(" foo   ?.   [   bar   ] ")), "foo?.[bar]");
     }
 
     #[test]
@@ -194,4 +191,3 @@ mod tests {
         assert_eq!(serialize(&parse(" foo   in   bar ")), "foo in bar");
     }
 }
-

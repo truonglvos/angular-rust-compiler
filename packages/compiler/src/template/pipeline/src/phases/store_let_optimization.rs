@@ -3,56 +3,69 @@
 //! Corresponds to packages/compiler/src/template/pipeline/src/phases/store_let_optimization.ts
 //! Removes any `storeLet` calls that aren't referenced outside of the current view.
 
-use crate::template::pipeline::ir as ir;
-use crate::template::pipeline::ir::enums::OpKind;
-use crate::template::pipeline::ir::expression::{transform_expressions_in_op, transform_expressions_in_expression};
-use crate::template::pipeline::ir::ops::create::DeclareLetOp;
-use crate::template::pipeline::src::compilation::{CompilationJob, ComponentCompilationJob, CompilationJobKind, CompilationUnit};
 use crate::output::output_ast::Expression;
+use crate::template::pipeline::ir;
+use crate::template::pipeline::ir::enums::OpKind;
+use crate::template::pipeline::ir::expression::{
+    transform_expressions_in_expression, transform_expressions_in_op,
+};
+use crate::template::pipeline::ir::ops::create::DeclareLetOp;
+use crate::template::pipeline::src::compilation::{
+    CompilationJob, CompilationJobKind, CompilationUnit, ComponentCompilationJob,
+};
 
 /// Removes any `storeLet` calls that aren't referenced outside of the current view.
 pub fn optimize_store_let(job: &mut dyn CompilationJob) {
     let job_kind = job.kind();
-    
-    if matches!(job_kind, CompilationJobKind::Tmpl | CompilationJobKind::Both) {
+
+    if matches!(
+        job_kind,
+        CompilationJobKind::Tmpl | CompilationJobKind::Both
+    ) {
         let component_job = unsafe {
             let job_ptr = job as *mut dyn CompilationJob;
             let job_ptr = job_ptr as *mut ComponentCompilationJob;
             &mut *job_ptr
         };
-        
+
         // Find all @let declarations that are used externally (via ContextLetReferenceExpr)
-        let mut let_used_externally: std::collections::HashSet<ir::XrefId> = std::collections::HashSet::new();
-        let mut declare_let_ops: std::collections::HashMap<ir::XrefId, usize> = std::collections::HashMap::new();
-        
+        let mut let_used_externally: std::collections::HashSet<ir::XrefId> =
+            std::collections::HashSet::new();
+        let mut declare_let_ops: std::collections::HashMap<ir::XrefId, usize> =
+            std::collections::HashMap::new();
+
         // First pass: collect DeclareLetOp and ContextLetReferenceExpr
         // We'll collect DeclareLetOp first, then collect ContextLetReferenceExpr during optimization
         {
             // Process root unit
             collect_declare_let_ops(&component_job.root, &mut declare_let_ops);
-            
+
             // Process all view units
             for (_, unit) in component_job.views.iter() {
                 collect_declare_let_ops(unit, &mut declare_let_ops);
             }
         }
-        
+
         // Collect ContextLetReferenceExpr references (use transform with identity to visit)
         {
             // Process root unit
             collect_context_let_references(&mut component_job.root, &mut let_used_externally);
-            
+
             // Process all view units
             for (_, unit) in component_job.views.iter_mut() {
                 collect_context_let_references(unit, &mut let_used_externally);
             }
         }
-        
+
         // Second pass: optimize StoreLetExpr and remove unused DeclareLetOp
         {
             // Process root unit
-            optimize_unit(&mut component_job.root, &let_used_externally, &mut declare_let_ops);
-            
+            optimize_unit(
+                &mut component_job.root,
+                &let_used_externally,
+                &mut declare_let_ops,
+            );
+
             // Process all view units
             for (_, unit) in component_job.views.iter_mut() {
                 optimize_unit(unit, &let_used_externally, &mut declare_let_ops);
@@ -99,7 +112,7 @@ fn collect_context_let_references(
             );
         }
     }
-    
+
     // Visit expressions in update ops using transform with identity
     for op in unit.update_mut().iter_mut() {
         transform_expressions_in_op(
@@ -139,7 +152,7 @@ fn optimize_unit(
             ir::VisitorContextFlag::NONE,
         );
     }
-    
+
     // Remove DeclareLetOp that are no longer needed
     // Collect indices to remove (in reverse order)
     let mut indices_to_remove: Vec<usize> = Vec::new();
@@ -162,13 +175,13 @@ fn optimize_unit(
                     ir::VisitorContextFlag::NONE,
                 );
             }
-            
+
             if has_store_let_without_pipe {
                 indices_to_remove.push(*index);
             }
         }
     }
-    
+
     // Remove DeclareLetOps in reverse order to maintain indices
     indices_to_remove.sort_by(|a, b| b.cmp(a));
     for index in indices_to_remove {
@@ -179,7 +192,7 @@ fn optimize_unit(
 /// Determines if a `storeLet` expression contains a pipe.
 fn has_pipe(store_let: &crate::template::pipeline::ir::expression::StoreLetExpr) -> bool {
     let mut result = false;
-    
+
     transform_expressions_in_expression(
         (*store_let.value).clone(),
         &mut |expr, _flags| {
@@ -193,8 +206,6 @@ fn has_pipe(store_let: &crate::template::pipeline::ir::expression::StoreLetExpr)
         },
         ir::VisitorContextFlag::NONE,
     );
-    
+
     result
 }
-
-

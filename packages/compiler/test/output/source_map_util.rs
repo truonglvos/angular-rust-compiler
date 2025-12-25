@@ -1,4 +1,3 @@
-
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
@@ -55,9 +54,13 @@ fn decode_vlq(input: &str) -> (Vec<i32>, usize) {
     (values, i)
 }
 
-pub fn original_position_for(source_map: &SourceMap, gen_line: u32, gen_col: u32) -> SourceLocation {
+pub fn original_position_for(
+    source_map: &SourceMap,
+    gen_line: u32,
+    gen_col: u32,
+) -> SourceLocation {
     let mappings: Vec<&str> = source_map.mappings.split(';').collect();
-    
+
     // State
     let mut current_gen_line = 0;
     // let mut current_gen_col = 0; // Reset every line? No, relative to previous segment
@@ -69,30 +72,36 @@ pub fn original_position_for(source_map: &SourceMap, gen_line: u32, gen_col: u32
     // Iterate lines
     for (line_idx, line) in mappings.iter().enumerate() {
         let mut current_gen_col = 0;
-        
+
         if (line_idx as u32) > gen_line {
-            break; 
+            break;
         }
 
         if line.is_empty() {
-             if (line_idx as u32) == gen_line {
+            if (line_idx as u32) == gen_line {
                 // No mappings for this line
-                return SourceLocation { line: None, column: None, source: None };
-             }
-             continue;
+                return SourceLocation {
+                    line: None,
+                    column: None,
+                    source: None,
+                };
+            }
+            continue;
         }
 
         let segments: Vec<&str> = line.split(',').collect();
         for segment in segments {
             let (values, _) = decode_vlq(segment);
-            
-            if values.is_empty() { continue; }
+
+            if values.is_empty() {
+                continue;
+            }
 
             // 0: gen col (relative)
             current_gen_col += values[0];
 
             let mut current_segment_matches = false;
-             if (line_idx as u32) == gen_line {
+            if (line_idx as u32) == gen_line {
                 // We are on the target line.
                 // Check if this segment covers the target column.
                 // In source maps, a segment starts at `current_gen_col` and goes until the next segment.
@@ -103,11 +112,11 @@ pub fn original_position_for(source_map: &SourceMap, gen_line: u32, gen_col: u32
                     current_segment_matches = true;
                 } else {
                     // This segment is after the target column, and we were looking for the greatest lower bound.
-                    // So the PREVIOUS segment was the one suitable. 
+                    // So the PREVIOUS segment was the one suitable.
                     // But we simply update state and return the state at the end of loop if we find a later segment?
                     // Let's just track the "last matching segment".
                 }
-             }
+            }
 
             if values.len() >= 4 {
                 // 1: source idx (relative)
@@ -116,23 +125,23 @@ pub fn original_position_for(source_map: &SourceMap, gen_line: u32, gen_col: u32
                 source_line += values[2];
                 // 3: source col (relative)
                 source_col += values[3];
-                
+
                 // 4: name idx (relative) - optional
                 // if values.len() >= 5 { name_idx += values[4]; }
 
                 if (line_idx as u32) == gen_line && (current_gen_col as u32) <= gen_col {
-                     // Potential candidate. Since we iterate in order, later segments on the same line overwrites earlier ones
-                     // as long as they are <= gen_col.
-                     // But we need to save this candidate.
+                    // Potential candidate. Since we iterate in order, later segments on the same line overwrites earlier ones
+                    // as long as they are <= gen_col.
+                    // But we need to save this candidate.
                 }
             }
         }
-        
+
         // Re-implement logic properly:
         // We need to replay the whole map up to the target point to maintain state properly.
         // Or at least replay the state updates.
     }
-    
+
     // Let's rewrite cleaner:
     // Reset state
     let mut state_source_idx = 0;
@@ -158,7 +167,9 @@ pub fn original_position_for(source_map: &SourceMap, gen_line: u32, gen_col: u32
         let segments = line.split(',');
         for segment in segments {
             let (values, _) = decode_vlq(segment);
-            if values.is_empty() { continue; }
+            if values.is_empty() {
+                continue;
+            }
 
             state_gen_col += values[0];
 
@@ -167,47 +178,55 @@ pub fn original_position_for(source_map: &SourceMap, gen_line: u32, gen_col: u32
                 state_source_line += values[2];
                 state_source_col += values[3];
                 // if values.len() >= 5 { state_name_idx += values[4]; }
-                
+
                 if (line_idx as u32) == gen_line {
                     if (state_gen_col as u32) <= gen_col {
-                        last_valid_for_this_line = Some((state_source_idx as usize, state_source_line, state_source_col));
+                        last_valid_for_this_line = Some((
+                            state_source_idx as usize,
+                            state_source_line,
+                            state_source_col,
+                        ));
                     } else {
                         // Past the column
                         break;
                     }
                 }
             } else if (line_idx as u32) == gen_line && (state_gen_col as u32) <= gen_col {
-                 // Segment without source info (e.g. unmapped code generated).
-                 // If we hit this, it might mean the position maps to nothing? 
-                 // Or we keep the previous mapping?
-                 // Usually if a segment has 1 field, it resets the mapping to "generated code, no source".
-                 last_valid_for_this_line = None;
+                // Segment without source info (e.g. unmapped code generated).
+                // If we hit this, it might mean the position maps to nothing?
+                // Or we keep the previous mapping?
+                // Usually if a segment has 1 field, it resets the mapping to "generated code, no source".
+                last_valid_for_this_line = None;
             }
         }
-        
+
         if (line_idx as u32) == gen_line {
-             if let Some((idx, line, col)) = last_valid_for_this_line {
-                 found_src_idx = Some(idx);
-                 found_src_line = Some(line);
-                 found_src_col = Some(col);
-             }
-             break;
+            if let Some((idx, line, col)) = last_valid_for_this_line {
+                found_src_idx = Some(idx);
+                found_src_line = Some(line);
+                found_src_col = Some(col);
+            }
+            break;
         }
     }
 
     if let (Some(idx), Some(line), Some(col)) = (found_src_idx, found_src_line, found_src_col) {
         let source_url = if idx < source_map.sources.len() {
-             Some(source_map.sources[idx].clone())
+            Some(source_map.sources[idx].clone())
         } else {
             None
         };
-        SourceLocation { 
+        SourceLocation {
             line: Some((line + 1) as u32), // Convert to 1-based
-            column: Some(col as u32), 
-            source: source_url 
+            column: Some(col as u32),
+            source: source_url,
         }
     } else {
-        SourceLocation { line: None, column: None, source: None }
+        SourceLocation {
+            line: None,
+            column: None,
+            source: None,
+        }
     }
 }
 
@@ -217,19 +236,22 @@ pub fn extract_source_map(source: &str) -> Option<SourceMap> {
         let lines: Vec<&str> = comment_part.splitn(2, '\n').collect();
         if lines.len() > 1 {
             let sm_comment = lines[1].trim();
-             if let Some(b64_start) = sm_comment.find("sourceMappingURL=data:application/json;base64,") {
-                let b64 = &sm_comment[b64_start + "sourceMappingURL=data:application/json;base64,".len()..];
-                // Simple B64 decode using an external crate or custom? 
+            if let Some(b64_start) =
+                sm_comment.find("sourceMappingURL=data:application/json;base64,")
+            {
+                let b64 = &sm_comment
+                    [b64_start + "sourceMappingURL=data:application/json;base64,".len()..];
+                // Simple B64 decode using an external crate or custom?
                 // Since this is a test utility, I can use `base64` crate if available or minimal impl.
                 // The `source_map.rs` used `to_base64_string` but we need decode.
                 // Let's use a minimal decode or just assume `serde_json` and `base64` are NOT available?
                 // `serde` and `serde_json` ARE available in Cargo.toml.
                 // `base64` is NOT explicitly in dependencies list seen earlier (only `serde`, `serde_json`, `indexmap`, `regex`, `once_cell`, `anyhow`, `thiserror`, `rayon`, `smallvec`).
                 // I'll implement a minimal base64 decoder.
-                 if let Ok(json_str) = minimal_base64_decode(b64) {
-                     return serde_json::from_str(&json_str).ok();
-                 }
-             }
+                if let Ok(json_str) = minimal_base64_decode(b64) {
+                    return serde_json::from_str(&json_str).ok();
+                }
+            }
         }
     }
     None
@@ -242,15 +264,17 @@ fn minimal_base64_decode(input: &str) -> Result<String, ()> {
     let mut bits = 0;
 
     for c in input.chars() {
-        if c == '=' { break; }
+        if c == '=' {
+            break;
+        }
         if let Some(val) = B64_DIGITS.find(c) {
-             buffer = (buffer << 6) | val;
-             bits += 6;
-             if bits >= 8 {
-                 bits -= 8;
-                 output.push((buffer >> bits) as u8);
-                 buffer &= (1 << bits) - 1;
-             }
+            buffer = (buffer << 6) | val;
+            bits += 6;
+            if bits >= 8 {
+                bits -= 8;
+                output.push((buffer >> bits) as u8);
+                buffer &= (1 << bits) - 1;
+            }
         }
     }
     String::from_utf8(output).map_err(|_| ())

@@ -2,12 +2,12 @@
 //
 // Handles @NgModule decorator processing and compilation.
 
-use crate::ngtsc::transform::src::api::{
-    DecoratorHandler, HandlerPrecedence, DetectResult, AnalysisOutput, CompileResult,
-};
-use crate::ngtsc::reflection::ClassDeclaration;
 use super::symbol::NgModuleSymbol;
 use crate::ngtsc::annotations::common::src::metadata::R3ClassMetadata;
+use crate::ngtsc::reflection::ClassDeclaration;
+use crate::ngtsc::transform::src::api::{
+    AnalysisOutput, CompileResult, DecoratorHandler, DetectResult, HandlerPrecedence,
+};
 use angular_compiler::render3::r3_identifiers::Identifiers;
 
 /// NgModule analysis data.
@@ -153,7 +153,7 @@ impl NgModuleDecoratorHandler {
     pub fn new(is_core: bool) -> Self {
         Self { is_core }
     }
-    
+
     /// Extract declarations from analysis.
     #[allow(dead_code)]
     fn resolve_type_list(
@@ -168,16 +168,22 @@ impl NgModuleDecoratorHandler {
     }
 }
 
-impl DecoratorHandler<NgModuleAnalysis, NgModuleAnalysis, NgModuleSymbol, NgModuleResolution> for NgModuleDecoratorHandler {
+impl DecoratorHandler<NgModuleAnalysis, NgModuleAnalysis, NgModuleSymbol, NgModuleResolution>
+    for NgModuleDecoratorHandler
+{
     fn name(&self) -> &str {
         "NgModuleDecoratorHandler"
     }
-    
+
     fn precedence(&self) -> HandlerPrecedence {
         HandlerPrecedence::Primary
     }
-    
-    fn detect(&self, _node: &ClassDeclaration, decorators: &[String]) -> Option<DetectResult<NgModuleAnalysis>> {
+
+    fn detect(
+        &self,
+        _node: &ClassDeclaration,
+        decorators: &[String],
+    ) -> Option<DetectResult<NgModuleAnalysis>> {
         let has_ng_module = decorators.iter().any(|d| d == "NgModule");
         if has_ng_module {
             None // Would return detect result
@@ -185,19 +191,30 @@ impl DecoratorHandler<NgModuleAnalysis, NgModuleAnalysis, NgModuleSymbol, NgModu
             None
         }
     }
-    
-    fn analyze(&self, _node: &ClassDeclaration, _metadata: &NgModuleAnalysis) -> AnalysisOutput<NgModuleAnalysis> {
+
+    fn analyze(
+        &self,
+        _node: &ClassDeclaration,
+        _metadata: &NgModuleAnalysis,
+    ) -> AnalysisOutput<NgModuleAnalysis> {
         AnalysisOutput {
             analysis: None,
             diagnostics: None,
         }
     }
-    
-    fn symbol(&self, _node: &ClassDeclaration, analysis: &NgModuleAnalysis) -> Option<NgModuleSymbol> {
+
+    fn symbol(
+        &self,
+        _node: &ClassDeclaration,
+        analysis: &NgModuleAnalysis,
+    ) -> Option<NgModuleSymbol> {
         let has_providers = analysis.providers.is_some();
-        Some(NgModuleSymbol::new(&analysis.factory_symbol_name, has_providers))
+        Some(NgModuleSymbol::new(
+            &analysis.factory_symbol_name,
+            has_providers,
+        ))
     }
-    
+
     fn compile_full(
         &self,
         _node: &ClassDeclaration,
@@ -206,31 +223,26 @@ impl DecoratorHandler<NgModuleAnalysis, NgModuleAnalysis, NgModuleSymbol, NgModu
         _constant_pool: &mut crate::ngtsc::transform::src::api::ConstantPool,
     ) -> Vec<CompileResult> {
         let meta = &analysis.module_meta;
-        
+
         // Use R3Identifiers
         let define_ng_module_name = Identifiers::define_ng_module().name.unwrap_or_default();
         let define_injector_name = Identifiers::define_injector().name.unwrap_or_default();
-        
+
         // Generate ɵmod definition
         let mod_def = format!(
             "static ɵmod = {}({{ type: {} }});",
-            define_ng_module_name,
-            meta.type_ref
+            define_ng_module_name, meta.type_ref
         );
-        
+
         // Generate ɵinj definition
-        let inj_def = format!(
-            "static ɵinj = {}({{}});",
-            define_injector_name
-        );
-        
+        let inj_def = format!("static ɵinj = {}({{}});", define_injector_name);
+
         // Generate factory
         let fac_def = format!(
             "static ɵfac = function {}Factory(t) {{ return new (t || {})(); }};",
-            analysis.factory_meta.name,
-            analysis.factory_meta.name
+            analysis.factory_meta.name, analysis.factory_meta.name
         );
-        
+
         vec![
             CompileResult {
                 name: "ɵmod".to_string(),
@@ -256,4 +268,3 @@ impl DecoratorHandler<NgModuleAnalysis, NgModuleAnalysis, NgModuleSymbol, NgModu
         ]
     }
 }
-

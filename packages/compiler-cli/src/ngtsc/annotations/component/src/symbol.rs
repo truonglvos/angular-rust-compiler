@@ -33,7 +33,7 @@ impl ComponentSymbol {
             is_remotely_scoped: false,
         }
     }
-    
+
     pub fn with_directive(directive: DirectiveSymbol) -> Self {
         Self {
             directive,
@@ -42,7 +42,7 @@ impl ComponentSymbol {
             is_remotely_scoped: false,
         }
     }
-    
+
     /// Check if emit is affected by changes.
     pub fn is_emit_affected(
         &self,
@@ -53,33 +53,33 @@ impl ComponentSymbol {
         if self.is_remotely_scoped != previous.is_remotely_scoped {
             return true;
         }
-        
+
         // Directive list changed
         if self.used_directives.len() != previous.used_directives.len() {
             return true;
         }
-        
+
         // Pipe list changed
         if self.used_pipes.len() != previous.used_pipes.len() {
             return true;
         }
-        
+
         // Check if any used directive has public API affected
         for dir in &self.used_directives {
             if public_api_affected.contains(&dir.symbol) {
                 return true;
             }
         }
-        
+
         for pipe in &self.used_pipes {
             if public_api_affected.contains(&pipe.symbol) {
                 return true;
             }
         }
-        
+
         false
     }
-    
+
     /// Check if type check block is affected.
     pub fn is_type_check_block_affected(
         &self,
@@ -90,25 +90,25 @@ impl ComponentSymbol {
         if self.used_directives.len() != previous.used_directives.len() {
             return true;
         }
-        
+
         // Pipe list changed
         if self.used_pipes.len() != previous.used_pipes.len() {
             return true;
         }
-        
+
         // Check if any used directive has type check API affected
         for dir in &self.used_directives {
             if type_check_api_affected.contains(&dir.symbol) {
                 return true;
             }
         }
-        
+
         for pipe in &self.used_pipes {
             if type_check_api_affected.contains(&pipe.symbol) {
                 return true;
             }
         }
-        
+
         false
     }
 }

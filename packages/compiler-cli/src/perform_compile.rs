@@ -3,12 +3,12 @@
 //! Corresponds to packages/compiler-cli/src/perform_compile.ts
 //! Config parsing and compilation entry point.
 
+use crate::ngtsc::core::NgCompilerOptions;
+use crate::ngtsc::file_system::NodeJSFileSystem;
+use crate::ngtsc::program::NgtscProgram;
+use crate::transformers::api::{CompilerOptions, Diagnostic, DiagnosticCategory};
 use std::collections::HashSet;
 use std::path::Path;
-use crate::ngtsc::core::NgCompilerOptions;
-use crate::ngtsc::program::NgtscProgram;
-use crate::ngtsc::file_system::NodeJSFileSystem;
-use crate::transformers::api::{CompilerOptions, Diagnostic, DiagnosticCategory};
 
 /// Emit flags for controlling output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -57,28 +57,37 @@ pub struct Program {
 #[derive(Debug)]
 pub struct PerformCompileResult {
     pub diagnostics: Vec<String>,
-    pub program: Option<()>, 
+    pub program: Option<()>,
     pub emit_result: Option<()>,
 }
 
 /// Read configuration from project file.
-pub fn read_configuration(project: &str, cmd_options: Option<CompilerOptions>) -> ParsedConfiguration {
+pub fn read_configuration(
+    project: &str,
+    cmd_options: Option<CompilerOptions>,
+) -> ParsedConfiguration {
     let project_path = Path::new(project);
     let mut root_names = Vec::new();
     let mut errors = Vec::new();
-    
+
     // Determine the tsconfig file path and base directory
     let (tsconfig_path, base_dir) = if project_path.is_dir() {
         let tsconfig = project_path.join("tsconfig.json");
         (tsconfig, project_path.to_path_buf())
     } else if project_path.exists() && project_path.extension().map_or(false, |ext| ext == "json") {
-        let base = project_path.parent().unwrap_or(Path::new(".")).to_path_buf();
+        let base = project_path
+            .parent()
+            .unwrap_or(Path::new("."))
+            .to_path_buf();
         (project_path.to_path_buf(), base)
     } else {
         errors.push(Diagnostic {
             category: DiagnosticCategory::Error,
             code: -1,
-            message: format!("Project path does not exist or is not a valid tsconfig: {}", project),
+            message: format!(
+                "Project path does not exist or is not a valid tsconfig: {}",
+                project
+            ),
             file: None,
             start: None,
             length: None,
@@ -91,7 +100,7 @@ pub fn read_configuration(project: &str, cmd_options: Option<CompilerOptions>) -
             emit_flags: EmitFlags::DEFAULT,
         };
     };
-    
+
     // Parse tsconfig.json
     if tsconfig_path.exists() {
         match std::fs::read_to_string(&tsconfig_path) {
@@ -101,23 +110,38 @@ pub fn read_configuration(project: &str, cmd_options: Option<CompilerOptions>) -
                 match serde_json::from_str::<serde_json::Value>(&content) {
                     Ok(config) => {
                         // Get include patterns (default to ["**/*.ts"])
-                        let include_patterns: Vec<String> = config.get("include")
+                        let include_patterns: Vec<String> = config
+                            .get("include")
                             .and_then(|v| v.as_array())
-                            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|v| v.as_str().map(String::from))
+                                    .collect()
+                            })
                             .unwrap_or_else(|| vec!["**/*.ts".to_string()]);
-                        
+
                         // Get exclude patterns (default to ["node_modules"])
-                        let exclude_patterns: Vec<String> = config.get("exclude")
+                        let exclude_patterns: Vec<String> = config
+                            .get("exclude")
                             .and_then(|v| v.as_array())
-                            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|v| v.as_str().map(String::from))
+                                    .collect()
+                            })
                             .unwrap_or_else(|| vec!["**/node_modules/**".to_string()]);
-                        
+
                         // Get explicit files list if specified
-                        let files: Vec<String> = config.get("files")
+                        let files: Vec<String> = config
+                            .get("files")
                             .and_then(|v| v.as_array())
-                            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|v| v.as_str().map(String::from))
+                                    .collect()
+                            })
                             .unwrap_or_default();
-                        
+
                         // If files is specified, use it; otherwise glob from include patterns
                         if !files.is_empty() {
                             for file in files {
@@ -128,10 +152,11 @@ pub fn read_configuration(project: &str, cmd_options: Option<CompilerOptions>) -
                             }
                         } else {
                             // Use glob to find files matching include patterns
-                            let discovered = discover_files(&base_dir, &include_patterns, &exclude_patterns);
+                            let discovered =
+                                discover_files(&base_dir, &include_patterns, &exclude_patterns);
                             root_names = discovered;
                         }
-                        
+
                         println!("Discovered {} TypeScript files", root_names.len());
                     }
                     Err(e) => {
@@ -167,7 +192,7 @@ pub fn read_configuration(project: &str, cmd_options: Option<CompilerOptions>) -
             length: None,
         });
     }
-    
+
     ParsedConfiguration {
         project: project.to_string(),
         root_names,
@@ -182,7 +207,7 @@ fn strip_json_comments(input: &str) -> String {
     let mut result = String::new();
     // let in_string = false;
     // let prev_char = '\0';
-    
+
     for line in input.lines() {
         let trimmed = line.trim();
         // Skip lines that start with // or /*
@@ -195,24 +220,30 @@ fn strip_json_comments(input: &str) -> String {
 }
 
 /// Discover files matching include patterns and excluding exclude patterns
-fn discover_files(base_dir: &std::path::Path, include: &[String], exclude: &[String]) -> Vec<String> {
+fn discover_files(
+    base_dir: &std::path::Path,
+    include: &[String],
+    exclude: &[String],
+) -> Vec<String> {
     let mut files = Vec::new();
-    
+
     for pattern in include {
         let full_pattern = base_dir.join(pattern);
         let pattern_str = full_pattern.to_string_lossy();
-        
+
         match glob::glob(&pattern_str) {
             Ok(paths) => {
                 for entry in paths {
                     match entry {
                         Ok(path) => {
                             let path_str = path.to_string_lossy().to_string();
-                            
+
                             // Check if path matches any exclude pattern
                             let should_exclude = exclude.iter().any(|excl| {
                                 // Special case for node_modules to ensure efficient and correct exclusion
-                                if excl.contains("node_modules") && path_str.contains("node_modules") {
+                                if excl.contains("node_modules")
+                                    && path_str.contains("node_modules")
+                                {
                                     return true;
                                 }
 
@@ -223,7 +254,7 @@ fn discover_files(base_dir: &std::path::Path, include: &[String], exclude: &[Str
                                     Err(_) => path_str.contains(excl),
                                 }
                             });
-                            
+
                             if !should_exclude && path.is_file() {
                                 files.push(path_str);
                             }
@@ -237,7 +268,7 @@ fn discover_files(base_dir: &std::path::Path, include: &[String], exclude: &[Str
             }
         }
     }
-    
+
     files
 }
 
@@ -250,14 +281,17 @@ pub fn perform_compilation(
     _custom_transformers: Option<crate::transformers::api::CustomTransformers>,
     _modified_resource_files: Option<HashSet<String>>,
 ) -> CompilationResult {
-    println!("Performing compilation with {} root files...", root_names.len());
-    
+    println!(
+        "Performing compilation with {} root files...",
+        root_names.len()
+    );
+
     let fs = NodeJSFileSystem::new();
     let ng_options = NgCompilerOptions::default();
     let mut program = NgtscProgram::new(root_names.clone(), ng_options, &fs);
 
     let mut diagnostics = Vec::new();
-    
+
     // Trigger analysis
     if let Err(e) = program.load_ng_structure(Path::new(".")) {
         diagnostics.push(Diagnostic {
@@ -304,23 +338,23 @@ pub fn perform_compilation_simple(
     _options: Option<NgCompilerOptions>,
 ) -> PerformCompileResult {
     println!("Performing compilation...");
-    
+
     let fs = NodeJSFileSystem::new();
-    
+
     // Parse tsconfig.json and discover files automatically
     let (root_names, options) = if let Some(p) = project {
         println!("Using project file: {}", p);
         let parsed = read_configuration(p, None);
-        
+
         if !parsed.errors.is_empty() {
             for err in &parsed.errors {
                 eprintln!("Configuration error: {}", err.message);
             }
         }
-        
+
         // Get outDir from tsconfig if available
         let mut opts = NgCompilerOptions::default();
-        
+
         // Parse tsconfig again to get compilerOptions
         let tsconfig_path = Path::new(p);
         if let Ok(content) = std::fs::read_to_string(tsconfig_path) {
@@ -336,19 +370,19 @@ pub fn perform_compilation_simple(
                 }
             }
         }
-        
+
         // Default to rust-output if no outDir is specified
         if opts.out_dir.is_none() {
-             let base_dir = Path::new(p).parent().unwrap_or(Path::new("."));
-             let resolved = base_dir.join("rust-output");
+            let base_dir = Path::new(p).parent().unwrap_or(Path::new("."));
+            let resolved = base_dir.join("rust-output");
             opts.out_dir = Some(resolved.to_string_lossy().to_string());
         }
-        
+
         (parsed.root_names, opts)
     } else {
         (vec![], NgCompilerOptions::default())
     };
-    
+
     let mut program = NgtscProgram::new(root_names, options, &fs);
 
     // Trigger analysis
@@ -376,7 +410,10 @@ pub fn perform_compilation_simple(
 }
 
 /// Format diagnostics for display.
-pub fn format_diagnostics(diagnostics: &[Diagnostic], _host: &crate::main_entry::FormatDiagnosticsHost) -> String {
+pub fn format_diagnostics(
+    diagnostics: &[Diagnostic],
+    _host: &crate::main_entry::FormatDiagnosticsHost,
+) -> String {
     let mut output = String::new();
     for diag in diagnostics {
         let category = match diag.category {
@@ -387,9 +424,15 @@ pub fn format_diagnostics(diagnostics: &[Diagnostic], _host: &crate::main_entry:
         };
         if let Some(file) = &diag.file {
             if let Some(start) = diag.start {
-                output.push_str(&format!("{} TS{}: {} ({}:{})\n", category, diag.code, diag.message, file, start));
+                output.push_str(&format!(
+                    "{} TS{}: {} ({}:{})\n",
+                    category, diag.code, diag.message, file, start
+                ));
             } else {
-                output.push_str(&format!("{} TS{}: {} ({})\n", category, diag.code, diag.message, file));
+                output.push_str(&format!(
+                    "{} TS{}: {} ({})\n",
+                    category, diag.code, diag.message, file
+                ));
             }
         } else {
             output.push_str(&format!("{} TS{}: {}\n", category, diag.code, diag.message));
@@ -400,6 +443,12 @@ pub fn format_diagnostics(diagnostics: &[Diagnostic], _host: &crate::main_entry:
 
 /// Get exit code from compilation result.
 pub fn exit_code_from_result(diagnostics: &[Diagnostic]) -> i32 {
-    let has_errors = diagnostics.iter().any(|d| d.category == DiagnosticCategory::Error);
-    if has_errors { 1 } else { 0 }
+    let has_errors = diagnostics
+        .iter()
+        .any(|d| d.category == DiagnosticCategory::Error);
+    if has_errors {
+        1
+    } else {
+        0
+    }
 }

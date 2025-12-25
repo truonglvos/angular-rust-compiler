@@ -65,7 +65,7 @@ pub fn preparse_element(ast: &Element) -> PreparsedElement {
     // Iterate through attributes
     for attr in &ast.attrs {
         let lc_attr_name = attr.name.to_lowercase();
-        
+
         if lc_attr_name == NG_CONTENT_SELECT_ATTR {
             select_attr = Some(attr.value.clone());
         } else if lc_attr_name == LINK_STYLE_HREF_ATTR {
@@ -83,7 +83,7 @@ pub fn preparse_element(ast: &Element) -> PreparsedElement {
 
     let select_attr = normalize_ng_content_select(select_attr);
     let node_name = ast.name.to_lowercase();
-    
+
     let element_type = if is_ng_content(&node_name) {
         PreparsedElementType::NgContent
     } else if node_name == STYLE_ELEMENT {
@@ -275,4 +275,3 @@ mod tests {
         assert_eq!(preparsed.element_type, PreparsedElementType::Other);
     }
 }
-

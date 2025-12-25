@@ -43,4 +43,3 @@ impl Default for XmlParser {
 
 // Placeholder until parser.rs is implemented
 pub struct XmlParser;
-

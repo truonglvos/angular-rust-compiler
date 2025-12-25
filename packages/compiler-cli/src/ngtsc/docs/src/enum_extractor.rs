@@ -15,7 +15,7 @@ impl EnumExtractor {
             members,
         }
     }
-    
+
     /// Extract enum member.
     pub fn extract_member(name: &str, value: &str) -> EnumMemberEntry {
         EnumMemberEntry {

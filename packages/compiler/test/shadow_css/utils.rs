@@ -18,7 +18,7 @@ pub fn extract_css_content(css: &str) -> String {
     let re5 = Regex::new(r" }").unwrap();
     let re6 = Regex::new(r"\{\s+").unwrap();
     let re7 = Regex::new(r"\s+\}").unwrap();
-    
+
     let mut result = re1.replace(css, "").to_string();
     result = re2.replace(&result, "").to_string();
     result = re3.replace_all(&result, " ").to_string();
@@ -33,7 +33,11 @@ pub fn extract_css_content(css: &str) -> String {
 pub fn assert_equal_css(actual: &str, expected: &str) {
     let actual_css = extract_css_content(actual);
     let expected_css = extract_css_content(expected);
-    assert_eq!(actual_css, expected_css, "Expected '{}' to equal '{}'", actual_css, expected_css);
+    assert_eq!(
+        actual_css, expected_css,
+        "Expected '{}' to equal '{}'",
+        actual_css, expected_css
+    );
 }
 
 #[allow(dead_code)]
@@ -66,4 +70,3 @@ mod tests {
         assert_eq!(result, "one {color:red;}");
     }
 }
-

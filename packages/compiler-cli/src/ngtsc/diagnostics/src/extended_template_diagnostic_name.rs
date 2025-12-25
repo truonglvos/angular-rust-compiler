@@ -1,4 +1,3 @@
-
 /// Enum holding the name of each extended template diagnostic. The name is used as a user-meaningful
 /// value for configuring the diagnostic in the project's options.
 ///
@@ -40,7 +39,9 @@ impl std::fmt::Display for ExtendedTemplateDiagnosticName {
             Self::SuffixNotSupported => "suffixNotSupported",
             Self::SkipHydrationNotStatic => "skipHydrationNotStatic",
             Self::InterpolatedSignalNotInvoked => "interpolatedSignalNotInvoked",
-            Self::ControlFlowPreventingContentProjection => "controlFlowPreventingContentProjection",
+            Self::ControlFlowPreventingContentProjection => {
+                "controlFlowPreventingContentProjection"
+            }
             Self::UnusedLetDeclaration => "unusedLetDeclaration",
             Self::UninvokedTrackFunction => "uninvokedTrackFunction",
             Self::UnusedStandaloneImports => "unusedStandaloneImports",

@@ -27,12 +27,12 @@ impl R3ClassDebugInfo {
             forbid_orphan_rendering: false,
         }
     }
-    
+
     pub fn with_file_path(mut self, path: impl Into<String>) -> Self {
         self.file_path = Some(path.into());
         self
     }
-    
+
     pub fn with_forbid_orphan_rendering(mut self, forbid: bool) -> Self {
         self.forbid_orphan_rendering = forbid;
         self
@@ -48,7 +48,7 @@ pub fn extract_class_debug_info(
     forbid_orphan_rendering: bool,
 ) -> Option<R3ClassDebugInfo> {
     let file_path = get_project_relative_path(source_file, root_dirs);
-    
+
     Some(R3ClassDebugInfo {
         type_expr: class_name.to_string(),
         class_name: class_name.to_string(),

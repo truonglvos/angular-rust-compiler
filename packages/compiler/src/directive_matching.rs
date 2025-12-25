@@ -1,12 +1,11 @@
+use once_cell::sync::Lazy;
 /**
  * Directive Matching - CSS Selector Matching
  *
  * Corresponds to packages/compiler/src/directive_matching.ts
  * Implements CSS selector parsing and matching for Angular directives
  */
-
 use regex::Regex;
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -69,7 +68,8 @@ impl CssSelector {
             // Check for tag/class/id
             if let Some(tag_match) = cap.get(SelectorRegexp::Tag as usize) {
                 let tag = tag_match.as_str();
-                let prefix = cap.get(SelectorRegexp::Prefix as usize)
+                let prefix = cap
+                    .get(SelectorRegexp::Prefix as usize)
                     .map(|m| m.as_str())
                     .unwrap_or("");
 
@@ -94,7 +94,8 @@ impl CssSelector {
             // Check for attribute
             if let Some(attr_match) = cap.get(SelectorRegexp::Attribute as usize) {
                 let attr = attr_match.as_str();
-                let value = if let Some(m) = cap.get(SelectorRegexp::AttributeValueDouble as usize) {
+                let value = if let Some(m) = cap.get(SelectorRegexp::AttributeValueDouble as usize)
+                {
                     m.as_str()
                 } else if let Some(m) = cap.get(SelectorRegexp::AttributeValueSingle as usize) {
                     m.as_str()
@@ -266,8 +267,8 @@ impl<T: Clone> SelectorMatcher<T> {
 
         // Index by element
         if let Some(ref element) = css_selector.element {
-             // Always index by element, even * (for universal lookup)
-             self.element_map
+            // Always index by element, even * (for universal lookup)
+            self.element_map
                 .entry(element.clone())
                 .or_insert_with(Vec::new)
                 .push(context.clone());
@@ -304,7 +305,7 @@ impl<T: Clone> SelectorMatcher<T> {
         let mut matched_ids = std::collections::HashSet::new();
 
         self.match_selector_visit(css_selector, |sel, data, id| {
-             if matched_ids.insert(id) {
+            if matched_ids.insert(id) {
                 callback(sel, data);
                 matched = true;
             }
@@ -317,7 +318,7 @@ impl<T: Clone> SelectorMatcher<T> {
     where
         F: FnMut(&CssSelector, &T, usize),
     {
-         // Match by element
+        // Match by element
         if let Some(ref element) = css_selector.element {
             if let Some(contexts) = self.element_map.get(element) {
                 for context in contexts {
@@ -327,10 +328,10 @@ impl<T: Clone> SelectorMatcher<T> {
                 }
             }
         }
-        
+
         // Always match universal selector *
         if let Some(contexts) = self.element_map.get("*") {
-             for context in contexts {
+            for context in contexts {
                 if self.is_match(css_selector, &context.selector) {
                     callback(&context.selector, &context.callback_data, context.id);
                 }
@@ -341,7 +342,7 @@ impl<T: Clone> SelectorMatcher<T> {
         for class_name in &css_selector.class_names {
             if let Some(contexts) = self.class_map.get(class_name) {
                 for context in contexts {
-                     if self.is_match(css_selector, &context.selector) {
+                    if self.is_match(css_selector, &context.selector) {
                         callback(&context.selector, &context.callback_data, context.id);
                     }
                 }
@@ -356,17 +357,17 @@ impl<T: Clone> SelectorMatcher<T> {
             if let Some(attr_values) = self.attr_map.get(name) {
                 // Check exact value match
                 if let Some(contexts) = attr_values.get(value) {
-                     for context in contexts {
-                         if self.is_match(css_selector, &context.selector) {
+                    for context in contexts {
+                        if self.is_match(css_selector, &context.selector) {
                             callback(&context.selector, &context.callback_data, context.id);
                         }
                     }
                 }
                 // Check generic attribute match (selector has [attr] without value, indexed as "")
                 if !value.is_empty() {
-                     if let Some(contexts) = attr_values.get("") {
-                         for context in contexts {
-                             if self.is_match(css_selector, &context.selector) {
+                    if let Some(contexts) = attr_values.get("") {
+                        for context in contexts {
+                            if self.is_match(css_selector, &context.selector) {
                                 callback(&context.selector, &context.callback_data, context.id);
                             }
                         }
@@ -375,8 +376,6 @@ impl<T: Clone> SelectorMatcher<T> {
             }
         }
     }
-
-
 
     /// Check if two selectors match
     fn is_match(&self, selector: &CssSelector, pattern: &CssSelector) -> bool {
@@ -404,7 +403,8 @@ impl<T: Clone> SelectorMatcher<T> {
                 if &selector.attrs[j] == pat_name {
                     // Value matching rules:
                     // Test `should_select_by_attr_name_case_sensitive_and_value_case_insensitive` implies case-insensitive value match.
-                    if pat_value.is_empty() || selector.attrs[j + 1].eq_ignore_ascii_case(pat_value) {
+                    if pat_value.is_empty() || selector.attrs[j + 1].eq_ignore_ascii_case(pat_value)
+                    {
                         found = true;
                         break;
                     }
@@ -415,7 +415,7 @@ impl<T: Clone> SelectorMatcher<T> {
                 return false;
             }
         }
-        
+
         // Check :not selectors
         for not_selector in &pattern.not_selectors {
             if self.is_match(selector, not_selector) {
@@ -555,7 +555,10 @@ impl<T> SelectorlessMatcher<T> {
 
     /// Add a directive to the matcher, keyed by its name.
     pub fn add(&mut self, name: String, directive: T) {
-        self.registry.entry(name).or_insert_with(Vec::new).push(directive);
+        self.registry
+            .entry(name)
+            .or_insert_with(Vec::new)
+            .push(directive);
     }
 
     /// Match directives by name. Returns all directives registered for the given name.

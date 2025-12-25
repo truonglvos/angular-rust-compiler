@@ -4,11 +4,11 @@
 // Signal outputs cannot be recognized at runtime using reflection, so
 // this transform adds a decorator for JIT compatibility.
 
-use crate::ngtsc::imports::ImportedSymbolsTracker;
 use super::transform_api::{
-    PropertyTransformResult, PropertyInfo, is_signal_output_call,
-    create_synthetic_angular_core_decorator_access,
+    create_synthetic_angular_core_decorator_access, is_signal_output_call, PropertyInfo,
+    PropertyTransformResult,
 };
+use crate::ngtsc::imports::ImportedSymbolsTracker;
 
 /// Transform for initializer API outputs (output()).
 ///
@@ -25,15 +25,19 @@ pub fn initializer_api_output_transform(
     }
 
     // Create the @Output decorator
-    let output_decorator = create_signal_output_decorator(&property.name, property.value_string.as_deref());
-    
+    let output_decorator =
+        create_signal_output_decorator(&property.name, property.value_string.as_deref());
+
     PropertyTransformResult::with_decorators(vec![output_decorator])
 }
 
 /// Create an @Output decorator for a signal output.
-fn create_signal_output_decorator(property_name: &str, value: Option<&str>) -> super::transform_api::SyntheticDecorator {
+fn create_signal_output_decorator(
+    property_name: &str,
+    value: Option<&str>,
+) -> super::transform_api::SyntheticDecorator {
     let mut decorator = create_synthetic_angular_core_decorator_access("Output");
-    
+
     // Extract alias from the output() call if present
     if let Some(value_str) = value {
         if let Some(alias) = extract_output_alias(value_str) {
@@ -43,7 +47,7 @@ fn create_signal_output_decorator(property_name: &str, value: Option<&str>) -> s
             decorator = decorator.with_arg(format!("'{}'", property_name));
         }
     }
-    
+
     decorator
 }
 
@@ -53,7 +57,7 @@ fn extract_output_alias(value: &str) -> Option<String> {
     if let Some(start) = value.find("alias:") {
         let rest = &value[start + 6..];
         let rest = rest.trim_start();
-        
+
         if rest.starts_with('\'') || rest.starts_with('"') {
             let quote = rest.chars().next().unwrap();
             if let Some(end) = rest[1..].find(quote) {
@@ -71,7 +75,10 @@ mod tests {
     #[test]
     fn test_extract_output_alias() {
         let value = "output({ alias: 'customOutput' })";
-        assert_eq!(extract_output_alias(value), Some("customOutput".to_string()));
+        assert_eq!(
+            extract_output_alias(value),
+            Some("customOutput".to_string())
+        );
     }
 
     #[test]

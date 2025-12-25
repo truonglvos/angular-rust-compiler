@@ -19,13 +19,13 @@ pub enum ResourceType {
 pub struct ResourceLoaderContext {
     /// The type of the component resource.
     pub resource_type: ResourceType,
-    
+
     /// The absolute path to the file containing the resource reference.
     pub containing_file: String,
-    
+
     /// For style resources, the order/position within the containing file.
     pub order: Option<u32>,
-    
+
     /// The name of the class that defines the component using the resource.
     pub class_name: String,
 }
@@ -39,7 +39,7 @@ impl ResourceLoaderContext {
             class_name: class_name.into(),
         }
     }
-    
+
     pub fn new_style(
         containing_file: impl Into<String>,
         class_name: impl Into<String>,
@@ -64,19 +64,20 @@ pub type PreprocessFuture = Pin<Box<dyn Future<Output = Result<String, String>> 
 pub trait ResourceLoader: Send + Sync {
     /// Whether this resource loader can preload resources.
     fn can_preload(&self) -> bool;
-    
+
     /// Whether the resource loader can preprocess inline resources.
     fn can_preprocess(&self) -> bool;
-    
+
     /// Resolve the URL of a resource relative to the file containing the reference.
     fn resolve(&self, file: &str, base_path: &str) -> Result<String, String>;
-    
+
     /// Preload the specified resource asynchronously.
-    fn preload(&self, resolved_url: &str, context: &ResourceLoaderContext) -> Option<PreloadFuture>;
-    
+    fn preload(&self, resolved_url: &str, context: &ResourceLoaderContext)
+        -> Option<PreloadFuture>;
+
     /// Preprocess the content of an inline resource asynchronously.
     fn preprocess_inline(&self, data: &str, context: &ResourceLoaderContext) -> PreprocessFuture;
-    
+
     /// Load the resource at the given URL synchronously.
     fn load(&self, resolved_url: &str) -> Result<String, String>;
 }
@@ -95,24 +96,28 @@ impl ResourceLoader for NoopResourceLoader {
     fn can_preload(&self) -> bool {
         false
     }
-    
+
     fn can_preprocess(&self) -> bool {
         false
     }
-    
+
     fn resolve(&self, file: &str, _base_path: &str) -> Result<String, String> {
         Ok(file.to_string())
     }
-    
-    fn preload(&self, _resolved_url: &str, _context: &ResourceLoaderContext) -> Option<PreloadFuture> {
+
+    fn preload(
+        &self,
+        _resolved_url: &str,
+        _context: &ResourceLoaderContext,
+    ) -> Option<PreloadFuture> {
         None
     }
-    
+
     fn preprocess_inline(&self, data: &str, _context: &ResourceLoaderContext) -> PreprocessFuture {
         let data = data.to_string();
         Box::pin(async move { Ok(data) })
     }
-    
+
     fn load(&self, resolved_url: &str) -> Result<String, String> {
         Err(format!("Cannot load resource: {}", resolved_url))
     }

@@ -348,4 +348,3 @@ pub struct R3DeclareHostDirectiveMetadata {
     /// Outputs to expose
     pub outputs: Option<Vec<String>>,
 }
-

@@ -2,8 +2,8 @@
 //
 // Registry for tracking classes that can be constructed via dependency injection.
 
-use std::collections::HashMap;
 use super::factory::R3DependencyMetadata;
+use std::collections::HashMap;
 
 /// Metadata about an injectable class's constructor dependencies.
 #[derive(Debug, Clone)]
@@ -20,7 +20,7 @@ impl InjectableMeta {
     pub fn is_valid(&self) -> bool {
         matches!(self, InjectableMeta::Valid(_) | InjectableMeta::None)
     }
-    
+
     pub fn get_deps(&self) -> Option<&Vec<R3DependencyMetadata>> {
         match self {
             InjectableMeta::Valid(deps) => Some(deps),
@@ -43,27 +43,27 @@ impl InjectableClassRegistry {
             is_core,
         }
     }
-    
+
     /// Register an injectable class with its metadata.
     pub fn register_injectable(&mut self, class_name: impl Into<String>, meta: InjectableMeta) {
         self.classes.insert(class_name.into(), meta);
     }
-    
+
     /// Get the injectable metadata for a class.
     pub fn get_injectable_meta(&self, class_name: &str) -> Option<&InjectableMeta> {
         self.classes.get(class_name)
     }
-    
+
     /// Check if a class is registered as injectable.
     pub fn is_injectable(&self, class_name: &str) -> bool {
         self.classes.contains_key(class_name)
     }
-    
+
     /// Whether this is compiling @angular/core.
     pub fn is_core(&self) -> bool {
         self.is_core
     }
-    
+
     /// Get all registered classes.
     pub fn get_all_classes(&self) -> impl Iterator<Item = (&String, &InjectableMeta)> {
         self.classes.iter()

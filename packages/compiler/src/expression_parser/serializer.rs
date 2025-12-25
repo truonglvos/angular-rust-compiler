@@ -4,7 +4,6 @@
  * Serializes AST back to string format
  * Mirrors packages/compiler/src/expression_parser/serializer.ts
  */
-
 use super::ast::*;
 
 /// Serialize AST to string
@@ -86,7 +85,6 @@ impl SerializeExpressionVisitor {
     fn visit_implicit_receiver(&mut self) -> String {
         String::new()
     }
-
 
     fn visit_keyed_read(&mut self, ast: &KeyedRead) -> String {
         format!(
@@ -185,7 +183,12 @@ impl SerializeExpressionVisitor {
             format!("{} = {}", ast.name, visit_ast(self, &ast.value))
         } else {
             // ThisReceiver or other receiver - format with dot notation
-            format!("{}.{} = {}", receiver, ast.name, visit_ast(self, &ast.value))
+            format!(
+                "{}.{} = {}",
+                receiver,
+                ast.name,
+                visit_ast(self, &ast.value)
+            )
         }
     }
 
@@ -259,7 +262,11 @@ impl SerializeExpressionVisitor {
     }
 
     fn visit_tagged_template(&mut self, ast: &TaggedTemplateLiteral) -> String {
-        format!("{}{}", visit_ast(self, &ast.tag), self.visit_template_literal(&ast.template))
+        format!(
+            "{}{}",
+            visit_ast(self, &ast.tag),
+            self.visit_template_literal(&ast.template)
+        )
     }
 
     fn visit_parenthesized(&mut self, ast: &ParenthesizedExpression) -> String {

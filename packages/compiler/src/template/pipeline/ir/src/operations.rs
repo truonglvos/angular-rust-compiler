@@ -6,14 +6,14 @@
 use crate::parse_util::ParseSourceSpan;
 use crate::template::pipeline::ir::enums::OpKind;
 use crate::template::pipeline::ir::handle::XrefId;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::fmt::Debug;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Base trait for semantic operations being performed within a template.
 pub trait Op: Debug {
     /// Get the operation kind
     fn kind(&self) -> OpKind;
-    
+
     /// Get the source span (if available)
     fn source_span(&self) -> Option<&ParseSourceSpan>;
 
@@ -34,12 +34,12 @@ pub trait UpdateOp: Op {
 }
 
 /// A linked list of `Op` nodes of a given subtype.
-/// 
+///
 /// In TypeScript, this uses a proper linked list with head/tail nodes and prev/next pointers.
 /// In Rust, we use a Vec-based implementation for simplicity, which provides similar functionality
 /// but with different performance characteristics. The Vec approach is simpler and avoids
 /// the complexity of managing pointer links, while still providing all necessary operations.
-/// 
+///
 /// @param T specific subtype of `Op` nodes which this list contains.
 #[derive(Clone)]
 pub struct OpList<T> {
@@ -90,7 +90,7 @@ impl<T> OpList<T> {
         if new_ops.is_empty() {
             return;
         }
-        
+
         // Reverse to maintain order when prepending
         new_ops.reverse();
         for op in new_ops {

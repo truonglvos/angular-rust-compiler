@@ -57,17 +57,16 @@ pub struct ClassMember<'a> {
 
     pub kind: ClassMemberKind,
     pub access_level: ClassMemberAccessLevel,
-    
+
     pub type_node: Option<&'a ast::TSType<'a>>,
-    
+
     pub name: String,
     pub name_node: Option<&'a ast::PropertyKey<'a>>, // Might need adjustment depending on Oxc
-    
-    pub value: Option<&'a ast::Expression<'a>>,
-    
-    // In TS this is ts.Declaration. In Oxc, method definitions are in ClassElement.
-    // implementation: Option<&'a ast::Declaration<'a>>, 
 
+    pub value: Option<&'a ast::Expression<'a>>,
+
+    // In TS this is ts.Declaration. In Oxc, method definitions are in ClassElement.
+    // implementation: Option<&'a ast::Declaration<'a>>,
     pub is_static: bool,
     pub decorators: Option<Vec<Decorator<'a>>>,
 }
@@ -76,10 +75,10 @@ pub struct ClassMember<'a> {
 pub struct CtorParameter<'a> {
     pub name: Option<String>,
     pub name_node: &'a ast::BindingPattern<'a>, // equivalent to ts.BindingName
-    
+
     pub type_value_reference: TypeValueReference<'a>,
     pub type_node: Option<&'a ast::TSType<'a>>,
-    
+
     pub decorators: Option<Vec<Decorator<'a>>>,
 }
 
@@ -165,41 +164,75 @@ pub enum ValueUnavailableKind {
 
 #[derive(Debug, Clone)]
 pub enum UnavailableValue<'a> {
-    Unsupported { type_node: &'a ast::TSType<'a> },
-    NoValueDeclaration { type_node: &'a ast::TSType<'a>, decl: Option<&'a ast::Declaration<'a>> },
-    TypeOnlyImport { type_node: &'a ast::TSType<'a>, node: &'a ast::ImportDeclaration<'a> }, // simplified node type
-    Namespace { type_node: &'a ast::TSType<'a>, import_clause: &'a ast::ImportDeclaration<'a> },
-    UnknownReference { type_node: &'a ast::TSType<'a> },
+    Unsupported {
+        type_node: &'a ast::TSType<'a>,
+    },
+    NoValueDeclaration {
+        type_node: &'a ast::TSType<'a>,
+        decl: Option<&'a ast::Declaration<'a>>,
+    },
+    TypeOnlyImport {
+        type_node: &'a ast::TSType<'a>,
+        node: &'a ast::ImportDeclaration<'a>,
+    }, // simplified node type
+    Namespace {
+        type_node: &'a ast::TSType<'a>,
+        import_clause: &'a ast::ImportDeclaration<'a>,
+    },
+    UnknownReference {
+        type_node: &'a ast::TSType<'a>,
+    },
     MissingType,
 }
 
 /// Abstracts reflection operations on the AST.
 pub trait ReflectionHost<'a> {
-    fn get_decorators_of_declaration(&self, declaration: &'a ast::Declaration<'a>) -> Vec<Decorator<'a>>;
-    
+    fn get_decorators_of_declaration(
+        &self,
+        declaration: &'a ast::Declaration<'a>,
+    ) -> Vec<Decorator<'a>>;
+
     fn get_members_of_class(&self, clazz: &'a ClassDeclaration<'a>) -> Vec<ClassMember<'a>>;
-    
-    fn get_constructor_parameters(&self, clazz: &'a ClassDeclaration<'a>) -> Option<Vec<CtorParameter<'a>>>;
-    
+
+    fn get_constructor_parameters(
+        &self,
+        clazz: &'a ClassDeclaration<'a>,
+    ) -> Option<Vec<CtorParameter<'a>>>;
+
     // Using generic Node equivalent? In Oxc we might need specific types.
     // For now we assume Function node.
-    fn get_definition_of_function(&self, fn_node: &'a ast::Function<'a>) -> Option<FunctionDefinition<'a>>;
-    
+    fn get_definition_of_function(
+        &self,
+        fn_node: &'a ast::Function<'a>,
+    ) -> Option<FunctionDefinition<'a>>;
+
     fn get_import_of_identifier(&self, id: &'a ast::IdentifierReference<'a>) -> Option<Import<'a>>;
-    
-    fn get_declaration_of_identifier(&self, id: &'a ast::IdentifierReference<'a>) -> Option<Declaration<'a>>;
-    
-    fn get_exports_of_module(&self, module: &'a ast::Program<'a>) -> Option<std::collections::HashMap<String, Declaration<'a>>>;
-    
+
+    fn get_declaration_of_identifier(
+        &self,
+        id: &'a ast::IdentifierReference<'a>,
+    ) -> Option<Declaration<'a>>;
+
+    fn get_exports_of_module(
+        &self,
+        module: &'a ast::Program<'a>,
+    ) -> Option<std::collections::HashMap<String, Declaration<'a>>>;
+
     fn is_class(&self, node: &'a ast::Declaration<'a>) -> bool;
-    
+
     fn has_base_class(&self, clazz: &'a ClassDeclaration<'a>) -> bool;
-    
-    fn get_base_class_expression(&self, clazz: &'a ClassDeclaration<'a>) -> Option<&'a ast::Expression<'a>>;
-    
+
+    fn get_base_class_expression(
+        &self,
+        clazz: &'a ClassDeclaration<'a>,
+    ) -> Option<&'a ast::Expression<'a>>;
+
     fn get_generic_arity_of_class(&self, clazz: &'a ClassDeclaration<'a>) -> Option<usize>;
-    
-    fn get_variable_value(&self, declaration: &'a ast::VariableDeclarator<'a>) -> Option<&'a ast::Expression<'a>>;
-    
+
+    fn get_variable_value(
+        &self,
+        declaration: &'a ast::VariableDeclarator<'a>,
+    ) -> Option<&'a ast::Expression<'a>>;
+
     fn is_statically_exported(&self, decl: &'a ast::Declaration<'a>) -> bool;
 }

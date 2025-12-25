@@ -4,9 +4,9 @@
 //! XLIFF 2.0 format serializer
 #![allow(dead_code)]
 
-use crate::i18n::i18n_ast::{self as i18n, Message, Node, Visitor};
 use crate::i18n::digest::decimal_digest;
-use crate::i18n::serializers::serializer::{Serializer, PlaceholderMapper};
+use crate::i18n::i18n_ast::{self as i18n, Message, Node, Visitor};
+use crate::i18n::serializers::serializer::{PlaceholderMapper, Serializer};
 use crate::i18n::serializers::xml_helper as xml;
 use crate::i18n::translation_bundle::LoadResult;
 use std::collections::HashMap;
@@ -44,7 +44,7 @@ impl Serializer for Xliff2 {
     fn write(&self, messages: &[Message], locale: Option<&str>) -> String {
         let mut visitor = Xliff2Visitor;
         let source_lang = locale.unwrap_or(DEFAULT_SOURCE_LANG);
-        
+
         let mut xliff_attrs = HashMap::new();
         xliff_attrs.insert("version".to_string(), VERSION.to_string());
         xliff_attrs.insert("xmlns".to_string(), XMLNS.to_string());
@@ -65,7 +65,9 @@ impl Serializer for Xliff2 {
                 let mut note_attrs = HashMap::new();
                 note_attrs.insert("category".to_string(), "x-meaning".to_string());
                 let mut note_tag = xml::Tag::new("note".to_string(), note_attrs, Vec::new());
-                note_tag.children.push(Box::new(xml::Text::new(message.meaning.clone())));
+                note_tag
+                    .children
+                    .push(Box::new(xml::Text::new(message.meaning.clone())));
                 unit_tag.children.push(Box::new(note_tag));
             }
 
@@ -73,7 +75,9 @@ impl Serializer for Xliff2 {
                 let mut note_attrs = HashMap::new();
                 note_attrs.insert("category".to_string(), "x-description".to_string());
                 let mut note_tag = xml::Tag::new("note".to_string(), note_attrs, Vec::new());
-                note_tag.children.push(Box::new(xml::Text::new(message.description.clone())));
+                note_tag
+                    .children
+                    .push(Box::new(xml::Text::new(message.description.clone())));
                 unit_tag.children.push(Box::new(note_tag));
             }
 
@@ -135,11 +139,21 @@ impl Xliff2Visitor {
 }
 
 impl Visitor for Xliff2Visitor {
-    fn visit_text(&mut self, text: &i18n::Text, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
-        Box::new(vec![Box::new(xml::Text::new(text.value.clone())) as Box<dyn xml::Node>])
+    fn visit_text(
+        &mut self,
+        text: &i18n::Text,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
+        Box::new(vec![
+            Box::new(xml::Text::new(text.value.clone())) as Box<dyn xml::Node>
+        ])
     }
 
-    fn visit_container(&mut self, container: &i18n::Container, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_container(
+        &mut self,
+        container: &i18n::Container,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let mut result: Vec<Box<dyn xml::Node>> = Vec::new();
         for child in &container.children {
             let child_nodes = child.visit(self, None);
@@ -150,20 +164,26 @@ impl Visitor for Xliff2Visitor {
         Box::new(result)
     }
 
-    fn visit_icu(&mut self, icu: &i18n::Icu, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_icu(
+        &mut self,
+        icu: &i18n::Icu,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         // ICU messages are converted to text representation
         let mut result: Vec<Box<dyn xml::Node>> = Vec::new();
         let mut case_texts = Vec::new();
         for (k, v) in &icu.cases {
             let case_nodes = v.visit(self, None);
-            let case_text = if let Ok(nodes_vec) = case_nodes.downcast::<Vec<Box<dyn xml::Node>>>() {
+            let case_text = if let Ok(nodes_vec) = case_nodes.downcast::<Vec<Box<dyn xml::Node>>>()
+            {
                 xml::serialize(&nodes_vec)
             } else {
                 String::new()
             };
             case_texts.push(format!("{} {{{}}}", k, case_text));
         }
-        let icu_text = format!("{{{{{}}}, {}, {}}}", 
+        let icu_text = format!(
+            "{{{{{}}}, {}, {}}}",
             icu.expression,
             icu.type_,
             case_texts.join(" ")
@@ -172,48 +192,63 @@ impl Visitor for Xliff2Visitor {
         Box::new(result)
     }
 
-    fn visit_tag_placeholder(&mut self, ph: &i18n::TagPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_tag_placeholder(
+        &mut self,
+        ph: &i18n::TagPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let mut attrs = HashMap::new();
         attrs.insert("id".to_string(), ph.start_name.clone());
         let mut ph_tag = xml::Tag::new(PLACEHOLDER_SPANNING_TAG.to_string(), attrs, Vec::new());
-        
+
         for child in &ph.children {
             let child_nodes = child.visit(self, None);
             if let Ok(nodes_vec) = child_nodes.downcast::<Vec<Box<dyn xml::Node>>>() {
                 ph_tag.children.extend(*nodes_vec);
             }
         }
-        
+
         Box::new(vec![Box::new(ph_tag) as Box<dyn xml::Node>])
     }
 
-    fn visit_placeholder(&mut self, ph: &i18n::Placeholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_placeholder(
+        &mut self,
+        ph: &i18n::Placeholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let mut attrs = HashMap::new();
         attrs.insert("id".to_string(), ph.name.clone());
         let ph_tag = xml::Tag::new(PLACEHOLDER_TAG.to_string(), attrs, Vec::new());
         Box::new(vec![Box::new(ph_tag) as Box<dyn xml::Node>])
     }
 
-    fn visit_block_placeholder(&mut self, ph: &i18n::BlockPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_block_placeholder(
+        &mut self,
+        ph: &i18n::BlockPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let mut attrs = HashMap::new();
         attrs.insert("id".to_string(), ph.start_name.clone());
         let mut ph_tag = xml::Tag::new(PLACEHOLDER_SPANNING_TAG.to_string(), attrs, Vec::new());
-        
+
         for child in &ph.children {
             let child_nodes = child.visit(self, None);
             if let Ok(nodes_vec) = child_nodes.downcast::<Vec<Box<dyn xml::Node>>>() {
                 ph_tag.children.extend(*nodes_vec);
             }
         }
-        
+
         Box::new(vec![Box::new(ph_tag) as Box<dyn xml::Node>])
     }
 
-    fn visit_icu_placeholder(&mut self, ph: &i18n::IcuPlaceholder, _context: Option<&mut dyn std::any::Any>) -> Box<dyn std::any::Any> {
+    fn visit_icu_placeholder(
+        &mut self,
+        ph: &i18n::IcuPlaceholder,
+        _context: Option<&mut dyn std::any::Any>,
+    ) -> Box<dyn std::any::Any> {
         let mut attrs = HashMap::new();
         attrs.insert("id".to_string(), ph.name.clone());
         let ph_tag = xml::Tag::new(PLACEHOLDER_TAG.to_string(), attrs, Vec::new());
         Box::new(vec![Box::new(ph_tag) as Box<dyn xml::Node>])
     }
 }
-

@@ -48,15 +48,9 @@ pub fn create_unknown_property_diagnostic(
 }
 
 /// Create a diagnostic for unknown element.
-pub fn create_unknown_element_diagnostic(
-    file: &str,
-    element: &str,
-) -> TypeCheckError {
+pub fn create_unknown_element_diagnostic(file: &str, element: &str) -> TypeCheckError {
     TypeCheckError {
-        message: format!(
-            "'{}' is not a known element",
-            element
-        ),
+        message: format!("'{}' is not a known element", element),
         code: TemplateDiagnosticCode::UnknownElement.code(),
         file: Some(file.to_string()),
         start: None,
@@ -65,10 +59,7 @@ pub fn create_unknown_element_diagnostic(
 }
 
 /// Create a diagnostic for missing pipe.
-pub fn create_missing_pipe_diagnostic(
-    file: &str,
-    pipe_name: &str,
-) -> TypeCheckError {
+pub fn create_missing_pipe_diagnostic(file: &str, pipe_name: &str) -> TypeCheckError {
     TypeCheckError {
         message: format!("The pipe '{}' could not be found", pipe_name),
         code: TemplateDiagnosticCode::MissingPipe.code(),
@@ -79,16 +70,9 @@ pub fn create_missing_pipe_diagnostic(
 }
 
 /// Create a diagnostic for type mismatch.
-pub fn create_type_mismatch_diagnostic(
-    file: &str,
-    expected: &str,
-    actual: &str,
-) -> TypeCheckError {
+pub fn create_type_mismatch_diagnostic(file: &str, expected: &str, actual: &str) -> TypeCheckError {
     TypeCheckError {
-        message: format!(
-            "Type '{}' is not assignable to type '{}'",
-            actual, expected
-        ),
+        message: format!("Type '{}' is not assignable to type '{}'", actual, expected),
         code: TemplateDiagnosticCode::TypeMismatch.code(),
         file: Some(file.to_string()),
         start: None,

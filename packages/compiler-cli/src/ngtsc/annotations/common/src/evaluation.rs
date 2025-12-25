@@ -23,7 +23,7 @@ impl ViewEncapsulation {
             _ => None,
         }
     }
-    
+
     /// Parse from number.
     pub fn from_number(n: i32) -> Option<Self> {
         match n {
@@ -47,7 +47,11 @@ pub struct EnumValue {
 }
 
 impl EnumValue {
-    pub fn new(enum_name: impl Into<String>, member_name: impl Into<String>, resolved: i32) -> Self {
+    pub fn new(
+        enum_name: impl Into<String>,
+        member_name: impl Into<String>,
+        resolved: i32,
+    ) -> Self {
         Self {
             enum_name: enum_name.into(),
             member_name: member_name.into(),
@@ -69,10 +73,12 @@ pub fn resolve_enum_value(
             return Ok(Some(encap as i32));
         }
     }
-    
+
     // Check for valid enum reference pattern
     let expected_prefix = format!("{}.", enum_symbol_name);
-    if expr_text.starts_with(&expected_prefix) || expr_text.contains(&format!(".{}", expected_prefix)) {
+    if expr_text.starts_with(&expected_prefix)
+        || expr_text.contains(&format!(".{}", expected_prefix))
+    {
         // Would need actual evaluation here
         Ok(None)
     } else {
@@ -86,7 +92,7 @@ pub fn resolve_enum_value(
 /// Resolve ViewEncapsulation enum locally from expression text.
 pub fn resolve_encapsulation_enum_value_locally(expr_text: &str) -> Option<ViewEncapsulation> {
     let trimmed = expr_text.trim();
-    
+
     // Check for ViewEncapsulation.X or something.ViewEncapsulation.X
     for (name, value) in [
         ("None", ViewEncapsulation::None),
@@ -98,7 +104,7 @@ pub fn resolve_encapsulation_enum_value_locally(expr_text: &str) -> Option<ViewE
             return Some(value);
         }
     }
-    
+
     None
 }
 
@@ -127,25 +133,25 @@ impl ResolvedValue {
     pub fn is_string(&self) -> bool {
         matches!(self, ResolvedValue::String(_))
     }
-    
+
     pub fn is_array(&self) -> bool {
         matches!(self, ResolvedValue::Array(_))
     }
-    
+
     pub fn as_string(&self) -> Option<&str> {
         match self {
             ResolvedValue::String(s) => Some(s),
             _ => None,
         }
     }
-    
+
     pub fn as_array(&self) -> Option<&Vec<ResolvedValue>> {
         match self {
             ResolvedValue::Array(arr) => Some(arr),
             _ => None,
         }
     }
-    
+
     pub fn into_string_array(self) -> Option<Vec<String>> {
         match self {
             ResolvedValue::Array(arr) => {

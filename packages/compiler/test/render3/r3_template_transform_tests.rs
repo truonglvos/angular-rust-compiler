@@ -4,7 +4,7 @@
 
 use angular_compiler::expression_parser::ast::{BindingType, ParsedEventType};
 use angular_compiler::render3::r3_ast as t;
-use angular_compiler::render3::r3_ast::{Visitor, Node};
+use angular_compiler::render3::r3_ast::{Node, Visitor};
 // Include test utilities
 #[path = "../expression_parser/utils/unparser.rs"]
 mod unparser_mod;
@@ -21,11 +21,9 @@ struct R3AstHumanizer {
 
 impl R3AstHumanizer {
     fn new() -> Self {
-        R3AstHumanizer {
-            result: vec![],
-        }
+        R3AstHumanizer { result: vec![] }
     }
-    
+
     fn visit_all(&mut self, nodes: &[t::R3Node]) {
         use t::visit_all;
         let _ = visit_all(self, nodes);
@@ -34,7 +32,7 @@ impl R3AstHumanizer {
 
 impl Visitor for R3AstHumanizer {
     type Result = ();
-    
+
     fn visit_element(&mut self, element: &t::Element) {
         let mut res = vec!["Element".to_string(), element.name.clone()];
         if element.is_self_closing {
@@ -59,7 +57,7 @@ impl Visitor for R3AstHumanizer {
         }
         self.visit_all(&element.children);
     }
-    
+
     fn visit_template(&mut self, template: &t::Template) {
         let mut res = vec!["Template".to_string()];
         if template.is_self_closing {
@@ -93,7 +91,7 @@ impl Visitor for R3AstHumanizer {
         }
         self.visit_all(&template.children);
     }
-    
+
     fn visit_content(&mut self, content: &t::Content) {
         let mut res = vec!["Content".to_string(), content.selector.clone()];
         if content.is_self_closing {
@@ -105,7 +103,7 @@ impl Visitor for R3AstHumanizer {
         }
         self.visit_all(&content.children);
     }
-    
+
     fn visit_variable(&mut self, variable: &t::Variable) {
         self.result.push(vec![
             "Variable".to_string(),
@@ -113,7 +111,7 @@ impl Visitor for R3AstHumanizer {
             variable.value.clone(),
         ]);
     }
-    
+
     fn visit_reference(&mut self, reference: &t::Reference) {
         self.result.push(vec![
             "Reference".to_string(),
@@ -121,7 +119,7 @@ impl Visitor for R3AstHumanizer {
             reference.value.clone(),
         ]);
     }
-    
+
     fn visit_text_attribute(&mut self, attribute: &t::TextAttribute) {
         self.result.push(vec![
             "TextAttribute".to_string(),
@@ -129,7 +127,7 @@ impl Visitor for R3AstHumanizer {
             attribute.value.clone(),
         ]);
     }
-    
+
     fn visit_bound_attribute(&mut self, attribute: &t::BoundAttribute) {
         let binding_type_str = match attribute.type_ {
             BindingType::Property => "0",
@@ -139,11 +137,12 @@ impl Visitor for R3AstHumanizer {
             BindingType::LegacyAnimation => "4",
             BindingType::TwoWay => "5",
             BindingType::Animation => "6",
-        }.to_string();
-        
+        }
+        .to_string();
+
         // For BoundAttribute, value is ExprAST
         let value_str = unparse(&attribute.value);
-        
+
         self.result.push(vec![
             "BoundAttribute".to_string(),
             binding_type_str,
@@ -151,20 +150,21 @@ impl Visitor for R3AstHumanizer {
             value_str,
         ]);
     }
-    
+
     fn visit_bound_event(&mut self, event: &t::BoundEvent) {
         let event_type_str = match event.type_ {
             ParsedEventType::Regular => "0",
             ParsedEventType::Animation => "1",
             ParsedEventType::TwoWay => "2",
             ParsedEventType::LegacyAnimation => "3",
-        }.to_string();
-        
+        }
+        .to_string();
+
         // BoundEvent has handler as ExprAST
         let handler_str = unparse(&event.handler);
-        
+
         let target_str = event.target.clone().unwrap_or_else(|| String::new());
-        
+
         self.result.push(vec![
             "BoundEvent".to_string(),
             event_type_str,
@@ -173,24 +173,25 @@ impl Visitor for R3AstHumanizer {
             handler_str,
         ]);
     }
-    
+
     fn visit_text(&mut self, text: &t::Text) {
-        self.result.push(vec!["Text".to_string(), text.value.clone()]);
+        self.result
+            .push(vec!["Text".to_string(), text.value.clone()]);
     }
-    
+
     fn visit_bound_text(&mut self, text: &t::BoundText) {
         // BoundText has value as ExprAST directly
         let value_str = unparse(&text.value);
         self.result.push(vec!["BoundText".to_string(), value_str]);
     }
-    
+
     fn visit_icu(&mut self, _icu: &t::Icu) {
         // ICUs are not included in humanized output for these tests
     }
-    
+
     fn visit_deferred_block(&mut self, deferred: &t::DeferredBlock) {
         self.result.push(vec!["DeferredBlock".to_string()]);
-        
+
         // Visit triggers
         if let Some(ref when) = deferred.triggers.when {
             self.visit_deferred_trigger(&t::DeferredTrigger::Bound(when.clone()));
@@ -216,7 +217,7 @@ impl Visitor for R3AstHumanizer {
         if let Some(ref never) = deferred.triggers.never {
             self.visit_deferred_trigger(&t::DeferredTrigger::Never(never.clone()));
         }
-        
+
         self.visit_all(&deferred.children);
         if let Some(ref placeholder) = deferred.placeholder {
             placeholder.visit(self);
@@ -228,7 +229,7 @@ impl Visitor for R3AstHumanizer {
             error.visit(self);
         }
     }
-    
+
     fn visit_switch_block(&mut self, switch: &t::SwitchBlock) {
         // SwitchBlock has expression as ExprAST directly
         let expr_str = unparse(&switch.expression);
@@ -237,7 +238,7 @@ impl Visitor for R3AstHumanizer {
             case.visit(self);
         }
     }
-    
+
     fn visit_switch_block_case(&mut self, case: &t::SwitchBlockCase) {
         // SwitchBlockCase has expression as Option<ExprAST>
         let expr_str = if let Some(ref expr) = case.expression {
@@ -245,22 +246,17 @@ impl Visitor for R3AstHumanizer {
         } else {
             String::new()
         };
-        self.result.push(vec![
-            "SwitchBlockCase".to_string(),
-            expr_str,
-        ]);
+        self.result
+            .push(vec!["SwitchBlockCase".to_string(), expr_str]);
         self.visit_all(&case.children);
     }
-    
+
     fn visit_for_loop_block(&mut self, for_loop: &t::ForLoopBlock) {
         // ForLoopBlock has expression and track_by as ASTWithSource
         let expr_str = unparse(&for_loop.expression.ast);
         let track_by_str = unparse(&for_loop.track_by.ast);
-        self.result.push(vec![
-            "ForLoopBlock".to_string(),
-            expr_str,
-            track_by_str,
-        ]);
+        self.result
+            .push(vec!["ForLoopBlock".to_string(), expr_str, track_by_str]);
         for_loop.item.visit(self);
         for var in &for_loop.context_variables {
             var.visit(self);
@@ -270,19 +266,19 @@ impl Visitor for R3AstHumanizer {
             empty.visit(self);
         }
     }
-    
+
     fn visit_for_loop_block_empty(&mut self, _empty: &t::ForLoopBlockEmpty) {
         self.result.push(vec!["ForLoopBlockEmpty".to_string()]);
         // Note: ForLoopBlockEmpty children visit handled by parent
     }
-    
+
     fn visit_if_block(&mut self, if_block: &t::IfBlock) {
         self.result.push(vec!["IfBlock".to_string()]);
         for branch in &if_block.branches {
             branch.visit(self);
         }
     }
-    
+
     fn visit_if_block_branch(&mut self, branch: &t::IfBlockBranch) {
         // IfBlockBranch has expression as Option<ExprAST>
         let expr_str = if let Some(ref expr) = branch.expression {
@@ -290,20 +286,19 @@ impl Visitor for R3AstHumanizer {
         } else {
             String::new()
         };
-        self.result.push(vec![
-            "IfBlockBranch".to_string(),
-            expr_str,
-        ]);
+        self.result
+            .push(vec!["IfBlockBranch".to_string(), expr_str]);
         if let Some(ref expr_alias) = branch.expression_alias {
             expr_alias.visit(self);
         }
         self.visit_all(&branch.children);
     }
-    
+
     fn visit_unknown_block(&mut self, block: &t::UnknownBlock) {
-        self.result.push(vec!["UnknownBlock".to_string(), block.name.clone()]);
+        self.result
+            .push(vec!["UnknownBlock".to_string(), block.name.clone()]);
     }
-    
+
     fn visit_let_declaration(&mut self, decl: &t::LetDeclaration) {
         // LetDeclaration has value as ExprAST directly
         let value_str = unparse(&decl.value);
@@ -313,7 +308,7 @@ impl Visitor for R3AstHumanizer {
             value_str,
         ]);
     }
-    
+
     fn visit_component(&mut self, component: &t::Component) {
         let mut res = vec![
             "Component".to_string(),
@@ -342,9 +337,10 @@ impl Visitor for R3AstHumanizer {
         }
         self.visit_all(&component.children);
     }
-    
+
     fn visit_directive(&mut self, directive: &t::Directive) {
-        self.result.push(vec!["Directive".to_string(), directive.name.clone()]);
+        self.result
+            .push(vec!["Directive".to_string(), directive.name.clone()]);
         for attr in &directive.attributes {
             attr.visit(self);
         }
@@ -358,23 +354,23 @@ impl Visitor for R3AstHumanizer {
             reference.visit(self);
         }
     }
-    
+
     fn visit_deferred_trigger(&mut self, trigger: &t::DeferredTrigger) {
         match trigger {
             t::DeferredTrigger::Bound(b) => {
                 // BoundDeferredTrigger has value as ExprAST directly
                 let value_str = unparse(&b.value);
-                self.result.push(vec!["BoundDeferredTrigger".to_string(), value_str]);
+                self.result
+                    .push(vec!["BoundDeferredTrigger".to_string(), value_str]);
             }
             t::DeferredTrigger::Immediate(_i) => {
-                self.result.push(vec!["ImmediateDeferredTrigger".to_string()]);
+                self.result
+                    .push(vec!["ImmediateDeferredTrigger".to_string()]);
             }
             t::DeferredTrigger::Hover(h) => {
                 let ref_str = h.reference.clone().unwrap_or_else(|| String::new());
-                self.result.push(vec![
-                    "HoverDeferredTrigger".to_string(),
-                    ref_str,
-                ]);
+                self.result
+                    .push(vec!["HoverDeferredTrigger".to_string(), ref_str]);
             }
             t::DeferredTrigger::Idle(_i) => {
                 self.result.push(vec!["IdleDeferredTrigger".to_string()]);
@@ -387,10 +383,8 @@ impl Visitor for R3AstHumanizer {
             }
             t::DeferredTrigger::Interaction(i) => {
                 let ref_str = i.reference.clone().unwrap_or_else(|| String::new());
-                self.result.push(vec![
-                    "InteractionDeferredTrigger".to_string(),
-                    ref_str,
-                ]);
+                self.result
+                    .push(vec!["InteractionDeferredTrigger".to_string(), ref_str]);
             }
             t::DeferredTrigger::Viewport(v) => {
                 let ref_str = v.reference.clone().unwrap_or_else(|| String::new());
@@ -408,7 +402,7 @@ impl Visitor for R3AstHumanizer {
             }
         }
     }
-    
+
     fn visit_deferred_block_placeholder(&mut self, placeholder: &t::DeferredBlockPlaceholder) {
         let mut res = vec!["DeferredBlockPlaceholder".to_string()];
         if let Some(min_time) = placeholder.minimum_time {
@@ -417,7 +411,7 @@ impl Visitor for R3AstHumanizer {
         self.result.push(res);
         self.visit_all(&placeholder.children);
     }
-    
+
     fn visit_deferred_block_loading(&mut self, loading: &t::DeferredBlockLoading) {
         let mut res = vec!["DeferredBlockLoading".to_string()];
         if let Some(after_time) = loading.after_time {
@@ -429,23 +423,30 @@ impl Visitor for R3AstHumanizer {
         self.result.push(res);
         self.visit_all(&loading.children);
     }
-    
+
     fn visit_deferred_block_error(&mut self, error: &t::DeferredBlockError) {
         self.result.push(vec!["DeferredBlockError".to_string()]);
         self.visit_all(&error.children);
     }
-    
+
     fn visit_comment(&mut self, _comment: &t::Comment) {
         // Comments not included in humanized output
     }
 }
 
-fn expect_from_html(html: &str, ignore_error: bool, selectorless_enabled: bool) -> Vec<Vec<String>> {
-    let res = parse_r3(html, ParseR3Options {
-        ignore_error: Some(ignore_error),
-        selectorless_enabled: Some(selectorless_enabled),
-        ..Default::default()
-    });
+fn expect_from_html(
+    html: &str,
+    ignore_error: bool,
+    selectorless_enabled: bool,
+) -> Vec<Vec<String>> {
+    let res = parse_r3(
+        html,
+        ParseR3Options {
+            ignore_error: Some(ignore_error),
+            selectorless_enabled: Some(selectorless_enabled),
+            ..Default::default()
+        },
+    );
     expect_from_r3_nodes(&res.nodes)
 }
 
@@ -534,7 +535,9 @@ mod tests {
         fn should_parse_elements_with_attributes() {
             let result = expect_from_html("<div a=b></div>", false, false);
             assert!(result.iter().any(|v| v[0] == "Element" && v[1] == "div"));
-            assert!(result.iter().any(|v| v[0] == "TextAttribute" && v[1] == "a" && v[2] == "b"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "TextAttribute" && v[1] == "a" && v[2] == "b"));
         }
 
         #[test]
@@ -560,37 +563,49 @@ mod tests {
         #[test]
         fn should_parse_mixed_case_bound_properties() {
             let result = expect_from_html("<div [someProp]=\"v\"></div>", false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "someProp"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "someProp"));
         }
 
         #[test]
         fn should_parse_bound_properties_via_bind() {
             let result = expect_from_html("<div bind-prop=\"v\"></div>", false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
         }
 
         #[test]
         fn should_parse_bound_properties_via_interpolation() {
             let result = expect_from_html("<div prop=\"{{v}}\"></div>", false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
         }
 
         #[test]
         fn should_parse_mixed_case_bound_attributes() {
             let result = expect_from_html("<div [attr.someAttr]=\"v\"></div>", false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "someAttr"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "someAttr"));
         }
 
         #[test]
         fn should_parse_bound_classes() {
             let result = expect_from_html("<div [class.some-class]=\"v\"></div>", false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "some-class"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "some-class"));
         }
 
         #[test]
         fn should_parse_bound_styles() {
             let result = expect_from_html("<div [style.someStyle]=\"v\"></div>", false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "someStyle"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "someStyle"));
         }
     }
 
@@ -601,7 +616,9 @@ mod tests {
         fn should_support_star_directives() {
             let result = expect_from_html("<div *ngIf></div>", false, false);
             assert!(result.iter().any(|v| v[0] == "Template"));
-            assert!(result.iter().any(|v| v[0] == "TextAttribute" && v[1] == "ngIf"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "TextAttribute" && v[1] == "ngIf"));
         }
 
         #[test]
@@ -632,7 +649,9 @@ mod tests {
         fn should_support_attribute_and_bound_attributes() {
             let result = expect_from_html("<div *ngFor=\"let item of items\"></div>", false, false);
             assert!(result.iter().any(|v| v[0] == "Template"));
-            assert!(result.iter().any(|v| v[0] == "TextAttribute" && v[1] == "ngFor"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "TextAttribute" && v[1] == "ngFor"));
             assert!(result.iter().any(|v| v[0] == "BoundAttribute"));
             assert!(result.iter().any(|v| v[0] == "Variable"));
         }
@@ -644,23 +663,33 @@ mod tests {
         #[test]
         fn should_parse_event_names_case_sensitive() {
             let result = expect_from_html("<div (some-event)=\"v\"></div>", false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundEvent" && v[2] == "some-event"));
-            
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundEvent" && v[2] == "some-event"));
+
             let result2 = expect_from_html("<div (someEvent)=\"v\"></div>", false, false);
-            assert!(result2.iter().any(|v| v[0] == "BoundEvent" && v[2] == "someEvent"));
+            assert!(result2
+                .iter()
+                .any(|v| v[0] == "BoundEvent" && v[2] == "someEvent"));
         }
 
         #[test]
         fn should_parse_bound_events_via_on() {
             let result = expect_from_html("<div on-event=\"v\"></div>", false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundEvent" && v[2] == "event"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundEvent" && v[2] == "event"));
         }
 
         #[test]
         fn should_parse_bound_events_and_properties_via_two_way_binding() {
             let result = expect_from_html("<div [(prop)]=\"v\"></div>", false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
-            assert!(result.iter().any(|v| v[0] == "BoundEvent" && v[2] == "propChange"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundEvent" && v[2] == "propChange"));
         }
     }
 
@@ -702,22 +731,33 @@ mod tests {
 
         #[test]
         fn should_parse_ng_content_when_it_contains_ws_only() {
-            let result = expect_from_html(r#"<ng-content select="a">    \n   </ng-content>"#, false, false);
+            let result = expect_from_html(
+                r#"<ng-content select="a">    \n   </ng-content>"#,
+                false,
+                false,
+            );
             assert!(result.iter().any(|v| v[0] == "Content" && v[1] == "a"));
         }
 
         #[test]
         fn should_parse_ng_content_regardless_the_namespace() {
-            let result = expect_from_html(r#"<svg><ng-content select="a"></ng-content></svg>"#, false, false);
-            assert!(result.iter().any(|v| v[0] == "Element" && v[1] == ":svg:svg"));
+            let result = expect_from_html(
+                r#"<svg><ng-content select="a"></ng-content></svg>"#,
+                false,
+                false,
+            );
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "Element" && v[1] == ":svg:svg"));
             assert!(result.iter().any(|v| v[0] == "Content" && v[1] == "a"));
         }
 
         #[test]
         fn should_indicate_whether_an_element_is_void() {
             let result = parse_r3("<input><div></div>", ParseR3Options::default());
-            if let (Some(t::R3Node::Element(input)), Some(t::R3Node::Element(div))) = 
-                (result.nodes.get(0), result.nodes.get(1)) {
+            if let (Some(t::R3Node::Element(input)), Some(t::R3Node::Element(div))) =
+                (result.nodes.get(0), result.nodes.get(1))
+            {
                 assert_eq!(input.name, "input");
                 assert!(input.is_void);
                 assert_eq!(div.name, "div");
@@ -734,25 +774,33 @@ mod tests {
         #[test]
         fn should_parse_dash_case_bound_properties() {
             let result = expect_from_html(r#"<div [some-prop]="v"></div>"#, false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "some-prop"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "some-prop"));
         }
 
         #[test]
         fn should_parse_dotted_name_bound_properties() {
             let result = expect_from_html(r#"<div [d.ot]="v"></div>"#, false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "d.ot"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "d.ot"));
         }
 
         #[test]
         fn should_parse_and_dash_case_bound_classes() {
             let result = expect_from_html(r#"<div [class.some-class]="v"></div>"#, false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "some-class"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "some-class"));
         }
 
         #[test]
         fn should_parse_mixed_case_bound_classes() {
             let result = expect_from_html(r#"<div [class.someClass]="v"></div>"#, false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "someClass"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "someClass"));
         }
 
         #[test]
@@ -762,8 +810,12 @@ mod tests {
                 false,
                 false,
             );
-            assert!(result.iter().any(|v| v[0] == "Element" && v[1] == "foo" && v.contains(&"#selfClosing".to_string())));
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "text-primary/80"));
+            assert!(result.iter().any(|v| v[0] == "Element"
+                && v[1] == "foo"
+                && v.contains(&"#selfClosing".to_string())));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "text-primary/80"));
         }
     }
 
@@ -773,19 +825,35 @@ mod tests {
         #[test]
         fn should_support_animate_enter() {
             let result = expect_from_html(r#"<div animate.enter="foo"></div>"#, false, false);
-            assert!(result.iter().any(|v| v[0] == "TextAttribute" && v[1] == "animate.enter"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "TextAttribute" && v[1] == "animate.enter"));
 
-            let result2 = expect_from_html(r#"<div [animate.enter]="['foo', 'bar']"></div>"#, false, false);
-            assert!(result2.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "animate.enter"));
+            let result2 = expect_from_html(
+                r#"<div [animate.enter]="['foo', 'bar']"></div>"#,
+                false,
+                false,
+            );
+            assert!(result2
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "animate.enter"));
 
-            let result3 = expect_from_html(r#"<div (animate.enter)="animateFn($event)"></div>"#, false, false);
-            assert!(result3.iter().any(|v| v[0] == "BoundEvent" && v[2] == "animate.enter"));
+            let result3 = expect_from_html(
+                r#"<div (animate.enter)="animateFn($event)"></div>"#,
+                false,
+                false,
+            );
+            assert!(result3
+                .iter()
+                .any(|v| v[0] == "BoundEvent" && v[2] == "animate.enter"));
         }
 
         #[test]
         fn should_support_animate_leave() {
             let result = expect_from_html(r#"<div animate.leave="foo"></div>"#, false, false);
-            assert!(result.iter().any(|v| v[0] == "TextAttribute" && v[1] == "animate.leave"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "TextAttribute" && v[1] == "animate.leave"));
         }
     }
 
@@ -795,38 +863,59 @@ mod tests {
         #[test]
         fn should_support_ng_template_regardless_the_namespace() {
             let result = expect_from_html("<svg><ng-template></ng-template></svg>", false, false);
-            assert!(result.iter().any(|v| v[0] == "Element" && v[1] == ":svg:svg"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "Element" && v[1] == ":svg:svg"));
             assert!(result.iter().any(|v| v[0] == "Template"));
         }
 
         #[test]
         fn should_support_ng_template_with_structural_directive() {
-            let result = expect_from_html(r#"<ng-template *ngIf="true"></ng-template>"#, false, false);
+            let result =
+                expect_from_html(r#"<ng-template *ngIf="true"></ng-template>"#, false, false);
             assert!(result.iter().any(|v| v[0] == "Template"));
             assert!(result.iter().any(|v| v[0] == "BoundAttribute"));
         }
 
         #[test]
         fn should_parse_attributes() {
-            let result = expect_from_html(r#"<ng-template k1="v1" k2="v2"></ng-template>"#, false, false);
+            let result = expect_from_html(
+                r#"<ng-template k1="v1" k2="v2"></ng-template>"#,
+                false,
+                false,
+            );
             assert!(result.iter().any(|v| v[0] == "Template"));
-            assert!(result.iter().any(|v| v[0] == "TextAttribute" && v[1] == "k1" && v[2] == "v1"));
-            assert!(result.iter().any(|v| v[0] == "TextAttribute" && v[1] == "k2" && v[2] == "v2"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "TextAttribute" && v[1] == "k1" && v[2] == "v1"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "TextAttribute" && v[1] == "k2" && v[2] == "v2"));
         }
 
         #[test]
         fn should_parse_bound_attributes() {
-            let result = expect_from_html(r#"<ng-template [k1]="v1" [k2]="v2"></ng-template>"#, false, false);
+            let result = expect_from_html(
+                r#"<ng-template [k1]="v1" [k2]="v2"></ng-template>"#,
+                false,
+                false,
+            );
             assert!(result.iter().any(|v| v[0] == "Template"));
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "k1"));
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "k2"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "k1"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "k2"));
         }
 
         #[test]
         fn should_parse_variables_via_as() {
             let result = expect_from_html(r#"<div *ngIf="expr as local"></div>"#, false, false);
             assert!(result.iter().any(|v| v[0] == "Template"));
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "ngIf"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "ngIf"));
             assert!(result.iter().any(|v| v[0] == "Variable" && v[1] == "local"));
         }
     }
@@ -837,21 +926,31 @@ mod tests {
         #[test]
         fn should_parse_bound_events_with_a_target() {
             let result = expect_from_html(r#"<div (window:event)="v"></div>"#, false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundEvent" && v[2] == "event" && v[3] == "window"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundEvent" && v[2] == "event" && v[3] == "window"));
         }
 
         #[test]
         fn should_parse_property_reads_bound_via_two_way_binding() {
             let result = expect_from_html(r#"<div [(prop)]="a.b.c"></div>"#, false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
-            assert!(result.iter().any(|v| v[0] == "BoundEvent" && v[2] == "propChange"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundEvent" && v[2] == "propChange"));
         }
 
         #[test]
         fn should_parse_keyed_reads_bound_via_two_way_binding() {
             let result = expect_from_html(r#"<div [(prop)]="a['b']['c']"></div>"#, false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
-            assert!(result.iter().any(|v| v[0] == "BoundEvent" && v[2] == "propChange"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundEvent" && v[2] == "propChange"));
         }
     }
 
@@ -862,7 +961,9 @@ mod tests {
         fn should_parse_variables_via_let_on_template() {
             let result = expect_from_html(r#"<ng-template let-a="b"></ng-template>"#, false, false);
             assert!(result.iter().any(|v| v[0] == "Template"));
-            assert!(result.iter().any(|v| v[0] == "Variable" && v[1] == "a" && v[2] == "b"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "Variable" && v[1] == "a" && v[2] == "b"));
         }
     }
 
@@ -872,7 +973,9 @@ mod tests {
         #[test]
         fn should_parse_camel_case_references() {
             let result = expect_from_html("<div #someA></div>", false, false);
-            assert!(result.iter().any(|v| v[0] == "Reference" && v[1] == "someA"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "Reference" && v[1] == "someA"));
         }
     }
 
@@ -881,8 +984,14 @@ mod tests {
 
         #[test]
         fn should_parse_ng_content_with_a_specific_selector() {
-            let result = expect_from_html(r#"<ng-content select="tag[attribute]"></ng-content>"#, false, false);
-            assert!(result.iter().any(|v| v[0] == "Content" && v[1] == "tag[attribute]"));
+            let result = expect_from_html(
+                r#"<ng-content select="tag[attribute]"></ng-content>"#,
+                false,
+                false,
+            );
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "Content" && v[1] == "tag[attribute]"));
         }
 
         #[test]
@@ -893,7 +1002,9 @@ mod tests {
                 false,
             );
             assert!(result.iter().any(|v| v[0] == "Content"));
-            assert!(result.iter().any(|v| v[0] == "Element" && v[1] == "section"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "Element" && v[1] == "section"));
             assert!(result.iter().any(|v| v[0] == "Element" && v[1] == "div"));
             assert!(result.iter().any(|v| v[0] == "Element" && v[1] == "span"));
         }
@@ -922,21 +1033,33 @@ mod tests {
 
         #[test]
         fn should_keep_link_rel_stylesheet_elements_if_they_have_an_absolute_url() {
-            let result = expect_from_html(r#"<link rel="stylesheet" href="http://someurl">"#, false, false);
+            let result = expect_from_html(
+                r#"<link rel="stylesheet" href="http://someurl">"#,
+                false,
+                false,
+            );
             assert!(result.iter().any(|v| v[0] == "Element" && v[1] == "link"));
-            assert!(result.iter().any(|v| v[0] == "TextAttribute" && v[1] == "rel" && v[2] == "stylesheet"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "TextAttribute" && v[1] == "rel" && v[2] == "stylesheet"));
         }
 
         #[test]
         fn should_keep_link_rel_stylesheet_elements_if_they_have_no_uri() {
             let result = expect_from_html(r#"<link rel="stylesheet">"#, false, false);
             assert!(result.iter().any(|v| v[0] == "Element" && v[1] == "link"));
-            assert!(result.iter().any(|v| v[0] == "TextAttribute" && v[1] == "rel"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "TextAttribute" && v[1] == "rel"));
         }
 
         #[test]
         fn should_ignore_link_rel_stylesheet_elements_if_they_have_a_relative_uri() {
-            let result = expect_from_html(r#"<link rel="stylesheet" href="./other.css">"#, false, false);
+            let result = expect_from_html(
+                r#"<link rel="stylesheet" href="./other.css">"#,
+                false,
+                false,
+            );
             // Should be empty or not contain link element
             assert!(!result.iter().any(|v| v[0] == "Element" && v[1] == "link"));
         }
@@ -949,13 +1072,19 @@ mod tests {
         fn should_ignore_bindings_on_children_of_elements_with_ng_non_bindable() {
             let result = expect_from_html(r#"<div ngNonBindable>{{b}}</div>"#, false, false);
             assert!(result.iter().any(|v| v[0] == "Element" && v[1] == "div"));
-            assert!(result.iter().any(|v| v[0] == "TextAttribute" && v[1] == "ngNonBindable"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "TextAttribute" && v[1] == "ngNonBindable"));
             assert!(result.iter().any(|v| v[0] == "Text" && v[1] == "{{b}}"));
         }
 
         #[test]
         fn should_keep_nested_children_of_elements_with_ng_non_bindable() {
-            let result = expect_from_html(r#"<div ngNonBindable><span>{{b}}</span></div>"#, false, false);
+            let result = expect_from_html(
+                r#"<div ngNonBindable><span>{{b}}</span></div>"#,
+                false,
+                false,
+            );
             assert!(result.iter().any(|v| v[0] == "Element" && v[1] == "div"));
             assert!(result.iter().any(|v| v[0] == "Element" && v[1] == "span"));
             assert!(result.iter().any(|v| v[0] == "Text" && v[1] == "{{b}}"));
@@ -976,14 +1105,18 @@ mod tests {
         fn should_parse_a_deferred_block_with_a_hover_trigger() {
             let result = expect_from_html("@defer (on hover(button)){hello}", false, false);
             assert!(result.iter().any(|v| v[0] == "DeferredBlock"));
-            assert!(result.iter().any(|v| v[0] == "HoverDeferredTrigger" && v[1] == "button"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "HoverDeferredTrigger" && v[1] == "button"));
         }
 
         #[test]
         fn should_parse_a_deferred_block_with_an_interaction_trigger() {
             let result = expect_from_html("@defer (on interaction(button)){hello}", false, false);
             assert!(result.iter().any(|v| v[0] == "DeferredBlock"));
-            assert!(result.iter().any(|v| v[0] == "InteractionDeferredTrigger" && v[1] == "button"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "InteractionDeferredTrigger" && v[1] == "button"));
         }
 
         #[test]
@@ -1120,7 +1253,10 @@ mod tests {
             );
             assert!(result.iter().any(|v| v[0] == "ForLoopBlock"));
             let for_loop_count = result.iter().filter(|v| v[0] == "ForLoopBlock").count();
-            assert!(for_loop_count >= 2, "Expected at least 2 ForLoopBlock nodes");
+            assert!(
+                for_loop_count >= 2,
+                "Expected at least 2 ForLoopBlock nodes"
+            );
         }
     }
 
@@ -1190,7 +1326,9 @@ mod tests {
         #[test]
         fn should_parse_a_let_declaration() {
             let result = expect_from_html("@let foo = 123 + 456;", false, false);
-            assert!(result.iter().any(|v| v[0] == "LetDeclaration" && v[1] == "foo"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "LetDeclaration" && v[1] == "foo"));
         }
     }
 
@@ -1200,14 +1338,18 @@ mod tests {
         #[test]
         fn should_parse_a_simple_component_node() {
             let result = expect_from_html("<MyComp>Hello</MyComp>", false, true);
-            assert!(result.iter().any(|v| v[0] == "Component" && v[1] == "MyComp"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "Component" && v[1] == "MyComp"));
             assert!(result.iter().any(|v| v[0] == "Text" && v[1] == "Hello"));
         }
 
         #[test]
         fn should_parse_a_component_node_with_a_tag_name() {
             let result = expect_from_html("<MyComp:button>Hello</MyComp:button>", false, true);
-            assert!(result.iter().any(|v| v[0] == "Component" && v[1] == "MyComp"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "Component" && v[1] == "MyComp"));
         }
     }
 
@@ -1229,8 +1371,12 @@ mod tests {
                 true,
             );
             assert!(result.iter().any(|v| v[0] == "Directive" && v[1] == "Dir"));
-            assert!(result.iter().any(|v| v[0] == "TextAttribute" && v[1] == "a"));
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "b"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "TextAttribute" && v[1] == "a"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "b"));
             assert!(result.iter().any(|v| v[0] == "BoundEvent" && v[2] == "c"));
         }
 
@@ -1243,7 +1389,9 @@ mod tests {
             );
             assert!(result.iter().any(|v| v[0] == "Element" && v[1] == "div"));
             assert!(result.iter().any(|v| v[0] == "Directive" && v[1] == "Dir"));
-            assert!(result.iter().any(|v| v[0] == "Directive" && v[1] == "OtherDir"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "Directive" && v[1] == "OtherDir"));
         }
 
         #[test]
@@ -1283,22 +1431,34 @@ mod tests {
         #[test]
         fn should_parse_any_in_a_two_way_binding() {
             let result = expect_from_html(r#"<div [(prop)]="$any(v)"></div>"#, false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
-            assert!(result.iter().any(|v| v[0] == "BoundEvent" && v[2] == "propChange"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundEvent" && v[2] == "propChange"));
         }
 
         #[test]
         fn should_parse_bound_events_and_properties_via_bindon() {
             let result = expect_from_html(r#"<div bindon-prop="v"></div>"#, false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
-            assert!(result.iter().any(|v| v[0] == "BoundEvent" && v[2] == "propChange"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundEvent" && v[2] == "propChange"));
         }
 
         #[test]
         fn should_parse_bound_events_and_properties_via_two_way_with_non_null_operator() {
             let result = expect_from_html(r#"<div [(prop)]="v!"></div>"#, false, false);
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
-            assert!(result.iter().any(|v| v[0] == "BoundEvent" && v[2] == "propChange"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "prop"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundEvent" && v[2] == "propChange"));
         }
     }
 
@@ -1315,14 +1475,19 @@ mod tests {
         #[test]
         #[should_panic(expected = "defined more than once")]
         fn should_report_an_error_if_a_reference_is_used_multiple_times_on_the_same_template() {
-            let _ = parse_r3("<ng-template #a #a></ng-template>", ParseR3Options::default());
+            let _ = parse_r3(
+                "<ng-template #a #a></ng-template>",
+                ParseR3Options::default(),
+            );
         }
 
         #[test]
         fn should_parse_variables_via_let_on_template() {
             let result = expect_from_html(r#"<ng-template let-a="b"></ng-template>"#, false, false);
             assert!(result.iter().any(|v| v[0] == "Template"));
-            assert!(result.iter().any(|v| v[0] == "Variable" && v[1] == "a" && v[2] == "b"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "Variable" && v[1] == "a" && v[2] == "b"));
         }
 
         #[test]
@@ -1350,8 +1515,12 @@ mod tests {
         fn should_parse_incorrect_ng_for_usage() {
             let result = expect_from_html(r#"<div *ngFor="item of items"></div>"#, false, false);
             assert!(result.iter().any(|v| v[0] == "Template"));
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "ngFor"));
-            assert!(result.iter().any(|v| v[0] == "BoundAttribute" && v[2] == "ngForOf"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "ngFor"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "BoundAttribute" && v[2] == "ngForOf"));
         }
     }
 
@@ -1420,13 +1589,12 @@ mod tests {
 
         #[test]
         fn should_parse_ng_project_as_as_an_attribute() {
-            let result = expect_from_html(
-                r#"<ng-content ngProjectAs="a"></ng-content>"#,
-                false,
-                false,
-            );
+            let result =
+                expect_from_html(r#"<ng-content ngProjectAs="a"></ng-content>"#, false, false);
             assert!(result.iter().any(|v| v[0] == "Content" && v[1] == "*"));
-            assert!(result.iter().any(|v| v[0] == "TextAttribute" && v[1] == "ngProjectAs"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "TextAttribute" && v[1] == "ngProjectAs"));
         }
     }
 
@@ -1480,11 +1648,8 @@ mod tests {
 
         #[test]
         fn should_ignore_script_elements_inside_of_elements_with_ng_non_bindable() {
-            let result = expect_from_html(
-                "<div ngNonBindable><script></script>a</div>",
-                false,
-                false,
-            );
+            let result =
+                expect_from_html("<div ngNonBindable><script></script>a</div>", false, false);
             assert!(result.iter().any(|v| v[0] == "Element" && v[1] == "div"));
             assert!(result.iter().any(|v| v[0] == "Text" && v[1] == "a"));
             assert!(!result.iter().any(|v| v[0] == "Element" && v[1] == "script"));
@@ -1492,11 +1657,8 @@ mod tests {
 
         #[test]
         fn should_ignore_style_elements_inside_of_elements_with_ng_non_bindable() {
-            let result = expect_from_html(
-                "<div ngNonBindable><style></style>a</div>",
-                false,
-                false,
-            );
+            let result =
+                expect_from_html("<div ngNonBindable><style></style>a</div>", false, false);
             assert!(result.iter().any(|v| v[0] == "Element" && v[1] == "div"));
             assert!(result.iter().any(|v| v[0] == "Text" && v[1] == "a"));
         }
@@ -1863,8 +2025,12 @@ foo) {{{ item }}}
         fn should_produce_a_text_node_when_let_is_used_inside_ng_non_bindable() {
             let result = expect_from_html("<div ngNonBindable>@let foo = 123;</div>", false, false);
             assert!(result.iter().any(|v| v[0] == "Element" && v[1] == "div"));
-            assert!(result.iter().any(|v| v[0] == "TextAttribute" && v[1] == "ngNonBindable"));
-            assert!(result.iter().any(|v| v[0] == "Text" && v[1].contains("@let")));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "TextAttribute" && v[1] == "ngNonBindable"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "Text" && v[1].contains("@let")));
         }
     }
 
@@ -1879,8 +2045,12 @@ foo) {{{ item }}}
                 true,
             );
             assert!(result.iter().any(|v| v[0] == "IfBlock"));
-            assert!(result.iter().any(|v| v[0] == "Component" && v[1] == "MyComp"));
-            assert!(result.iter().any(|v| v[0] == "Component" && v[1] == "OtherComp"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "Component" && v[1] == "MyComp"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "Component" && v[1] == "OtherComp"));
         }
 
         #[test]
@@ -1890,20 +2060,22 @@ foo) {{{ item }}}
                 false,
                 true,
             );
-            assert!(result.iter().any(|v| v[0] == "Component" && v[1] == "MyComp"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "Component" && v[1] == "MyComp"));
             assert!(result.iter().any(|v| v[0] == "Directive" && v[1] == "Dir"));
-            assert!(result.iter().any(|v| v[0] == "Directive" && v[1] == "OtherDir"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "Directive" && v[1] == "OtherDir"));
         }
 
         #[test]
         fn should_parse_a_component_node_with_star_directives() {
-            let result = expect_from_html(
-                r#"<MyComp *ngIf="expr">Hello</MyComp>"#,
-                false,
-                true,
-            );
+            let result = expect_from_html(r#"<MyComp *ngIf="expr">Hello</MyComp>"#, false, true);
             assert!(result.iter().any(|v| v[0] == "Template"));
-            assert!(result.iter().any(|v| v[0] == "Component" && v[1] == "MyComp"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "Component" && v[1] == "MyComp"));
         }
 
         #[test]
@@ -1914,7 +2086,9 @@ foo) {{{ item }}}
                 true,
             );
             assert!(result.iter().any(|v| v[0] == "Template"));
-            assert!(result.iter().any(|v| v[0] == "Component" && v[1] == "MyComp"));
+            assert!(result
+                .iter()
+                .any(|v| v[0] == "Component" && v[1] == "MyComp"));
             assert!(result.iter().any(|v| v[0] == "Directive" && v[1] == "Dir"));
         }
 
@@ -1977,13 +2151,19 @@ foo) {{{ item }}}
         #[test]
         #[should_panic]
         fn should_report_unrecognized_trigger() {
-            let _ = parse_r3("@defer (unknown visible()){hello}", ParseR3Options::default());
+            let _ = parse_r3(
+                "@defer (unknown visible()){hello}",
+                ParseR3Options::default(),
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_report_content_before_a_connected_block() {
-            let _ = parse_r3("@defer {hello} <br> @placeholder {placeholder}", ParseR3Options::default());
+            let _ = parse_r3(
+                "@defer {hello} <br> @placeholder {placeholder}",
+                ParseR3Options::default(),
+            );
         }
 
         #[test]
@@ -2007,37 +2187,55 @@ foo) {{{ item }}}
         #[test]
         #[should_panic]
         fn should_report_multiple_placeholder_blocks() {
-            let _ = parse_r3("@defer {hello} @placeholder {p1} @placeholder {p2}", ParseR3Options::default());
+            let _ = parse_r3(
+                "@defer {hello} @placeholder {p1} @placeholder {p2}",
+                ParseR3Options::default(),
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_report_multiple_loading_blocks() {
-            let _ = parse_r3("@defer {hello} @loading {l1} @loading {l2}", ParseR3Options::default());
+            let _ = parse_r3(
+                "@defer {hello} @loading {l1} @loading {l2}",
+                ParseR3Options::default(),
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_report_multiple_error_blocks() {
-            let _ = parse_r3("@defer {hello} @error {e1} @error {e2}", ParseR3Options::default());
+            let _ = parse_r3(
+                "@defer {hello} @error {e1} @error {e2}",
+                ParseR3Options::default(),
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_report_unrecognized_parameter_in_placeholder_block() {
-            let _ = parse_r3("@defer {hello} @placeholder (unknown 100ms) {hi}", ParseR3Options::default());
+            let _ = parse_r3(
+                "@defer {hello} @placeholder (unknown 100ms) {hi}",
+                ParseR3Options::default(),
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_report_unrecognized_parameter_in_loading_block() {
-            let _ = parse_r3("@defer {hello} @loading (unknown 100ms) {hi}", ParseR3Options::default());
+            let _ = parse_r3(
+                "@defer {hello} @loading (unknown 100ms) {hi}",
+                ParseR3Options::default(),
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_report_any_parameter_usage_in_error_block() {
-            let _ = parse_r3("@defer {hello} @error (foo) {hi}", ParseR3Options::default());
+            let _ = parse_r3(
+                "@defer {hello} @error (foo) {hi}",
+                ParseR3Options::default(),
+            );
         }
     }
 
@@ -2150,7 +2348,10 @@ foo) {{{ item }}}
         #[test]
         #[should_panic]
         fn should_report_multiple_track_parameters() {
-            let _ = parse_r3("@for (a of b; track c; track d) {hello}", ParseR3Options::default());
+            let _ = parse_r3(
+                "@for (a of b; track c; track d) {hello}",
+                ParseR3Options::default(),
+            );
         }
 
         #[test]
@@ -2232,13 +2433,19 @@ foo) {{{ item }}}
         #[test]
         #[should_panic]
         fn should_report_content_between_an_if_and_else_if_block() {
-            let _ = parse_r3("@if (foo) {hello} <div></div> @else if (bar) {goodbye}", ParseR3Options::default());
+            let _ = parse_r3(
+                "@if (foo) {hello} <div></div> @else if (bar) {goodbye}",
+                ParseR3Options::default(),
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_report_content_between_an_if_and_else_block() {
-            let _ = parse_r3("@if (foo) {hello} <div></div> @else {goodbye}", ParseR3Options::default());
+            let _ = parse_r3(
+                "@if (foo) {hello} <div></div> @else {goodbye}",
+                ParseR3Options::default(),
+            );
         }
 
         #[test]
@@ -2291,55 +2498,73 @@ foo) {{{ item }}}
         #[test]
         #[should_panic]
         fn should_not_allow_a_selectorless_component_with_an_unsupported_tag_name_link() {
-            let _ = parse_r3("<MyComp:link></MyComp:link>", ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                "<MyComp:link></MyComp:link>",
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_not_allow_a_selectorless_component_with_an_unsupported_tag_name_style() {
-            let _ = parse_r3("<MyComp:style></MyComp:style>", ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                "<MyComp:style></MyComp:style>",
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_not_allow_a_selectorless_component_with_an_unsupported_tag_name_script() {
-            let _ = parse_r3("<MyComp:script></MyComp:script>", ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                "<MyComp:script></MyComp:script>",
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_not_allow_a_selectorless_component_with_an_unsupported_tag_name_ng_template() {
-            let _ = parse_r3("<MyComp:ng-template></MyComp:ng-template>", ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                "<MyComp:ng-template></MyComp:ng-template>",
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_not_allow_a_selectorless_component_with_an_unsupported_tag_name_ng_container() {
-            let _ = parse_r3("<MyComp:ng-container></MyComp:ng-container>", ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                "<MyComp:ng-container></MyComp:ng-container>",
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_not_allow_a_selectorless_component_with_an_unsupported_tag_name_ng_content() {
-            let _ = parse_r3("<MyComp:ng-content></MyComp:ng-content>", ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                "<MyComp:ng-content></MyComp:ng-content>",
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
     }
 
@@ -2349,110 +2574,145 @@ foo) {{{ item }}}
         #[test]
         #[should_panic]
         fn should_not_allow_star_syntax_inside_directives() {
-            let _ = parse_r3(r#"<div @Dir(*ngIf="true")></div>"#, ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                r#"<div @Dir(*ngIf="true")></div>"#,
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_not_allow_ng_project_as_inside_directive_syntax() {
-            let _ = parse_r3(r#"<div @Dir(ngProjectAs="foo")></div>"#, ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                r#"<div @Dir(ngProjectAs="foo")></div>"#,
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_not_allow_ng_non_bindable_inside_directive_syntax() {
-            let _ = parse_r3(r#"<div @Dir(ngNonBindable)></div>"#, ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                r#"<div @Dir(ngNonBindable)></div>"#,
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_not_allow_the_same_directive_to_be_applied_multiple_times() {
-            let _ = parse_r3(r#"<div @One @Two @One(input="123")></div>"#, ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                r#"<div @One @Two @One(input="123")></div>"#,
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_not_allow_class_bindings_inside_directives() {
-            let _ = parse_r3(r#"<div @Dir([class.foo]="expr")></div>"#, ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                r#"<div @Dir([class.foo]="expr")></div>"#,
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_not_allow_style_bindings_inside_directives() {
-            let _ = parse_r3(r#"<div @Dir([style.foo]="expr")></div>"#, ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                r#"<div @Dir([style.foo]="expr")></div>"#,
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_not_allow_attribute_bindings_inside_directives() {
-            let _ = parse_r3(r#"<div @Dir([attr.foo]="expr")></div>"#, ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                r#"<div @Dir([attr.foo]="expr")></div>"#,
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_not_allow_animation_bindings_inside_directives() {
-            let _ = parse_r3(r#"<div @Dir([@animation]="expr")></div>"#, ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                r#"<div @Dir([@animation]="expr")></div>"#,
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_not_allow_named_references_on_component() {
-            let _ = parse_r3(r#"<MyComp #foo="bar"/>"#, ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                r#"<MyComp #foo="bar"/>"#,
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_not_allow_named_references_inside_directive_syntax() {
-            let _ = parse_r3(r#"<div @Dir(#foo="bar")></div>"#, ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                r#"<div @Dir(#foo="bar")></div>"#,
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_not_allow_duplicate_references_on_component() {
-            let _ = parse_r3(r#"<MyComp #foo #foo/>"#, ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                r#"<MyComp #foo #foo/>"#,
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
 
         #[test]
         #[should_panic]
         fn should_not_allow_duplicate_references_inside_directive_syntax() {
-            let _ = parse_r3(r#"<div @Dir(#foo #foo)></div>"#, ParseR3Options {
-                selectorless_enabled: Some(true),
-                ..Default::default()
-            });
+            let _ = parse_r3(
+                r#"<div @Dir(#foo #foo)></div>"#,
+                ParseR3Options {
+                    selectorless_enabled: Some(true),
+                    ..Default::default()
+                },
+            );
         }
     }
 }
-

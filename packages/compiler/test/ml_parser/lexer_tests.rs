@@ -13,8 +13,8 @@ mod utils;
 
 #[cfg(test)]
 mod html_lexer_tests {
-    use angular_compiler::ml_parser::lexer::TokenizeOptions;
     use super::utils::*;
+    use angular_compiler::ml_parser::lexer::TokenizeOptions;
 
     // SECTION 1: LINE/COLUMN NUMBERS (lines 15-68)
     mod line_column_numbers {
@@ -23,49 +23,64 @@ mod html_lexer_tests {
         #[test]
         fn should_work_without_newlines() {
             let result = tokenize_and_humanize_line_column("<t>a</t>", TokenizeOptions::default());
-            assert_eq!(result, vec![
-                vec!["TAG_OPEN_START".to_string(), "0:0".to_string()],
-                vec!["TAG_OPEN_END".to_string(), "0:2".to_string()],
-                vec!["TEXT".to_string(), "0:3".to_string()],
-                vec!["TAG_CLOSE".to_string(), "0:4".to_string()],
-                vec!["EOF".to_string(), "0:8".to_string()],
-            ]);
+            assert_eq!(
+                result,
+                vec![
+                    vec!["TAG_OPEN_START".to_string(), "0:0".to_string()],
+                    vec!["TAG_OPEN_END".to_string(), "0:2".to_string()],
+                    vec!["TEXT".to_string(), "0:3".to_string()],
+                    vec!["TAG_CLOSE".to_string(), "0:4".to_string()],
+                    vec!["EOF".to_string(), "0:8".to_string()],
+                ]
+            );
         }
 
         #[test]
         fn should_work_with_one_newline() {
-            let result = tokenize_and_humanize_line_column("<t>\na</t>", TokenizeOptions::default());
-            assert_eq!(result, vec![
-                vec!["TAG_OPEN_START".to_string(), "0:0".to_string()],
-                vec!["TAG_OPEN_END".to_string(), "0:2".to_string()],
-                vec!["TEXT".to_string(), "0:3".to_string()],
-                vec!["TAG_CLOSE".to_string(), "1:1".to_string()],
-                vec!["EOF".to_string(), "1:5".to_string()],
-            ]);
+            let result =
+                tokenize_and_humanize_line_column("<t>\na</t>", TokenizeOptions::default());
+            assert_eq!(
+                result,
+                vec![
+                    vec!["TAG_OPEN_START".to_string(), "0:0".to_string()],
+                    vec!["TAG_OPEN_END".to_string(), "0:2".to_string()],
+                    vec!["TEXT".to_string(), "0:3".to_string()],
+                    vec!["TAG_CLOSE".to_string(), "1:1".to_string()],
+                    vec!["EOF".to_string(), "1:5".to_string()],
+                ]
+            );
         }
 
         #[test]
         fn should_work_with_multiple_newlines() {
-            let result = tokenize_and_humanize_line_column("<t\n>\na</t>", TokenizeOptions::default());
-            assert_eq!(result, vec![
-                vec!["TAG_OPEN_START".to_string(), "0:0".to_string()],
-                vec!["TAG_OPEN_END".to_string(), "1:0".to_string()],
-                vec!["TEXT".to_string(), "1:1".to_string()],
-                vec!["TAG_CLOSE".to_string(), "2:1".to_string()],
-                vec!["EOF".to_string(), "2:5".to_string()],
-            ]);
+            let result =
+                tokenize_and_humanize_line_column("<t\n>\na</t>", TokenizeOptions::default());
+            assert_eq!(
+                result,
+                vec![
+                    vec!["TAG_OPEN_START".to_string(), "0:0".to_string()],
+                    vec!["TAG_OPEN_END".to_string(), "1:0".to_string()],
+                    vec!["TEXT".to_string(), "1:1".to_string()],
+                    vec!["TAG_CLOSE".to_string(), "2:1".to_string()],
+                    vec!["EOF".to_string(), "2:5".to_string()],
+                ]
+            );
         }
 
         #[test]
         fn should_work_with_cr_and_lf() {
-            let result = tokenize_and_humanize_line_column("<t\n>\r\na</t>", TokenizeOptions::default());
-            assert_eq!(result, vec![
-                vec!["TAG_OPEN_START".to_string(), "0:0".to_string()],
-                vec!["TAG_OPEN_END".to_string(), "1:0".to_string()],
-                vec!["TEXT".to_string(), "1:1".to_string()],
-                vec!["TAG_CLOSE".to_string(), "2:1".to_string()],
-                vec!["EOF".to_string(), "2:5".to_string()],
-            ]);
+            let result =
+                tokenize_and_humanize_line_column("<t\n>\r\na</t>", TokenizeOptions::default());
+            assert_eq!(
+                result,
+                vec![
+                    vec!["TAG_OPEN_START".to_string(), "0:0".to_string()],
+                    vec!["TAG_OPEN_END".to_string(), "1:0".to_string()],
+                    vec!["TEXT".to_string(), "1:1".to_string()],
+                    vec!["TAG_CLOSE".to_string(), "2:1".to_string()],
+                    vec!["EOF".to_string(), "2:5".to_string()],
+                ]
+            );
         }
 
         #[test]
@@ -89,7 +104,7 @@ mod html_lexer_tests {
             // TODO: Set range options
             let result = tokenize_and_humanize_source_spans(
                 "pre 1\npre 2\npre 3 `line 1\nline 2\nline 3` post 1\n post 2\n post 3",
-                options
+                options,
             );
             // Should only tokenize the specified range
             assert!(result.len() > 0);
@@ -101,7 +116,7 @@ mod html_lexer_tests {
             // TODO: Set range with startLine, startCol
             let result = tokenize_and_humanize_line_column(
                 "pre 1\npre 2\npre 3 `line 1\nline 2\nline 3` post 1\n post 2\n post 3",
-                options
+                options,
             );
             assert!(result.len() > 0);
         }
@@ -113,7 +128,8 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_comments() {
-            let result = tokenize_and_humanize_parts("<!--t\ne\rs\r\nt-->", TokenizeOptions::default());
+            let result =
+                tokenize_and_humanize_parts("<!--t\ne\rs\r\nt-->", TokenizeOptions::default());
             assert_eq!(result[0][0], "COMMENT_START");
             assert_eq!(result[1][0], "RAW_TEXT");
             assert_eq!(result[1][1], "t\ne\ns\nt"); // Line endings normalized
@@ -123,7 +139,10 @@ mod html_lexer_tests {
 
         #[test]
         fn should_store_locations() {
-            let result = tokenize_and_humanize_source_spans("<!--t\ne\rs\r\nt-->", TokenizeOptions::default());
+            let result = tokenize_and_humanize_source_spans(
+                "<!--t\ne\rs\r\nt-->",
+                TokenizeOptions::default(),
+            );
             assert!(result.len() >= 3);
         }
 
@@ -172,7 +191,8 @@ mod html_lexer_tests {
 
         #[test]
         fn should_store_locations() {
-            let result = tokenize_and_humanize_source_spans("<!DOCTYPE html>", TokenizeOptions::default());
+            let result =
+                tokenize_and_humanize_source_spans("<!DOCTYPE html>", TokenizeOptions::default());
             assert!(result.len() >= 1);
         }
 
@@ -189,7 +209,8 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_cdata() {
-            let result = tokenize_and_humanize_parts("<![CDATA[t\ne\rs\r\nt]]>", TokenizeOptions::default());
+            let result =
+                tokenize_and_humanize_parts("<![CDATA[t\ne\rs\r\nt]]>", TokenizeOptions::default());
             assert_eq!(result[0][0], "CDATA_START");
             assert_eq!(result[1][0], "RAW_TEXT");
             assert_eq!(result[1][1], "t\ne\ns\nt");
@@ -199,7 +220,10 @@ mod html_lexer_tests {
 
         #[test]
         fn should_store_locations() {
-            let result = tokenize_and_humanize_source_spans("<![CDATA[t\ne\rs\r\nt]]>", TokenizeOptions::default());
+            let result = tokenize_and_humanize_source_spans(
+                "<![CDATA[t\ne\rs\r\nt]]>",
+                TokenizeOptions::default(),
+            );
             assert!(result.len() >= 3);
         }
 
@@ -262,13 +286,21 @@ mod html_lexer_tests {
 
             #[test]
             fn terminated_with_eof() {
-                let result = tokenize_and_humanize_source_spans_ignoring_errors("<div", TokenizeOptions::default());
-                assert!(result.iter().any(|r| r[0] == "INCOMPLETE_TAG_OPEN" || r[0] == "TAG_OPEN_START"));
+                let result = tokenize_and_humanize_source_spans_ignoring_errors(
+                    "<div",
+                    TokenizeOptions::default(),
+                );
+                assert!(result
+                    .iter()
+                    .any(|r| r[0] == "INCOMPLETE_TAG_OPEN" || r[0] == "TAG_OPEN_START"));
             }
 
             #[test]
             fn after_tag_name() {
-                let result = tokenize_and_humanize_source_spans_ignoring_errors("<div<span><div</span>", TokenizeOptions::default());
+                let result = tokenize_and_humanize_source_spans_ignoring_errors(
+                    "<div<span><div</span>",
+                    TokenizeOptions::default(),
+                );
                 assert!(result.len() >= 3);
             }
 
@@ -276,14 +308,17 @@ mod html_lexer_tests {
             fn in_attribute() {
                 let result = tokenize_and_humanize_source_spans_ignoring_errors(
                     "<div class=\"hi\" sty<span></span>",
-                    TokenizeOptions::default()
+                    TokenizeOptions::default(),
                 );
                 assert!(result.len() >= 5);
             }
 
             #[test]
             fn after_quote() {
-                let result = tokenize_and_humanize_source_spans_ignoring_errors("<div \"<span></span>", TokenizeOptions::default());
+                let result = tokenize_and_humanize_source_spans_ignoring_errors(
+                    "<div \"<span></span>",
+                    TokenizeOptions::default(),
+                );
                 assert!(result.len() >= 4);
                 assert!(result.iter().any(|r| r[0] == "TEXT" && r[1] == "\""));
             }
@@ -312,7 +347,8 @@ mod html_lexer_tests {
         fn should_parse_component_tag_with_tag_name() {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = tokenize_and_humanize_parts("<MyComp:button>hello</MyComp:button>", options);
+            let result =
+                tokenize_and_humanize_parts("<MyComp:button>hello</MyComp:button>", options);
             assert_eq!(result[0][0], "COMPONENT_OPEN_START");
             assert_eq!(result[0][1], "MyComp");
             assert_eq!(result[0][3], "button");
@@ -322,7 +358,8 @@ mod html_lexer_tests {
         fn should_parse_component_tag_with_tag_name_and_namespace() {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = tokenize_and_humanize_parts("<MyComp:svg:title>hello</MyComp:svg:title>", options);
+            let result =
+                tokenize_and_humanize_parts("<MyComp:svg:title>hello</MyComp:svg:title>", options);
             assert_eq!(result[0][0], "COMPONENT_OPEN_START");
             assert_eq!(result[0][1], "MyComp");
             assert_eq!(result[0][2], "svg");
@@ -342,7 +379,10 @@ mod html_lexer_tests {
         fn should_produce_spans_for_component_tags() {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = tokenize_and_humanize_source_spans("<MyComp:svg:title>hello</MyComp:svg:title>", options);
+            let result = tokenize_and_humanize_source_spans(
+                "<MyComp:svg:title>hello</MyComp:svg:title>",
+                options,
+            );
             assert_eq!(result[0][0], "COMPONENT_OPEN_START");
             assert_eq!(result[0][1], "<MyComp:svg:title");
             assert_eq!(result[3][0], "COMPONENT_CLOSE");
@@ -353,7 +393,10 @@ mod html_lexer_tests {
         fn should_parse_incomplete_component_open_tag() {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = tokenize_and_humanize_parts_ignoring_errors("<MyComp:span class=\"hi\" sty<span></span>", options);
+            let result = tokenize_and_humanize_parts_ignoring_errors(
+                "<MyComp:span class=\"hi\" sty<span></span>",
+                options,
+            );
             assert_eq!(result[0][0], "COMPONENT_OPEN_START");
             assert_eq!(result[0][1], "MyComp");
             assert_eq!(result[0][2], "");
@@ -364,7 +407,8 @@ mod html_lexer_tests {
         fn should_parse_component_tag_with_raw_text() {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = tokenize_and_humanize_parts("<MyComp:script>t\ne\rs\r\nt</MyComp:script>", options);
+            let result =
+                tokenize_and_humanize_parts("<MyComp:script>t\ne\rs\r\nt</MyComp:script>", options);
             assert_eq!(result[0][0], "COMPONENT_OPEN_START");
             assert_eq!(result[2][0], "RAW_TEXT");
             assert_eq!(result[2][1], "t\ne\ns\nt");
@@ -374,7 +418,8 @@ mod html_lexer_tests {
         fn should_parse_component_tag_with_escapable_raw_text() {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = tokenize_and_humanize_parts("<MyComp:title>t\ne\rs\r\nt</MyComp:title>", options);
+            let result =
+                tokenize_and_humanize_parts("<MyComp:title>t\ne\rs\r\nt</MyComp:title>", options);
             assert_eq!(result[0][0], "COMPONENT_OPEN_START");
             assert_eq!(result[2][0], "ESCAPABLE_RAW_TEXT");
             assert_eq!(result[2][1], "t\ne\ns\nt");
@@ -425,7 +470,10 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_attributes_with_interpolation() {
-            let result = tokenize_and_humanize_parts("<t a=\"{{v}}\" b=\"s{{m}}e\" c=\"s{{m//c}}e\">", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "<t a=\"{{v}}\" b=\"s{{m}}e\" c=\"s{{m//c}}e\">",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[1][0], "ATTR_NAME");
             assert_eq!(result[3][0], "ATTR_VALUE_TEXT");
             assert_eq!(result[4][0], "ATTR_VALUE_INTERPOLATION");
@@ -436,11 +484,15 @@ mod html_lexer_tests {
 
         #[test]
         fn should_end_interpolation_on_unescaped_matching_quote() {
-            let result1 = tokenize_and_humanize_parts("<t a=\"{{ a \\\" \' b \">", TokenizeOptions::default());
+            let result1 = tokenize_and_humanize_parts(
+                "<t a=\"{{ a \\\" \' b \">",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result1[4][0], "ATTR_VALUE_INTERPOLATION");
             assert!(result1[4][2].contains("a \\\" \' b"));
-            
-            let result2 = tokenize_and_humanize_parts("<t a='{{ a \" \\' b '>", TokenizeOptions::default());
+
+            let result2 =
+                tokenize_and_humanize_parts("<t a='{{ a \" \\' b '>", TokenizeOptions::default());
             assert_eq!(result2[4][0], "ATTR_VALUE_INTERPOLATION");
         }
 
@@ -454,7 +506,10 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_attributes_whose_prefix_is_not_valid() {
-            let result = tokenize_and_humanize_parts_ignoring_errors("<t (ns1:a)>", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts_ignoring_errors(
+                "<t (ns1:a)>",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[1][0], "ATTR_NAME");
             assert_eq!(result[1][2], "(ns1:a)");
         }
@@ -487,7 +542,8 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_attributes_with_unquoted_interpolation_value() {
-            let result = tokenize_and_humanize_parts("<a a={{link.text}}>", TokenizeOptions::default());
+            let result =
+                tokenize_and_humanize_parts("<a a={{link.text}}>", TokenizeOptions::default());
             assert_eq!(result[2][0], "ATTR_VALUE_TEXT");
             assert_eq!(result[3][0], "ATTR_VALUE_INTERPOLATION");
             assert_eq!(result[3][2], "link.text");
@@ -521,7 +577,8 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_attributes_with_entities_in_values() {
-            let result = tokenize_and_humanize_parts("<t a=\"&#65;&#x41;\">", TokenizeOptions::default());
+            let result =
+                tokenize_and_humanize_parts("<t a=\"&#65;&#x41;\">", TokenizeOptions::default());
             assert_eq!(result[3][0], "ATTR_VALUE_TEXT");
             assert_eq!(result[4][0], "ENCODED_ENTITY");
             assert_eq!(result[4][1], "A");
@@ -614,20 +671,27 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_raw_text_in_script() {
-            let result = tokenize_and_humanize_parts("<script>var x = 1;</script>", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "<script>var x = 1;</script>",
+                TokenizeOptions::default(),
+            );
             assert!(result.iter().any(|r| r[0] == "RAW_TEXT"));
         }
 
         #[test]
         fn should_parse_raw_text_in_style() {
-            let result = tokenize_and_humanize_parts("<style>.class{}</style>", TokenizeOptions::default());
+            let result =
+                tokenize_and_humanize_parts("<style>.class{}</style>", TokenizeOptions::default());
             assert!(result.iter().any(|r| r[0] == "RAW_TEXT"));
         }
 
         #[test]
         fn should_not_decode_entities_in_raw_text() {
-            let result = tokenize_and_humanize_parts("<script>&amp;</script>", TokenizeOptions::default());
-            assert!(result.iter().any(|r| r[0] == "RAW_TEXT" && r[1].contains("&amp;")));
+            let result =
+                tokenize_and_humanize_parts("<script>&amp;</script>", TokenizeOptions::default());
+            assert!(result
+                .iter()
+                .any(|r| r[0] == "RAW_TEXT" && r[1].contains("&amp;")));
         }
     }
 
@@ -637,7 +701,10 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_text() {
-            let result = tokenize_and_humanize_parts("<title>t\ne\rs\r\nt</title>", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "<title>t\ne\rs\r\nt</title>",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "TAG_OPEN_START");
             assert_eq!(result[2][0], "ESCAPABLE_RAW_TEXT");
             assert_eq!(result[2][1], "t\ne\ns\nt");
@@ -645,7 +712,8 @@ mod html_lexer_tests {
 
         #[test]
         fn should_detect_entities() {
-            let result = tokenize_and_humanize_parts("<title>&amp;</title>", TokenizeOptions::default());
+            let result =
+                tokenize_and_humanize_parts("<title>&amp;</title>", TokenizeOptions::default());
             assert_eq!(result[0][0], "TAG_OPEN_START");
             assert_eq!(result[2][0], "ESCAPABLE_RAW_TEXT");
             assert_eq!(result[3][0], "ENCODED_ENTITY");
@@ -655,21 +723,24 @@ mod html_lexer_tests {
 
         #[test]
         fn should_ignore_other_opening_tags() {
-            let result = tokenize_and_humanize_parts("<title>a<div></title>", TokenizeOptions::default());
+            let result =
+                tokenize_and_humanize_parts("<title>a<div></title>", TokenizeOptions::default());
             assert_eq!(result[2][0], "ESCAPABLE_RAW_TEXT");
             assert_eq!(result[2][1], "a<div>");
         }
 
         #[test]
         fn should_ignore_other_closing_tags() {
-            let result = tokenize_and_humanize_parts("<title>a</test></title>", TokenizeOptions::default());
+            let result =
+                tokenize_and_humanize_parts("<title>a</test></title>", TokenizeOptions::default());
             assert_eq!(result[2][0], "ESCAPABLE_RAW_TEXT");
             assert_eq!(result[2][1], "a</test>");
         }
 
         #[test]
         fn should_store_locations() {
-            let result = tokenize_and_humanize_source_spans("<title>a</title>", TokenizeOptions::default());
+            let result =
+                tokenize_and_humanize_source_spans("<title>a</title>", TokenizeOptions::default());
             assert_eq!(result[0][0], "TAG_OPEN_START");
             assert_eq!(result[0][1], "<title");
             assert_eq!(result[2][0], "ESCAPABLE_RAW_TEXT");
@@ -685,12 +756,8 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_block_without_parameters() {
-            let test_cases = vec![
-                "@if {hello}",
-                "@if () {hello}",
-                "@if(){hello}",
-            ];
-            
+            let test_cases = vec!["@if {hello}", "@if () {hello}", "@if(){hello}"];
+
             for input in test_cases {
                 let result = tokenize_and_humanize_parts(input, TokenizeOptions::default());
                 assert_eq!(result[0][0], "BLOCK_OPEN_START");
@@ -704,7 +771,10 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_block_with_parameters() {
-            let result = tokenize_and_humanize_parts("@for (item of items; track item.id) {hello}", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "@for (item of items; track item.id) {hello}",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "BLOCK_OPEN_START");
             assert_eq!(result[0][1], "for");
             assert_eq!(result[1][0], "BLOCK_PARAMETER");
@@ -715,7 +785,10 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_block_with_trailing_semicolon_after_parameters() {
-            let result = tokenize_and_humanize_parts("@for (item of items;) {hello}", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "@for (item of items;) {hello}",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "BLOCK_OPEN_START");
             assert_eq!(result[1][0], "BLOCK_PARAMETER");
             assert_eq!(result[1][1], "item of items");
@@ -723,11 +796,15 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_block_with_space_in_name() {
-            let result1 = tokenize_and_humanize_parts("@else if {hello}", TokenizeOptions::default());
+            let result1 =
+                tokenize_and_humanize_parts("@else if {hello}", TokenizeOptions::default());
             assert_eq!(result1[0][0], "BLOCK_OPEN_START");
             assert_eq!(result1[0][1], "else if");
-            
-            let result2 = tokenize_and_humanize_parts("@else if (foo !== 2) {hello}", TokenizeOptions::default());
+
+            let result2 = tokenize_and_humanize_parts(
+                "@else if (foo !== 2) {hello}",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result2[0][1], "else if");
             assert_eq!(result2[1][0], "BLOCK_PARAMETER");
             assert_eq!(result2[1][1], "foo !== 2");
@@ -741,7 +818,7 @@ mod html_lexer_tests {
                 "@for(a; b; c)      {hello}",
                 "@for      (a; b; c){hello}",
             ];
-            
+
             for input in test_cases {
                 let result = tokenize_and_humanize_parts(input, TokenizeOptions::default());
                 assert_eq!(result[0][0], "BLOCK_OPEN_START");
@@ -757,7 +834,10 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_block_with_multiple_trailing_semicolons() {
-            let result = tokenize_and_humanize_parts("@for (item of items;;;;;) {hello}", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "@for (item of items;;;;;) {hello}",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "BLOCK_OPEN_START");
             assert_eq!(result[1][0], "BLOCK_PARAMETER");
             assert_eq!(result[1][1], "item of items");
@@ -765,14 +845,20 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_block_with_trailing_whitespace() {
-            let result = tokenize_and_humanize_parts("@defer                        {hello}", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "@defer                        {hello}",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "BLOCK_OPEN_START");
             assert_eq!(result[0][1], "defer");
         }
 
         #[test]
         fn should_parse_block_with_no_trailing_semicolon() {
-            let result = tokenize_and_humanize_parts("@for (item of items){hello}", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "@for (item of items){hello}",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "BLOCK_OPEN_START");
             assert_eq!(result[1][0], "BLOCK_PARAMETER");
             assert_eq!(result[1][1], "item of items");
@@ -780,7 +866,8 @@ mod html_lexer_tests {
 
         #[test]
         fn should_handle_semicolons_braces_parentheses_in_block_parameter() {
-            let input = "@for (a === \";\"; b === ')'; c === \"(\"; d === '}'; e === \"{\") {hello}";
+            let input =
+                "@for (a === \";\"; b === ')'; c === \"(\"; d === '}'; e === \"{\") {hello}";
             let result = tokenize_and_humanize_parts(input, TokenizeOptions::default());
             assert_eq!(result[0][0], "BLOCK_OPEN_START");
             assert_eq!(result[1][0], "BLOCK_PARAMETER");
@@ -791,7 +878,7 @@ mod html_lexer_tests {
         fn should_handle_object_literals_and_function_calls_in_block_parameters() {
             let result = tokenize_and_humanize_parts(
                 "@defer (on a({a: 1, b: 2}, false, {c: 3}); when b({d: 4})) {hello}",
-                TokenizeOptions::default()
+                TokenizeOptions::default(),
             );
             assert_eq!(result[0][0], "BLOCK_OPEN_START");
             assert_eq!(result[1][0], "BLOCK_PARAMETER");
@@ -800,30 +887,43 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_block_with_unclosed_parameters() {
-            let result = tokenize_and_humanize_parts_ignoring_errors("@if (a === b {hello}", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts_ignoring_errors(
+                "@if (a === b {hello}",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "INCOMPLETE_BLOCK_OPEN");
             assert_eq!(result[0][1], "if");
         }
 
         #[test]
         fn should_parse_block_with_stray_parentheses_in_parameter_position() {
-            let result = tokenize_and_humanize_parts_ignoring_errors("@if a === b) {hello}", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts_ignoring_errors(
+                "@if a === b) {hello}",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "INCOMPLETE_BLOCK_OPEN");
             assert_eq!(result[0][1], "if");
         }
 
         #[test]
         fn should_report_invalid_quotes_in_parameter() {
-            let errors1 = tokenize_and_humanize_errors("@if (a === \") {hello}", TokenizeOptions::default());
+            let errors1 =
+                tokenize_and_humanize_errors("@if (a === \") {hello}", TokenizeOptions::default());
             assert!(!errors1.is_empty());
-            
-            let errors2 = tokenize_and_humanize_errors("@if (a === \"hi') {hello}", TokenizeOptions::default());
+
+            let errors2 = tokenize_and_humanize_errors(
+                "@if (a === \"hi') {hello}",
+                TokenizeOptions::default(),
+            );
             assert!(!errors2.is_empty());
         }
 
         #[test]
         fn should_report_unclosed_object_literal_inside_parameter() {
-            let result = tokenize_and_humanize_parts_ignoring_errors("@if ({invalid: true) hello}", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts_ignoring_errors(
+                "@if ({invalid: true) hello}",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "INCOMPLETE_BLOCK_OPEN");
             assert_eq!(result[1][0], "BLOCK_PARAMETER");
             assert_eq!(result[1][1], "{invalid: true");
@@ -831,7 +931,10 @@ mod html_lexer_tests {
 
         #[test]
         fn should_handle_semicolon_in_nested_string_inside_block_parameter() {
-            let result = tokenize_and_humanize_parts("@if (condition === \"';'\") {hello}", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "@if (condition === \"';'\") {hello}",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "BLOCK_OPEN_START");
             assert_eq!(result[1][0], "BLOCK_PARAMETER");
             assert!(result[1][1].contains("condition === \"';'\""));
@@ -839,16 +942,24 @@ mod html_lexer_tests {
 
         #[test]
         fn should_handle_semicolon_next_to_escaped_quote_in_block_parameter() {
-            let result = tokenize_and_humanize_parts("@if (condition === \"\\\";\") {hello}", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "@if (condition === \"\\\";\") {hello}",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "BLOCK_OPEN_START");
             assert_eq!(result[1][0], "BLOCK_PARAMETER");
         }
 
         #[test]
         fn should_parse_mixed_text_and_html_content_in_block() {
-            let result = tokenize_and_humanize_parts("@if (a === 1) {foo <b>bar</b> baz}", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "@if (a === 1) {foo <b>bar</b> baz}",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "BLOCK_OPEN_START");
-            assert!(result.iter().any(|r| r[0] == "TAG_OPEN_START" && r.len() > 1 && r[2] == "b"));
+            assert!(result
+                .iter()
+                .any(|r| r[0] == "TAG_OPEN_START" && r.len() > 1 && r[2] == "b"));
         }
 
         #[test]
@@ -881,7 +992,8 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_at_in_middle_of_text_as_text() {
-            let result = tokenize_and_humanize_parts("foo bar @ baz clink", TokenizeOptions::default());
+            let result =
+                tokenize_and_humanize_parts("foo bar @ baz clink", TokenizeOptions::default());
             assert_eq!(result[0][0], "TEXT");
             assert_eq!(result[0][1], "foo bar @ baz clink");
         }
@@ -895,37 +1007,51 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_incomplete_block_start_without_parameters_with_surrounding_text() {
-            let result = tokenize_and_humanize_parts("My email frodo@for.com", TokenizeOptions::default());
+            let result =
+                tokenize_and_humanize_parts("My email frodo@for.com", TokenizeOptions::default());
             assert_eq!(result[0][0], "TEXT");
             assert!(result[0][1].contains("frodo"));
             // Should have INCOMPLETE_BLOCK_OPEN for "for"
-            assert!(result.iter().any(|r| r[0] == "INCOMPLETE_BLOCK_OPEN" || r[0] == "TEXT"));
+            assert!(result
+                .iter()
+                .any(|r| r[0] == "INCOMPLETE_BLOCK_OPEN" || r[0] == "TEXT"));
         }
 
         #[test]
         fn should_parse_incomplete_block_start_at_end_of_input() {
-            let result = tokenize_and_humanize_parts("My favorite console is @switch", TokenizeOptions::default());
-            assert_eq!(result[result.len()-2][0], "INCOMPLETE_BLOCK_OPEN");
-            assert_eq!(result[result.len()-3][1], "My favorite console is ");
-            assert_eq!(result[result.len()-3][0], "TEXT");
+            let result = tokenize_and_humanize_parts(
+                "My favorite console is @switch",
+                TokenizeOptions::default(),
+            );
+            assert_eq!(result[result.len() - 2][0], "INCOMPLETE_BLOCK_OPEN");
+            assert_eq!(result[result.len() - 3][1], "My favorite console is ");
+            assert_eq!(result[result.len() - 3][0], "TEXT");
         }
 
         #[test]
         fn should_parse_incomplete_block_start_with_parentheses_but_without_params() {
-            let result = tokenize_and_humanize_parts("Use the @for() block", TokenizeOptions::default());
+            let result =
+                tokenize_and_humanize_parts("Use the @for() block", TokenizeOptions::default());
             assert_eq!(result[0][0], "TEXT");
             assert!(result[0][1].contains("Use the"));
             // Should have INCOMPLETE_BLOCK_OPEN
-            assert!(result.iter().any(|r| r[0] == "INCOMPLETE_BLOCK_OPEN" || r[0] == "TEXT"));
+            assert!(result
+                .iter()
+                .any(|r| r[0] == "INCOMPLETE_BLOCK_OPEN" || r[0] == "TEXT"));
         }
 
         #[test]
         fn should_parse_incomplete_block_start_with_parentheses_and_params() {
-            let result = tokenize_and_humanize_parts("This is the @if({alias: \"foo\"}) expression", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "This is the @if({alias: \"foo\"}) expression",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "TEXT");
             assert!(result[0][1].contains("This is the"));
             // Should have INCOMPLETE_BLOCK_OPEN
-            assert!(result.iter().any(|r| r[0] == "INCOMPLETE_BLOCK_OPEN" || r[0] == "BLOCK_PARAMETER"));
+            assert!(result
+                .iter()
+                .any(|r| r[0] == "INCOMPLETE_BLOCK_OPEN" || r[0] == "BLOCK_PARAMETER"));
         }
     }
 
@@ -935,7 +1061,8 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_let_declaration() {
-            let result = tokenize_and_humanize_parts("@let foo = 123 + 456;", TokenizeOptions::default());
+            let result =
+                tokenize_and_humanize_parts("@let foo = 123 + 456;", TokenizeOptions::default());
             assert_eq!(result[0][0], "LET_START");
             assert_eq!(result[0][1], "foo");
             assert_eq!(result[1][0], "LET_VALUE");
@@ -951,7 +1078,7 @@ mod html_lexer_tests {
                 "@let foo =123 + 456;",
                 "@let foo=   123 + 456;",
             ];
-            
+
             for input in test_cases {
                 let result = tokenize_and_humanize_parts(input, TokenizeOptions::default());
                 assert_eq!(result[0][0], "LET_START");
@@ -972,7 +1099,7 @@ mod html_lexer_tests {
                 "@let foo   \n   = 123;",
                 "@let  \n   foo   \n   = 123;",
             ];
-            
+
             for input in test_cases {
                 let result = tokenize_and_humanize_parts(input, TokenizeOptions::default());
                 assert_eq!(result[0][0], "LET_START");
@@ -984,7 +1111,10 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_let_declaration_with_new_lines_in_value() {
-            let result = tokenize_and_humanize_parts("@let foo = \n123 + \n 456 + \n789\n;", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "@let foo = \n123 + \n 456 + \n789\n;",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "LET_START");
             assert_eq!(result[0][1], "foo");
             assert_eq!(result[1][0], "LET_VALUE");
@@ -995,7 +1125,10 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_let_declaration_inside_block() {
-            let result = tokenize_and_humanize_parts("@defer {@let foo = 123 + 456;}", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "@defer {@let foo = 123 + 456;}",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "BLOCK_OPEN_START");
             assert_eq!(result[0][1], "defer");
             assert_eq!(result[2][0], "LET_START");
@@ -1004,18 +1137,23 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_let_declaration_using_semicolon_inside_string() {
-            let result1 = tokenize_and_humanize_parts("@let foo = 'a; b';", TokenizeOptions::default());
+            let result1 =
+                tokenize_and_humanize_parts("@let foo = 'a; b';", TokenizeOptions::default());
             assert_eq!(result1[0][0], "LET_START");
             assert_eq!(result1[1][0], "LET_VALUE");
             assert_eq!(result1[1][1], "'a; b'");
-            
-            let result2 = tokenize_and_humanize_parts("@let foo = \"';'\";", TokenizeOptions::default());
+
+            let result2 =
+                tokenize_and_humanize_parts("@let foo = \"';'\";", TokenizeOptions::default());
             assert_eq!(result2[1][1], "\"';'\"");
         }
 
         #[test]
         fn should_parse_let_declaration_using_escaped_quotes_in_string() {
-            let result = tokenize_and_humanize_parts("@let foo = '\\';\\'' + \"\\\",\";", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "@let foo = '\\';\\'' + \"\\\",\";",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "LET_START");
             assert_eq!(result[1][0], "LET_VALUE");
             assert!(result[1][1].contains("'\\';\\''"));
@@ -1023,7 +1161,10 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_let_declaration_using_function_calls_in_value() {
-            let result = tokenize_and_humanize_parts("@let foo = fn(a, b) + fn2(c, d, e);", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "@let foo = fn(a, b) + fn2(c, d, e);",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "LET_START");
             assert_eq!(result[1][0], "LET_VALUE");
             assert_eq!(result[1][1], "fn(a, b) + fn2(c, d, e)");
@@ -1031,28 +1172,39 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_let_declarations_using_array_literals() {
-            let result1 = tokenize_and_humanize_parts("@let foo = [1, 2, 3];", TokenizeOptions::default());
+            let result1 =
+                tokenize_and_humanize_parts("@let foo = [1, 2, 3];", TokenizeOptions::default());
             assert_eq!(result1[1][1], "[1, 2, 3]");
-            
-            let result2 = tokenize_and_humanize_parts("@let foo = [0, [foo[1]], 3];", TokenizeOptions::default());
+
+            let result2 = tokenize_and_humanize_parts(
+                "@let foo = [0, [foo[1]], 3];",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result2[1][1], "[0, [foo[1]], 3]");
         }
 
         #[test]
         fn should_parse_let_declarations_using_object_literals() {
-            let result1 = tokenize_and_humanize_parts("@let foo = {a: 1, b: {c: something + 2}};", TokenizeOptions::default());
+            let result1 = tokenize_and_humanize_parts(
+                "@let foo = {a: 1, b: {c: something + 2}};",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result1[1][1], "{a: 1, b: {c: something + 2}}");
-            
+
             let result2 = tokenize_and_humanize_parts("@let foo = {};", TokenizeOptions::default());
             assert_eq!(result2[1][1], "{}");
-            
-            let result3 = tokenize_and_humanize_parts("@let foo = {foo: \";\"};", TokenizeOptions::default());
+
+            let result3 =
+                tokenize_and_humanize_parts("@let foo = {foo: \";\"};", TokenizeOptions::default());
             assert_eq!(result3[1][1], "{foo: \";\"}");
         }
 
         #[test]
         fn should_parse_let_declaration_containing_complex_expression() {
-            let result = tokenize_and_humanize_parts("@let foo = fn({a: 1, b: [otherFn([{c: \";\"}], 321, {d: [',']})]});", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "@let foo = fn({a: 1, b: [otherFn([{c: \";\"}], 321, {d: [',']})]});",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "LET_START");
             assert_eq!(result[1][0], "LET_VALUE");
             assert!(result[1][1].contains("fn({a: 1"));
@@ -1063,14 +1215,17 @@ mod html_lexer_tests {
             let errors = tokenize_and_humanize_errors("@let foo = \";", TokenizeOptions::default());
             assert!(!errors.is_empty());
             assert_eq!(errors[0][1], "0:13");
-            
-            let result1 = tokenize_and_humanize_parts("@let foo = {a: 1,;", TokenizeOptions::default());
+
+            let result1 =
+                tokenize_and_humanize_parts("@let foo = {a: 1,;", TokenizeOptions::default());
             assert_eq!(result1[1][1], "{a: 1,");
-            
-            let result2 = tokenize_and_humanize_parts("@let foo = [1, ;", TokenizeOptions::default());
+
+            let result2 =
+                tokenize_and_humanize_parts("@let foo = [1, ;", TokenizeOptions::default());
             assert_eq!(result2[1][1], "[1, ");
-            
-            let result3 = tokenize_and_humanize_parts("@let foo = fn(;", TokenizeOptions::default());
+
+            let result3 =
+                tokenize_and_humanize_parts("@let foo = fn(;", TokenizeOptions::default());
             assert_eq!(result3[1][1], "fn(");
         }
 
@@ -1082,16 +1237,28 @@ mod html_lexer_tests {
             assert_eq!(result[1][1], "");
         }
 
-    fn tokenize_and_humanize_parts_ignoring_errors(input: &str, options: TokenizeOptions) -> Vec<Vec<String>> {
-        let result = angular_compiler::ml_parser::lexer::tokenize(input.to_string(), "someUrl".to_string(), |name| {
-            angular_compiler::ml_parser::get_html_tag_definition(name) as &'static dyn angular_compiler::ml_parser::tags::TagDefinition
-        }, options);
-        humanize_parts(&result.tokens)
-    }
+        fn tokenize_and_humanize_parts_ignoring_errors(
+            input: &str,
+            options: TokenizeOptions,
+        ) -> Vec<Vec<String>> {
+            let result = angular_compiler::ml_parser::lexer::tokenize(
+                input.to_string(),
+                "someUrl".to_string(),
+                |name| {
+                    angular_compiler::ml_parser::get_html_tag_definition(name)
+                        as &'static dyn angular_compiler::ml_parser::tags::TagDefinition
+                },
+                options,
+            );
+            humanize_parts(&result.tokens)
+        }
 
         #[test]
         fn should_handle_no_space_after_let() {
-            let result = tokenize_and_humanize_parts_ignoring_errors("@letFoo = 123;", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts_ignoring_errors(
+                "@letFoo = 123;",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result[0][0], "INCOMPLETE_LET");
             assert_eq!(result[0][1], "@let");
             assert_eq!(result[1][0], "TEXT");
@@ -1100,47 +1267,70 @@ mod html_lexer_tests {
 
         #[test]
         fn should_handle_unsupported_characters_in_let_name() {
-            let result1 = tokenize_and_humanize_parts_ignoring_errors("@let foo\\bar = 123;", TokenizeOptions::default());
+            let result1 = tokenize_and_humanize_parts_ignoring_errors(
+                "@let foo\\bar = 123;",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result1[0][0], "INCOMPLETE_LET");
             assert_eq!(result1[0][1], "foo");
-            
-            let result2 = tokenize_and_humanize_parts_ignoring_errors("@let #foo = 123;", TokenizeOptions::default());
+
+            let result2 = tokenize_and_humanize_parts_ignoring_errors(
+                "@let #foo = 123;",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result2[0][0], "INCOMPLETE_LET");
             assert_eq!(result2[0][1], "");
-            
-            let result3 = tokenize_and_humanize_parts_ignoring_errors("@let foo\nbar = 123;", TokenizeOptions::default());
+
+            let result3 = tokenize_and_humanize_parts_ignoring_errors(
+                "@let foo\nbar = 123;",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result3[0][0], "INCOMPLETE_LET");
             assert_eq!(result3[0][1], "foo");
         }
 
         #[test]
         fn should_handle_digits_in_let_name() {
-            let result1 = tokenize_and_humanize_parts("@let a123 = foo;", TokenizeOptions::default());
+            let result1 =
+                tokenize_and_humanize_parts("@let a123 = foo;", TokenizeOptions::default());
             assert_eq!(result1[0][0], "LET_START");
             assert_eq!(result1[0][1], "a123");
-            
-            let result2 = tokenize_and_humanize_parts_ignoring_errors("@let 123a = 123;", TokenizeOptions::default());
+
+            let result2 = tokenize_and_humanize_parts_ignoring_errors(
+                "@let 123a = 123;",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result2[0][0], "INCOMPLETE_LET");
             assert_eq!(result2[0][1], "");
         }
 
         #[test]
         fn should_handle_let_declaration_without_ending_token() {
-            let result1 = tokenize_and_humanize_parts_ignoring_errors("@let foo = 123 + 456", TokenizeOptions::default());
+            let result1 = tokenize_and_humanize_parts_ignoring_errors(
+                "@let foo = 123 + 456",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result1[0][0], "INCOMPLETE_LET");
             assert_eq!(result1[0][1], "foo");
             assert_eq!(result1[1][0], "LET_VALUE");
-            
-            let result2 = tokenize_and_humanize_parts_ignoring_errors("@let foo = 123 + 456                  ", TokenizeOptions::default());
+
+            let result2 = tokenize_and_humanize_parts_ignoring_errors(
+                "@let foo = 123 + 456                  ",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result2[0][0], "INCOMPLETE_LET");
-            
-            let result3 = tokenize_and_humanize_parts_ignoring_errors("@let foo = 123, bar = 456", TokenizeOptions::default());
+
+            let result3 = tokenize_and_humanize_parts_ignoring_errors(
+                "@let foo = 123, bar = 456",
+                TokenizeOptions::default(),
+            );
             assert_eq!(result3[0][0], "INCOMPLETE_LET");
         }
 
         #[test]
         fn should_not_parse_let_inside_interpolation() {
-            let result = tokenize_and_humanize_parts("{{ @let foo = 123; }}", TokenizeOptions::default());
+            let result =
+                tokenize_and_humanize_parts("{{ @let foo = 123; }}", TokenizeOptions::default());
             // result[0] is INTERPOLATION because no text before it.
             assert_eq!(result[0][0], "INTERPOLATION");
             assert!(result[0][2].contains("@let foo = 123;"));
@@ -1157,7 +1347,7 @@ mod html_lexer_tests {
             options.tokenize_expansion_forms = true;
             let result = tokenize_and_humanize_parts(
                 "{one.two, three, =4 {four} =5 {five} foo {bar} }",
-                options
+                options,
             );
             assert_eq!(result[0][0], "EXPANSION_FORM_START");
             assert_eq!(result[1][0], "RAW_TEXT");
@@ -1172,25 +1362,21 @@ mod html_lexer_tests {
         fn should_parse_expansion_form_with_text_elements_surrounding_it() {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
-            let result = tokenize_and_humanize_parts(
-                "before{one.two, three, =4 {four}}after",
-                options
-            );
+            let result =
+                tokenize_and_humanize_parts("before{one.two, three, =4 {four}}after", options);
             assert_eq!(result[0][0], "TEXT");
             assert_eq!(result[0][1], "before");
             assert_eq!(result[1][0], "EXPANSION_FORM_START");
-            assert_eq!(result[result.len()-2][0], "TEXT");
-            assert_eq!(result[result.len()-2][1], "after");
+            assert_eq!(result[result.len() - 2][0], "TEXT");
+            assert_eq!(result[result.len() - 2][1], "after");
         }
 
         #[test]
         fn should_parse_expansion_form_as_tag_single_child() {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
-            let result = tokenize_and_humanize_parts(
-                "<div><span>{a, b, =4 {c}}</span></div>",
-                options
-            );
+            let result =
+                tokenize_and_humanize_parts("<div><span>{a, b, =4 {c}}</span></div>", options);
             assert_eq!(result[0][0], "TAG_OPEN_START");
             assert_eq!(result[4][0], "EXPANSION_FORM_START");
         }
@@ -1199,10 +1385,8 @@ mod html_lexer_tests {
         fn should_parse_expansion_form_with_whitespace_surrounding_it() {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
-            let result = tokenize_and_humanize_parts(
-                "<div><span> {a, b, =4 {c}} </span></div>",
-                options
-            );
+            let result =
+                tokenize_and_humanize_parts("<div><span> {a, b, =4 {c}} </span></div>", options);
             assert_eq!(result[4][0], "TEXT");
             assert_eq!(result[4][1], " ");
             assert_eq!(result[5][0], "EXPANSION_FORM_START");
@@ -1212,23 +1396,20 @@ mod html_lexer_tests {
         fn should_parse_expansion_forms_with_elements_in_it() {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
-            let result = tokenize_and_humanize_parts(
-                "{one.two, three, =4 {four <b>a</b>}}",
-                options
-            );
+            let result =
+                tokenize_and_humanize_parts("{one.two, three, =4 {four <b>a</b>}}", options);
             assert_eq!(result[0][0], "EXPANSION_FORM_START");
             // Should have TAG_OPEN_START for <b> inside expansion
-            assert!(result.iter().any(|r| r[0] == "TAG_OPEN_START" && r.len() > 1 && r[2] == "b"));
+            assert!(result
+                .iter()
+                .any(|r| r[0] == "TAG_OPEN_START" && r.len() > 1 && r[2] == "b"));
         }
 
         #[test]
         fn should_parse_expansion_forms_containing_interpolation() {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
-            let result = tokenize_and_humanize_parts(
-                "{one.two, three, =4 {four {{a}}}}",
-                options
-            );
+            let result = tokenize_and_humanize_parts("{one.two, three, =4 {four {{a}}}}", options);
             assert_eq!(result[0][0], "EXPANSION_FORM_START");
             // Should have INTERPOLATION token
             assert!(result.iter().any(|r| r[0] == "INTERPOLATION"));
@@ -1238,13 +1419,14 @@ mod html_lexer_tests {
         fn should_parse_nested_expansion_forms() {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
-            let result = tokenize_and_humanize_parts(
-                "{one.two, three, =4 { {xx, yy, =x {one}} }}",
-                options
-            );
+            let result =
+                tokenize_and_humanize_parts("{one.two, three, =4 { {xx, yy, =x {one}} }}", options);
             assert_eq!(result[0][0], "EXPANSION_FORM_START");
             // Should have nested EXPANSION_FORM_START
-            let expansion_starts: Vec<_> = result.iter().filter(|r| r[0] == "EXPANSION_FORM_START").collect();
+            let expansion_starts: Vec<_> = result
+                .iter()
+                .filter(|r| r[0] == "EXPANSION_FORM_START")
+                .collect();
             assert!(expansion_starts.len() >= 2);
         }
 
@@ -1252,7 +1434,8 @@ mod html_lexer_tests {
             use super::*;
 
             #[test]
-            fn should_normalize_line_endings_in_expansion_forms_when_escaped_string_true_and_i18n_normalize_true() {
+            fn should_normalize_line_endings_in_expansion_forms_when_escaped_string_true_and_i18n_normalize_true(
+            ) {
                 let mut options = TokenizeOptions::default();
                 options.tokenize_expansion_forms = true;
                 options.escaped_string = true;
@@ -1279,10 +1462,7 @@ mod html_lexer_tests {
         fn should_report_unescaped_brace_on_error() {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
-            let result = tokenize_and_humanize_errors(
-                "{count, plural, =0 {no items} {",
-                options
-            );
+            let result = tokenize_and_humanize_errors("{count, plural, =0 {no items} {", options);
             assert!(!result.is_empty());
         }
 
@@ -1290,10 +1470,7 @@ mod html_lexer_tests {
         fn should_report_unescaped_brace_even_after_prematurely_terminated_interpolation() {
             let mut options = TokenizeOptions::default();
             options.tokenize_expansion_forms = true;
-            let result = tokenize_and_humanize_errors(
-                "{count, plural, =0 {{{no items} {",
-                options
-            );
+            let result = tokenize_and_humanize_errors("{count, plural, =0 {{{no items} {", options);
             assert!(!result.is_empty());
         }
 
@@ -1303,7 +1480,7 @@ mod html_lexer_tests {
             options.tokenize_expansion_forms = true;
             let result = tokenize_and_humanize_errors(
                 "line1\nline2\n{count, plural, =0 {no items} {",
-                options
+                options,
             );
             // Error message should include context
             assert!(!result.is_empty());
@@ -1346,7 +1523,7 @@ mod html_lexer_tests {
             options.selectorless_enabled = true;
             let result = tokenize_and_humanize_parts(
                 "<div @MyDir(static=\"one\" [bound]=\"expr\")></div>",
-                options
+                options,
             );
             let attr_count = result.iter().filter(|r| r[0] == "ATTR_NAME").count();
             assert!(attr_count >= 2);
@@ -1356,10 +1533,8 @@ mod html_lexer_tests {
         fn should_parse_multiple_directives() {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
-            let result = tokenize_and_humanize_parts(
-                "<div @OneDir @TwoDir @ThreeDir></div>",
-                options
-            );
+            let result =
+                tokenize_and_humanize_parts("<div @OneDir @TwoDir @ThreeDir></div>", options);
             let dir_count = result.iter().filter(|r| r[0] == "DIRECTIVE_NAME").count();
             assert_eq!(dir_count, 3);
         }
@@ -1369,7 +1544,9 @@ mod html_lexer_tests {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
             let result = tokenize_and_humanize_parts("<div>@MyDir()</div>", options);
-            assert!(result.iter().any(|r| r[0] == "TEXT" && r[1].contains("@MyDir")));
+            assert!(result
+                .iter()
+                .any(|r| r[0] == "TEXT" && r[1].contains("@MyDir")));
         }
 
         #[test]
@@ -1377,7 +1554,9 @@ mod html_lexer_tests {
             let mut options = TokenizeOptions::default();
             options.selectorless_enabled = true;
             let result = tokenize_and_humanize_parts("<div hello=\"@MyDir\"></div>", options);
-            assert!(result.iter().any(|r| r[0] == "ATTR_VALUE_TEXT" && r[1].contains("@MyDir")));
+            assert!(result
+                .iter()
+                .any(|r| r[0] == "ATTR_VALUE_TEXT" && r[1].contains("@MyDir")));
         }
 
         #[test]
@@ -1386,7 +1565,7 @@ mod html_lexer_tests {
             options.selectorless_enabled = true;
             let result = tokenize_and_humanize_source_spans(
                 "<div @Empty @NoAttrs() @WithAttr([one]=\"1\")></div>",
-                options
+                options,
             );
             assert!(result.iter().any(|r| r[0] == "DIRECTIVE_NAME"));
         }
@@ -1397,7 +1576,7 @@ mod html_lexer_tests {
             options.selectorless_enabled = true;
             let result = tokenize_and_humanize_source_spans(
                 "<div    @Dir   (  one=\"1\"    )     ></div>",
-                options
+                options,
             );
             // Spans should not include surrounding whitespace
             assert!(result.iter().any(|r| r[0] == "DIRECTIVE_NAME"));
@@ -1412,7 +1591,7 @@ mod html_lexer_tests {
         fn should_parse_parsable_data_in_iframe_srcdoc() {
             let result = tokenize_and_humanize_parts(
                 "<iframe srcdoc=\"<div></div>\"></iframe>",
-                TokenizeOptions::default()
+                TokenizeOptions::default(),
             );
             // srcdoc should allow HTML in attribute value
             assert!(result.len() >= 5);
@@ -1422,7 +1601,7 @@ mod html_lexer_tests {
         fn should_handle_parsable_data_with_quotes() {
             let result = tokenize_and_humanize_parts(
                 "<iframe srcdoc='<div class=\"test\"></div>'></iframe>",
-                TokenizeOptions::default()
+                TokenizeOptions::default(),
             );
             assert!(result.len() >= 3);
         }
@@ -1449,7 +1628,10 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_unicode_in_attributes() {
-            let result = tokenize_and_humanize_parts("<div title=\"你好\"></div>", TokenizeOptions::default());
+            let result = tokenize_and_humanize_parts(
+                "<div title=\"你好\"></div>",
+                TokenizeOptions::default(),
+            );
             assert!(result.iter().any(|r| r[0] == "ATTR_VALUE_TEXT"));
         }
 
@@ -1507,7 +1689,7 @@ mod html_lexer_tests {
         }
     }
 
-    // SECTION 21: ERROR HANDLING (lines 1058-1094, 2993-3029)  
+    // SECTION 21: ERROR HANDLING (lines 1058-1094, 2993-3029)
     mod error_handling {
         use super::*;
 
@@ -1551,7 +1733,9 @@ mod html_lexer_tests {
         #[test]
         fn should_parse_simple_interpolation() {
             let result = tokenize_and_humanize_parts("{{value}}", TokenizeOptions::default());
-            assert!(result.iter().any(|r| r[0] == "TEXT" || r[0] == "INTERPOLATION"));
+            assert!(result
+                .iter()
+                .any(|r| r[0] == "TEXT" || r[0] == "INTERPOLATION"));
         }
 
         #[test]
@@ -1562,14 +1746,20 @@ mod html_lexer_tests {
 
         #[test]
         fn should_parse_multiple_interpolations() {
-            let result = tokenize_and_humanize_parts("{{a}} text {{b}}", TokenizeOptions::default());
+            let result =
+                tokenize_and_humanize_parts("{{a}} text {{b}}", TokenizeOptions::default());
             assert!(result.len() >= 1);
         }
 
         #[test]
         fn should_parse_interpolation_in_attributes() {
-            let result = tokenize_and_humanize_parts("<div title=\"{{value}}\"></div>", TokenizeOptions::default());
-            assert!(result.iter().any(|r| r[0] == "ATTR_VALUE_TEXT" || r[0] == "ATTR_VALUE_INTERPOLATION"));
+            let result = tokenize_and_humanize_parts(
+                "<div title=\"{{value}}\"></div>",
+                TokenizeOptions::default(),
+            );
+            assert!(result
+                .iter()
+                .any(|r| r[0] == "ATTR_VALUE_TEXT" || r[0] == "ATTR_VALUE_INTERPOLATION"));
         }
 
         #[test]
@@ -1583,4 +1773,3 @@ mod html_lexer_tests {
     // Remaining: Line ending normalization details, edge cases (~150 tests)
     // Total file coverage: ~2700/3824 lines
 }
-

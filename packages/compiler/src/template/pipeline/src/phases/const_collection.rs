@@ -4,11 +4,17 @@
 //! Converts the semantic attributes of element-like operations into constant array expressions
 
 use crate::core::AttributeMarker;
-use crate::output::output_ast::{Expression, LiteralArrayExpr, LiteralExpr, LiteralValue, TaggedTemplateLiteralExpr, TemplateLiteralElement, TemplateLiteral};
-use crate::template::pipeline::ir as ir;
-use crate::template::pipeline::ir::enums::{OpKind, BindingKind};
+use crate::output::output_ast::{
+    Expression, LiteralArrayExpr, LiteralExpr, LiteralValue, TaggedTemplateLiteralExpr,
+    TemplateLiteral, TemplateLiteralElement,
+};
+use crate::template::pipeline::ir;
+use crate::template::pipeline::ir::enums::{BindingKind, OpKind};
 use crate::template::pipeline::ir::ops::create::{ExtractedAttributeOp, ProjectionOp};
-use crate::template::pipeline::src::compilation::{CompilationJob, ComponentCompilationJob, HostBindingCompilationJob, CompilationUnit, CompilationJobKind};
+use crate::template::pipeline::src::compilation::{
+    CompilationJob, CompilationJobKind, CompilationUnit, ComponentCompilationJob,
+    HostBindingCompilationJob,
+};
 use std::collections::HashMap;
 
 /// Container for all of the various kinds of attributes which are applied on an element.
@@ -58,16 +64,24 @@ impl ElementAttributes {
         trusted_value_fn: Option<Expression>,
     ) {
         // Check for duplicates (except in compatibility mode for some binding kinds)
-        let allow_duplicates = self.compatibility == ir::CompatibilityMode::TemplateDefinitionBuilder
-            && matches!(kind, BindingKind::Attribute | BindingKind::ClassName | BindingKind::StyleProperty);
-        
+        let allow_duplicates = self.compatibility
+            == ir::CompatibilityMode::TemplateDefinitionBuilder
+            && matches!(
+                kind,
+                BindingKind::Attribute | BindingKind::ClassName | BindingKind::StyleProperty
+            );
+
         if !allow_duplicates && self.is_known(kind, &name) {
             return;
         }
 
         // Handle ngProjectAs
         if name == "ngProjectAs" {
-            if let Some(Expression::Literal(LiteralExpr { value: LiteralValue::String(s), .. })) = value {
+            if let Some(Expression::Literal(LiteralExpr {
+                value: LiteralValue::String(s),
+                ..
+            })) = value
+            {
                 self.project_as = Some(s);
                 return; // ngProjectAs is handled separately
             } else {
@@ -111,7 +125,12 @@ impl ElementAttributes {
                 if let Some(trusted_fn) = trusted_value_fn {
                     // Use tagged template if trusted value function is provided
                     // Check if value is a string literal
-                    if let Expression::Literal(LiteralExpr { value: LiteralValue::String(s), source_span, .. }) = val {
+                    if let Expression::Literal(LiteralExpr {
+                        value: LiteralValue::String(s),
+                        source_span,
+                        ..
+                    }) = val
+                    {
                         let template = TemplateLiteral {
                             elements: vec![TemplateLiteralElement {
                                 text: s.clone(),
@@ -127,7 +146,9 @@ impl ElementAttributes {
                             source_span,
                         }));
                     } else {
-                        panic!("AssertionError: extracted attribute value should be string literal");
+                        panic!(
+                            "AssertionError: extracted attribute value should be string literal"
+                        );
                     }
                 } else {
                     array.push(val);
@@ -143,33 +164,36 @@ impl ElementAttributes {
 pub fn collect_element_consts(job: &mut dyn CompilationJob) {
     // Collect all extracted attributes
     let mut all_element_attributes: HashMap<ir::XrefId, ElementAttributes> = HashMap::new();
-    
+
     // Collect ExtractedAttributeOps from all units
     let component_job = unsafe {
         let job_ptr = job as *mut dyn CompilationJob;
         let job_ptr = job_ptr as *mut ComponentCompilationJob;
         &mut *job_ptr
     };
-    
+
     let compatibility = job.compatibility();
-    
+
     // Collect ExtractedAttributeOps and remove them
-    let mut units_to_process: Vec<*mut crate::template::pipeline::src::compilation::ViewCompilationUnit> = Vec::new();
+    let mut units_to_process: Vec<
+        *mut crate::template::pipeline::src::compilation::ViewCompilationUnit,
+    > = Vec::new();
     units_to_process.push(&mut component_job.root as *mut _);
     for (_, unit) in component_job.views.iter_mut() {
         units_to_process.push(unit as *mut _);
     }
-    
+
     // First pass: collect ExtractedAttributeOps
     for unit_ptr in &units_to_process {
         let unit = unsafe { &mut **unit_ptr };
         let mut indices_to_remove: Vec<usize> = Vec::new();
-        
+
         for (index, op) in unit.create().iter().enumerate() {
             if let Some(extracted_attr) = op.as_any().downcast_ref::<ExtractedAttributeOp>() {
-                let attributes = all_element_attributes.entry(extracted_attr.target)
+                let attributes = all_element_attributes
+                    .entry(extracted_attr.target)
                     .or_insert_with(|| ElementAttributes::new(compatibility));
-                
+
                 attributes.add(
                     extracted_attr.binding_kind,
                     extracted_attr.name.clone(),
@@ -177,21 +201,24 @@ pub fn collect_element_consts(job: &mut dyn CompilationJob) {
                     extracted_attr.namespace.clone(),
                     extracted_attr.trusted_value_fn.clone(),
                 );
-                
+
                 indices_to_remove.push(index);
             }
         }
-        
+
         // Remove ExtractedAttributeOps (iterate in reverse)
         for index in indices_to_remove.iter().rev() {
             unit.create_mut().remove_at(*index);
         }
     }
-    
+
     // Serialize the extracted attributes into the const array
     // Handle ComponentCompilationJob
     let job_kind = job.kind();
-    if matches!(job_kind, CompilationJobKind::Tmpl | CompilationJobKind::Both) {
+    if matches!(
+        job_kind,
+        CompilationJobKind::Tmpl | CompilationJobKind::Both
+    ) {
         let component_job = unsafe {
             let job_ptr = job as *mut dyn CompilationJob;
             let job_ptr = job_ptr as *mut ComponentCompilationJob;
@@ -206,7 +233,7 @@ pub fn collect_element_consts(job: &mut dyn CompilationJob) {
             let job_ptr = job_ptr as *mut HostBindingCompilationJob;
             &mut *job_ptr
         };
-        
+
         for (xref, attributes) in all_element_attributes.iter() {
             if *xref != host_job.root.xref {
                 panic!("An attribute would be const collected into the host binding's template function, but is not associated with the root xref.");
@@ -221,33 +248,42 @@ pub fn collect_element_consts(job: &mut dyn CompilationJob) {
 
 fn get_xref_from_create_op(op: &dyn ir::CreateOp) -> Option<ir::XrefId> {
     match op.kind() {
-        OpKind::ElementStart => {
-            op.as_any().downcast_ref::<ir::ops::create::ElementStartOp>().map(|el| el.base.base.xref)
-        }
-        OpKind::Element => {
-            op.as_any().downcast_ref::<ir::ops::create::ElementOp>().map(|el| el.base.base.xref)
-        }
-        OpKind::Template => {
-            op.as_any().downcast_ref::<ir::ops::create::TemplateOp>().map(|tmpl| tmpl.base.base.xref)
-        }
-        OpKind::ContainerStart => {
-            op.as_any().downcast_ref::<ir::ops::create::ContainerStartOp>().map(|c| c.base.xref)
-        }
-        OpKind::Container => {
-            op.as_any().downcast_ref::<ir::ops::create::ContainerOp>().map(|c| c.base.xref)
-        }
-        OpKind::RepeaterCreate => {
-            op.as_any().downcast_ref::<ir::ops::create::RepeaterCreateOp>().map(|r| r.base.base.xref)
-        }
-        OpKind::ConditionalCreate => {
-            op.as_any().downcast_ref::<ir::ops::create::ConditionalCreateOp>().map(|c| c.base.base.xref)
-        }
-        OpKind::ConditionalBranchCreate => {
-            op.as_any().downcast_ref::<ir::ops::create::ConditionalBranchCreateOp>().map(|c| c.base.base.xref)
-        }
-        OpKind::Projection => {
-            op.as_any().downcast_ref::<ir::ops::create::ProjectionOp>().map(|p| p.xref)
-        }
+        OpKind::ElementStart => op
+            .as_any()
+            .downcast_ref::<ir::ops::create::ElementStartOp>()
+            .map(|el| el.base.base.xref),
+        OpKind::Element => op
+            .as_any()
+            .downcast_ref::<ir::ops::create::ElementOp>()
+            .map(|el| el.base.base.xref),
+        OpKind::Template => op
+            .as_any()
+            .downcast_ref::<ir::ops::create::TemplateOp>()
+            .map(|tmpl| tmpl.base.base.xref),
+        OpKind::ContainerStart => op
+            .as_any()
+            .downcast_ref::<ir::ops::create::ContainerStartOp>()
+            .map(|c| c.base.xref),
+        OpKind::Container => op
+            .as_any()
+            .downcast_ref::<ir::ops::create::ContainerOp>()
+            .map(|c| c.base.xref),
+        OpKind::RepeaterCreate => op
+            .as_any()
+            .downcast_ref::<ir::ops::create::RepeaterCreateOp>()
+            .map(|r| r.base.base.xref),
+        OpKind::ConditionalCreate => op
+            .as_any()
+            .downcast_ref::<ir::ops::create::ConditionalCreateOp>()
+            .map(|c| c.base.base.xref),
+        OpKind::ConditionalBranchCreate => op
+            .as_any()
+            .downcast_ref::<ir::ops::create::ConditionalBranchCreateOp>()
+            .map(|c| c.base.base.xref),
+        OpKind::Projection => op
+            .as_any()
+            .downcast_ref::<ir::ops::create::ProjectionOp>()
+            .map(|p| p.xref),
         _ => None,
     }
 }
@@ -263,10 +299,13 @@ fn process_component_job(
     let mut collect_elements = |create_list: &ir::OpList<Box<dyn ir::CreateOp + Send + Sync>>| {
         for op in create_list.iter() {
             let kind = op.kind();
-            if kind == ir::OpKind::ElementStart || kind == ir::OpKind::Element || 
-               kind == ir::OpKind::Template || kind == ir::OpKind::RepeaterCreate ||
-               kind == ir::OpKind::ConditionalCreate || kind == ir::OpKind::Projection {
-                
+            if kind == ir::OpKind::ElementStart
+                || kind == ir::OpKind::Element
+                || kind == ir::OpKind::Template
+                || kind == ir::OpKind::RepeaterCreate
+                || kind == ir::OpKind::ConditionalCreate
+                || kind == ir::OpKind::Projection
+            {
                 if let Some(xref) = get_xref_from_create_op(op.as_ref()) {
                     ordered_elements.push((xref, kind));
                 }
@@ -309,7 +348,7 @@ fn process_component_job(
             }
         }
     }
-    
+
     // Final pass: assign const indices to elements
     process_unit_for_component(&mut job.root, &const_indices, &projection_attributes);
     let view_keys: Vec<_> = job.views.keys().cloned().collect();
@@ -320,10 +359,6 @@ fn process_component_job(
     }
 }
 
-
-
-
-
 fn process_unit_for_component(
     unit: &mut crate::template::pipeline::src::compilation::ViewCompilationUnit,
     const_indices: &HashMap<ir::XrefId, Option<ir::ConstIndex>>,
@@ -333,67 +368,106 @@ fn process_unit_for_component(
         if op.kind() == OpKind::Projection {
             if let Some(projection) = op.as_any_mut().downcast_mut::<ProjectionOp>() {
                 if let Some(attr_array) = projection_attributes.get(&projection.xref) {
-                    projection.attributes = Some(Box::new(Expression::LiteralArray(attr_array.clone())));
+                    projection.attributes =
+                        Some(Box::new(Expression::LiteralArray(attr_array.clone())));
                 }
             }
         } else if is_element_or_container_op(op.kind()) {
             // Handle ElementOrContainerOps - must cast to specific types because of nested struct hierarchy
             match op.kind() {
                 OpKind::ElementStart => {
-                    if let Some(el_op) = op.as_any_mut().downcast_mut::<ir::ops::create::ElementStartOp>() {
-                        if let Some(idx) = const_indices.get(&el_op.base.base.xref).copied().flatten() {
+                    if let Some(el_op) = op
+                        .as_any_mut()
+                        .downcast_mut::<ir::ops::create::ElementStartOp>()
+                    {
+                        if let Some(idx) =
+                            const_indices.get(&el_op.base.base.xref).copied().flatten()
+                        {
                             el_op.base.base.attributes = Some(idx);
                         }
                     }
                 }
                 OpKind::Element => {
-                    if let Some(el_op) = op.as_any_mut().downcast_mut::<ir::ops::create::ElementOp>() {
-                        if let Some(idx) = const_indices.get(&el_op.base.base.xref).copied().flatten() {
+                    if let Some(el_op) =
+                        op.as_any_mut().downcast_mut::<ir::ops::create::ElementOp>()
+                    {
+                        if let Some(idx) =
+                            const_indices.get(&el_op.base.base.xref).copied().flatten()
+                        {
                             el_op.base.base.attributes = Some(idx);
                         }
                     }
                 }
                 OpKind::Template => {
-                    if let Some(tmpl_op) = op.as_any_mut().downcast_mut::<ir::ops::create::TemplateOp>() {
-                        if let Some(idx) = const_indices.get(&tmpl_op.base.base.xref).copied().flatten() {
+                    if let Some(tmpl_op) = op
+                        .as_any_mut()
+                        .downcast_mut::<ir::ops::create::TemplateOp>()
+                    {
+                        if let Some(idx) = const_indices
+                            .get(&tmpl_op.base.base.xref)
+                            .copied()
+                            .flatten()
+                        {
                             tmpl_op.base.base.attributes = Some(idx);
                         }
                     }
                 }
                 OpKind::ContainerStart => {
-                    if let Some(c_op) = op.as_any_mut().downcast_mut::<ir::ops::create::ContainerStartOp>() {
+                    if let Some(c_op) = op
+                        .as_any_mut()
+                        .downcast_mut::<ir::ops::create::ContainerStartOp>()
+                    {
                         if let Some(idx) = const_indices.get(&c_op.base.xref).copied().flatten() {
                             c_op.base.attributes = Some(idx);
                         }
                     }
                 }
                 OpKind::Container => {
-                    if let Some(c_op) = op.as_any_mut().downcast_mut::<ir::ops::create::ContainerOp>() {
+                    if let Some(c_op) = op
+                        .as_any_mut()
+                        .downcast_mut::<ir::ops::create::ContainerOp>()
+                    {
                         if let Some(idx) = const_indices.get(&c_op.base.xref).copied().flatten() {
                             c_op.base.attributes = Some(idx);
                         }
                     }
                 }
                 OpKind::RepeaterCreate => {
-                    if let Some(r_op) = op.as_any_mut().downcast_mut::<ir::ops::create::RepeaterCreateOp>() {
-                        if let Some(idx) = const_indices.get(&r_op.base.base.xref).copied().flatten() {
+                    if let Some(r_op) = op
+                        .as_any_mut()
+                        .downcast_mut::<ir::ops::create::RepeaterCreateOp>()
+                    {
+                        if let Some(idx) =
+                            const_indices.get(&r_op.base.base.xref).copied().flatten()
+                        {
                             r_op.base.base.attributes = Some(idx);
                         }
                         if let Some(empty_view) = r_op.empty_view {
-                            r_op.empty_attributes = const_indices.get(&empty_view).copied().flatten();
+                            r_op.empty_attributes =
+                                const_indices.get(&empty_view).copied().flatten();
                         }
                     }
                 }
                 OpKind::ConditionalCreate => {
-                    if let Some(c_op) = op.as_any_mut().downcast_mut::<ir::ops::create::ConditionalCreateOp>() {
-                        if let Some(idx) = const_indices.get(&c_op.base.base.xref).copied().flatten() {
+                    if let Some(c_op) = op
+                        .as_any_mut()
+                        .downcast_mut::<ir::ops::create::ConditionalCreateOp>()
+                    {
+                        if let Some(idx) =
+                            const_indices.get(&c_op.base.base.xref).copied().flatten()
+                        {
                             c_op.base.base.attributes = Some(idx);
                         }
                     }
                 }
                 OpKind::ConditionalBranchCreate => {
-                    if let Some(c_op) = op.as_any_mut().downcast_mut::<ir::ops::create::ConditionalBranchCreateOp>() {
-                        if let Some(idx) = const_indices.get(&c_op.base.base.xref).copied().flatten() {
+                    if let Some(c_op) = op
+                        .as_any_mut()
+                        .downcast_mut::<ir::ops::create::ConditionalBranchCreateOp>()
+                    {
+                        if let Some(idx) =
+                            const_indices.get(&c_op.base.base.xref).copied().flatten()
+                        {
                             c_op.base.base.attributes = Some(idx);
                         }
                     }
@@ -418,7 +492,6 @@ fn is_element_or_container_op(kind: OpKind) -> bool {
             | OpKind::ConditionalBranchCreate
     )
 }
-
 
 /// Serialize ElementAttributes into a LiteralArrayExpr
 fn serialize_attributes(attrs: ElementAttributes) -> LiteralArrayExpr {
@@ -446,14 +519,12 @@ fn serialize_attributes(attrs: ElementAttributes) -> LiteralArrayExpr {
         for part in selector_parts {
             // Simple parsing: if it starts with a dot, it's a class; if it starts with #, it's an id
             // Otherwise, it's an element name
-            let mut selector_item = vec![
-                Expression::Literal(LiteralExpr {
-                    value: LiteralValue::String("".to_string()),
-                    type_: None,
-                    source_span: None,
-                })
-            ];
-            
+            let mut selector_item = vec![Expression::Literal(LiteralExpr {
+                value: LiteralValue::String("".to_string()),
+                type_: None,
+                source_span: None,
+            })];
+
             if part.starts_with('.') {
                 // Class selector
                 selector_item.push(Expression::Literal(LiteralExpr {
@@ -491,14 +562,14 @@ fn serialize_attributes(attrs: ElementAttributes) -> LiteralArrayExpr {
                     source_span: None,
                 }));
             }
-            
+
             selector_array.push(Expression::LiteralArray(LiteralArrayExpr {
                 entries: selector_item,
                 type_: None,
                 source_span: None,
             }));
         }
-        
+
         attr_array.push(Expression::LiteralArray(LiteralArrayExpr {
             entries: selector_array,
             type_: None,

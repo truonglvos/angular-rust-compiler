@@ -1,11 +1,11 @@
-use crate::linker::partial_linker::PartialLinker;
-use crate::linker::ast_value::{AstObject, AstValue};
 use crate::linker::ast::AstNode;
+use crate::linker::ast_value::{AstObject, AstValue};
+use crate::linker::partial_linker::PartialLinker;
 use angular_compiler::constant_pool::ConstantPool;
 use angular_compiler::output::output_ast as o;
 use angular_compiler::render3::r3_module_compiler::{
-    compile_ng_module, R3NgModuleMetadata, R3NgModuleMetadataGlobal,
-    R3NgModuleMetadataCommon, R3NgModuleMetadataKind, R3SelectorScopeMode
+    compile_ng_module, R3NgModuleMetadata, R3NgModuleMetadataCommon, R3NgModuleMetadataGlobal,
+    R3NgModuleMetadataKind, R3SelectorScopeMode,
 };
 use angular_compiler::render3::util::R3Reference;
 
@@ -16,16 +16,14 @@ impl PartialNgModuleLinker2 {
         Self
     }
 
-    fn to_r3_reference<TExpression: AstNode>(
-        value: &AstValue<TExpression>
-    ) -> R3Reference {
+    fn to_r3_reference<TExpression: AstNode>(value: &AstValue<TExpression>) -> R3Reference {
         let type_str = value.print();
         let wrapped_node = o::Expression::ReadVar(o::ReadVarExpr {
             name: type_str,
             type_: None,
             source_span: None,
         });
-        
+
         R3Reference {
             value: wrapped_node.clone(),
             type_expr: wrapped_node,
@@ -38,7 +36,7 @@ impl PartialNgModuleLinker2 {
     ) -> Result<R3NgModuleMetadata, String> {
         let type_expr = meta_obj.get_value("type")?.node;
         let type_str = meta_obj.host.print_node(&type_expr);
-        
+
         let wrapped_type = o::Expression::ReadVar(o::ReadVarExpr {
             name: type_str,
             type_: None,
@@ -50,31 +48,36 @@ impl PartialNgModuleLinker2 {
             type_expr: wrapped_type,
         };
 
-        let bootstrap: Vec<R3Reference> = meta_obj.get_array("bootstrap")
+        let bootstrap: Vec<R3Reference> = meta_obj
+            .get_array("bootstrap")
             .unwrap_or_default()
             .iter()
             .map(|v| Self::to_r3_reference(v))
             .collect();
 
-        let declarations: Vec<R3Reference> = meta_obj.get_array("declarations")
+        let declarations: Vec<R3Reference> = meta_obj
+            .get_array("declarations")
             .unwrap_or_default()
             .iter()
             .map(|v| Self::to_r3_reference(v))
             .collect();
 
-        let imports: Vec<R3Reference> = meta_obj.get_array("imports")
+        let imports: Vec<R3Reference> = meta_obj
+            .get_array("imports")
             .unwrap_or_default()
             .iter()
             .map(|v| Self::to_r3_reference(v))
             .collect();
 
-        let exports: Vec<R3Reference> = meta_obj.get_array("exports")
+        let exports: Vec<R3Reference> = meta_obj
+            .get_array("exports")
             .unwrap_or_default()
             .iter()
             .map(|v| Self::to_r3_reference(v))
             .collect();
 
-        let schemas: Option<Vec<R3Reference>> = meta_obj.get_array("schemas")
+        let schemas: Option<Vec<R3Reference>> = meta_obj
+            .get_array("schemas")
             .ok()
             .map(|arr| arr.iter().map(|v| Self::to_r3_reference(v)).collect());
 
@@ -126,7 +129,7 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialNgModuleLinker2
                         value: Box::new(res.expression),
                         source_span: None,
                     }));
-                    
+
                     o::Expression::InvokeFn(o::InvokeFunctionExpr {
                         fn_: Box::new(o::Expression::Fn(o::FunctionExpr {
                             params: vec![],
@@ -143,14 +146,12 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialNgModuleLinker2
                 } else {
                     res.expression
                 }
-            },
-            Err(e) => {
-                o::Expression::Literal(o::LiteralExpr {
-                    value: o::LiteralValue::String(format!("Error: {}", e)),
-                    type_: None,
-                    source_span: None,
-                })
             }
+            Err(e) => o::Expression::Literal(o::LiteralExpr {
+                value: o::LiteralValue::String(format!("Error: {}", e)),
+                type_: None,
+                source_span: None,
+            }),
         }
     }
 }

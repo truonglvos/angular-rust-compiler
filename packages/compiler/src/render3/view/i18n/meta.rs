@@ -5,8 +5,8 @@
 
 use std::collections::HashMap;
 
+use crate::i18n::digest::{compute_decimal_digest, compute_digest, decimal_digest};
 use crate::i18n::i18n_ast as i18n;
-use crate::i18n::digest::{compute_digest, compute_decimal_digest, decimal_digest};
 use crate::ml_parser::ast as html;
 use crate::ml_parser::parser::ParseTreeResult;
 /// JSDoc tag name
@@ -96,10 +96,16 @@ impl I18nMetaVisitor {
             html::Node::Text(text) => html::Node::Text(self.visit_text(text)),
             html::Node::Comment(comment) => html::Node::Comment(self.visit_comment(comment)),
             html::Node::Expansion(expansion) => self.visit_expansion(expansion, None),
-            html::Node::ExpansionCase(case) => html::Node::ExpansionCase(self.visit_expansion_case(case)),
+            html::Node::ExpansionCase(case) => {
+                html::Node::ExpansionCase(self.visit_expansion_case(case))
+            }
             html::Node::Block(block) => self.visit_block(block),
-            html::Node::BlockParameter(param) => html::Node::BlockParameter(self.visit_block_parameter(param)),
-            html::Node::LetDeclaration(decl) => html::Node::LetDeclaration(self.visit_let_declaration(decl)),
+            html::Node::BlockParameter(param) => {
+                html::Node::BlockParameter(self.visit_block_parameter(param))
+            }
+            html::Node::LetDeclaration(decl) => {
+                html::Node::LetDeclaration(self.visit_let_declaration(decl))
+            }
             _ => node,
         }
     }
@@ -135,7 +141,8 @@ impl I18nMetaVisitor {
         }
 
         // Visit children
-        let children: Vec<html::Node> = node.children
+        let children: Vec<html::Node> = node
+            .children
             .drain(..)
             .map(|child| self.visit_node(child))
             .collect();
@@ -150,7 +157,11 @@ impl I18nMetaVisitor {
         comment
     }
 
-    fn visit_expansion(&mut self, expansion: html::Expansion, _current_message: Option<&i18n::Message>) -> html::Node {
+    fn visit_expansion(
+        &mut self,
+        expansion: html::Expansion,
+        _current_message: Option<&i18n::Message>,
+    ) -> html::Node {
         self.has_i18n_meta = true;
         // TODO: Generate i18n message for expansion
         html::Node::Expansion(expansion)
@@ -161,7 +172,8 @@ impl I18nMetaVisitor {
     }
 
     fn visit_block(&mut self, mut block: html::Block) -> html::Node {
-        let children: Vec<html::Node> = block.children
+        let children: Vec<html::Node> = block
+            .children
             .drain(..)
             .map(|child| self.visit_node(child))
             .collect();
@@ -189,16 +201,14 @@ impl I18nMetaVisitor {
 
     fn _set_legacy_ids(&self, message: &mut i18n::Message, _meta: &I18nMeta) {
         if self.enable_i18n_legacy_message_id_format {
-            message.legacy_ids = vec![
-                compute_digest(message),
-                compute_decimal_digest(message),
-            ];
+            message.legacy_ids = vec![compute_digest(message), compute_decimal_digest(message)];
         }
     }
 
     fn _report_error(&mut self, node: &html::Node, msg: &str) {
         let source_span = get_node_source_span(node);
-        self.errors.push(ParseError::new(source_span, msg.to_string()));
+        self.errors
+            .push(ParseError::new(source_span, msg.to_string()));
     }
 }
 
@@ -239,14 +249,15 @@ pub fn parse_i18n_meta(meta: &str) -> I18nMeta {
         (meta.to_string(), None)
     };
 
-    let (meaning, description) = if let Some(desc_index) = meaning_and_desc.find(I18N_MEANING_SEPARATOR) {
-        (
-            Some(meaning_and_desc[..desc_index].to_string()),
-            Some(meaning_and_desc[desc_index + 1..].to_string()),
-        )
-    } else {
-        (None, Some(meaning_and_desc))
-    };
+    let (meaning, description) =
+        if let Some(desc_index) = meaning_and_desc.find(I18N_MEANING_SEPARATOR) {
+            (
+                Some(meaning_and_desc[..desc_index].to_string()),
+                Some(meaning_and_desc[desc_index + 1..].to_string()),
+            )
+        } else {
+            (None, Some(meaning_and_desc))
+        };
 
     I18nMeta {
         id: None,
@@ -320,4 +331,3 @@ mod tests {
         assert_eq!(meta.meaning, Some("greeting".to_string()));
     }
 }
-

@@ -7,10 +7,7 @@ use super::input_output_parse_options::InputOutputOptions;
 
 /// Configuration for the input() initializer function.
 pub fn input_initializer_config() -> InitializerApiConfig {
-    InitializerApiConfig::new(
-        "input",
-        vec![AccessLevel::Public, AccessLevel::Protected],
-    )
+    InitializerApiConfig::new("input", vec![AccessLevel::Public, AccessLevel::Protected])
 }
 
 /// Parsed signal input mapping.
@@ -39,7 +36,7 @@ impl SignalInputMapping {
             transform: None,
         }
     }
-    
+
     pub fn with_alias(mut self, alias: impl Into<String>) -> Self {
         self.binding_property_name = alias.into();
         self
@@ -53,7 +50,7 @@ pub fn try_parse_signal_input_mapping(
     is_required: bool,
 ) -> SignalInputMapping {
     let alias = options.and_then(|o| o.alias.clone());
-    
+
     SignalInputMapping {
         is_signal: true,
         class_property_name: member_name.to_string(),

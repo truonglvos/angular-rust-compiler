@@ -2,17 +2,17 @@
 //
 // Handles @Directive decorator processing.
 
-use crate::ngtsc::transform::src::api::{
-    DecoratorHandler, HandlerPrecedence, DetectResult, AnalysisOutput, CompileResult,
-};
-use crate::ngtsc::reflection::ClassDeclaration;
 use super::symbol::DirectiveSymbol;
+use crate::ngtsc::reflection::ClassDeclaration;
+use crate::ngtsc::transform::src::api::{
+    AnalysisOutput, CompileResult, DecoratorHandler, DetectResult, HandlerPrecedence,
+};
 use angular_compiler::render3::r3_identifiers::Identifiers;
 
 /// Field decorators that indicate Angular-specific behavior.
 pub const FIELD_DECORATORS: &[&str] = &[
     "Input",
-    "Output", 
+    "Output",
     "ViewChild",
     "ViewChildren",
     "ContentChild",
@@ -168,12 +168,12 @@ impl DirectiveDecoratorHandler {
             implicit_standalone: true,
         }
     }
-    
+
     pub fn with_strict_standalone(mut self, strict: bool) -> Self {
         self.strict_standalone = strict;
         self
     }
-    
+
     /// Find class fields with Angular features.
     pub fn find_class_field_with_angular_features(
         &self,
@@ -186,7 +186,7 @@ impl DirectiveDecoratorHandler {
                 return Some(name.clone());
             }
         }
-        
+
         // Check for field decorators
         for (name, decorators) in member_decorators {
             for dec in decorators {
@@ -195,21 +195,27 @@ impl DirectiveDecoratorHandler {
                 }
             }
         }
-        
+
         None
     }
 }
 
-impl DecoratorHandler<DirectiveHandlerData, DirectiveHandlerData, DirectiveSymbol, ()> for DirectiveDecoratorHandler {
+impl DecoratorHandler<DirectiveHandlerData, DirectiveHandlerData, DirectiveSymbol, ()>
+    for DirectiveDecoratorHandler
+{
     fn name(&self) -> &str {
         "DirectiveDecoratorHandler"
     }
-    
+
     fn precedence(&self) -> HandlerPrecedence {
         HandlerPrecedence::Primary
     }
-    
-    fn detect(&self, _node: &ClassDeclaration, decorators: &[String]) -> Option<DetectResult<DirectiveHandlerData>> {
+
+    fn detect(
+        &self,
+        _node: &ClassDeclaration,
+        decorators: &[String],
+    ) -> Option<DetectResult<DirectiveHandlerData>> {
         // Look for @Directive decorator
         let has_directive = decorators.iter().any(|d| d == "Directive");
         if has_directive {
@@ -219,18 +225,26 @@ impl DecoratorHandler<DirectiveHandlerData, DirectiveHandlerData, DirectiveSymbo
             None
         }
     }
-    
-    fn analyze(&self, _node: &ClassDeclaration, _metadata: &DirectiveHandlerData) -> AnalysisOutput<DirectiveHandlerData> {
+
+    fn analyze(
+        &self,
+        _node: &ClassDeclaration,
+        _metadata: &DirectiveHandlerData,
+    ) -> AnalysisOutput<DirectiveHandlerData> {
         AnalysisOutput {
             analysis: None,
             diagnostics: None,
         }
     }
-    
-    fn symbol(&self, _node: &ClassDeclaration, _analysis: &DirectiveHandlerData) -> Option<DirectiveSymbol> {
+
+    fn symbol(
+        &self,
+        _node: &ClassDeclaration,
+        _analysis: &DirectiveHandlerData,
+    ) -> Option<DirectiveSymbol> {
         None
     }
-    
+
     fn compile_full(
         &self,
         _node: &ClassDeclaration,
@@ -239,17 +253,17 @@ impl DecoratorHandler<DirectiveHandlerData, DirectiveHandlerData, DirectiveSymbo
         _constant_pool: &mut crate::ngtsc::transform::src::api::ConstantPool,
     ) -> Vec<CompileResult> {
         let meta = &analysis.meta;
-        
+
         // Use R3Identifiers for define_directive
         let define_directive_name = Identifiers::define_directive().name.unwrap_or_default();
-        
+
         let definition = format!(
             "static ɵdir = {}({{ type: {}, selectors: [[\"{}\"]] }});",
             define_directive_name,
             meta.name,
             meta.selector.as_deref().unwrap_or("")
         );
-        
+
         vec![CompileResult {
             name: "ɵdir".to_string(),
             initializer: Some(definition),
@@ -260,8 +274,7 @@ impl DecoratorHandler<DirectiveHandlerData, DirectiveHandlerData, DirectiveSymbo
     }
 }
 
-
-use crate::ngtsc::metadata::{DirectiveMetadata, DecoratorMetadata};
+use crate::ngtsc::metadata::{DecoratorMetadata, DirectiveMetadata};
 
 impl DirectiveDecoratorHandler {
     pub fn compile_ivy(&self, analysis: &DirectiveMetadata) -> Vec<CompileResult> {
@@ -270,14 +283,11 @@ impl DirectiveDecoratorHandler {
             DecoratorMetadata::Directive(d) => d,
             _ => return vec![], // Not a directive, cannot compile
         };
-        
+
         let define_directive_name = Identifiers::define_directive().name.unwrap_or_default();
-        
+
         // ɵfac
-        let fac_definition = format!(
-            "(t) => new (t || {})()",
-            dir.t2.name
-        );
+        let fac_definition = format!("(t) => new (t || {})()", dir.t2.name);
         let fac_result = CompileResult {
             name: "ɵfac".to_string(),
             initializer: Some(fac_definition),
@@ -291,21 +301,31 @@ impl DirectiveDecoratorHandler {
             "i0.{}({{ type: {}, selectors: {}{}{}{}}})",
             define_directive_name,
             dir.t2.name,
-            dir.t2.selector.as_deref().map(|s| {
-                if s.starts_with('[') && s.ends_with(']') {
-                    format!("[[\"\", \"{}\", \"\"]]", &s[1..s.len()-1])
-                } else {
-                    format!("[[\"{}\"]]", s)
-                }
-            }).unwrap_or_else(|| String::from("[]")),
+            dir.t2
+                .selector
+                .as_deref()
+                .map(|s| {
+                    if s.starts_with('[') && s.ends_with(']') {
+                        format!("[[\"\", \"{}\", \"\"]]", &s[1..s.len() - 1])
+                    } else {
+                        format!("[[\"{}\"]]", s)
+                    }
+                })
+                .unwrap_or_else(|| String::from("[]")),
             if !dir.t2.inputs.is_empty() {
                 let mut inputs_str = String::from(", inputs: {");
                 for (i, (prop, input)) in dir.t2.inputs.iter().enumerate() {
-                    if i > 0 { inputs_str.push_str(", "); }
+                    if i > 0 {
+                        inputs_str.push_str(", ");
+                    }
                     if input.is_signal {
-                        inputs_str.push_str(&format!("{}: [1, \"{}\"]", prop, input.binding_property_name));
+                        inputs_str.push_str(&format!(
+                            "{}: [1, \"{}\"]",
+                            prop, input.binding_property_name
+                        ));
                     } else {
-                        inputs_str.push_str(&format!("{}: \"{}\"", prop, input.binding_property_name));
+                        inputs_str
+                            .push_str(&format!("{}: \"{}\"", prop, input.binding_property_name));
                     }
                 }
                 inputs_str.push_str("}");
@@ -316,8 +336,11 @@ impl DirectiveDecoratorHandler {
             if !dir.t2.outputs.is_empty() {
                 let mut outputs_str = String::from(", outputs: {");
                 for (i, (prop, binding)) in dir.t2.outputs.iter().enumerate() {
-                    if i > 0 { outputs_str.push_str(", "); }
-                    outputs_str.push_str(&format!("{}: \"{}\"", prop, binding.binding_property_name));
+                    if i > 0 {
+                        outputs_str.push_str(", ");
+                    }
+                    outputs_str
+                        .push_str(&format!("{}: \"{}\"", prop, binding.binding_property_name));
                 }
                 outputs_str.push_str("}");
                 outputs_str
@@ -326,7 +349,7 @@ impl DirectiveDecoratorHandler {
             },
             "" // Placeholder for other fields if needed
         );
-        
+
         let dir_result = CompileResult {
             name: "ɵdir".to_string(),
             initializer: Some(definition),

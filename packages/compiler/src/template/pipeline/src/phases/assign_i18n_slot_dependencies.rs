@@ -3,12 +3,14 @@
 //! Corresponds to packages/compiler/src/template/pipeline/src/phases/assign_i18n_slot_dependencies.ts
 //! Updates i18n expression ops to target the last slot in their owning i18n block
 
-use crate::template::pipeline::ir as ir;
-use crate::template::pipeline::ir::enums::{OpKind, I18nExpressionFor};
+use crate::template::pipeline::ir;
+use crate::template::pipeline::ir::enums::{I18nExpressionFor, OpKind};
 use crate::template::pipeline::ir::ops::create::I18nStartOp;
 use crate::template::pipeline::ir::ops::update::I18nExpressionOp;
 use crate::template::pipeline::ir::traits::DependsOnSlotContextOpTrait;
-use crate::template::pipeline::src::compilation::{CompilationJob, ComponentCompilationJob, CompilationUnit};
+use crate::template::pipeline::src::compilation::{
+    CompilationJob, CompilationUnit, ComponentCompilationJob,
+};
 
 struct BlockState {
     block_xref: ir::XrefId,
@@ -23,10 +25,10 @@ pub fn assign_i18n_slot_dependencies(job: &mut dyn CompilationJob) {
         let job_ptr = job_ptr as *mut ComponentCompilationJob;
         &mut *job_ptr
     };
-    
+
     // Process root unit
     process_unit(&mut component_job.root);
-    
+
     // Process all view units
     for (_, unit) in component_job.views.iter_mut() {
         process_unit(unit);
@@ -38,10 +40,10 @@ fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewComp
     let mut update_index = 0;
     let mut i18n_expressions_in_progress: Vec<I18nExpressionOp> = Vec::new();
     let mut state: Option<BlockState> = None;
-    
+
     // Collect all operations to perform (to avoid borrow conflicts)
     let mut operations: Vec<Operation> = Vec::new();
-    
+
     // Iterate through create ops
     for create_op in unit.create().iter() {
         if create_op.kind() == OpKind::I18nStart {
@@ -65,56 +67,60 @@ fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewComp
             }
             state = None;
         }
-        
+
         // Check if this create op consumes slots
         if has_consumes_slot_op_trait(create_op) {
             if let Some(ref mut st) = state {
                 st.last_slot_consumer = create_op.xref();
             }
-            
+
             // Process update ops that depend on this slot
             while update_index < unit.update().len() {
                 let update_op = unit.update().get(update_index);
-                
+
                 if update_op.is_none() {
                     break;
                 }
-                
+
                 let update_op = update_op.unwrap();
-                
+
                 // Check if this is an i18n expression that should be moved
                 if update_op.kind() == OpKind::I18nExpression {
                     if let Some(ref st) = state {
                         let op_ptr = update_op.as_ref() as *const dyn ir::UpdateOp;
                         let expr_op_ptr = op_ptr as *const I18nExpressionOp;
                         let expr_op = unsafe { &*expr_op_ptr };
-                        
-                        if expr_op.usage == I18nExpressionFor::I18nText 
-                            && expr_op.i18n_owner == st.block_xref {
+
+                        if expr_op.usage == I18nExpressionFor::I18nText
+                            && expr_op.i18n_owner == st.block_xref
+                        {
                             // Remove this expression and collect it
-                            operations.push(Operation::Remove { index: update_index });
+                            operations.push(Operation::Remove {
+                                index: update_index,
+                            });
                             i18n_expressions_in_progress.push(expr_op.clone());
                             // Don't increment update_index - next op is now at this index
                             continue;
                         }
                     }
                 }
-                
+
                 // Check if this update op has a different target
                 let has_different_target = has_different_slot_target(update_op, create_op.xref());
-                
+
                 if has_different_target {
                     break;
                 }
-                
+
                 update_index += 1;
             }
         }
     }
-    
+
     // Perform all operations in reverse order of index to maintain correctness
     // First, collect all remove operations
-    let mut remove_indices: Vec<usize> = operations.iter()
+    let mut remove_indices: Vec<usize> = operations
+        .iter()
         .filter_map(|op| {
             if let Operation::Remove { index } = op {
                 Some(*index)
@@ -124,16 +130,20 @@ fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewComp
         })
         .collect();
     remove_indices.sort();
-    
+
     // Remove operations in reverse order
     for &idx in remove_indices.iter().rev() {
         unit.update_mut().remove_at(idx);
     }
-    
+
     // Adjust insertion indices for removals
     let mut adjusted_insertions = Vec::new();
     for op in operations {
-        if let Operation::Insert { mut index, op: expr_op } = op {
+        if let Operation::Insert {
+            mut index,
+            op: expr_op,
+        } = op
+        {
             // Adjust index for all removals that happened before this insertion
             for &removed_idx in &remove_indices {
                 if removed_idx < index {
@@ -143,7 +153,7 @@ fn process_unit(unit: &mut crate::template::pipeline::src::compilation::ViewComp
             adjusted_insertions.push((index, expr_op));
         }
     }
-    
+
     // Insert expressions in reverse order
     adjusted_insertions.sort_by(|a, b| b.0.cmp(&a.0));
     for (idx, expr_op) in adjusted_insertions {
@@ -170,7 +180,7 @@ fn has_different_slot_target(
     // Check if the op implements DependsOnSlotContextOpTrait
     unsafe {
         let op_ptr = update_op.as_ref() as *const dyn ir::UpdateOp;
-        
+
         // First, check if op itself implements DependsOnSlotContextOpTrait
         match update_op.kind() {
             OpKind::Conditional => {
@@ -241,7 +251,7 @@ fn has_different_slot_target(
                 use crate::template::pipeline::ir::ops::shared::StatementOp;
                 let stmt_op_ptr = op_ptr as *const StatementOp<Box<dyn ir::UpdateOp + Send + Sync>>;
                 let stmt_op = &*stmt_op_ptr;
-                
+
                 // Visit expressions in the statement
                 if check_expressions_in_statement(&stmt_op.statement, expected_target) {
                     return true;
@@ -249,9 +259,10 @@ fn has_different_slot_target(
             }
             OpKind::Variable => {
                 use crate::template::pipeline::ir::ops::shared::VariableOp;
-                let variable_op_ptr = op_ptr as *const VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>;
+                let variable_op_ptr =
+                    op_ptr as *const VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>;
                 let variable_op = &*variable_op_ptr;
-                
+
                 // Visit expressions in the initializer
                 if check_expressions_in_expression(&variable_op.initializer, expected_target) {
                     return true;
@@ -262,7 +273,7 @@ fn has_different_slot_target(
             }
         }
     }
-    
+
     false
 }
 
@@ -272,7 +283,7 @@ fn check_expressions_in_statement(
     expected_target: ir::XrefId,
 ) -> bool {
     use crate::output::output_ast::Statement;
-    
+
     match stmt {
         Statement::Expression(expr_stmt) => {
             check_expressions_in_expression(&expr_stmt.expr, expected_target)
@@ -321,7 +332,7 @@ fn check_expressions_in_expression(
 ) -> bool {
     use crate::output::output_ast::Expression as OutputExpr;
     use crate::template::pipeline::ir::traits::DependsOnSlotContextOpTrait;
-    
+
     // Check if this expression itself implements DependsOnSlotContextOpTrait
     // Currently, only StoreLetExpr implements this trait among IR expressions
     match expr {
@@ -332,16 +343,14 @@ fn check_expressions_in_expression(
         }
         _ => {}
     }
-    
+
     // Recursively check nested expressions
     match expr {
         OutputExpr::BinaryOp(bin) => {
             check_expressions_in_expression(&bin.lhs, expected_target)
                 || check_expressions_in_expression(&bin.rhs, expected_target)
         }
-        OutputExpr::Unary(un) => {
-            check_expressions_in_expression(&un.expr, expected_target)
-        }
+        OutputExpr::Unary(un) => check_expressions_in_expression(&un.expr, expected_target),
         OutputExpr::ReadProp(prop) => {
             check_expressions_in_expression(&prop.receiver, expected_target)
         }
@@ -379,7 +388,11 @@ fn check_expressions_in_expression(
         OutputExpr::Conditional(cond) => {
             check_expressions_in_expression(&cond.condition, expected_target)
                 || check_expressions_in_expression(&cond.true_case, expected_target)
-                || cond.false_case.as_ref().map(|e| check_expressions_in_expression(e, expected_target)).unwrap_or(false)
+                || cond
+                    .false_case
+                    .as_ref()
+                    .map(|e| check_expressions_in_expression(e, expected_target))
+                    .unwrap_or(false)
         }
         OutputExpr::PipeBinding(pipe) => {
             // PipeBinding has args, check them

@@ -26,62 +26,72 @@ static SECURITY_SCHEMA: Lazy<HashMap<String, SecurityContext>> = Lazy::new(|| {
     // Case is insignificant below, all element and attribute names are lower-cased for lookup.
 
     // SecurityContext::HTML
-    register_context(&mut schema, SecurityContext::HTML, &[
-        "iframe|srcdoc",
-        "*|innerhtml",
-        "*|outerhtml",
-    ]);
+    register_context(
+        &mut schema,
+        SecurityContext::HTML,
+        &["iframe|srcdoc", "*|innerhtml", "*|outerhtml"],
+    );
 
     // SecurityContext::STYLE
-    register_context(&mut schema, SecurityContext::STYLE, &[
-        "*|style",
-    ]);
+    register_context(&mut schema, SecurityContext::STYLE, &["*|style"]);
 
     // NB: no SCRIPT contexts here, they are never allowed due to the parser stripping them.
 
     // SecurityContext::URL
-    register_context(&mut schema, SecurityContext::URL, &[
-        "*|formaction",
-        "area|href",
-        "area|ping",
-        "audio|src",
-        "a|href",
-        "a|ping",
-        "blockquote|cite",
-        "body|background",
-        "del|cite",
-        "form|action",
-        "img|src",
-        "input|src",
-        "ins|cite",
-        "q|cite",
-        "source|src",
-        "track|src",
-        "video|poster",
-        "video|src",
-    ]);
+    register_context(
+        &mut schema,
+        SecurityContext::URL,
+        &[
+            "*|formaction",
+            "area|href",
+            "area|ping",
+            "audio|src",
+            "a|href",
+            "a|ping",
+            "blockquote|cite",
+            "body|background",
+            "del|cite",
+            "form|action",
+            "img|src",
+            "input|src",
+            "ins|cite",
+            "q|cite",
+            "source|src",
+            "track|src",
+            "video|poster",
+            "video|src",
+        ],
+    );
 
     // SecurityContext::RESOURCE_URL
-    register_context(&mut schema, SecurityContext::ResourceUrl, &[
-        "applet|code",
-        "applet|codebase",
-        "base|href",
-        "embed|src",
-        "frame|src",
-        "head|profile",
-        "html|manifest",
-        "iframe|src",
-        "link|href",
-        "media|src",
-        "object|codebase",
-        "object|data",
-        "script|src",
-    ]);
+    register_context(
+        &mut schema,
+        SecurityContext::ResourceUrl,
+        &[
+            "applet|code",
+            "applet|codebase",
+            "base|href",
+            "embed|src",
+            "frame|src",
+            "head|profile",
+            "html|manifest",
+            "iframe|src",
+            "link|href",
+            "media|src",
+            "object|codebase",
+            "object|data",
+            "script|src",
+        ],
+    );
 
     schema
 });
 
-fn register_context(schema: &mut HashMap<String, SecurityContext>, ctx: SecurityContext, specs: &[&str]) {
+fn register_context(
+    schema: &mut HashMap<String, SecurityContext>,
+    ctx: SecurityContext,
+    specs: &[&str],
+) {
     for spec in specs {
         schema.insert(spec.to_lowercase(), ctx);
     }
@@ -128,7 +138,10 @@ mod tests {
         assert_eq!(schema.get("iframe|srcdoc"), Some(&SecurityContext::HTML));
         assert_eq!(schema.get("*|style"), Some(&SecurityContext::STYLE));
         assert_eq!(schema.get("a|href"), Some(&SecurityContext::URL));
-        assert_eq!(schema.get("script|src"), Some(&SecurityContext::ResourceUrl));
+        assert_eq!(
+            schema.get("script|src"),
+            Some(&SecurityContext::ResourceUrl)
+        );
     }
 
     #[test]
@@ -139,4 +152,3 @@ mod tests {
         assert!(!is_iframe_security_sensitive_attr("id"));
     }
 }
-

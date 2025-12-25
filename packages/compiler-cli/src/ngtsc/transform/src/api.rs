@@ -4,8 +4,8 @@
 // and the Rust-based compilation pipeline.
 
 use crate::ngtsc::reflection::ClassDeclaration;
-use ts::Diagnostic;
 use std::collections::HashSet;
+use ts::Diagnostic;
 
 // ============================================================================
 // Placeholder types - to be replaced with actual implementations
@@ -101,10 +101,10 @@ pub enum HandlerPrecedence {
 pub struct DetectResult<D> {
     /// The name of the decorator that triggered the match.
     pub trigger: Option<String>,
-    
+
     /// The name of the decorator that was recognized for this detection, if any.
     pub decorator: Option<String>,
-    
+
     /// An arbitrary object to carry over from the detection phase into the analysis phase.
     pub metadata: D,
 }
@@ -123,7 +123,7 @@ impl<A> AnalysisOutput<A> {
             diagnostics: None,
         }
     }
-    
+
     pub fn empty() -> Self {
         Self {
             analysis: None,
@@ -147,7 +147,7 @@ impl<R> ResolveResult<R> {
             reexports: None,
         }
     }
-    
+
     pub fn empty() -> Self {
         Self {
             data: None,
@@ -163,17 +163,17 @@ impl<R> ResolveResult<R> {
 pub struct CompileResult {
     /// The name of the static field to add.
     pub name: String,
-    
+
     /// The initialization expression for the field.
     /// None means no initializer (declaration only).
     pub initializer: Option<String>, // TODO: Replace with proper Expression type
-    
+
     /// Additional statements to add alongside the field.
     pub statements: Vec<String>, // TODO: Replace with proper Statement type
-    
+
     /// The type to use for the .d.ts declaration.
     pub type_desc: String, // TODO: Replace with proper Type
-    
+
     /// Import declarations that can be deferred.
     pub deferrable_imports: Option<HashSet<String>>, // TODO: Replace with ImportDeclaration
 }
@@ -209,7 +209,7 @@ impl CompileResult {
 pub trait DecoratorHandler<D, A, S, R> {
     /// The name of this handler (for debugging and error messages).
     fn name(&self) -> &str;
-    
+
     /// The precedence of this handler controls how it interacts with other handlers
     /// that match the same class.
     fn precedence(&self) -> HandlerPrecedence;
@@ -269,12 +269,7 @@ pub trait DecoratorHandler<D, A, S, R> {
     }
 
     /// Extract i18n messages into the Xi18nContext.
-    fn xi18n(
-        &self,
-        _bundle: &mut Xi18nContext,
-        _node: &ClassDeclaration,
-        _analysis: &A,
-    ) {
+    fn xi18n(&self, _bundle: &mut Xi18nContext, _node: &ClassDeclaration, _analysis: &A) {
         // Default: no i18n extraction
     }
 

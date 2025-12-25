@@ -39,7 +39,7 @@ fn should_escape_regexp() {
     let re = Regex::new(&pattern).unwrap();
     assert!(re.is_match("abc"), "Should match 'b' in 'abc'");
     assert!(!re.is_match("adc"), "Should not match 'b' in 'adc'");
-    
+
     let pattern = util::escape_regex("a.b");
     let re = Regex::new(&pattern).unwrap();
     assert!(re.is_match("a.b"), "Should match 'a.b' in 'a.b'");
@@ -51,10 +51,10 @@ fn should_escape_regexp() {
 fn utf8_encode_from_utf16(utf16: &[u16]) -> Vec<u8> {
     let mut encoded = Vec::new();
     let mut index = 0;
-    
+
     while index < utf16.len() {
         let mut code_point = utf16[index] as u32;
-        
+
         // Decode surrogate pairs (exactly like TypeScript)
         // High surrogates: 0xD800 to 0xDBFF
         // Low surrogates: 0xDC00 to 0xDFFF
@@ -65,7 +65,7 @@ fn utf8_encode_from_utf16(utf16: &[u16]) -> Vec<u8> {
                 code_point = ((code_point - 0xD800) << 10) + low - 0xDC00 + 0x10000;
             }
         }
-        
+
         // Encode to UTF-8 bytes (exactly like TypeScript)
         if code_point <= 0x7f {
             encoded.push(code_point as u8);
@@ -82,10 +82,10 @@ fn utf8_encode_from_utf16(utf16: &[u16]) -> Vec<u8> {
             encoded.push(((code_point >> 6) & 0x3f | 0x80) as u8);
             encoded.push((code_point & 0x3f | 0x80) as u8);
         }
-        
+
         index += 1;
     }
-    
+
     encoded
 }
 
@@ -107,7 +107,7 @@ fn should_encode_to_utf8() {
         "\u{1D306}",
         "\u{10FFFF}",
     ];
-    
+
     let expected_results = vec![
         vec![b'a', b'b', b'c'],
         vec![0],
@@ -134,49 +134,61 @@ fn should_handle_unmatched_surrogate_halves() {
     // High surrogates: 0xD800 to 0xDBFF
     // Low surrogates: 0xDC00 to 0xDFFF
     // TypeScript works directly with UTF-16 code units, so we use helper function
-    
+
     // For high surrogates - matching TypeScript test cases exactly
     let high_surrogate_tests = vec![
         (vec![0xD800u16], vec![0xED, 0xA0, 0x80]),
-        (vec![0xD800u16, 0xD800u16], vec![0xED, 0xA0, 0x80, 0xED, 0xA0, 0x80]),
+        (
+            vec![0xD800u16, 0xD800u16],
+            vec![0xED, 0xA0, 0x80, 0xED, 0xA0, 0x80],
+        ),
         (vec![0xD800u16, b'A' as u16], vec![0xED, 0xA0, 0x80, b'A']),
         (vec![0xD9AFu16], vec![0xED, 0xA6, 0xAF]),
         (vec![0xDBFFu16], vec![0xED, 0xAF, 0xBF]),
     ];
-    
+
     for (utf16_input, expected) in high_surrogate_tests {
         // Use helper function to encode directly from UTF-16 (like TypeScript)
         let encoded = utf8_encode_from_utf16(&utf16_input);
         assert_eq!(encoded, expected, "Failed for UTF-16: {:?}", utf16_input);
     }
-    
+
     // For low surrogates - matching TypeScript test cases exactly
     let low_surrogate_tests = vec![
         (vec![0xDC00u16], vec![0xED, 0xB0, 0x80]),
-        (vec![0xDC00u16, 0xDC00u16], vec![0xED, 0xB0, 0x80, 0xED, 0xB0, 0x80]),
+        (
+            vec![0xDC00u16, 0xDC00u16],
+            vec![0xED, 0xB0, 0x80, 0xED, 0xB0, 0x80],
+        ),
         (vec![0xDC00u16, b'A' as u16], vec![0xED, 0xB0, 0x80, b'A']),
         (vec![0xDEEEu16], vec![0xED, 0xBB, 0xAE]),
         (vec![0xDFFFu16], vec![0xED, 0xBF, 0xBF]),
     ];
-    
+
     for (utf16_input, expected) in low_surrogate_tests {
         // Use helper function to encode directly from UTF-16 (like TypeScript)
         let encoded = utf8_encode_from_utf16(&utf16_input);
         assert_eq!(encoded, expected, "Failed for UTF-16: {:?}", utf16_input);
     }
-    
+
     // Test combined cases - matching TypeScript test cases exactly
     // D800 D834 DF06 D800 (from TypeScript test)
     let combined = vec![0xD800u16, 0xD834u16, 0xDF06u16, 0xD800u16];
     let encoded = utf8_encode_from_utf16(&combined);
     // Expected: ED A0 80 F0 9D 8C 86 ED A0 80
-    assert_eq!(encoded, vec![0xED, 0xA0, 0x80, 0xF0, 0x9D, 0x8C, 0x86, 0xED, 0xA0, 0x80]);
-    
+    assert_eq!(
+        encoded,
+        vec![0xED, 0xA0, 0x80, 0xF0, 0x9D, 0x8C, 0x86, 0xED, 0xA0, 0x80]
+    );
+
     // DC00 D834 DF06 DC00 (from TypeScript test)
     let combined2 = vec![0xDC00u16, 0xD834u16, 0xDF06u16, 0xDC00u16];
     let encoded2 = utf8_encode_from_utf16(&combined2);
     // Expected: ED B0 80 F0 9D 8C 86 ED B0 80
-    assert_eq!(encoded2, vec![0xED, 0xB0, 0x80, 0xF0, 0x9D, 0x8C, 0x86, 0xED, 0xB0, 0x80]);
+    assert_eq!(
+        encoded2,
+        vec![0xED, 0xB0, 0x80, 0xF0, 0x9D, 0x8C, 0x86, 0xED, 0xB0, 0x80]
+    );
 }
 
 // stringify tests - matching TypeScript exactly
@@ -187,15 +199,14 @@ fn should_handle_objects_with_no_prototype() {
     // The TypeScript test expects "object" for Object.create(null)
     #[derive(Debug)]
     struct EmptyStruct;
-    
+
     // Implement Stringify for EmptyStruct to match expected behavior
     impl util::Stringify for EmptyStruct {
         fn stringify(&self) -> String {
             "object".to_string()
         }
     }
-    
+
     let result = util::stringify(&EmptyStruct);
     assert_eq!(result, "object");
 }
-

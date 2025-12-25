@@ -7,22 +7,17 @@
 pub use crate::config::CompilerConfig;
 
 // Utilities
+pub use crate::parse_util::{
+    ParseError, ParseErrorLevel, ParseLocation, ParseSourceFile, ParseSourceSpan,
+};
 pub use crate::util::Version;
-pub use crate::parse_util::{ParseSourceSpan, ParseLocation, ParseSourceFile, ParseError, ParseErrorLevel};
 
 // Expression Parser
-pub use crate::expression_parser::{
-    Lexer,
-    Parser as ExpressionParser,
-    ast as expression_ast,
-};
+pub use crate::expression_parser::{ast as expression_ast, Lexer, Parser as ExpressionParser};
 
 // Template Parser
 pub use crate::render3::view::template::{
-    parse_template,
-    make_binding_parser,
-    ParseTemplateOptions,
-    ParsedTemplate,
+    make_binding_parser, parse_template, ParseTemplateOptions, ParsedTemplate,
 };
 
 // ML Parser (HTML AST)
@@ -30,50 +25,27 @@ pub use crate::ml_parser::ast as html_ast;
 
 // Compiler Facade
 pub use crate::compiler_facade_interface::*;
-pub use crate::jit_compiler_facade::{
-    CompilerFacadeImpl,
-};
+pub use crate::jit_compiler_facade::CompilerFacadeImpl;
 
 // Output AST
-pub use crate::output::{
-    output_ast,
-    output_jit,
-};
+pub use crate::output::{output_ast, output_jit};
 
 // Injection
-pub use crate::injectable_compiler_2::{
-    compile_injectable,
-    R3InjectableMetadata,
-};
+pub use crate::injectable_compiler_2::{compile_injectable, R3InjectableMetadata};
 
 // Shadow CSS
 pub use crate::shadow_css::ShadowCss;
 
 // Schema
-pub use crate::schema::{
-    ElementSchemaRegistry,
-    DomElementSchemaRegistry,
-};
+pub use crate::schema::{DomElementSchemaRegistry, ElementSchemaRegistry};
 
 // Render3 compilation (Core)
+pub use crate::render3::r3_injector_compiler::{compile_injector, R3InjectorMetadata};
+pub use crate::render3::r3_module_compiler::{compile_ng_module, R3NgModuleMetadata};
+pub use crate::render3::r3_pipe_compiler::{compile_pipe_from_metadata, R3PipeMetadata};
 pub use crate::render3::view::compiler::{
-    compile_component_from_metadata,
-    compile_directive_from_metadata,
-    ParsedHostBindings,
-    verify_host_bindings,
-    parse_host_bindings,
-};
-pub use crate::render3::r3_module_compiler::{
-    compile_ng_module,
-    R3NgModuleMetadata,
-};
-pub use crate::render3::r3_pipe_compiler::{
-    compile_pipe_from_metadata,
-    R3PipeMetadata,
-};
-pub use crate::render3::r3_injector_compiler::{
-    compile_injector,
-    R3InjectorMetadata,
+    compile_component_from_metadata, compile_directive_from_metadata, parse_host_bindings,
+    verify_host_bindings, ParsedHostBindings,
 };
 
 // Constants

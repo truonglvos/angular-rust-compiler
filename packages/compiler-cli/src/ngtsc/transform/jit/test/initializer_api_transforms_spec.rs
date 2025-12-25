@@ -2,8 +2,8 @@
 //
 // Tests for signal input/output/model/query transforms.
 
-use super::super::initializer_api_transforms::*;
 use super::super::initializer_api_transforms::transform_api::*;
+use super::super::initializer_api_transforms::*;
 use crate::ngtsc::imports::ImportedSymbolsTracker;
 
 // ============================================================================
@@ -17,7 +17,7 @@ fn test_property_info_creation() {
         value_string: Some("input()".to_string()),
         is_static: false,
     };
-    
+
     assert_eq!(info.name, "myInput");
     assert!(!info.is_static);
 }
@@ -54,9 +54,9 @@ fn test_signal_inputs_transform_basic() {
         is_static: false,
     };
     let tracker = ImportedSymbolsTracker::new();
-    
+
     let result = signal_inputs_transform(&property, &tracker, true);
-    
+
     assert!(result.transformed);
     assert_eq!(result.decorators.len(), 1);
     assert_eq!(result.decorators[0].name, "Input");
@@ -71,9 +71,9 @@ fn test_signal_inputs_transform_with_alias() {
         is_static: false,
     };
     let tracker = ImportedSymbolsTracker::new();
-    
+
     let result = signal_inputs_transform(&property, &tracker, true);
-    
+
     assert!(result.transformed);
     assert_eq!(result.decorators.len(), 1);
     // Check that alias is in the args
@@ -89,9 +89,9 @@ fn test_signal_inputs_transform_non_input() {
         is_static: false,
     };
     let tracker = ImportedSymbolsTracker::new();
-    
+
     let result = signal_inputs_transform(&property, &tracker, true);
-    
+
     assert!(!result.transformed);
 }
 
@@ -102,7 +102,10 @@ fn test_signal_inputs_transform_non_input() {
 #[test]
 fn test_is_signal_output_call() {
     assert!(is_signal_output_call(Some("output()"), true));
-    assert!(is_signal_output_call(Some("output({ alias: 'foo' })"), true));
+    assert!(is_signal_output_call(
+        Some("output({ alias: 'foo' })"),
+        true
+    ));
     assert!(!is_signal_output_call(Some("input()"), true));
 }
 
@@ -114,9 +117,9 @@ fn test_output_transform_basic() {
         is_static: false,
     };
     let tracker = ImportedSymbolsTracker::new();
-    
+
     let result = initializer_api_output_transform(&property, &tracker, true);
-    
+
     assert!(result.transformed);
     assert_eq!(result.decorators.len(), 1);
     assert_eq!(result.decorators[0].name, "Output");
@@ -130,9 +133,9 @@ fn test_output_transform_with_alias() {
         is_static: false,
     };
     let tracker = ImportedSymbolsTracker::new();
-    
+
     let result = initializer_api_output_transform(&property, &tracker, true);
-    
+
     assert!(result.transformed);
     assert!(!result.decorators[0].args.is_empty());
     assert!(result.decorators[0].args[0].contains("onClicked"));
@@ -158,9 +161,9 @@ fn test_model_transform_creates_input_and_output() {
         is_static: false,
     };
     let tracker = ImportedSymbolsTracker::new();
-    
+
     let result = signal_model_transform(&property, &tracker, true);
-    
+
     assert!(result.transformed);
     assert_eq!(result.decorators.len(), 2);
     assert_eq!(result.decorators[0].name, "Input");
@@ -175,9 +178,9 @@ fn test_model_transform_output_has_change_suffix() {
         is_static: false,
     };
     let tracker = ImportedSymbolsTracker::new();
-    
+
     let result = signal_model_transform(&property, &tracker, true);
-    
+
     // Output should have "valueChange" in args
     assert!(result.decorators[1].args[0].contains("valueChange"));
 }
@@ -190,9 +193,9 @@ fn test_model_transform_with_alias() {
         is_static: false,
     };
     let tracker = ImportedSymbolsTracker::new();
-    
+
     let result = signal_model_transform(&property, &tracker, true);
-    
+
     assert!(result.transformed);
     // Input should use alias
     assert!(result.decorators[0].args[0].contains("customValue"));
@@ -209,7 +212,10 @@ fn test_is_query_function_call() {
     assert!(is_query_function_call(Some("viewChild('ref')"), true));
     assert!(is_query_function_call(Some("viewChildren(MyComp)"), true));
     assert!(is_query_function_call(Some("contentChild('ref')"), true));
-    assert!(is_query_function_call(Some("contentChildren(MyComp)"), true));
+    assert!(is_query_function_call(
+        Some("contentChildren(MyComp)"),
+        true
+    ));
     assert!(!is_query_function_call(Some("input()"), true));
 }
 
@@ -221,9 +227,9 @@ fn test_query_functions_transform_view_child() {
         is_static: false,
     };
     let tracker = ImportedSymbolsTracker::new();
-    
+
     let result = query_functions_transforms(&property, &tracker, true);
-    
+
     assert!(result.transformed);
     assert_eq!(result.decorators.len(), 1);
     assert_eq!(result.decorators[0].name, "ViewChild");
@@ -237,9 +243,9 @@ fn test_query_functions_transform_view_children() {
         is_static: false,
     };
     let tracker = ImportedSymbolsTracker::new();
-    
+
     let result = query_functions_transforms(&property, &tracker, true);
-    
+
     assert!(result.transformed);
     assert_eq!(result.decorators[0].name, "ViewChildren");
 }
@@ -252,9 +258,9 @@ fn test_query_functions_transform_content_child() {
         is_static: false,
     };
     let tracker = ImportedSymbolsTracker::new();
-    
+
     let result = query_functions_transforms(&property, &tracker, true);
-    
+
     assert!(result.transformed);
     assert_eq!(result.decorators[0].name, "ContentChild");
 }
@@ -267,9 +273,9 @@ fn test_query_functions_transform_content_children() {
         is_static: false,
     };
     let tracker = ImportedSymbolsTracker::new();
-    
+
     let result = query_functions_transforms(&property, &tracker, true);
-    
+
     assert!(result.transformed);
     assert_eq!(result.decorators[0].name, "ContentChildren");
 }
@@ -281,7 +287,7 @@ fn test_query_functions_transform_content_children() {
 #[test]
 fn test_synthetic_decorator_creation() {
     let decorator = SyntheticDecorator::new("Input", "@angular/core");
-    
+
     assert_eq!(decorator.name, "Input");
     assert_eq!(decorator.import_from, "@angular/core");
     assert!(decorator.args.is_empty());
@@ -289,25 +295,26 @@ fn test_synthetic_decorator_creation() {
 
 #[test]
 fn test_synthetic_decorator_with_arg() {
-    let decorator = SyntheticDecorator::new("Output", "@angular/core")
-        .with_arg("'clicked'");
-    
+    let decorator = SyntheticDecorator::new("Output", "@angular/core").with_arg("'clicked'");
+
     assert_eq!(decorator.args.len(), 1);
     assert_eq!(decorator.args[0], "'clicked'");
 }
 
 #[test]
 fn test_synthetic_decorator_with_multiple_args() {
-    let decorator = SyntheticDecorator::new("ViewChild", "@angular/core")
-        .with_args(vec!["'template'".to_string(), "{ read: ElementRef }".to_string()]);
-    
+    let decorator = SyntheticDecorator::new("ViewChild", "@angular/core").with_args(vec![
+        "'template'".to_string(),
+        "{ read: ElementRef }".to_string(),
+    ]);
+
     assert_eq!(decorator.args.len(), 2);
 }
 
 #[test]
 fn test_create_synthetic_angular_core_decorator_access() {
     let decorator = create_synthetic_angular_core_decorator_access("Input");
-    
+
     assert_eq!(decorator.name, "Input");
     assert_eq!(decorator.import_from, "@angular/core");
 }
@@ -319,7 +326,7 @@ fn test_create_synthetic_angular_core_decorator_access() {
 #[test]
 fn test_property_transform_result_unchanged() {
     let result = PropertyTransformResult::unchanged();
-    
+
     assert!(!result.transformed);
     assert!(result.decorators.is_empty());
     assert!(result.new_initializer.is_none());
@@ -327,11 +334,9 @@ fn test_property_transform_result_unchanged() {
 
 #[test]
 fn test_property_transform_result_with_decorators() {
-    let decorators = vec![
-        SyntheticDecorator::new("Input", "@angular/core"),
-    ];
+    let decorators = vec![SyntheticDecorator::new("Input", "@angular/core")];
     let result = PropertyTransformResult::with_decorators(decorators);
-    
+
     assert!(result.transformed);
     assert_eq!(result.decorators.len(), 1);
 }
@@ -344,7 +349,7 @@ fn test_property_transform_result_with_decorators() {
 fn test_initializer_api_jit_transform_creation() {
     let tracker = ImportedSymbolsTracker::new();
     let transform = get_initializer_api_jit_transform(tracker, false);
-    
+
     assert!(!transform.is_transformable_class_decorator("SomeDecorator"));
     assert!(transform.is_transformable_class_decorator("Directive"));
     assert!(transform.is_transformable_class_decorator("Component"));
@@ -354,7 +359,7 @@ fn test_initializer_api_jit_transform_creation() {
 fn test_initializer_api_jit_transform_class() {
     let tracker = ImportedSymbolsTracker::new();
     let transform = get_initializer_api_jit_transform(tracker, true);
-    
+
     let properties = vec![
         PropertyInfo {
             name: "name".to_string(),
@@ -367,9 +372,9 @@ fn test_initializer_api_jit_transform_class() {
             is_static: false,
         },
     ];
-    
+
     let results = transform.transform_class("MyDir", &properties);
-    
+
     assert_eq!(results.len(), 2);
     assert_eq!(results[0].0, "name"); // Property name
     assert_eq!(results[1].0, "clicked");

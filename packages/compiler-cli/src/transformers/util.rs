@@ -15,7 +15,7 @@ pub fn normalize_path(path: &str) -> String {
 pub fn get_relative_path(from: &str, to: &str) -> String {
     let from_parts: Vec<&str> = from.split('/').collect();
     let to_parts: Vec<&str> = to.split('/').collect();
-    
+
     // Find common prefix
     let mut common_len = 0;
     for (i, (a, b)) in from_parts.iter().zip(to_parts.iter()).enumerate() {
@@ -25,12 +25,12 @@ pub fn get_relative_path(from: &str, to: &str) -> String {
             break;
         }
     }
-    
+
     // Build relative path
     let ups = from_parts.len() - common_len - 1;
     let mut result = vec![".."; ups];
     result.extend(&to_parts[common_len..]);
-    
+
     if result.is_empty() {
         ".".to_string()
     } else {

@@ -2,7 +2,9 @@
 //!
 //! Mirrors angular/packages/compiler/test/render3/style_parser_spec.ts
 
-use angular_compiler::template::pipeline::src::phases::parse_extracted_styles::{parse_style, hyphenate};
+use angular_compiler::template::pipeline::src::phases::parse_extracted_styles::{
+    hyphenate, parse_style,
+};
 
 #[cfg(test)]
 mod tests {
@@ -20,7 +22,10 @@ mod tests {
     #[test]
     fn should_parse_a_string_into_a_key_value_map() {
         let result = parse_style("width:100px;height:200px;opacity:0");
-        assert_eq!(result, vec!["width", "100px", "height", "200px", "opacity", "0"]);
+        assert_eq!(
+            result,
+            vec!["width", "100px", "height", "200px", "opacity", "0"]
+        );
     }
 
     #[test]
@@ -32,13 +37,19 @@ mod tests {
     #[test]
     fn should_trim_values_and_properties() {
         let result = parse_style("width :333px ; height:666px    ; opacity: 0.5;");
-        assert_eq!(result, vec!["width", "333px", "height", "666px", "opacity", "0.5"]);
+        assert_eq!(
+            result,
+            vec!["width", "333px", "height", "666px", "opacity", "0.5"]
+        );
     }
 
     #[test]
     fn should_not_mess_up_with_quoted_strings_that_contain_special_chars() {
         let result = parse_style("content: \"foo; man: guy\"; width: 100px");
-        assert_eq!(result, vec!["content", "\"foo; man: guy\"", "width", "100px"]);
+        assert_eq!(
+            result,
+            vec!["content", "\"foo; man: guy\"", "width", "100px"]
+        );
     }
 
     #[test]
@@ -57,7 +68,15 @@ mod tests {
     #[test]
     fn should_respect_multi_level_parenthesis_that_contain_special_chars() {
         let result = parse_style("color: rgba(calc(50 * 4), var(--cool), :5;); height: 100px;");
-        assert_eq!(result, vec!["color", "rgba(calc(50 * 4), var(--cool), :5;)", "height", "100px"]);
+        assert_eq!(
+            result,
+            vec![
+                "color",
+                "rgba(calc(50 * 4), var(--cool), :5;)",
+                "height",
+                "100px"
+            ]
+        );
     }
 
     #[test]
@@ -98,4 +117,3 @@ mod tests {
         }
     }
 }
-

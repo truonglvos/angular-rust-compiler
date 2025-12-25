@@ -4,9 +4,6 @@
 //! HTML parser with i18n support
 
 use crate::core::MissingTranslationStrategy;
-use crate::ml_parser::html_parser::HtmlParser;
-use crate::ml_parser::lexer::TokenizeOptions;
-use crate::ml_parser::parser::ParseTreeResult;
 use crate::i18n::digest::digest;
 use crate::i18n::extractor_merger::merge_translations;
 use crate::i18n::serializers::xliff::Xliff;
@@ -14,6 +11,9 @@ use crate::i18n::serializers::xliff2::Xliff2;
 use crate::i18n::serializers::xmb::Xmb;
 use crate::i18n::serializers::xtb::Xtb;
 use crate::i18n::translation_bundle::TranslationBundle;
+use crate::ml_parser::html_parser::HtmlParser;
+use crate::ml_parser::lexer::TokenizeOptions;
+use crate::ml_parser::parser::ParseTreeResult;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -31,12 +31,19 @@ impl I18NHtmlParser {
         missing_translation: MissingTranslationStrategy,
     ) -> Self {
         let translation_bundle = if let Some(trans) = translations {
-            let format = translations_format.as_deref().unwrap_or("xlf").to_lowercase();
+            let format = translations_format
+                .as_deref()
+                .unwrap_or("xlf")
+                .to_lowercase();
             let result = match format.as_str() {
                 "xmb" => TranslationBundle::load(&trans, "i18n", Xmb::new(), missing_translation),
                 "xtb" => TranslationBundle::load(&trans, "i18n", Xtb::new(), missing_translation),
-                "xliff2" | "xlf2" => TranslationBundle::load(&trans, "i18n", Xliff2::new(), missing_translation),
-                "xliff" | "xlf" | _ => TranslationBundle::load(&trans, "i18n", Xliff::new(), missing_translation),
+                "xliff2" | "xlf2" => {
+                    TranslationBundle::load(&trans, "i18n", Xliff2::new(), missing_translation)
+                }
+                "xliff" | "xlf" | _ => {
+                    TranslationBundle::load(&trans, "i18n", Xliff::new(), missing_translation)
+                }
             };
             result.unwrap_or_else(|_| {
                 TranslationBundle::new(
@@ -63,12 +70,7 @@ impl I18NHtmlParser {
         }
     }
 
-    pub fn parse(
-        &mut self,
-        source: &str,
-        url: &str,
-        options: TokenizeOptions,
-    ) -> ParseTreeResult {
+    pub fn parse(&mut self, source: &str, url: &str, options: TokenizeOptions) -> ParseTreeResult {
         let parse_result = self.html_parser.parse(source, url, Some(options));
 
         if !parse_result.errors.is_empty() {
@@ -91,5 +93,3 @@ impl I18NHtmlParser {
         None
     }
 }
-
-

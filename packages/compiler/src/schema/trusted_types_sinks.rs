@@ -45,7 +45,8 @@ pub fn is_trusted_types_sink(tag_name: &str, prop_name: &str) -> bool {
     let combined = format!("{}|{}", tag_lower, prop_lower);
     let wildcard = format!("*|{}", prop_lower);
 
-    TRUSTED_TYPES_SINKS.contains(combined.as_str()) || TRUSTED_TYPES_SINKS.contains(wildcard.as_str())
+    TRUSTED_TYPES_SINKS.contains(combined.as_str())
+        || TRUSTED_TYPES_SINKS.contains(wildcard.as_str())
 }
 
 #[cfg(test)]
@@ -78,4 +79,3 @@ mod tests {
         assert!(!is_trusted_types_sink("a", "href"));
     }
 }
-

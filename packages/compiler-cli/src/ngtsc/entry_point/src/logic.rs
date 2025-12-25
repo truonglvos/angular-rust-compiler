@@ -23,22 +23,22 @@ impl NgCompilerEntryPoint {
             base_dir: base_dir.into(),
         }
     }
-    
+
     /// Add a root file.
     pub fn add_root_file(&mut self, file: impl Into<String>) {
         self.root_files.push(file.into());
     }
-    
+
     /// Exclude a file.
     pub fn exclude(&mut self, file: impl Into<String>) {
         self.excluded.insert(file.into());
     }
-    
+
     /// Check if a file is excluded.
     pub fn is_excluded(&self, file: &str) -> bool {
         self.excluded.contains(file)
     }
-    
+
     /// Get all root files.
     pub fn get_root_files(&self) -> &[String] {
         &self.root_files
