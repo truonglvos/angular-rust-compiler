@@ -17,10 +17,6 @@ dist
 **/dist
 .angular
 **/.angular
-out-tsc
-**/out-tsc
-rust-output
-**/rust-output
 target
 **/target
 *.lock

@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "./rust-dist",
+    "outDir": "./rust-output",
     "types": []
   },
   "include": ["src/**/*.ts"],
