@@ -2,6 +2,21 @@ import { Component } from '@angular/core';
 import { NgIf, NgFor, JsonPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as i0 from '@angular/core';
+const _c0 = (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) => ({
+	name: a0,
+	email: a1,
+	age: a2,
+	message: a3,
+	country: a4,
+	agreeTerms: a5,
+	newsletter: a6,
+	gender: a7,
+	volume: a8,
+	brightness: a9,
+	date: a10,
+	time: a11,
+	color: a12
+});
 function TwoWayBindingTest_option_48_Template(rf, ctx) {
 	if (rf & 1) {
 		i0.ɵɵelementStart(0, 'option', 22);
@@ -98,8 +113,8 @@ export class TwoWayBindingTest {
 	static ɵcmp = /* @__PURE__ */ i0.ɵɵdefineComponent({
 		type: TwoWayBindingTest,
 		selectors: [['app-two-way-binding-test']],
-		decls: 124,
-		vars: 37,
+		decls: 126,
+		vars: 54,
 		consts: [
 			[1, 'two-way-binding-test'],
 			[1, 'form-actions'],
@@ -434,7 +449,8 @@ export class TwoWayBindingTest {
 				i0.ɵɵtext(121, 'Form Summary');
 				i0.ɵɵelementEnd();
 				i0.ɵɵelementStart(122, 'pre');
-				i0.ɵɵtext(123, '{{ { name: name, email: email, age: age, message: message, country: selectedCountry, agreeTerms: agreeTerms, newsletter: receiveNewsletter, gender: gender, volume: volume, brightness: brightness, date: selectedDate, time: selectedTime, color: favoriteColor, } | json }}');
+				i0.ɵɵtext(123);
+				i0.ɵɵpipe(125, 'json');
 				i0.ɵɵelementEnd()()();
 			}
 			if (rf & 2) {
@@ -487,6 +503,22 @@ export class TwoWayBindingTest {
 				i0.ɵɵstyleProp('background-color', ctx.favoriteColor);
 				i0.ɵɵadvance(2);
 				i0.ɵɵtextInterpolate1('Selected: ', ctx.favoriteColor, '');
+				i0.ɵɵadvance(5);
+				i0.ɵɵtextInterpolate(i0.ɵɵpipeBind1(125, 38, i0.ɵɵpureFunctionV(40, _c0, [
+					ctx.name,
+					ctx.email,
+					ctx.age,
+					ctx.message,
+					ctx.selectedCountry,
+					ctx.agreeTerms,
+					ctx.receiveNewsletter,
+					ctx.gender,
+					ctx.volume,
+					ctx.brightness,
+					ctx.selectedDate,
+					ctx.selectedTime,
+					ctx.favoriteColor
+				])));
 			}
 		},
 		standalone: true,

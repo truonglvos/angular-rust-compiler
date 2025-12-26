@@ -42,7 +42,7 @@ const _c6 = (a0, a1, a2, a3, a4, a5) => [
 	a5
 ];
 const _forTrack0 = ($index, $item) => $item.title;
-function App_For_29_Template(rf, ctx) {
+function App_For_30_Template(rf, ctx) {
 	if (rf & 1) {
 		i0.ɵɵelementStart(0, 'a', 34)(1, 'span');
 		i0.ɵɵtext(2);
@@ -60,7 +60,7 @@ function App_For_29_Template(rf, ctx) {
 		i0.ɵɵtextInterpolate3('', item_r1.title, ' (', $index_r2 + 1, ' of ', $count_r3, ')');
 	}
 }
-function App_div_46_Template(rf, ctx) {
+function App_div_47_Template(rf, ctx) {
 	if (rf & 1) {
 		i0.ɵɵelementStart(0, 'div', 37);
 		i0.ɵɵtext(1);
@@ -107,8 +107,8 @@ export class App {
 	static ɵcmp = /* @__PURE__ */ i0.ɵɵdefineComponent({
 		type: App,
 		selectors: [['app-root']],
-		decls: 51,
-		vars: 15,
+		decls: 53,
+		vars: 19,
 		consts: [
 			[1, 'main'],
 			[1, 'content'],
@@ -371,53 +371,56 @@ export class App {
 				i0.ɵɵtext(22, 'Congratulations! Your app is running. 🎉');
 				i0.ɵɵelementEnd();
 				i0.ɵɵelementStart(23, 'p');
-				i0.ɵɵtext(24, 'hello {{ name | fullName: surname }}');
+				i0.ɵɵtext(24);
+				i0.ɵɵpipe(52, 'fullName');
 				i0.ɵɵelementEnd()();
-				i0.ɵɵelementStart(25, 'div', 18);
+				i0.ɵɵelementStart(26, 'div', 18);
 				i0.ɵɵelementEnd();
-				i0.ɵɵelementStart(26, 'div', 19)(27, 'div', 20);
-				i0.ɵɵrepeaterCreate(28, App_For_29_Template, 5, 4, 'a', 21, _forTrack0);
+				i0.ɵɵelementStart(27, 'div', 19)(28, 'div', 20);
+				i0.ɵɵrepeaterCreate(29, App_For_30_Template, 5, 4, 'a', 21, _forTrack0);
 				i0.ɵɵelementEnd();
-				i0.ɵɵelementStart(30, 'div', 22)(31, 'a', 23);
+				i0.ɵɵelementStart(31, 'div', 22)(32, 'a', 23);
 				i0.ɵɵnamespaceSVG();
-				i0.ɵɵelementStart(32, 'svg', 24)(33, 'path', 25);
+				i0.ɵɵelementStart(33, 'svg', 24)(34, 'path', 25);
 				i0.ɵɵelementEnd()()();
 				i0.ɵɵnamespaceHTML();
-				i0.ɵɵelementStart(34, 'a', 26);
+				i0.ɵɵelementStart(35, 'a', 26);
 				i0.ɵɵnamespaceSVG();
-				i0.ɵɵelementStart(35, 'svg', 27)(36, 'path', 28);
+				i0.ɵɵelementStart(36, 'svg', 27)(37, 'path', 28);
 				i0.ɵɵelementEnd()()();
 				i0.ɵɵnamespaceHTML();
-				i0.ɵɵelementStart(37, 'a', 29);
+				i0.ɵɵelementStart(38, 'a', 29);
 				i0.ɵɵnamespaceSVG();
-				i0.ɵɵelementStart(38, 'svg', 30)(39, 'path', 31);
+				i0.ɵɵelementStart(39, 'svg', 30)(40, 'path', 31);
 				i0.ɵɵelementEnd()()()()()()();
 				i0.ɵɵnamespaceHTML();
-				i0.ɵɵelementStart(40, 'router-outlet');
+				i0.ɵɵelementStart(41, 'router-outlet');
 				i0.ɵɵelementEnd();
-				i0.ɵɵelementStart(41, 'app-ng-for');
+				i0.ɵɵelementStart(42, 'app-ng-for');
 				i0.ɵɵelementEnd();
-				i0.ɵɵelementStart(42, 'h2');
-				i0.ɵɵtext(43, 'Test Inline Style');
+				i0.ɵɵelementStart(43, 'h2');
+				i0.ɵɵtext(44, 'Test Inline Style');
 				i0.ɵɵelementEnd();
-				i0.ɵɵelementStart(44, 'div', 32);
-				i0.ɵɵtext(45, 'Test attributes');
+				i0.ɵɵelementStart(45, 'div', 32);
+				i0.ɵɵtext(46, 'Test attributes');
 				i0.ɵɵelementEnd();
-				i0.ɵɵtemplate(46, App_div_46_Template, 2, 2, 'div', 33);
-				i0.ɵɵelementStart(47, 'app-ng-if-test');
+				i0.ɵɵtemplate(47, App_div_47_Template, 2, 2, 'div', 33);
+				i0.ɵɵelementStart(48, 'app-ng-if-test');
 				i0.ɵɵelementEnd();
-				i0.ɵɵelementStart(48, 'app-event-binding-test');
+				i0.ɵɵelementStart(49, 'app-event-binding-test');
 				i0.ɵɵelementEnd();
-				i0.ɵɵelementStart(49, 'app-property-binding-test');
+				i0.ɵɵelementStart(50, 'app-property-binding-test');
 				i0.ɵɵelementEnd();
-				i0.ɵɵelementStart(50, 'app-two-way-binding-test');
+				i0.ɵɵelementStart(51, 'app-two-way-binding-test');
 				i0.ɵɵelementEnd();
 			}
 			if (rf & 2) {
 				i0.ɵɵadvance(20);
 				i0.ɵɵtextInterpolate1('Hello, ', ctx.title(), '');
-				i0.ɵɵadvance(8);
-				i0.ɵɵrepeater(i0.ɵɵpureFunction6(8, _c6, i0.ɵɵpureFunction0(2, _c0), i0.ɵɵpureFunction0(3, _c1), i0.ɵɵpureFunction0(4, _c2), i0.ɵɵpureFunction0(5, _c3), i0.ɵɵpureFunction0(6, _c4), i0.ɵɵpureFunction0(7, _c5)));
+				i0.ɵɵadvance(4);
+				i0.ɵɵtextInterpolate1('hello ', i0.ɵɵpipeBind2(52, 3, ctx.name, ctx.surname), '');
+				i0.ɵɵadvance(5);
+				i0.ɵɵrepeater(i0.ɵɵpureFunction6(12, _c6, i0.ɵɵpureFunction0(6, _c0), i0.ɵɵpureFunction0(7, _c1), i0.ɵɵpureFunction0(8, _c2), i0.ɵɵpureFunction0(9, _c3), i0.ɵɵpureFunction0(10, _c4), i0.ɵɵpureFunction0(11, _c5)));
 				i0.ɵɵadvance(18);
 				i0.ɵɵproperty('ngForOf', ctx.items());
 			}
