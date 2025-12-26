@@ -146,13 +146,59 @@ fn ingest_nodes_internal(
     template: Vec<t::R3Node>,
     job: &mut ComponentCompilationJob,
 ) {
-    for node in template {
+    let mut iter = template.into_iter().peekable();
+    while let Some(node) = iter.next() {
         match node {
             t::R3Node::Element(el) => ingest_element(unit_xref, el, job),
             t::R3Node::Template(tmpl) => ingest_template(unit_xref, tmpl, job),
             t::R3Node::Content(content) => ingest_content(unit_xref, content, job),
-            t::R3Node::Text(text) => ingest_text(unit_xref, text, None, job),
-            t::R3Node::BoundText(bound_text) => ingest_bound_text(unit_xref, bound_text, None, job),
+            t::R3Node::Text(text) => {
+                let mut prefix = text.value;
+
+                // Coalesce adjacent text nodes and skip comments
+                loop {
+                    match iter.peek() {
+                        Some(t::R3Node::Text(_)) => {
+                            if let Some(t::R3Node::Text(next_text)) = iter.next() {
+                                prefix.push_str(&next_text.value);
+                            }
+                        }
+                        Some(t::R3Node::Comment(_)) => {
+                            // Skip comments to allow merging across them
+                            iter.next();
+                        }
+                        _ => break,
+                    }
+                }
+
+                // Check if next node is BoundText to merge
+                let is_next_bound_text = matches!(iter.peek(), Some(t::R3Node::BoundText(_)));
+                if is_next_bound_text {
+                    if let Some(t::R3Node::BoundText(bound_text)) = iter.next() {
+                        // Merge text value as prefix for BoundText
+                        let prefix = if prefix.trim().is_empty() {
+                            String::new()
+                        } else {
+                            prefix
+                        };
+                        ingest_bound_text(unit_xref, bound_text, None, prefix, job);
+                    }
+                } else {
+                    // Standard text node - skip whitespace-only
+                    if !prefix.trim().is_empty() {
+                        let text_op = ir::ops::create::create_text_op(
+                            job.allocate_xref_id(),
+                            prefix,
+                            None,
+                            Some(text.source_span.clone()),
+                        );
+                        push_create_op(job, unit_xref, text_op);
+                    }
+                }
+            }
+            t::R3Node::BoundText(bound_text) => {
+                ingest_bound_text(unit_xref, bound_text, None, String::new(), job)
+            }
             t::R3Node::IfBlock(if_block) => ingest_if_block(unit_xref, if_block, job),
             t::R3Node::SwitchBlock(switch_block) => {
                 ingest_switch_block(unit_xref, switch_block, job)
@@ -547,6 +593,11 @@ fn ingest_text(
     icu_placeholder: Option<String>,
     job: &mut ComponentCompilationJob,
 ) {
+    // Skip whitespace-only text nodes to match NGTSC default behavior
+    if text.value.trim().is_empty() {
+        return;
+    }
+
     let text_op = ir::ops::create::create_text_op(
         job.allocate_xref_id(),
         text.value.clone(),
@@ -561,6 +612,7 @@ fn ingest_bound_text(
     unit_xref: ir::XrefId,
     bound_text: t::BoundText,
     icu_placeholder: Option<String>,
+    prefix: String,
     job: &mut ComponentCompilationJob,
 ) {
     // Unwrap ASTWithSource if present
@@ -624,7 +676,7 @@ fn ingest_bound_text(
     let text_xref = job.allocate_xref_id();
     let text_op = ir::ops::create::create_text_op(
         text_xref,
-        String::new(), // Empty initial value for interpolated text
+        prefix, // Use provided prefix as initial value
         icu_placeholder,
         Some(bound_text.source_span.clone()),
     );
@@ -1228,6 +1280,7 @@ fn ingest_icu(unit_xref: ir::XrefId, icu: t::Icu, job: &mut ComponentCompilation
                     unit_xref,
                     bound_text.clone(),
                     Some(placeholder.clone()),
+                    String::new(),
                     job,
                 );
             }
@@ -1243,6 +1296,7 @@ fn ingest_icu(unit_xref: ir::XrefId, icu: t::Icu, job: &mut ComponentCompilation
                             unit_xref,
                             bound_text.clone(),
                             Some(placeholder.clone()),
+                            String::new(),
                             job,
                         );
                     }
@@ -1475,20 +1529,43 @@ fn ingest_control_flow_insertion_point_from_children(
                             _ => None,
                         };
 
-                        let binding_op = ir::ops::update::create_binding_op(
+                        if attr.name == "class" {
+                            if let crate::output::output_ast::Expression::Literal(lit) = &expression
+                            {
+                                if let crate::output::output_ast::LiteralValue::String(
+                                    class_value,
+                                ) = &lit.value
+                                {
+                                    for class_name in class_value.split_whitespace() {
+                                        let extracted_attr_op =
+                                            ir::ops::create::create_extracted_attribute_op(
+                                                unit_xref,
+                                                ir::BindingKind::ClassName,
+                                                None, // namespace
+                                                class_name.to_string(),
+                                                None, // value
+                                                None, // i18n_context
+                                                i18n_message.clone(),
+                                                vec![security_context.clone()],
+                                            );
+                                        push_create_op(job, unit_xref, extracted_attr_op);
+                                    }
+                                    continue;
+                                }
+                            }
+                        }
+
+                        let extracted_attr_op = ir::ops::create::create_extracted_attribute_op(
                             unit_xref,
                             ir::BindingKind::Attribute,
+                            None, // namespace
                             attr.name.clone(),
-                            ir::ops::update::BindingExpression::Expression(expression),
-                            None,
-                            vec![security_context],
-                            true,  // is_text_attr
-                            false, // is_structural_template_attribute
-                            None,  // template_kind
+                            Some(expression),
+                            None, // i18n_context
                             i18n_message,
-                            attr.source_span.clone(),
+                            vec![security_context],
                         );
-                        push_update_op(job, unit_xref, binding_op);
+                        push_create_op(job, unit_xref, extracted_attr_op);
                     }
                 }
 
@@ -1539,20 +1616,23 @@ fn ingest_control_flow_insertion_point_from_children(
                             },
                         );
 
-                        let binding_op = ir::ops::update::create_binding_op(
+                        // Extract i18n message
+                        let i18n_message = match &attr.i18n {
+                            Some(I18nMeta::Message(msg)) => Some(msg.clone()),
+                            _ => None,
+                        };
+
+                        let extracted_attr_op = ir::ops::create::create_extracted_attribute_op(
                             unit_xref,
                             ir::BindingKind::Attribute,
+                            None, // namespace
                             attr.name.clone(),
-                            ir::ops::update::BindingExpression::Expression(expression),
-                            None,
+                            Some(expression),
+                            None, // i18n_context
+                            i18n_message,
                             vec![security_context],
-                            true,
-                            false,
-                            None,
-                            None,
-                            attr.source_span.clone(),
                         );
-                        push_update_op(job, unit_xref, binding_op);
+                        push_create_op(job, unit_xref, extracted_attr_op);
                     }
                 }
 

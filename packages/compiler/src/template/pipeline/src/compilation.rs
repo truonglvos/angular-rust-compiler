@@ -224,10 +224,6 @@ impl CompilationJob for ComponentCompilationJob {
                 self.views.get(&view_xref).expect("View not found")
             };
             if let Some((slot, xref)) = unit.pipes.get(name) {
-                eprintln!(
-                    "DEBUG: add_pipe found existing: name='{}', xref={:?}, slot={:?}",
-                    name, xref, slot
-                );
                 return (slot.clone(), *xref);
             }
         }
@@ -248,10 +244,6 @@ impl CompilationJob for ComponentCompilationJob {
         let op = ir::ops::create::PipeOp::new(xref, slot.clone(), name.to_string());
         unit.create.push(Box::new(op));
 
-        eprintln!(
-            "DEBUG: add_pipe created NEW: name='{}', xref={:?}, slot={:?}",
-            name, xref, slot
-        );
         (slot, xref)
     }
 }

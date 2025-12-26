@@ -83,25 +83,16 @@ fn process_pipe_bindings_in_view(
         });
     }
 
-    // Process gathered pipes
-    for pipe in pipes {
-        let create_op = ir::ops::create::create_pipe_op(
-            pipe.target,
-            pipe.target_slot.clone(),
-            pipe.name.clone(),
-        );
-
-        if compatibility == ir::CompatibilityMode::TemplateDefinitionBuilder {
-            if let Some(target) = pipe.update_op_target {
-                add_pipe_to_creation_block(unit, target, create_op);
-            } else {
-                // Fallback: push to end of create list when no specific target
-                unit.create_mut().push(create_op);
-            }
-        } else {
-            unit.create_mut().push(create_op);
-        }
-    }
+    // NOTE: Pipe ops are already created in `add_pipe` during expression conversion.
+    // This phase was originally designed to create pipe ops, but since we already
+    // create them in add_pipe, we skip creation here to avoid duplicates.
+    //
+    // In TemplateDefinitionBuilder mode, we might need to reorder existing pipe ops,
+    // but for now we just skip creation entirely.
+    //
+    // TODO: If reordering is needed, find existing pipe ops and move them
+    // instead of creating new ones.
+    let _ = pipes; // Suppress unused warning
 }
 
 fn add_pipe_to_creation_block(
@@ -190,6 +181,14 @@ fn get_op_target(op: &dyn ir::Op) -> Option<ir::XrefId> {
         }
         ir::OpKind::Attribute => {
             if let Some(op) = op.as_any().downcast_ref::<ir::ops::update::AttributeOp>() {
+                return Some(op.target);
+            }
+        }
+        ir::OpKind::InterpolateText => {
+            if let Some(op) = op
+                .as_any()
+                .downcast_ref::<ir::ops::update::InterpolateTextOp>()
+            {
                 return Some(op.target);
             }
         }
