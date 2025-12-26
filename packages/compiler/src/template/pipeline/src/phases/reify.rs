@@ -662,10 +662,13 @@ fn reify_ir_expression(expr: o::Expression, flags: ir::VisitorContextFlag) -> o:
             ng::pipe_bind(pipe_slot, var_offset, args_array)
         }
         o::Expression::Reference(ref_expr) => {
-            // Reify ReferenceExpr to ɵɵreference(slot + offset) expression
+            // Reify ReferenceExpr to ɵɵreference(slot + 1 + offset) expression
+            // The +1 is because the reference is stored in the slot AFTER the element/template
+            // that declares it. For example, if a template is at slot 16, its template ref
+            // is at slot 17 (slot + 1).
             let slot = ref_expr.target_slot.get_slot().unwrap_or(0) as i32;
             let offset = ref_expr.offset as i32;
-            ng::reference(slot + offset)
+            ng::reference(slot + 1 + offset)
         }
         o::Expression::ContextLetReference(let_ref) => {
             // Reify ContextLetReferenceExpr to ɵɵstoreLet(slot) expression

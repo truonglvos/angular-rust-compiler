@@ -386,6 +386,34 @@ pub fn emit_ops(job: &ComponentCompilationJob, ops: Vec<&dyn ir::Op>) -> Vec<o::
                     source_span: None,
                 }));
             }
+
+            // Handle merged Element (self-closing empty elements)
+            ir::OpKind::Element => {
+                if let Some(element_op) = op.as_any().downcast_ref::<ir::ops::create::ElementOp>() {
+                    let index = element_op.base.base.handle.get_slot().unwrap();
+                    let tag = element_op.base.tag.clone().unwrap_or("div".to_string());
+
+                    // Build args: slot, tag, [constsIndex]
+                    let mut args = vec![*o::literal(index as f64), *o::literal(tag)];
+
+                    // Add consts index if element has attributes
+                    if let Some(consts_index) = element_op.base.base.attributes {
+                        args.push(*o::literal(consts_index.0 as f64));
+                    }
+
+                    stmts.push(o::Statement::Expression(o::ExpressionStatement {
+                        expr: Box::new(o::Expression::InvokeFn(o::InvokeFunctionExpr {
+                            fn_: o::import_ref(R3::element()),
+                            args,
+                            type_: None,
+                            source_span: None,
+                            pure: false,
+                        })),
+                        source_span: None,
+                    }));
+                }
+            }
+
             ir::OpKind::Text => {
                 if let Some(text_op) = op.as_any().downcast_ref::<ir::ops::create::TextOp>() {
                     let index = text_op.handle.get_slot().unwrap(); // Access field
@@ -627,11 +655,12 @@ pub fn emit_ops(job: &ComponentCompilationJob, ops: Vec<&dyn ir::Op>) -> Vec<o::
                             args.push(*o::literal(interpolation.strings[idx].clone()));
                             args.push(expr.clone());
                         }
-                        // Add last string always, even if empty, to match NGTSC argument count
-                        // NGTSC always emits: textInterpolate2(s0, e0, s1, e1, s2)
+                        // Add last string only if non-empty (NGTSC omits trailing empty strings)
                         let last_string =
                             interpolation.strings[interpolation.strings.len() - 1].clone();
-                        args.push(*o::literal(last_string));
+                        if !last_string.is_empty() {
+                            args.push(*o::literal(last_string));
+                        }
                         args
                     };
 

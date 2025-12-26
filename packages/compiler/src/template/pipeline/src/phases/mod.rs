@@ -85,6 +85,7 @@ pub fn run(job: &mut ComponentCompilationJob) {
     attribute_extraction::extract_attributes(job);
     local_refs::lift_local_refs(job); // Lift local refs (#templateName) to consts for templateRefExtractor
     namespace::emit_namespace_changes(job);
+    empty_elements::collapse_empty_instructions(job); // Merge ElementStart+ElementEnd -> Element for empty elements
     const_collection::collect_element_consts(job);
 
     // Resolve sanitizers for security-sensitive properties/attributes (e.g. href, src)
