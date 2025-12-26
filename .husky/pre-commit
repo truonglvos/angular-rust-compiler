@@ -1,4 +1,4 @@
 . "$HOME/.cargo/env"
 
-npm run format:rust:check
-npm run format:check
+npm run format
+npm run format:rust
