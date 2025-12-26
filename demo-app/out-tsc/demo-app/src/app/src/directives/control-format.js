@@ -1,5 +1,5 @@
-import * as i0 from '@angular/core';
-import { Directive, HostListener, Input } from '@angular/core';
+import * as i0 from "@angular/core";
+import { Directive, HostListener, Input } from "@angular/core";
 export class ControlFormat {
 	characterPrevention = null;
 	constructor(el, control, renderer2) {
@@ -9,13 +9,13 @@ export class ControlFormat {
 	}
 	onInput(target) {
 		/* set value on HTML */
-		this.renderer2.setValue(this.el.nativeElement, '10');
+		this.renderer2.setValue(this.el.nativeElement, "10");
 		/* set value on model */
-		this.control.control?.setValue('10');
+		this.control.control?.setValue("10");
 	}
 	onPaste(target) {
-		this.renderer2.setValue(this.el.nativeElement, '10');
-		this.control.control?.setValue('20');
+		this.renderer2.setValue(this.el.nativeElement, "10");
+		this.control.control?.setValue("20");
 	}
 	static ɵfac = function ControlFormat_Factory(t) {
 		return new (t || ControlFormat)();
@@ -23,10 +23,10 @@ export class ControlFormat {
 	static ɵdir = /* @__PURE__ */ i0.ɵɵdefineDirective({
 		type: ControlFormat,
 		selectors: [[
-			'',
-			'appControlFormat',
-			''
+			"",
+			"appControlFormat",
+			""
 		]],
-		inputs: { characterPrevention: 'characterPrevention' }
+		inputs: { characterPrevention: "characterPrevention" }
 	});
 }
