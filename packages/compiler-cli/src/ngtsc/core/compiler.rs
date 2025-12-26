@@ -199,20 +199,23 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                 }
                 DecoratorMetadata::Pipe(pipe) => {
                     // Compile pipe to ɵpipe definition
-                    let initializer =
-                        format!(
-                         "/*@__PURE__*/ i0.ɵɵdefinePipe({{ name: \"{}\", type: {}, pure: {}{} }})",
-                         pipe.pipe_name,
-                         pipe.name,
-                         pipe.is_pure,
-                         if pipe.is_standalone { ", standalone: true" } else { "" }
-                     );
+                    let initializer = format!(
+                        "/*@__PURE__*/ i0.ɵɵdefinePipe({{ name: '{}', type: {}, pure: {}{} }})",
+                        pipe.pipe_name,
+                        pipe.name,
+                        pipe.is_pure,
+                        if pipe.is_standalone {
+                            ", standalone: true"
+                        } else {
+                            ""
+                        }
+                    );
                     let results = vec![crate::ngtsc::transform::src::api::CompileResult {
                         name: "ɵpipe".to_string(),
                         initializer: Some(initializer),
                         statements: vec![],
                         type_desc: format!(
-                            "i0.ɵɵPipeDeclaration<{}, \"{}\", {}>",
+                            "i0.ɵɵPipeDeclaration<{}, '{}', {}>",
                             pipe.name, pipe.pipe_name, pipe.is_standalone
                         ),
                         deferrable_imports: None,
@@ -395,7 +398,10 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                                       );
 
                                       // Step 4: Codegen final JavaScript
-                                      let codegen = oxc_codegen::Codegen::new();
+                                      let codegen = oxc_codegen::Codegen::new().with_options(oxc_codegen::CodegenOptions {
+                                          single_quote: true,
+                                          ..oxc_codegen::CodegenOptions::default()
+                                      });
                                       codegen.build(&parse_result.program).code
                                   } else {
                                       // Fallback to empty class if parse fails
@@ -523,7 +529,11 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                         );
 
                         // Use OXC codegen to emit JavaScript without types
-                        let codegen = oxc_codegen::Codegen::new();
+                        let codegen =
+                            oxc_codegen::Codegen::new().with_options(oxc_codegen::CodegenOptions {
+                                single_quote: true,
+                                ..oxc_codegen::CodegenOptions::default()
+                            });
                         let mut js_output = codegen.build(&parse_result.program).code;
 
                         // Add signature line for main.ts
