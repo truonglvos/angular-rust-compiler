@@ -1,5 +1,5 @@
-import * as i0 from '@angular/core';
 import { Pipe } from '@angular/core';
+import * as i0 from '@angular/core';
 export class FullNamePipe {
 	transform(name, surname) {
 		return `${name} ${surname}`;

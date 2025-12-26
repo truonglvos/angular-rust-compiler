@@ -1,4 +1,3 @@
-import * as i0 from '@angular/core';
 import { NgFor } from '@angular/common';
 import { ChangeDetectionStrategy, Component, EventEmitter, inject, input, Input, output, Output, signal } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
@@ -9,6 +8,7 @@ import { NgIfTest } from './src/components/ng-if-test/ng-if-test';
 import { EventBindingTest } from './src/components/event-binding-test/event-binding-test';
 import { PropertyBindingTest } from './src/components/property-binding-test/property-binding-test';
 import { TwoWayBindingTest } from './src/components/two-way-binding-test/two-way-binding-test';
+import * as i0 from '@angular/core';
 const _c0 = () => ({
 	title: 'Explore the Docs',
 	link: 'https://angular.dev'

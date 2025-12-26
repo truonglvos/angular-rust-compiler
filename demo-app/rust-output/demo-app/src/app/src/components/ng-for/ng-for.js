@@ -1,6 +1,6 @@
-import * as i0 from '@angular/core';
 import { NgFor, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import * as i0 from '@angular/core';
 function NgForTest_li_7_Template(rf, ctx) {
 	if (rf & 1) {
 		i0.ɵɵelementStart(0, 'li');

@@ -1,7 +1,7 @@
-import * as i0 from '@angular/core';
 import { NgIf, NgFor } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import * as i0 from '@angular/core';
 function EventBindingTest_p_16_Template(rf, ctx) {
 	if (rf & 1) {
 		i0.ɵɵelementStart(0, 'p');

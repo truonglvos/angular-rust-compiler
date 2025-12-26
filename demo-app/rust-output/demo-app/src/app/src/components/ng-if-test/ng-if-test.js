@@ -1,6 +1,6 @@
-import * as i0 from '@angular/core';
 import { NgIf } from '@angular/common';
 import { Component } from '@angular/core';
+import * as i0 from '@angular/core';
 function NgIfTest_p_8_Template(rf, ctx) {
 	if (rf & 1) {
 		i0.ɵɵelementStart(0, 'p');

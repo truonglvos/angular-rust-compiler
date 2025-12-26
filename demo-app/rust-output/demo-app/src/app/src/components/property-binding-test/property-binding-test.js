@@ -1,6 +1,6 @@
-import * as i0 from '@angular/core';
 import { NgIf, NgFor, NgClass, NgStyle } from '@angular/common';
 import { Component } from '@angular/core';
+import * as i0 from '@angular/core';
 export class PropertyBindingTest {
 	// Text bindings
 	title = 'Property Binding Demo';

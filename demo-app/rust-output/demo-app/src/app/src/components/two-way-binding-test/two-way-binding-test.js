@@ -1,7 +1,7 @@
-import * as i0 from '@angular/core';
 import { Component } from '@angular/core';
 import { NgIf, NgFor, JsonPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import * as i0 from '@angular/core';
 function TwoWayBindingTest_option_48_Template(rf, ctx) {
 	if (rf & 1) {
 		i0.ɵɵelementStart(0, 'option', 22);
