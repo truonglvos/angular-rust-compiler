@@ -70,9 +70,8 @@ pub fn ingest_component(
     change_detection: Option<ChangeDetectionStrategy>,
     available_dependencies: Vec<R3TemplateDependencyMetadata>,
 ) -> ComponentCompilationJob {
-    if component_name.contains("NgForTest") {}
     let mut job = ComponentCompilationJob::new(
-        component_name,
+        component_name.clone(),
         constant_pool,
         COMPATIBILITY_MODE,
         compilation_mode,
@@ -157,9 +156,15 @@ fn ingest_nodes_internal(
     let mut iter = template.into_iter().peekable();
     while let Some(node) = iter.next() {
         match node {
-            t::R3Node::Element(el) => ingest_element(unit_xref, el, job),
-            t::R3Node::Template(tmpl) => ingest_template(unit_xref, tmpl, job),
-            t::R3Node::Content(content) => ingest_content(unit_xref, content, job),
+            t::R3Node::Element(el) => {
+                ingest_element(unit_xref, el, job);
+            }
+            t::R3Node::Template(tmpl) => {
+                ingest_template(unit_xref, tmpl, job);
+            }
+            t::R3Node::Content(content) => {
+                ingest_content(unit_xref, content, job);
+            }
             t::R3Node::Text(text) => {
                 let mut prefix = text.value;
 
@@ -205,18 +210,26 @@ fn ingest_nodes_internal(
                 }
             }
             t::R3Node::BoundText(bound_text) => {
-                ingest_bound_text(unit_xref, bound_text, None, String::new(), job)
+                ingest_bound_text(unit_xref, bound_text, None, String::new(), job);
             }
-            t::R3Node::IfBlock(if_block) => ingest_if_block(unit_xref, if_block, job),
+            t::R3Node::IfBlock(if_block) => {
+                ingest_if_block(unit_xref, if_block, job);
+            }
             t::R3Node::SwitchBlock(switch_block) => {
-                ingest_switch_block(unit_xref, switch_block, job)
+                ingest_switch_block(unit_xref, switch_block, job);
             }
             t::R3Node::DeferredBlock(deferred_block) => {
-                ingest_defer_block(unit_xref, deferred_block, job)
+                ingest_defer_block(unit_xref, deferred_block, job);
             }
-            t::R3Node::Icu(icu) => ingest_icu(unit_xref, icu, job),
-            t::R3Node::ForLoopBlock(for_loop) => ingest_for_block(unit_xref, for_loop, job),
-            t::R3Node::LetDeclaration(let_decl) => ingest_let_declaration(unit_xref, let_decl, job),
+            t::R3Node::Icu(icu) => {
+                ingest_icu(unit_xref, icu, job);
+            }
+            t::R3Node::ForLoopBlock(for_loop) => {
+                ingest_for_block(unit_xref, for_loop, job);
+            }
+            t::R3Node::LetDeclaration(let_decl) => {
+                ingest_let_declaration(unit_xref, let_decl, job);
+            }
             t::R3Node::Component(_) => {
                 // TODO: Account for selectorless nodes
             }
@@ -2019,22 +2032,28 @@ fn ingest_element_bindings(
     element: &t::Element,
     job: &mut ComponentCompilationJob,
 ) {
+    use crate::core::SecurityContext;
     use crate::i18n::i18n_ast::I18nMeta;
-    use crate::schema::dom_element_schema_registry::DomElementSchemaRegistry;
     use crate::schema::element_schema_registry::ElementSchemaRegistry;
     use crate::template::pipeline::ir::ops::update::{create_binding_op, BindingExpression};
 
-    // Create schema registry instance
-    let schema = DomElementSchemaRegistry::new();
+    // PHASE 1: Collect security contexts using immutable borrow
+    let attr_security_contexts: Vec<SecurityContext> = element
+        .attributes
+        .iter()
+        .map(|attr| {
+            job.schema_registry
+                .security_context(&element.name, &attr.name, true)
+        })
+        .collect();
 
     let mut i18n_attribute_binding_names = std::collections::HashSet::new();
 
-    // Process attributes (text attributes) - currently only text attributes are supported
-    for attr in &element.attributes {
-        let security_context = schema.security_context(&element.name, &attr.name, true);
+    // PHASE 2: Process attributes (text attributes) - now we can mutate job
+    for (idx, attr) in element.attributes.iter().enumerate() {
+        let security_context = attr_security_contexts[idx];
 
         // Convert attribute value - for now, treat as literal string
-        // TODO: Support interpolation in attributes properly
         let expression =
             BindingExpression::Expression(crate::output::output_ast::Expression::Literal(
                 crate::output::output_ast::LiteralExpr {

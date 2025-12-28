@@ -9,10 +9,108 @@ use angular_compiler_cli::ngtsc::file_system::FileSystem;
 use angular_compiler_cli::ngtsc::file_system::ReadonlyFileSystem;
 use angular_compiler_cli::ngtsc::program::NgtscProgram;
 use napi_derive::napi;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use xxhash_rust::xxh3::xxh3_64;
+
+// ============ Cache Configuration ============
+const CACHE_DIR_NAME: &str = ".angular/rust-cache";
+const COMPILER_CACHE_SUBDIR: &str = "compiler";
+const LINKER_CACHE_SUBDIR: &str = "linker";
+
+/// Compute xxHash3 (64-bit) of content - extremely fast (~10GB/s)
+fn compute_hash(content: &str) -> String {
+    format!("{:016x}", xxh3_64(content.as_bytes()))
+}
+
+/// Extract template content if templateUrl is present in the TS file.
+/// Returns the combined content (ts + template) for hashing.
+fn get_combined_content_for_hash(filename: &str, ts_content: &str) -> String {
+    use regex::Regex;
+
+    // Look for templateUrl: './something.html' or templateUrl: "./something.html"
+    let re = Regex::new(r#"templateUrl\s*:\s*['"]([^'"]+)['"]"#).ok();
+
+    if let Some(regex) = re {
+        if let Some(captures) = regex.captures(ts_content) {
+            if let Some(template_path) = captures.get(1) {
+                // Resolve template path relative to TS file
+                let ts_dir = Path::new(filename).parent().unwrap_or(Path::new("."));
+                let template_file = ts_dir.join(template_path.as_str());
+
+                // Read template content
+                if let Ok(template_content) = fs::read_to_string(&template_file) {
+                    // Combine TS + template content for hash
+                    return format!("{}\n---TEMPLATE---\n{}", ts_content, template_content);
+                }
+            }
+        }
+    }
+
+    // Also check for styleUrl/styleUrls
+    let style_re = Regex::new(r#"styleUrl[s]?\s*:\s*['"]([^'"]+)['"]"#).ok();
+    if let Some(regex) = style_re {
+        let mut combined = ts_content.to_string();
+        for captures in regex.captures_iter(ts_content) {
+            if let Some(style_path) = captures.get(1) {
+                let ts_dir = Path::new(filename).parent().unwrap_or(Path::new("."));
+                let style_file = ts_dir.join(style_path.as_str());
+                if let Ok(style_content) = fs::read_to_string(&style_file) {
+                    combined.push_str("\n---STYLE---\n");
+                    combined.push_str(&style_content);
+                }
+            }
+        }
+        return combined;
+    }
+
+    ts_content.to_string()
+}
+
+/// Get cache directory, creating it if necessary
+fn get_cache_dir(subdir: &str) -> PathBuf {
+    // Find project root by looking for package.json going up from cwd
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let mut project_root = cwd.clone();
+
+    // Walk up to find package.json
+    loop {
+        if project_root.join("package.json").exists() {
+            break;
+        }
+        if !project_root.pop() {
+            // Fallback to cwd if no package.json found
+            project_root = cwd;
+            break;
+        }
+    }
+
+    let cache_dir = project_root.join(CACHE_DIR_NAME).join(subdir);
+    if !cache_dir.exists() {
+        let _ = fs::create_dir_all(&cache_dir);
+    }
+    cache_dir
+}
+
+// ============ Cached Data Structures ============
+#[derive(Serialize, Deserialize)]
+struct CachedCompileResult {
+    code: String,
+    diagnostics: Vec<CachedDiagnostic>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct CachedDiagnostic {
+    file: Option<String>,
+    message: String,
+    code: u32,
+    start: Option<u32>,
+    length: Option<u32>,
+}
 
 /// A FileSystem that reads from disk (NodeJS) but captures writes in memory.
 struct CapturingFileSystem {
@@ -34,8 +132,6 @@ impl ReadonlyFileSystem for CapturingFileSystem {
         self.delegate.is_case_sensitive()
     }
     fn exists(&self, path: &AbsoluteFsPath) -> bool {
-        // Check captured first? Or overlay?
-        // For output files, we should check captured.
         let captured = self.captured_files.lock().unwrap();
         if captured.contains_key(path) {
             true
@@ -58,7 +154,6 @@ impl ReadonlyFileSystem for CapturingFileSystem {
         }
         self.delegate.read_file_buffer(path)
     }
-    // Delegate others
     fn readdir(&self, path: &AbsoluteFsPath) -> io::Result<Vec<PathSegment>> {
         self.delegate.readdir(path)
     }
@@ -126,11 +221,9 @@ impl FileSystem for CapturingFileSystem {
     fn remove_file(&self, path: &AbsoluteFsPath) -> io::Result<()> {
         let mut captured = self.captured_files.lock().unwrap();
         captured.remove(path);
-        // We generally shouldn't delete from disk in compilation
         Ok(())
     }
-    fn symlink(&self, target: &AbsoluteFsPath, path: &AbsoluteFsPath) -> io::Result<()> {
-        // Ignore symlinks for now
+    fn symlink(&self, _target: &AbsoluteFsPath, _path: &AbsoluteFsPath) -> io::Result<()> {
         Ok(())
     }
     fn copy_file(&self, from: &AbsoluteFsPath, to: &AbsoluteFsPath) -> io::Result<()> {
@@ -165,44 +258,126 @@ pub struct CompileResult {
 }
 
 #[napi]
-pub struct Compiler {}
+pub struct Compiler {
+    compiler_cache_dir: PathBuf,
+    linker_cache_dir: PathBuf,
+}
 
 #[napi]
 impl Compiler {
     #[napi(constructor)]
     pub fn new() -> Self {
-        Compiler {}
+        let compiler_cache_dir = get_cache_dir(COMPILER_CACHE_SUBDIR);
+        let linker_cache_dir = get_cache_dir(LINKER_CACHE_SUBDIR);
+
+        eprintln!(
+            "[Rust NGC] Cache dir: {}",
+            compiler_cache_dir.parent().unwrap().display()
+        );
+
+        Compiler {
+            compiler_cache_dir,
+            linker_cache_dir,
+        }
+    }
+
+    /// Read cached compile result from disk
+    fn read_compiler_cache(&self, hash: &str) -> Option<CompileResult> {
+        let cache_file = self.compiler_cache_dir.join(format!("{}.json", hash));
+        if let Ok(content) = fs::read_to_string(&cache_file) {
+            if let Ok(cached) = serde_json::from_str::<CachedCompileResult>(&content) {
+                return Some(CompileResult {
+                    code: cached.code,
+                    diagnostics: cached
+                        .diagnostics
+                        .into_iter()
+                        .map(|d| Diagnostic {
+                            file: d.file,
+                            message: d.message,
+                            code: d.code,
+                            start: d.start,
+                            length: d.length,
+                        })
+                        .collect(),
+                });
+            }
+        }
+        None
+    }
+
+    /// Write compile result to disk cache
+    fn write_compiler_cache(&self, hash: &str, result: &CompileResult) {
+        let cache_file = self.compiler_cache_dir.join(format!("{}.json", hash));
+        let cached = CachedCompileResult {
+            code: result.code.clone(),
+            diagnostics: result
+                .diagnostics
+                .iter()
+                .map(|d| CachedDiagnostic {
+                    file: d.file.clone(),
+                    message: d.message.clone(),
+                    code: d.code,
+                    start: d.start,
+                    length: d.length,
+                })
+                .collect(),
+        };
+        if let Ok(json) = serde_json::to_string(&cached) {
+            let _ = fs::write(&cache_file, json);
+        }
+    }
+
+    /// Read cached linker result from disk
+    fn read_linker_cache(&self, hash: &str) -> Option<String> {
+        let cache_file = self.linker_cache_dir.join(format!("{}.json", hash));
+        if let Ok(content) = fs::read_to_string(&cache_file) {
+            if let Ok(cached) = serde_json::from_str::<String>(&content) {
+                return Some(cached);
+            }
+        }
+        None
+    }
+
+    /// Write linker result to disk cache
+    fn write_linker_cache(&self, hash: &str, result: &str) {
+        let cache_file = self.linker_cache_dir.join(format!("{}.json", hash));
+        if let Ok(json) = serde_json::to_string(result) {
+            let _ = fs::write(&cache_file, json);
+        }
     }
 
     #[napi]
-    pub fn compile(&self, filename: String, _content: String) -> CompileResult {
-        // 1. Setup Capturing FileSystem (delegates reads to disk so imports work!)
-        let fs = CapturingFileSystem::new();
+    pub fn compile(&self, filename: String, content: String) -> CompileResult {
 
-        // Note: We ignore `_content` here and read from disk to ensure consistency
-        // with how imports are resolved. In a real advanced implementation, we would
-        // overlay `_content` into the `captured_files` map immediately.
-        // Let's do that actually, to support "unsaved" changes if Rspack sends them.
+
+        // 1. Compute hash of content (including template and style files)
+        let combined_content = get_combined_content_for_hash(&filename, &content);
+        let hash = compute_hash(&combined_content);
+
+        // 2. Check cache
+        if let Some(cached) = self.read_compiler_cache(&hash) {
+            return cached;
+        }
+
+
+
+
+        // 3. Setup Capturing FileSystem
+        let fs = CapturingFileSystem::new();
         let abs_filename_str = fs.resolve(&[&filename]).to_string();
         let abs_filename = AbsoluteFsPath::from(Path::new(&abs_filename_str));
+        fs.write_file(&abs_filename, content.as_bytes(), None).ok();
 
-        // Overlay the in-memory content (optional, but good for Rspack)
-        fs.write_file(&abs_filename, _content.as_bytes(), None).ok();
-
-        // 2. Setup Compiler Options
+        // 4. Setup Compiler Options
         let mut options = NgCompilerOptions::default();
-        // Configure options to ensure in-place compilation results
-        // By setting project to the file, and out_dir to the file's dir, we force 1:1 emission in place.
         options.project = abs_filename_str.clone();
         options.out_dir = Some(fs.dirname(&abs_filename_str));
 
-        // 3. Create Program
+        // 5. Create Program
         let root_names = vec![abs_filename_str.clone()];
         let mut program = NgtscProgram::new(root_names, options, &fs);
 
-        // 4. Compile
-        // load_ng_structure needs a valid path to tsconfig usually, or just root.
-        // We'll pass the dirname of the file as project root or just "/"
+        // 6. Load NG Structure
         let mut diagnostics = Vec::new();
         if let Err(e) = program.load_ng_structure(Path::new("/")) {
             return CompileResult {
@@ -211,6 +386,7 @@ impl Compiler {
             };
         }
 
+        // 7. Emit
         match program.emit() {
             Ok(emit_diagnostics) => {
                 for diag in emit_diagnostics {
@@ -231,8 +407,7 @@ impl Compiler {
             }
         }
 
-        // 5. Retrieve output from Memory
-        // The output path is usually same as input but .js extension
+        // 8. Retrieve output from Memory
         let output_path_str = abs_filename_str.replace(".ts", ".js");
         let output_path = AbsoluteFsPath::from(Path::new(&output_path_str));
 
@@ -243,18 +418,37 @@ impl Compiler {
             }
         };
 
-        CompileResult { code, diagnostics }
+        let result = CompileResult { code, diagnostics };
+
+        // 9. Write to cache
+        self.write_compiler_cache(&hash, &result);
+
+        result
     }
 
     #[napi]
     pub fn link_file(&self, filename: String, source_code: String) -> String {
-        // Delegate to linker in compiler-cli
-        // We need to enable feature napi-bindings for this to be available
+        // 1. Compute hash of source code
+        let hash = compute_hash(&source_code);
+
+        // 2. Check cache
+        if let Some(cached) = self.read_linker_cache(&hash) {
+            return cached;
+        }
+
+        // 3. Link
         use angular_compiler_cli::linker::napi::link_file;
 
-        match link_file(source_code, filename) {
+        let result = match link_file(source_code, filename) {
             Ok(code) => code,
             Err(e) => format!("/* Linker Error: {} */", e),
+        };
+
+        // 4. Write to cache (only if successful)
+        if !result.starts_with("/* Linker Error") {
+            self.write_linker_cache(&hash, &result);
         }
+
+        result
     }
 }

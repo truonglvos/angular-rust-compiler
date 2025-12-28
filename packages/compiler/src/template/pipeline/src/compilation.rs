@@ -9,6 +9,7 @@ use crate::directive_matching::{CssSelector, SelectorMatcher};
 use crate::output::output_ast::Expression;
 use crate::parse_util::ParseError;
 use crate::render3::view::api::{R3ComponentDeferMetadata, R3TemplateDependencyMetadata};
+use crate::schema::dom_element_schema_registry::DomElementSchemaRegistry;
 use crate::template::pipeline::ir;
 use std::collections::HashSet;
 
@@ -103,6 +104,7 @@ pub struct ComponentCompilationJob {
     pub available_dependencies: Vec<R3TemplateDependencyMetadata>,
     pub used_dependencies: HashSet<usize>,
     pub selector_matcher: SelectorMatcher<usize>,
+    pub schema_registry: DomElementSchemaRegistry,
     pub diagnostics: Vec<ParseError>,
 
     next_xref_id: ir::XrefId,
@@ -132,6 +134,7 @@ impl ComponentCompilationJob {
         // If needed, we could use Rc<RefCell<ViewCompilationUnit>> to share ownership
 
         let selector_matcher = Self::create_selector_matcher(&available_dependencies);
+        let schema_registry = DomElementSchemaRegistry::new();
 
         ComponentCompilationJob {
             component_name,
@@ -153,6 +156,7 @@ impl ComponentCompilationJob {
             available_dependencies,
             used_dependencies: HashSet::new(),
             selector_matcher,
+            schema_registry,
             diagnostics: Vec::new(),
             next_xref_id: ir::XrefId::new(1),
         }

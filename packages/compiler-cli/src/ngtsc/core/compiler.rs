@@ -150,6 +150,8 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
         &self,
         compilation_result: &CompilationResult,
     ) -> Result<Vec<crate::ngtsc::core::Diagnostic>, String> {
+
+
         let mut result_diagnostics = Vec::new();
         let fs = self.fs;
 
@@ -176,6 +178,7 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                     };
                     (results, dir.t2.name.clone(), dir.source_file.clone())
                 }
+
                 DecoratorMetadata::Pipe(pipe) => {
                     // Compile pipe to ɵpipe definition
                     let initializer = format!(
@@ -331,6 +334,7 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                                   let allocator = Allocator::default();
                                   let source_type = SourceType::ts();
                                   let file_path = src_file.to_string_lossy().to_string();
+                                  // Parse
                                   let parser = Parser::new(&allocator, &source_content, source_type);
                                   let mut parse_result = parser.parse();
 
@@ -382,13 +386,15 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                                           single_quote: true,
                                           ..oxc_codegen::CodegenOptions::default()
                                       });
-                                      codegen.build(&parse_result.program).code
+                                      let code = codegen.build(&parse_result.program).code;
+                                      code
                                   } else {
                                       // Fallback to empty class if parse fails
                                       format!("import * as i0 from '@angular/core';\nexport class {} {{}}\n{}.ɵfac = function {}_Factory(t) {{ return new (t || {})(); }};\n{}.ɵcmp = /*@__PURE__*/ {};",
                                           directive_name, directive_name, directive_name, directive_name, directive_name, initializer)
                                   }
                               }
+
                               Err(_) => format!("import * as i0 from '@angular/core';\nexport class {} {{}}\n{}.ɵfac = function {}_Factory(t) {{ return new (t || {})(); }};\n{}.ɵcmp = /*@__PURE__*/ {};",
                                   directive_name, directive_name, directive_name, directive_name, directive_name, initializer)
                           }
@@ -531,6 +537,8 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                 }
             }
         }
+
+
 
         Ok(result_diagnostics)
     }
