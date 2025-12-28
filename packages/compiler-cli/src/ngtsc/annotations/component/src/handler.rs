@@ -541,8 +541,6 @@ impl DecoratorHandler<DirectiveMetadata<'static>, DirectiveMetadata<'static>, ()
 
 impl ComponentDecoratorHandler {
     pub fn compile_ivy(&self, analysis: &DirectiveMetadata<'static>) -> Vec<CompileResult> {
-
-
         // Extract DirectiveMeta from DecoratorMetadata enum (must be a component)
         let dir = match analysis {
             DecoratorMetadata::Directive(d) if d.t2.is_component => d,
@@ -584,7 +582,6 @@ impl ComponentDecoratorHandler {
                 vec![],
             );
 
-
         let (nodes, ng_content_selectors, preserve_whitespaces, styles) = if let Some(ast) =
             comp_meta.template_ast.as_ref()
         {
@@ -620,7 +617,6 @@ impl ComponentDecoratorHandler {
                 parsed_template.styles,
             )
         };
-
 
         // TODO: Handle parsing errors?
         // if let Some(errors) = parsed_template.errors { ... }
@@ -893,10 +889,7 @@ impl ComponentDecoratorHandler {
             r3_metadata.declarations.clone(),
         );
 
-
-
         phases::run(&mut job);
-
 
         // Filter declarations based on used_dependencies from the job
         // This optimization removes unused directives and pipes that were brute-force added (e.g. from FormsModule)
@@ -970,8 +963,6 @@ impl ComponentDecoratorHandler {
 
         // 4. Emit component definition
         let compiled = emit_component(&job, &r3_metadata, host_job.as_ref());
-
-
 
         // Detect required imports based on metadata
         let mut additional_imports = Vec::new();

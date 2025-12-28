@@ -150,8 +150,6 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
         &self,
         compilation_result: &CompilationResult,
     ) -> Result<Vec<crate::ngtsc::core::Diagnostic>, String> {
-
-
         let mut result_diagnostics = Vec::new();
         let fs = self.fs;
 
@@ -537,8 +535,6 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                 }
             }
         }
-
-
 
         Ok(result_diagnostics)
     }

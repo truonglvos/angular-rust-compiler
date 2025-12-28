@@ -12,6 +12,14 @@ napi-derive = { workspace = true }
 angular-compiler = { path = "../compiler" }
 angular-compiler-cli = { path = "../compiler-cli", features = ["napi-bindings"] }
 serde = { workspace = true }
+serde_json = "1.0"
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+regex = "1.10"
 
 [build-dependencies]
 napi-build = { workspace = true }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

@@ -348,8 +348,6 @@ impl Compiler {
 
     #[napi]
     pub fn compile(&self, filename: String, content: String) -> CompileResult {
-
-
         // 1. Compute hash of content (including template and style files)
         let combined_content = get_combined_content_for_hash(&filename, &content);
         let hash = compute_hash(&combined_content);
@@ -358,9 +356,6 @@ impl Compiler {
         if let Some(cached) = self.read_compiler_cache(&hash) {
             return cached;
         }
-
-
-
 
         // 3. Setup Capturing FileSystem
         let fs = CapturingFileSystem::new();

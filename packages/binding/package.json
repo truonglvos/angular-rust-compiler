@@ -15,7 +15,8 @@
   },
   "scripts": {
     "build": "napi build --platform --cargo-name angular_binding",
-    "build:debug": "napi build --platform --cargo-name angular_binding"
+    "build:debug": "napi build --platform --cargo-name angular_binding",
+    "build:release": "napi build --platform --cargo-name angular_binding --release"
   },
   "devDependencies": {
     "@napi-rs/cli": "^2.18.0"

@@ -55,7 +55,7 @@
     "copy-package": "cp package.dist.json dist/package.json",
     "copy-docs": "cp README.md dist/",
     "build": "npm run copy-binding && tsup && npm run copy-binding-to-dist && npm run copy-package && npm run copy-docs",
-    "build:full": "cd ../binding && npm run build && cd ../linker-plugins && npm run build",
+    "build:full": "cd ../binding && npm run build:release && cd ../linker-plugins && npm run build",
     "dev": "tsup --watch",
     "prepublishOnly": "npm run build:full",
     "pack:dist": "cd dist && npm pack",
