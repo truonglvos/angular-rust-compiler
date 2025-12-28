@@ -318,6 +318,6 @@ export class PropertyBindingTest {
       '.property-binding-test[_ngcontent-%COMP%] {\n  padding: 20px;\n  font-family: Arial, sans-serif;\n}\n\nsection[_ngcontent-%COMP%] {\n  margin-bottom: 24px;\n  padding: 16px;\n  border: 1px solid #ddd;\n  border-radius: 8px;\n}\n\nh3[_ngcontent-%COMP%] {\n  margin-top: 0;\n  color: #333;\n}\n\nbutton[_ngcontent-%COMP%] {\n  margin-right: 8px;\n  margin-bottom: 8px;\n  padding: 8px 16px;\n  cursor: pointer;\n}\n\ninput[_ngcontent-%COMP%] {\n  display: block;\n  margin: 8px 0;\n  padding: 8px;\n}\n\n.styled-box[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  margin-top: 16px;\n  color: #333;\n}\n\n.box[_ngcontent-%COMP%] {\n  padding: 16px;\n  margin: 8px 0;\n  border: 2px solid #ccc;\n  transition: all 0.3s ease;\n}\n\n.box.active[_ngcontent-%COMP%] {\n  border-color: #2196f3;\n  background-color: #e3f2fd;\n}\n\n.box.highlighted[_ngcontent-%COMP%] {\n  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);\n}\n\n.box.primary[_ngcontent-%COMP%] {\n  font-weight: bold;\n  color: #1976d2;\n}\n\nimg[_ngcontent-%COMP%] {\n  margin-right: 16px;\n}',
     ],
     encapsulation: 0,
-    dependencies: [NgIf, NgFor, NgClass, NgStyle],
+    dependencies: [NgClass, NgStyle],
   });
 }

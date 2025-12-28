@@ -318,6 +318,7 @@ export class NgForTest {
           args: [
             {
               selector: 'app-ng-for',
+              standalone: true,
               imports: [NgFor, NgIf],
               changeDetection: ChangeDetectionStrategy.OnPush,
               template:
@@ -338,6 +339,6 @@ export class NgForTest {
     i0.ɵsetClassDebugInfo(NgForTest, {
       className: 'NgForTest',
       filePath: 'src/app/src/components/ng-for/ng-for.ts',
-      lineNumber: 23,
+      lineNumber: 24,
     });
 })();

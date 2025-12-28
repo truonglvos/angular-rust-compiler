@@ -62,20 +62,6 @@ export class AnyTestComponent {
     standalone: true,
     styles: [],
     encapsulation: 2,
-    dependencies: [
-      CommonModule,
-      i1.NgIf,
-      i1.NgForOf,
-      i1.NgClass,
-      i1.NgStyle,
-      i1.NgSwitch,
-      i1.NgSwitchCase,
-      i1.NgSwitchDefault,
-      i1.UpperCasePipe,
-      i1.LowerCasePipe,
-      i1.JsonPipe,
-      i1.DecimalPipe,
-      i1.DatePipe,
-    ],
+    dependencies: [CommonModule, i1.NgIf],
   });
 }

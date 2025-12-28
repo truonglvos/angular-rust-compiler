@@ -26,23 +26,23 @@ function TwoWayBindingTest_option_48_Template(rf, ctx) {
   }
   if (rf & 2) {
     const country_r1 = ctx.$implicit;
-    i0.ɵɵproperty('value', country_r1.code);
-    i0.ɵɵadvance();
-    i0.ɵɵtextInterpolate1(
-      // Select
-      ' ',
-      country_r1.name,
-      ' ',
+    i0.ɵɵproperty(
+      'value',
+      country_r1.code,
+      // Basic two-way binding
     );
+    i0.ɵɵadvance();
+    i0.ɵɵtextInterpolate1(' ', country_r1.name, ' ');
   }
 }
+// Triggering recompilation to verify NG8113 fix
 export class TwoWayBindingTest {
-  // Basic two-way binding
   name = 'Angular';
   email = '';
   age = 25;
   // Textarea
   message = 'Hello World!';
+  // Select
   selectedCountry = 'vn';
   countries = [
     {
@@ -508,10 +508,8 @@ export class TwoWayBindingTest {
     ],
     encapsulation: 0,
     dependencies: [
-      NgIf,
       NgFor,
       FormsModule,
-      i1.ɵNgNoValidate,
       i1.ɵNgSelectMultipleOption,
       i1.DefaultValueAccessor,
       i1.NumberValueAccessor,
@@ -520,11 +518,9 @@ export class TwoWayBindingTest {
       i1.SelectControlValueAccessor,
       i1.RadioControlValueAccessor,
       i1.NgControlStatus,
-      i1.NgControlStatusGroup,
       i1.MinValidator,
       i1.MaxValidator,
       i1.NgModel,
-      i1.NgForm,
       JsonPipe,
     ],
   });

@@ -398,8 +398,6 @@ export class App {
       EventBindingTest,
       PropertyBindingTest,
       TwoWayBindingTest,
-      UnusedImportComponent,
-      AnyTestComponent,
     ],
   });
 }

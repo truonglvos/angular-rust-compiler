@@ -23,6 +23,7 @@ export class FullNamePipe {
           args: [
             {
               name: 'fullName',
+              standalone: true,
             },
           ],
         },

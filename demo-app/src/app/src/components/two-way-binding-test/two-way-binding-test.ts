@@ -9,6 +9,7 @@ import { FormsModule } from '@angular/forms';
   templateUrl: './two-way-binding-test.html',
   styleUrl: './two-way-binding-test.css',
 })
+// Triggering recompilation to verify NG8113 fix
 export class TwoWayBindingTest {
   // Basic two-way binding
   name = 'Angular';
