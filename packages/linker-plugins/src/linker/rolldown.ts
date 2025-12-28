@@ -5,7 +5,7 @@
  *
  * @example
  * ```js
- * import { angularLinkerRolldownPlugin } from 'vite-plugin-angular-rust/rolldown';
+ * import { angularLinkerRolldownPlugin } from 'angular-rust-plugins/linker/rolldown';
  * import { defineConfig } from 'vite';
  *
  * export default defineConfig({
@@ -26,12 +26,7 @@ import { createRequire } from "module";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import type { CompilerBinding, LinkerOptions, LinkerResult } from "./types";
-import {
-  needsLinking,
-  isAngularPackage,
-  isJsFile,
-  cleanModuleId,
-} from "./types";
+import { cleanModuleId } from "./types";
 
 let compilerInstance: CompilerBinding | null = null;
 
@@ -114,16 +109,18 @@ export function angularLinkerRolldownPlugin(
         compiler = getCompiler(options);
       }
 
-      // Only process @angular packages with .mjs or .js extensions
-      const isInNodeModules = id.includes("node_modules");
+      // Logic from vite.config.mjs
+      const isAngularPackage = id.includes('@angular') || id.includes('/@angular/');
+      const isNodeModules = id.includes('node_modules');
       const cleanId = cleanModuleId(id);
+      const isJsFile = cleanId.endsWith('.mjs') || cleanId.endsWith('.js');
 
-      if (!isAngularPackage(id) || !isInNodeModules || !isJsFile(id)) {
+      if (!isAngularPackage || !isNodeModules || !isJsFile) {
         return null;
       }
 
       // Check if file contains partial declarations
-      if (!needsLinking(code)) {
+      if (!code.includes('ɵɵngDeclare')) {
         return null;
       }
 
@@ -135,7 +132,7 @@ export function angularLinkerRolldownPlugin(
         const result = compiler.linkFile(cleanId, code);
 
         if (result.startsWith("/* Linker Error")) {
-          console.error(`[Angular Linker Error] ${id}:\n${result}`);
+          console.error(`[Rolldown Linker Error] ${id}:\n${result}`);
           return null;
         }
 
@@ -145,7 +142,7 @@ export function angularLinkerRolldownPlugin(
 
         return { code: result, map: null };
       } catch (e) {
-        console.error(`[Angular Linker Failed] ${id}:`, e);
+        console.error(`[Rolldown Linker Failed] ${id}:`, e);
         return null;
       }
     },

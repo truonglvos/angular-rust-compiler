@@ -6,7 +6,7 @@
  *
  * @example
  * ```js
- * import { angularLinkerVitePlugin } from 'vite-plugin-angular-rust/vite';
+ * import { angularLinkerVitePlugin } from 'angular-rust-plugins/linker/vite';
  * import { defineConfig } from 'vite';
  *
  * export default defineConfig({
@@ -31,9 +31,6 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import type { CompilerBinding, LinkerOptions } from "./types";
 import {
-  needsLinking,
-  isAngularPackage,
-  isJsFile,
   cleanModuleId,
   ANGULAR_PACKAGES,
   NON_ANGULAR_PACKAGES,
@@ -146,27 +143,20 @@ export function angularLinkerVitePlugin(
         compiler = getCompiler(options);
       }
 
-      // Only process node_modules
-      if (!id.includes("node_modules")) {
-        return null;
-      }
+      // Logic from vite.config.mjs
+      const isAngularPackage = id.includes('@angular') || id.includes('/@angular/');
+      const isNodeModules = id.includes('node_modules');
+      const cleanId = cleanModuleId(id);
+      const isJsFile = cleanId.endsWith('.mjs') || cleanId.endsWith('.js');
 
-      // Only process Angular packages
-      if (!isAngularPackage(id)) {
-        return null;
-      }
-
-      // Only process JS files
-      if (!isJsFile(id)) {
+      if (!isAngularPackage || !isNodeModules || !isJsFile) {
         return null;
       }
 
       // Check if file contains partial declarations
-      if (!needsLinking(code)) {
+      if (!code.includes('ɵɵngDeclare')) {
         return null;
       }
-
-      const cleanId = cleanModuleId(id);
 
       if (debug) {
         console.log(`[Angular Linker] Linking: ${cleanId}`);

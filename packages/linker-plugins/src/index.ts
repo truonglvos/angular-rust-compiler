@@ -44,4 +44,4 @@ export type {
 // Re-export compiler plugins
 export { angularCompilerVitePlugin } from "./compiler";
 
-export type { CompilerOptions, CompilerBinding } from "./compiler";
+export type { CompilerOptions } from "./compiler";

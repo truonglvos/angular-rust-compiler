@@ -17,8 +17,6 @@ export interface CompileResult {
 }
 export declare class Compiler {
   constructor();
-  compile(filename: string, content: string): string;
-  constructor();
   compile(filename: string, content: string): CompileResult;
   linkFile(filename: string, sourceCode: string): string;
 }

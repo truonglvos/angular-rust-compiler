@@ -6,4 +6,3 @@
 
 export { angularCompilerVitePlugin } from "./vite";
 export type { CompilerOptions } from "./vite";
-export type { CompilerBinding } from "./types";

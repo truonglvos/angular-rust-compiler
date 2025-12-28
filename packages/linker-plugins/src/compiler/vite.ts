@@ -23,9 +23,9 @@ import type { Plugin, HmrContext } from "vite";
 import { createRequire } from "module";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import type { CompilerBinding } from "./types";
+import { Compiler } from "../binding";
 
-let compilerInstance: CompilerBinding | null = null;
+let compilerInstance: Compiler | null = null;
 
 export interface CompilerOptions {
   /**
@@ -40,13 +40,63 @@ export interface CompilerOptions {
   bindingPath?: string;
 }
 
-function getCompiler(options?: CompilerOptions): CompilerBinding {
+// ============ Diagnostic Formatting ============
+const RED = '\x1b[31m';
+const YELLOW = '\x1b[33m';
+const CYAN = '\x1b[36m';
+const BOLD = '\x1b[1m';
+const RESET = '\x1b[0m';
+
+function formatDiagnostic(diag: any, sourceCode: string): string {
+  const level = 'WARNING';
+  const codeStr = `NG${diag.code}`;
+  const file = diag.file || 'unknown';
+
+  let line = 1;
+  let col = 0;
+  let lineStartPos = 0;
+
+  if (diag.start !== undefined && diag.start !== null) {
+    for (let i = 0; i < diag.start && i < sourceCode.length; i++) {
+      if (sourceCode[i] === '\n') {
+        line++;
+        col = 0;
+        lineStartPos = i + 1;
+      } else {
+        col++;
+      }
+    }
+  }
+
+  let output = `\n${BOLD}${YELLOW}▲ [${level}] ${RED}${codeStr}${RESET}${BOLD}: ${diag.message}${RESET} ${YELLOW}[plugin rust-ngc-plugin]${RESET}\n`;
+
+  const lineStr = line.toString();
+  const colStr = (col + 1).toString();
+  output += `\n    ${CYAN}${file}:${lineStr}:${colStr}:${RESET}\n`;
+
+  let lineEndPos = sourceCode.indexOf('\n', lineStartPos);
+  if (lineEndPos === -1) lineEndPos = sourceCode.length;
+  const lineContent = sourceCode.substring(lineStartPos, lineEndPos);
+
+  output += `      ${BOLD}${lineStr} │ ${RESET}${lineContent}\n`;
+
+  const gutterWidth = lineStr.length + 3;
+  const gutterEmpty = ' '.repeat(gutterWidth);
+  const length = diag.length || 1;
+  const underline = '~'.repeat(length);
+
+  output += `      ${gutterEmpty}${' '.repeat(col)}${RED}${underline}${RESET}`;
+
+  return output;
+}
+
+function getCompiler(options?: CompilerOptions): Compiler {
   if (compilerInstance) {
     return compilerInstance;
   }
 
   try {
-    let binding: { Compiler: new () => CompilerBinding };
+    let binding: { Compiler: new () => Compiler };
 
     if (options?.bindingPath) {
       const require = createRequire(import.meta.url);
@@ -66,7 +116,7 @@ function getCompiler(options?: CompilerOptions): CompilerBinding {
         join(currentDir, "binding"), // same directory
       ];
 
-      let loadedBinding: { Compiler: new () => CompilerBinding } | null = null;
+      let loadedBinding: { Compiler: new () => Compiler } | null = null;
       let lastError: unknown = null;
 
       for (const bindingPath of possiblePaths) {
@@ -101,7 +151,7 @@ function getCompiler(options?: CompilerOptions): CompilerBinding {
  */
 export function angularCompilerVitePlugin(options?: CompilerOptions): Plugin {
   const debug = options?.debug ?? false;
-  let compiler: CompilerBinding;
+  let compiler: Compiler;
 
   return {
     name: "angular-rust-compiler",
@@ -113,13 +163,30 @@ export function angularCompilerVitePlugin(options?: CompilerOptions): Plugin {
         compiler = getCompiler(options);
       }
 
-      // Skip node_modules - those are handled by linker, not compiler
-      if (id.includes("node_modules")) {
+      // Skip node_modules but check for Angular packages that need linking
+      if (id.includes('node_modules')) {
+        if (id.includes('@angular') && code.includes('ɵɵngDeclare')) {
+          const cleanId = id.split('?')[0];
+          if (cleanId.endsWith('.mjs') || cleanId.endsWith('.js')) {
+            try {
+              const result = compiler.linkFile(id, code);
+              if (result.startsWith('/* Linker Error')) {
+                 if (debug) console.error(`[Linker Error] ${id}: ${result}`);
+                 return null;
+              }
+              return { code: result, map: null };
+            } catch (e) {
+               if (debug) console.error(`Linker failed for ${id}:`, e);
+              return null;
+            }
+          }
+        }
         return null;
       }
 
       // Only process TypeScript files, skip declaration files
-      if (!id.endsWith(".ts") || id.endsWith(".d.ts")) {
+      const cleanId = id.split('?')[0];
+      if (!cleanId.endsWith('.ts') || cleanId.endsWith('.d.ts')) {
         return null;
       }
 
@@ -130,16 +197,25 @@ export function angularCompilerVitePlugin(options?: CompilerOptions): Plugin {
       try {
         const result = compiler.compile(id, code);
 
-        if (result.startsWith("/* Error")) {
-          console.error(`[Angular Compiler Error] ${id}:\n${result}`);
+        // Handle structured result
+        const { code: compiledCode, diagnostics } = result;
+
+        if (compiledCode.startsWith('/* Error')) {
+          console.error(`[Angular Compiler Error] ${id}:\n${compiledCode}`);
           throw new Error(`Rust Compilation Failed for ${id}`);
+        }
+
+        if (diagnostics && diagnostics.length > 0) {
+          diagnostics.forEach((diag: any) => {
+            console.warn(formatDiagnostic(diag, code));
+          });
         }
 
         if (debug) {
           console.log(`[Angular Compiler] Successfully compiled: ${id}`);
         }
 
-        return { code: result, map: null };
+        return { code: compiledCode, map: null };
       } catch (e) {
         console.error(`[Angular Compiler Failed] ${id}:`, e);
         throw e;
