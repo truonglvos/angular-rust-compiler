@@ -431,11 +431,10 @@ unsafe fn add_save_restore_view_operation_to_listener(
         ))
     } else {
         // For embedded views, we need to map all context accesses to this variable,
-        // so we use ContextVariable.
-        // Explicitly name it "ctx" to match NGTSC and avoid consuming a numbered index (e.g. _r9)
-        let mut cv = ContextVariable::new(unit_xref);
-        cv.name = Some("ctx".to_string());
-        SemanticVariable::Context(cv)
+        // so we use ContextVariable. DON'T set an explicit name - let naming phase
+        // generate a unique name (ctx_r1, ctx_r2, etc.) to avoid shadowing the
+        // template function's 'ctx' parameter.
+        SemanticVariable::Context(ContextVariable::new(unit_xref))
     };
 
     // Use saved_view_xref to reference the variable holding getCurrentView() result.

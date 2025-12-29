@@ -107,8 +107,10 @@ pub fn run(job: &mut ComponentCompilationJob) {
     track_fn_optimization::optimize_track_fns(job); // Generate track functions for @for loops
     var_counting::phase(job);
     variable_optimization::optimize_variables(job); // Remove unused variables
+    next_context_merging::merge_next_context_expressions(job); // Merge sequential nextContext() calls
     naming::name_functions_and_variables(job);
     generate_advance::phase(job);
+    conditionals::generate_conditional_expressions(job); // Collapse conditional expressions to single ternary
     diagnostics::phase(job);
     transform_two_way_binding_set::transform_two_way_binding_set(job);
     reify::reify(job);

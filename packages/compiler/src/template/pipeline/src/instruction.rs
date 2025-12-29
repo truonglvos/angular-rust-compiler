@@ -295,6 +295,40 @@ pub fn conditional(
     call(Identifiers::conditional(), args, Some(source_span))
 }
 
+/// Creates a conditional create instruction.
+/// Generates ɵɵconditionalCreate(slot, templateFn, decls, vars, tag, constsIndex) statement.
+/// This is used for @if/@else if/@else chains instead of ɵɵtemplate.
+pub fn conditional_create(
+    slot: i32,
+    template_fn: o::Expression,
+    decls: usize,
+    vars: usize,
+    tag: Option<String>,
+    const_index: Option<i32>,
+    source_span: ParseSourceSpan,
+) -> o::Statement {
+    let mut args = vec![
+        *o::literal(slot as f64),
+        template_fn,
+        *o::literal(decls as f64),
+        *o::literal(vars as f64),
+    ];
+
+    // Tag argument (required for conditional create)
+    if let Some(t) = tag {
+        args.push(*o::literal(t));
+    } else {
+        args.push(*o::literal(o::LiteralValue::Null));
+    }
+
+    // Const index argument
+    if let Some(c) = const_index {
+        args.push(*o::literal(c as f64));
+    }
+
+    call(Identifiers::conditional_create(), args, Some(source_span))
+}
+
 /// Creates a pipe binding expression.
 /// Generates ɵɵpipeBind1/2/3/4/V based on number of arguments.
 /// The signature is: ɵɵpipeBind(pipeSlot, varOffset, ...args)

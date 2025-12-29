@@ -226,6 +226,29 @@ cargo test -p angular-compiler expression_parser
 
 ### December 2024 (Latest)
 
+#### Control Flow - `@for` Loops
+
+| Feature | Status | Notes |
+| ------- | ------ | ----- |
+| Basic `@for` | ✅ | `@for (item of items; track item.id)` |
+| Context Variables | ✅ | `$index`, `$count`, `$first`, `$last`, `$even`, `$odd` |
+| Local Aliases | ✅ | `let idx = $index, first = $first` |
+| Nested `@for` | ✅ | Multiple levels with correct context |
+| `@empty` Block | ✅ | Fallback when collection is empty |
+| Track By Function | ✅ | `track item.id` or `track trackFn($index, item)` |
+| Event Handlers | ⚠️ | Works but has view hierarchy issue in nested conditionals |
+
+**Known Issue**: `@for` inside `@if/@else` blocks may cause `nextContext()` to return undefined in event handlers. Investigating.
+
+#### Control Flow - `@if` Conditionals
+
+| Feature | Status | Notes |
+| ------- | ------ | ----- |
+| Basic `@if` | ✅ | `@if (condition) { ... }` |
+| `@else` Block | ✅ | `@if (condition) { ... } @else { ... }` |
+| `@else if` | ✅ | Chained conditionals |
+| Template Chaining | ✅ | `conditionalCreate()` fluent API |
+
 #### NgFor Directive (`*ngFor`)
 
 - ✅ **Full Template Syntax**: `*ngFor="let item of items; index as i; first as isFirst; last as isLast; even as isEven; odd as isOdd; trackBy: trackFn"`
@@ -242,12 +265,19 @@ cargo test -p angular-compiler expression_parser
 - ✅ **As Syntax**: `*ngIf="user$ | async as user"` with local variable binding
 - ✅ **Nested NgIf**: Complex nested conditionals with proper context isolation
 
+#### Two-Way Binding (`[(ngModel)]`)
+
+- ✅ **`ɵɵtwoWayListener`**: Proper two-way listener emission
+- ✅ **`ɵɵtwoWayProperty`**: Property binding for two-way data flow
+- ✅ **`ɵɵtwoWayBindingSet`**: Setter with fallback assignment
+
 #### Optimizations & Parity
 
 - ✅ **RestoreView Optimization**: Single-usage context variables are inlined (`const user = restoreView().$implicit`) while multi-usage retains separate statements
 - ✅ **Variable Naming Parity**: Global monotonic variable naming (`_r1`, `_r2`, ...) matches NGTSC exactly
 - ✅ **Consts Array Parity**: Attribute ordering and marker values (`3` for bindings, `4` for template directives) match NGTSC
 - ✅ **OnPush Optimization**: Root view listeners skip unnecessary `restoreView()`/`resetView()` calls for `OnPush` components
+- ✅ **Listener Element Association**: Correctly associates listeners with their parent elements for proper `consts` array ordering
 
 #### Other Improvements
 

@@ -467,20 +467,22 @@ fn ingest_element(unit_xref: ir::XrefId, element: t::Element, job: &mut Componen
     );
 
     // Create element start op
-    let start_op = ir::ops::create::create_element_start_op(
+    let mut start_op = ir::ops::create::ElementStartOp::new(
         element_name.clone(),
         id,
         namespace,
         i18n_placeholder.clone(),
         element.start_source_span.clone(),
         element.source_span.clone(),
-        has_directives,
     );
-    push_create_op(job, unit_xref, start_op);
+    start_op.base.has_directives = has_directives;
+    let handle = start_op.base.base.handle.clone();
+
+    push_create_op(job, unit_xref, Box::new(start_op));
 
     // Ingest element bindings, events, and references
     ingest_element_bindings(unit_xref, id, &element, job);
-    ingest_element_events(unit_xref, id, &element_name, &element, job);
+    ingest_element_events(unit_xref, id, &element_name, &element, handle, job);
     ingest_references(unit_xref, id, &element, job);
 
     // Handle i18n start if needed
@@ -555,7 +557,7 @@ fn ingest_template(unit_xref: ir::XrefId, tmpl: t::Template, job: &mut Component
     };
 
     // Create template op
-    let template_op = ir::ops::create::create_template_op(
+    let template_op = ir::ops::create::TemplateOp::new(
         child_view_xref,
         template_kind,
         tag_name_without_namespace.clone(),
@@ -565,8 +567,9 @@ fn ingest_template(unit_xref: ir::XrefId, tmpl: t::Template, job: &mut Component
         tmpl.start_source_span.clone(),
         tmpl.source_span.clone(),
     );
+    let handle = template_op.base.base.handle.clone();
 
-    push_create_op(job, unit_xref, template_op);
+    push_create_op(job, unit_xref, Box::new(template_op));
 
     // Record directive usage for templates (structural directives)
     maybe_record_directive_usage(
@@ -587,6 +590,7 @@ fn ingest_template(unit_xref: ir::XrefId, tmpl: t::Template, job: &mut Component
         tag_name_without_namespace.as_deref(),
         &tmpl.outputs,
         template_kind,
+        handle,
         job,
     );
     ingest_references_template(unit_xref, child_view_xref, &tmpl, job);
@@ -2145,16 +2149,13 @@ fn ingest_element_events(
     element_xref: ir::XrefId,
     element_tag: &str,
     element: &t::Element,
+    target_slot: crate::template::pipeline::ir::handle::SlotHandle,
     job: &mut ComponentCompilationJob,
 ) {
     use crate::expression_parser::ast::ParsedEventType;
-    use crate::template::pipeline::ir::handle::SlotHandle;
     use crate::template::pipeline::ir::ops::create::create_listener_op;
 
-    // Get handle from the last op we created (ElementStartOp)
-    // We need to extract it - for now use a default slot handle
-    // TODO: Extract actual handle from ElementStartOp
-    let target_slot = SlotHandle::with_slot(0);
+    // target_slot is passed in
 
     // Identify outputs that are part of a two-way binding
     let mut two_way_outputs = std::collections::HashSet::new();
@@ -2187,7 +2188,8 @@ fn ingest_element_events(
 
                 // Create animation listener op
                 let animation_listener_op = ir::ops::create::create_animation_listener_op(
-                    element_xref,
+                    job.allocate_xref_id(),
+                    element_xref, // element xref
                     target_slot.clone(),
                     output.name.clone(),
                     Some(element_tag.to_string()),
@@ -2202,7 +2204,8 @@ fn ingest_element_events(
             ParsedEventType::Regular => {
                 let consumes_dollar_event = uses_dollar_event(&output.handler);
                 let listener_op = create_listener_op(
-                    element_xref,
+                    job.allocate_xref_id(),
+                    element_xref, // element xref
                     target_slot.clone(),
                     output.name.clone(),
                     Some(element_tag.to_string()),
@@ -2226,7 +2229,8 @@ fn ingest_element_events(
                     job,
                 );
                 let two_way_listener_op = ir::ops::create::create_two_way_listener_op(
-                    element_xref,
+                    job.allocate_xref_id(),
+                    element_xref, // element xref
                     target_slot.clone(),
                     output.name.clone(),
                     Some(element_tag.to_string()),
@@ -2239,7 +2243,8 @@ fn ingest_element_events(
                 // LegacyAnimation events use phase instead of target
                 let consumes_dollar_event = uses_dollar_event(&output.handler);
                 let listener_op = create_listener_op(
-                    element_xref,
+                    job.allocate_xref_id(),
+                    element_xref, // element xref
                     target_slot.clone(),
                     output.name.clone(),
                     Some(element_tag.to_string()),
@@ -2641,14 +2646,13 @@ fn ingest_template_events(
     template_tag: Option<&str>,
     outputs: &[t::BoundEvent],
     template_kind: ir::TemplateKind,
+    target_slot: crate::template::pipeline::ir::handle::SlotHandle,
     job: &mut ComponentCompilationJob,
 ) {
     use crate::expression_parser::ast::ParsedEventType;
-    use crate::template::pipeline::ir::handle::SlotHandle;
     use crate::template::pipeline::ir::ops::create::create_listener_op;
 
-    // Get handle - TODO: Extract actual handle from TemplateOp
-    let target_slot = SlotHandle::with_slot(0);
+    // target_slot is passed in
 
     for output in outputs {
         // For NgTemplate, handle all event types
@@ -2658,7 +2662,8 @@ fn ingest_template_events(
 
             let consumes_dollar_event = uses_dollar_event(&output.handler);
             let listener_op = create_listener_op(
-                template_xref,
+                job.allocate_xref_id(),
+                template_xref, // template xref
                 target_slot.clone(),
                 output.name.clone(),
                 template_tag.map(|s| s.to_string()),
@@ -2691,7 +2696,8 @@ fn ingest_template_events(
 
                 // Create animation listener op
                 let animation_listener_op = ir::ops::create::create_animation_listener_op(
-                    template_xref,
+                    job.allocate_xref_id(),
+                    template_xref, // template xref
                     target_slot.clone(),
                     output.name.clone(),
                     template_tag.map(|s| s.to_string()),

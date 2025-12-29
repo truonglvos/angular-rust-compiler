@@ -160,6 +160,88 @@ fn reify_create_operations(
                     None
                 }
             }
+            ir::OpKind::ConditionalCreate => {
+                if let Some(cond_op) = op
+                    .as_any()
+                    .downcast_ref::<ir::ops::create::ConditionalCreateOp>()
+                {
+                    let slot = cond_op
+                        .base
+                        .base
+                        .handle
+                        .get_slot()
+                        .expect("Expected a slot") as i32;
+                    let view_xref = cond_op.base.base.xref;
+                    let fn_name = view_name_map
+                        .get(&view_xref)
+                        .expect("Template function name not assigned");
+
+                    let decls = cond_op.decls.unwrap_or(0);
+                    let vars = cond_op.vars.unwrap_or(0);
+                    let tag = cond_op.base.tag.clone();
+                    let const_index = cond_op
+                        .base
+                        .base
+                        .attributes
+                        .map(|idx| idx.as_usize() as i32);
+
+                    let stmt = ng::conditional_create(
+                        slot,
+                        *o::variable(fn_name),
+                        decls,
+                        vars,
+                        tag,
+                        const_index,
+                        cond_op.base.base.start_source_span.clone(),
+                    );
+                    Some(Box::new(ir::ops::shared::create_statement_op::<
+                        Box<dyn CreateOp + Send + Sync>,
+                    >(Box::new(stmt))))
+                } else {
+                    None
+                }
+            }
+            ir::OpKind::ConditionalBranchCreate => {
+                if let Some(branch_op) = op
+                    .as_any()
+                    .downcast_ref::<ir::ops::create::ConditionalBranchCreateOp>()
+                {
+                    let slot = branch_op
+                        .base
+                        .base
+                        .handle
+                        .get_slot()
+                        .expect("Expected a slot") as i32;
+                    let view_xref = branch_op.base.base.xref;
+                    let fn_name = view_name_map
+                        .get(&view_xref)
+                        .expect("Template function name not assigned");
+
+                    let decls = branch_op.decls.unwrap_or(0);
+                    let vars = branch_op.vars.unwrap_or(0);
+                    let tag = branch_op.base.tag.clone();
+                    let const_index = branch_op
+                        .base
+                        .base
+                        .attributes
+                        .map(|idx| idx.as_usize() as i32);
+
+                    let stmt = ng::conditional_create(
+                        slot,
+                        *o::variable(fn_name),
+                        decls,
+                        vars,
+                        tag,
+                        const_index,
+                        branch_op.base.base.start_source_span.clone(),
+                    );
+                    Some(Box::new(ir::ops::shared::create_statement_op::<
+                        Box<dyn CreateOp + Send + Sync>,
+                    >(Box::new(stmt))))
+                } else {
+                    None
+                }
+            }
             ir::OpKind::Text => {
                 if let Some(text_op) = op.as_any().downcast_ref::<ir::ops::create::TextOp>() {
                     if let Some(slot) = text_op.handle.get_slot() {
@@ -858,6 +940,11 @@ fn reify_ir_expression(expr: o::Expression, flags: ir::VisitorContextFlag) -> o:
                 }),
                 flags,
             )
+        }
+        o::Expression::SlotLiteral(slot_lit) => {
+            // Reify SlotLiteralExpr to a numeric literal representing the slot index
+            let slot_value = slot_lit.slot.get_slot().unwrap_or(0);
+            *o::literal(slot_value as f64)
         }
         _ => expr,
     }

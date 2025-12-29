@@ -1307,8 +1307,10 @@ unsafe impl Sync for ProjectionOp {}
 /// Logical operation representing an event listener on an element in the creation IR.
 #[derive(Debug)]
 pub struct ListenerOp {
-    /// Target XrefId
+    /// Target XrefId (unique ID of this listener op)
     pub target: XrefId,
+    /// Element XrefId (ID of the element/template this listener belongs to)
+    pub element: XrefId,
     /// Target slot handle
     pub target_slot: SlotHandle,
     /// Whether this listener is from a host binding
@@ -1336,6 +1338,7 @@ pub struct ListenerOp {
 impl ListenerOp {
     pub fn new(
         target: XrefId,
+        element: XrefId,
         target_slot: SlotHandle,
         name: String,
         tag: Option<String>,
@@ -1348,6 +1351,7 @@ impl ListenerOp {
     ) -> Self {
         ListenerOp {
             target,
+            element,
             target_slot,
             tag,
             host_listener,
@@ -1477,6 +1481,7 @@ pub fn create_projection_op(
 
 pub fn create_listener_op(
     target: XrefId,
+    element: XrefId,
     target_slot: SlotHandle,
     name: String,
     tag: Option<String>,
@@ -1489,6 +1494,7 @@ pub fn create_listener_op(
 ) -> Box<dyn CreateOp + Send + Sync> {
     Box::new(ListenerOp::new(
         target,
+        element,
         target_slot,
         name,
         tag,
@@ -1828,6 +1834,8 @@ pub fn create_declare_let_op(
 pub struct TwoWayListenerOp {
     /// Target XrefId
     pub target: XrefId,
+    /// Element XrefId
+    pub element: XrefId,
     /// Target slot handle
     pub target_slot: SlotHandle,
     /// Name of the event which is being listened to
@@ -1845,6 +1853,7 @@ pub struct TwoWayListenerOp {
 impl TwoWayListenerOp {
     pub fn new(
         target: XrefId,
+        element: XrefId,
         target_slot: SlotHandle,
         name: String,
         tag: Option<String>,
@@ -1853,6 +1862,7 @@ impl TwoWayListenerOp {
     ) -> Self {
         TwoWayListenerOp {
             target,
+            element,
             target_slot,
             name,
             tag,
@@ -1862,7 +1872,7 @@ impl TwoWayListenerOp {
         }
     }
 }
-
+// ...
 impl Op for TwoWayListenerOp {
     fn kind(&self) -> OpKind {
         OpKind::TwoWayListener
@@ -1893,6 +1903,7 @@ unsafe impl Sync for TwoWayListenerOp {}
 /// Create a TwoWayListenerOp
 pub fn create_two_way_listener_op(
     target: XrefId,
+    element: XrefId,
     target_slot: SlotHandle,
     name: String,
     tag: Option<String>,
@@ -1901,6 +1912,7 @@ pub fn create_two_way_listener_op(
 ) -> Box<dyn CreateOp + Send + Sync> {
     Box::new(TwoWayListenerOp::new(
         target,
+        element,
         target_slot,
         name,
         tag,
@@ -2687,8 +2699,10 @@ pub fn create_i18n_attributes_op(
 /// AnimationListenerOp - A logical operation representing binding to an animation listener in the create IR
 #[derive(Debug)]
 pub struct AnimationListenerOp {
-    /// Target XrefId
+    /// Target XrefId (unique ID of this listener op)
     pub target: XrefId,
+    /// Element XrefId (ID of the element/template this listener belongs to)
+    pub element: XrefId,
     /// Target slot handle
     pub target_slot: SlotHandle,
     /// Whether this listener is from a host binding
@@ -2714,6 +2728,7 @@ pub struct AnimationListenerOp {
 impl AnimationListenerOp {
     pub fn new(
         target: XrefId,
+        element: XrefId,
         target_slot: SlotHandle,
         name: String,
         tag: Option<String>,
@@ -2725,6 +2740,7 @@ impl AnimationListenerOp {
     ) -> Self {
         AnimationListenerOp {
             target,
+            element,
             target_slot,
             host_listener,
             name,
@@ -2769,6 +2785,7 @@ unsafe impl Sync for AnimationListenerOp {}
 /// Create an AnimationListenerOp
 pub fn create_animation_listener_op(
     target: XrefId,
+    element: XrefId,
     target_slot: SlotHandle,
     name: String,
     tag: Option<String>,
@@ -2780,6 +2797,7 @@ pub fn create_animation_listener_op(
 ) -> Box<dyn CreateOp + Send + Sync> {
     Box::new(AnimationListenerOp::new(
         target,
+        element,
         target_slot,
         name,
         tag,

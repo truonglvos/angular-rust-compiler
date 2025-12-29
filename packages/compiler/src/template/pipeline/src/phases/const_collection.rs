@@ -282,6 +282,7 @@ fn process_component_job(
                 || kind == ir::OpKind::Template
                 || kind == ir::OpKind::RepeaterCreate
                 || kind == ir::OpKind::ConditionalCreate
+                || kind == ir::OpKind::ConditionalBranchCreate
                 || kind == ir::OpKind::Projection
             {
                 if let Some(xref) = get_xref_from_create_op(op.as_ref()) {

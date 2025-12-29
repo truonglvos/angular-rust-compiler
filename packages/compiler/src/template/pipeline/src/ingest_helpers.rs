@@ -124,6 +124,7 @@ pub fn ingest_host_event(job: &mut HostBindingCompilationJob, event: ParsedEvent
         // Create animation listener op
         let animation_listener_op = ir::ops::create::create_animation_listener_op(
             job.root_mut().xref(),
+            job.root_mut().xref(), // element
             SlotHandle::new(),
             event.name,
             None, // tag - host listeners don't have tags
@@ -153,6 +154,7 @@ pub fn ingest_host_event(job: &mut HostBindingCompilationJob, event: ParsedEvent
         let consumes_dollar_event = uses_dollar_event(&event.handler.ast);
         let listener_op = ir::ops::create::create_listener_op(
             job.root_mut().xref(),
+            job.root_mut().xref(), // element
             SlotHandle::new(),
             event.name,
             None, // tag

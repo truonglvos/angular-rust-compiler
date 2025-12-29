@@ -26,9 +26,101 @@ pub fn extract_attributes(job: &mut dyn CompilationJob) {
     let compatibility = job.compatibility();
     let kind = job.kind();
 
-    // Process all units
+    // First pass: Build cross-unit mapping of conditional template XrefId -> first child element XrefId
+    // This needs to happen across all units since ConditionalCreate is in root view
+    // but first child elements are in embedded views
+    let mut conditional_to_first_child: HashMap<ir::XrefId, ir::XrefId> = HashMap::new();
+
+    // Collect all conditional template XrefIds from all units
+    let mut conditional_xrefs: HashSet<ir::XrefId> = HashSet::new();
+    for unit in job.units() {
+        for op in unit.create().iter() {
+            if op.kind() == OpKind::ConditionalCreate
+                || op.kind() == OpKind::ConditionalBranchCreate
+            {
+                if let Some(xref) = get_xref_from_create_op(op.as_ref()) {
+                    conditional_xrefs.insert(xref);
+                }
+            }
+        }
+    }
+
+    // For each conditional, find its first child element (which is in the embedded view with same xref)
+    // The conditional's xref matches the embedded view's xref, and the first element in that view is the first child
+    for unit in job.units() {
+        let unit_xref = unit.xref();
+        if conditional_xrefs.contains(&unit_xref) {
+            // This unit is the embedded view for a conditional template
+            // Find the first element op
+            for op in unit.create().iter() {
+                if op.kind() == OpKind::ElementStart || op.kind() == OpKind::Element {
+                    if let Some(child_xref) = get_xref_from_create_op(op.as_ref()) {
+                        conditional_to_first_child.insert(unit_xref, child_xref);
+                        break; // Only first element
+                    }
+                }
+            }
+        }
+    }
+
+    // Build reverse map
+    let first_child_to_conditional: HashMap<ir::XrefId, ir::XrefId> = conditional_to_first_child
+        .iter()
+        .map(|(cond, child)| (*child, *cond))
+        .collect();
+
+    // Collect conditional template extracted attributes separately
+    // These will be inserted into the root unit after processing
+    let mut conditional_extracted_attrs: HashMap<
+        ir::XrefId,
+        Vec<Box<dyn ir::CreateOp + Send + Sync>>,
+    > = HashMap::new();
+
+    // Process all units with the cross-unit mapping
     for unit in job.units_mut() {
-        process_unit(unit, compatibility, kind);
+        let attrs = process_unit(
+            unit,
+            compatibility,
+            kind,
+            &first_child_to_conditional,
+            &conditional_xrefs,
+        );
+        // Merge conditional attrs from this unit
+        for (xref, attr_list) in attrs {
+            conditional_extracted_attrs
+                .entry(xref)
+                .or_default()
+                .extend(attr_list);
+        }
+    }
+
+    // Now insert conditional template extracted attrs into the root unit
+    // We need to find the ConditionalCreate ops and insert attrs after them
+    if !conditional_extracted_attrs.is_empty() {
+        let root = job.root_mut();
+        let create_list = std::mem::replace(root.create_mut(), ir::OpList::new());
+        let mut final_create = ir::OpList::new();
+
+        for op in create_list {
+            let xref_opt = get_xref_from_create_op(op.as_ref());
+            let op_kind = op.kind();
+            final_create.push(op);
+
+            // If this is a conditional op and we have extracted attrs for it, insert them
+            if let Some(xref) = xref_opt {
+                if op_kind == OpKind::ConditionalCreate
+                    || op_kind == OpKind::ConditionalBranchCreate
+                {
+                    if let Some(attrs) = conditional_extracted_attrs.remove(&xref) {
+                        for attr in attrs {
+                            final_create.push(attr);
+                        }
+                    }
+                }
+            }
+        }
+
+        *root.create_mut() = final_create;
     }
 }
 
@@ -36,9 +128,15 @@ fn process_unit(
     unit: &mut dyn CompilationUnit,
     compatibility: ir::CompatibilityMode,
     job_kind: CompilationJobKind,
-) {
+    first_child_to_conditional: &HashMap<ir::XrefId, ir::XrefId>,
+    conditional_xrefs: &HashSet<ir::XrefId>,
+) -> HashMap<ir::XrefId, Vec<Box<dyn ir::CreateOp + Send + Sync>>> {
     // Map to collect extracted attributes per target element
     let mut extracted_attributes: HashMap<ir::XrefId, Vec<Box<dyn ir::CreateOp + Send + Sync>>> =
+        HashMap::new();
+
+    // Map to collect extracted attributes for conditional templates (to be returned)
+    let mut conditional_attrs: HashMap<ir::XrefId, Vec<Box<dyn ir::CreateOp + Send + Sync>>> =
         HashMap::new();
 
     // Temporarily take update list to avoid borrow conflicts
@@ -48,6 +146,8 @@ fn process_unit(
     // Identify which XrefIds belong to templates
     let mut template_xrefs = HashSet::new();
     let create_list = std::mem::replace(unit.create_mut(), ir::OpList::new());
+
+    // First pass: collect template xrefs
     for op in create_list.iter() {
         if op.kind() == OpKind::Template {
             if let Some(xref) = get_xref_from_create_op(op.as_ref()) {
@@ -67,7 +167,7 @@ fn process_unit(
         if let Some(listener_op) = op_ref.as_any().downcast_ref::<ListenerOp>() {
             if !listener_op.is_legacy_animation_listener {
                 let extracted_attr_op = create_extracted_attribute_op(
-                    listener_op.target,
+                    listener_op.element,
                     BindingKind::Property,
                     None,
                     listener_op.name.clone(),
@@ -78,7 +178,7 @@ fn process_unit(
                     listener_op.source_span().cloned(),
                 );
                 extracted_attributes
-                    .entry(listener_op.target)
+                    .entry(listener_op.element)
                     .or_default()
                     .push(extracted_attr_op);
             }
@@ -86,7 +186,7 @@ fn process_unit(
         // Extract two-way listener bindings
         if let Some(twoway_listener) = op_ref.as_any().downcast_ref::<TwoWayListenerOp>() {
             let extracted_attr_op = create_extracted_attribute_op(
-                twoway_listener.target,
+                twoway_listener.element,
                 BindingKind::Property,
                 None,
                 twoway_listener.name.clone(),
@@ -97,7 +197,7 @@ fn process_unit(
                 twoway_listener.source_span().cloned(),
             );
             extracted_attributes
-                .entry(twoway_listener.target)
+                .entry(twoway_listener.element)
                 .or_default()
                 .push(extracted_attr_op);
         }
@@ -166,6 +266,104 @@ fn process_unit(
                                         .entry(attr_op.target)
                                         .or_default()
                                         .push(extracted_attr_op);
+
+                                    // Also propagate class to parent conditional template
+                                    if let Some(cond_xref) =
+                                        first_child_to_conditional.get(&attr_op.target)
+                                    {
+                                        let cond_extracted = create_extracted_attribute_op(
+                                            *cond_xref,
+                                            BindingKind::ClassName,
+                                            attr_op.namespace.clone(),
+                                            class_name.to_string(),
+                                            None,
+                                            attr_op.i18n_context,
+                                            attr_op.i18n_message.clone(),
+                                            attr_op.security_context.clone(),
+                                            attr_op.source_span().cloned(),
+                                        );
+                                        // Use conditional_attrs for insertion into root unit
+                                        conditional_attrs
+                                            .entry(*cond_xref)
+                                            .or_default()
+                                            .push(cond_extracted);
+                                    }
+                                }
+                                update_ops_to_remove.insert(index);
+                                continue;
+                            }
+                        }
+                    }
+                } else if binding_kind == BindingKind::StyleProperty {
+                    if let Some(ref expr) = expression {
+                        if let crate::output::output_ast::Expression::Literal(lit) = expr {
+                            if let crate::output::output_ast::LiteralValue::String(style_value) =
+                                &lit.value
+                            {
+                                // Parse style string: "key: value; key2: value2"
+                                for style_decl in style_value.split(';') {
+                                    let style_decl = style_decl.trim();
+                                    if style_decl.is_empty() {
+                                        continue;
+                                    }
+
+                                    if let Some((name, value)) = style_decl.split_once(':') {
+                                        let style_name = name.trim();
+                                        let style_val = value.trim();
+
+                                        if !style_name.is_empty() {
+                                            let extracted_attr_op = create_extracted_attribute_op(
+                                                attr_op.target,
+                                                BindingKind::StyleProperty,
+                                                attr_op.namespace.clone(),
+                                                style_name.to_string(),
+                                                Some(crate::output::output_ast::Expression::Literal(
+                                                    crate::output::output_ast::LiteralExpr {
+                                                        value: crate::output::output_ast::LiteralValue::String(style_val.to_string()),
+                                                        type_: None,
+                                                        source_span: None,
+                                                    }
+                                                )),
+                                                attr_op.i18n_context,
+                                                attr_op.i18n_message.clone(),
+                                                attr_op.security_context.clone(),
+                                                attr_op.source_span().cloned(),
+                                            );
+
+                                            extracted_attributes
+                                                .entry(attr_op.target)
+                                                .or_default()
+                                                .push(extracted_attr_op);
+
+                                            // Also propagate style to parent conditional template
+                                            if let Some(cond_xref) =
+                                                first_child_to_conditional.get(&attr_op.target)
+                                            {
+                                                let cond_extracted = create_extracted_attribute_op(
+                                                    *cond_xref,
+                                                    BindingKind::StyleProperty,
+                                                    attr_op.namespace.clone(),
+                                                    style_name.to_string(),
+                                                    Some(crate::output::output_ast::Expression::Literal(
+                                                        crate::output::output_ast::LiteralExpr {
+                                                            value: crate::output::output_ast::LiteralValue::String(style_val.to_string()),
+                                                            type_: None,
+                                                            source_span: None,
+                                                        }
+                                                    )),
+                                                    attr_op.i18n_context,
+                                                    attr_op.i18n_message.clone(),
+                                                    attr_op.security_context.clone(),
+                                                    attr_op.source_span().cloned(),
+                                                );
+                                                // Use conditional_attrs for insertion into root unit
+                                                conditional_attrs
+                                                    .entry(*cond_xref)
+                                                    .or_default()
+                                                    .push(cond_extracted);
+                                            }
+                                        }
+                                    }
                                 }
                                 update_ops_to_remove.insert(index);
                                 continue;
@@ -220,6 +418,26 @@ fn process_unit(
                     .entry(prop_op.target)
                     .or_default()
                     .push(extracted_attr_op);
+
+                // Also propagate binding to parent conditional template if this is a first child element
+                if let Some(cond_xref) = first_child_to_conditional.get(&prop_op.target) {
+                    let cond_extracted = create_extracted_attribute_op(
+                        *cond_xref,
+                        binding_kind,
+                        None,
+                        prop_op.name.clone(),
+                        None,
+                        prop_op.i18n_context,
+                        None,
+                        prop_op.security_context.clone(),
+                        prop_op.source_span().cloned(),
+                    );
+                    // Use conditional_attrs since these will be inserted into root unit later
+                    conditional_attrs
+                        .entry(*cond_xref)
+                        .or_default()
+                        .push(cond_extracted);
+                }
             }
         } else if let Some(control_op) = op_ref.as_any().downcast_ref::<ControlOp>() {
             if job_kind != CompilationJobKind::Host {
@@ -300,6 +518,48 @@ fn process_unit(
                 }
             }
         }
+
+        // Always extract StylePropOp bindings to parent conditional templates
+        if let Some(style_op) = op_ref.as_any().downcast_ref::<StylePropOp>() {
+            if let Some(cond_xref) = first_child_to_conditional.get(&style_op.target) {
+                let cond_extracted = create_extracted_attribute_op(
+                    *cond_xref,
+                    BindingKind::Property,
+                    None,
+                    style_op.name.clone(),
+                    None,
+                    None,
+                    None,
+                    vec![SecurityContext::STYLE],
+                    style_op.source_span().cloned(),
+                );
+                conditional_attrs
+                    .entry(*cond_xref)
+                    .or_default()
+                    .push(cond_extracted);
+            }
+        }
+
+        // Always extract ClassPropOp bindings to parent conditional templates
+        if let Some(class_op) = op_ref.as_any().downcast_ref::<ClassPropOp>() {
+            if let Some(cond_xref) = first_child_to_conditional.get(&class_op.target) {
+                let cond_extracted = create_extracted_attribute_op(
+                    *cond_xref,
+                    BindingKind::Property,
+                    None,
+                    class_op.name.clone(),
+                    None,
+                    None,
+                    None,
+                    vec![SecurityContext::NONE],
+                    class_op.source_span().cloned(),
+                );
+                conditional_attrs
+                    .entry(*cond_xref)
+                    .or_default()
+                    .push(cond_extracted);
+            }
+        }
     }
 
     // Remove processed update ops
@@ -337,6 +597,9 @@ fn process_unit(
     }
 
     *unit.create_mut() = final_create;
+
+    // Return conditional template extracted attributes for insertion into root unit
+    conditional_attrs
 }
 
 // Helper to get xref from op

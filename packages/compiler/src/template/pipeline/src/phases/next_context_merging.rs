@@ -185,6 +185,7 @@ fn merge_next_contexts_in_ops(ops: &mut ir::OpList<Box<dyn ir::UpdateOp + Send +
 
             // If we found NextContextExpr, merge into it (second pass)
             if has_next_context {
+                // Handle normal expressions (StatementOp)
                 transform_expressions_in_op(
                     candidate_op_mut.as_mut(),
                     &mut |mut expr: Expression, flags| {
@@ -201,6 +202,11 @@ fn merge_next_contexts_in_ops(ops: &mut ir::OpList<Box<dyn ir::UpdateOp + Send +
                     },
                     VisitorContextFlag::NONE,
                 );
+
+                // Handle VariableOp initializers explicitly if transform_expressions didn't catch it
+                // (transform_expressions DOES catch it, but let's be sure we are modifying the right thing)
+                // Actually, VariableOp implements UpdateOp/CreateOp, so transform_expressions_in_op SHOULD work over it.
+                // The issue might be that candidate_op_mut IS a VariableOp.
 
                 if found_merge_target.is_some() {
                     break;

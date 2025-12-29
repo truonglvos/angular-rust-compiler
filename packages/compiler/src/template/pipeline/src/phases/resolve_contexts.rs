@@ -105,6 +105,10 @@ fn process_lexical_scope(unit: &mut dyn CompilationUnit, root_xref: ir::XrefId) 
         }
     }
 
+    // Create a separate scope for update operations which includes variables defined in the update block.
+    // Listeners should NOT inherit these variables as they are not available in the listener context.
+    let mut update_scope = scope.clone();
+
     for op in unit.update().iter() {
         if op.kind() == OpKind::Variable {
             unsafe {
@@ -115,7 +119,7 @@ fn process_lexical_scope(unit: &mut dyn CompilationUnit, root_xref: ir::XrefId) 
 
                 if matches!(variable_op.variable.kind(), SemanticVariableKind::Context) {
                     if let ir::SemanticVariable::Context(ctx_var) = &variable_op.variable {
-                        scope.insert(
+                        update_scope.insert(
                             ctx_var.view,
                             Expression::ReadVariable(ReadVariableExpr {
                                 xref: variable_op.xref,
@@ -130,15 +134,15 @@ fn process_lexical_scope(unit: &mut dyn CompilationUnit, root_xref: ir::XrefId) 
     }
 
     // Prefer `ctx` of the root view to any variables which happen to contain the root context.
+    // Apply this preference to both scopes.
     if unit_xref == root_xref {
-        scope.insert(
-            unit_xref,
-            Expression::ReadVar(crate::output::output_ast::ReadVarExpr {
-                name: "ctx".to_string(),
-                type_: None,
-                source_span: None,
-            }),
-        );
+        let root_ctx_expr = Expression::ReadVar(crate::output::output_ast::ReadVarExpr {
+            name: "ctx".to_string(),
+            type_: None,
+            source_span: None,
+        });
+        scope.insert(unit_xref, root_ctx_expr.clone());
+        update_scope.insert(unit_xref, root_ctx_expr);
     }
 
     // Second pass: transform ContextExpr using scope
@@ -157,15 +161,16 @@ fn process_lexical_scope(unit: &mut dyn CompilationUnit, root_xref: ir::XrefId) 
         }
     }
 
-    // Process update ops
+    // Process update ops - use update_scope
     for op in unit.update_mut().iter_mut() {
-        transform_context_exprs_in_op(op.as_mut(), &scope);
+        transform_context_exprs_in_op(op.as_mut(), &update_scope);
     }
 
     // Recursively process nested scopes (listeners, trackByOps)
     for op in unit.create_mut().iter_mut() {
         match op.kind() {
             OpKind::Listener | OpKind::AnimationListener | OpKind::TwoWayListener => {
+                // Listeners should operate on the scope available at creation time (without update block variables)
                 process_listener_scope(op, &scope);
             }
             OpKind::RepeaterCreate => {
@@ -186,7 +191,10 @@ fn transform_context_exprs_in_op(
             if let Expression::Context(ref ctx_expr) = expr {
                 let view_xref = ctx_expr.view;
                 if let Some(replacement) = scope.get(&view_xref) {
+                    // eprintln!("    Resolved ContextExpr({:?}) -> {:?}", view_xref, replacement);
                     return replacement.clone();
+                } else {
+                    // eprintln!("    FAILED to resolve ContextExpr({:?}). Scope keys: {:?}", view_xref, scope.keys().collect::<Vec<_>>());
                 }
             }
             expr
@@ -224,7 +232,7 @@ use crate::template::pipeline::ir::expression::visit_expressions_in_op;
 fn process_ops_with_scope(
     handler_ops: &mut ir::OpList<Box<dyn ir::UpdateOp + Send + Sync>>,
     parent_scope: &std::collections::HashMap<ir::XrefId, Expression>,
-    _label: &str,
+    label: &str,
 ) {
     // Pass 0: Count context usages to determine inlining eligibility
     let usage_counts = count_context_usages(handler_ops);

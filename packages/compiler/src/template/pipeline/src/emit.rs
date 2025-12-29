@@ -601,14 +601,13 @@ pub fn emit_ops(job: &ComponentCompilationJob, ops: Vec<&dyn ir::Op>) -> Vec<o::
                         .local_refs_index
                         .map(|idx| idx.as_usize() as i32);
 
-                    stmts.push(ng::template(
+                    stmts.push(ng::conditional_create(
                         slot,
                         *o::variable(fn_name),
                         decls,
                         vars,
                         tag,
                         const_index,
-                        local_ref_index,
                         cond_op.base.base.start_source_span.clone(),
                     ));
                 }
@@ -649,14 +648,13 @@ pub fn emit_ops(job: &ComponentCompilationJob, ops: Vec<&dyn ir::Op>) -> Vec<o::
                         .local_refs_index
                         .map(|idx| idx.as_usize() as i32);
 
-                    stmts.push(ng::template(
+                    stmts.push(ng::conditional_create(
                         slot,
                         *o::variable(fn_name),
                         decls,
                         vars,
                         tag,
                         const_index,
-                        local_ref_index,
                         branch_op.base.base.start_source_span.clone(),
                     ));
                 }
@@ -674,6 +672,30 @@ pub fn emit_ops(job: &ComponentCompilationJob, ops: Vec<&dyn ir::Op>) -> Vec<o::
                         })),
                         source_span: None,
                     }));
+                }
+            }
+            ir::OpKind::Conditional => {
+                if let Some(cond_op) = op.as_any().downcast_ref::<ir::ops::update::ConditionalOp>()
+                {
+                    // The processed field contains the ternary expression like:
+                    // ctx.isLoading ? 12 : ctx.hasError ? 13 : 14
+                    if let Some(ref processed) = cond_op.processed {
+                        let mut args = vec![processed.clone()];
+                        // If there's a context value, add it as well
+                        if let Some(ref ctx_value) = cond_op.context_value {
+                            args.push(ctx_value.clone());
+                        }
+                        stmts.push(o::Statement::Expression(o::ExpressionStatement {
+                            expr: Box::new(o::Expression::InvokeFn(o::InvokeFunctionExpr {
+                                fn_: o::import_ref(R3::conditional()),
+                                args,
+                                type_: None,
+                                source_span: None,
+                                pure: false,
+                            })),
+                            source_span: None,
+                        }));
+                    }
                 }
             }
             ir::OpKind::Advance => {

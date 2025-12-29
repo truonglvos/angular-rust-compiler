@@ -4,9 +4,7 @@
 //! Removes $any function calls since they have no runtime effects
 
 use crate::output::output_ast::Expression;
-use crate::template::pipeline::ir::expression::{
-    transform_expressions_in_expression, VisitorContextFlag,
-};
+use crate::template::pipeline::ir::expression::VisitorContextFlag;
 use crate::template::pipeline::src::compilation::{
     CompilationJob, CompilationUnit, ComponentCompilationJob,
 };

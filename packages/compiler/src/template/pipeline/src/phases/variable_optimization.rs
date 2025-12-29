@@ -485,30 +485,32 @@ fn optimize_variables_in_op_list_impl_create(
                 if old_idx > index {
                     new_op_map.insert(old_idx - 1, info);
                 } else if old_idx != index {
-                    new_op_map.insert(old_idx, info);
                 }
             }
             op_map = new_op_map;
+
+            for index_ref in var_decls.values_mut() {
+                if *index_ref > index {
+                    *index_ref -= 1;
+                }
+            }
         }
 
         // Third pass
         let mut to_inline: Vec<XrefId> = Vec::new();
         for (xref, &count) in &var_usages {
-            let &decl_index = var_decls.get(xref).unwrap();
-            let decl_op = ops.get(decl_index).unwrap();
+            if let Some(&decl_index) = var_decls.get(xref) {
+                let decl_op = ops.get(decl_index).unwrap();
 
-            if let Some(var_op) = decl_op
-                .as_any()
-                .downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>()
-            {
-                let is_always_inline = var_op.flags.contains(VariableFlags::ALWAYS_INLINE);
-                if count != 1 || is_always_inline {
-                    continue;
+                if let Some(var_op) = decl_op
+                    .as_any()
+                    .downcast_ref::<VariableOp<Box<dyn ir::CreateOp + Send + Sync>>>()
+                {
+                    let is_always_inline = var_op.flags.contains(VariableFlags::ALWAYS_INLINE);
+                    if count == 1 && !is_always_inline && !var_remote_usages.contains(xref) {
+                        to_inline.push(*xref);
+                    }
                 }
-                if var_remote_usages.contains(xref) {
-                    continue;
-                }
-                to_inline.push(*xref);
             }
         }
 
@@ -722,27 +724,30 @@ fn optimize_variables_in_op_list_impl_update(
                 }
             }
             op_map = new_op_map;
+
+            for index_ref in var_decls.values_mut() {
+                if *index_ref > index {
+                    *index_ref -= 1;
+                }
+            }
         }
 
         // Third pass
         let mut to_inline: Vec<XrefId> = Vec::new();
         // Explicitly iterate in insertion order because vars_usages is now an IndexMap
         for (xref, &count) in &var_usages {
-            let &decl_index = var_decls.get(xref).unwrap();
-            let decl_op = ops.get(decl_index).unwrap();
+            if let Some(&decl_index) = var_decls.get(xref) {
+                let decl_op = ops.get(decl_index).unwrap();
 
-            if let Some(var_op) = decl_op
-                .as_any()
-                .downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>()
-            {
-                let is_always_inline = var_op.flags.contains(VariableFlags::ALWAYS_INLINE);
-                if count != 1 || is_always_inline {
-                    continue;
+                if let Some(var_op) = decl_op
+                    .as_any()
+                    .downcast_ref::<VariableOp<Box<dyn ir::UpdateOp + Send + Sync>>>()
+                {
+                    let is_always_inline = var_op.flags.contains(VariableFlags::ALWAYS_INLINE);
+                    if count == 1 && !is_always_inline && !var_remote_usages.contains(xref) {
+                        to_inline.push(*xref);
+                    }
                 }
-                if var_remote_usages.contains(xref) {
-                    continue;
-                }
-                to_inline.push(*xref);
             }
         }
 
@@ -1362,10 +1367,9 @@ fn count_variable_usages(
         op,
         &mut |expr: &Expression, flags| {
             // 1. Handle regular ReadVariable usage
+            // 1. Handle regular ReadVariable usage
             if let Expression::ReadVariable(read_var) = expr {
-                if let Some(count) = var_usages.get_mut(&read_var.xref) {
-                    *count += 1;
-                }
+                *var_usages.entry(read_var.xref).or_insert(0) += 1;
 
                 // If we are in a child operation (like a listener) or if is_remote_context is set,
                 // we must mark this variable as having remote usage, even if it's not declared
@@ -1551,9 +1555,8 @@ fn allow_conservative_inlining(
 fn fences_for_ir_expression(expr: &ir::IRExpression) -> Fence {
     match expr {
         ir::IRExpression::NextContext(_) => {
-            // NextContext reads/writes context but isn't considered "side-effectful" in a way that
-            // prevents removal if the context is otherwise unused.
-            Fence::VIEW_CONTEXT_READ
+            // NextContext reads/writes context.
+            Fence::VIEW_CONTEXT_READ | Fence::VIEW_CONTEXT_WRITE
         }
         ir::IRExpression::RestoreView(_) => {
             Fence::VIEW_CONTEXT_READ | Fence::VIEW_CONTEXT_WRITE | Fence::SIDE_EFFECTFUL
