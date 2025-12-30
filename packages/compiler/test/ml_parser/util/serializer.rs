@@ -1,11 +1,12 @@
+use angular_compiler::ml_parser::ast::*;
+use angular_compiler::ml_parser::html_tags::get_html_tag_definition;
 /**
  * AST Serializer Utility
  *
  * Mirrors angular/packages/compiler/test/ml_parser/util/util.ts
  * Serializes HTML AST nodes back to HTML strings
  */
-use angular_compiler::ml_parser::ast::*;
-use angular_compiler::ml_parser::html_tags::get_html_tag_definition;
+use std::sync::Arc;
 
 pub struct SerializerVisitor;
 
@@ -31,7 +32,7 @@ impl SerializerVisitor {
     }
 
     pub fn visit_text(&self, text: &Text) -> String {
-        text.value.clone()
+        text.value.to_string()
     }
 
     pub fn visit_comment(&self, comment: &Comment) -> String {
@@ -68,7 +69,7 @@ impl SerializerVisitor {
     }
 
     pub fn visit_block_parameter(&self, parameter: &BlockParameter) -> String {
-        parameter.expression.clone()
+        parameter.expression.to_string()
     }
 
     pub fn visit_let_declaration(&self, decl: &LetDeclaration) -> String {
@@ -173,11 +174,11 @@ mod tests {
         use angular_compiler::parse_util::{ParseLocation, ParseSourceFile, ParseSourceSpan};
 
         let file = ParseSourceFile::new(String::new(), "test.html".to_string());
-        let location = ParseLocation::new(file, 0, 0, 0);
+        let location = ParseLocation::new(Arc::new(file), 0, 0, 0);
         let span = ParseSourceSpan::new(location.clone(), location);
 
         let text = Text {
-            value: "hello".to_string(),
+            value: "hello".to_string().into(),
             source_span: span,
             tokens: vec![],
             i18n: None,

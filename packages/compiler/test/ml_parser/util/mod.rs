@@ -16,6 +16,7 @@ use angular_compiler::ml_parser::lexer::{tokenize, TokenizeOptions, TokenizeResu
 use angular_compiler::ml_parser::parser::ParseTreeResult;
 use angular_compiler::ml_parser::tokens::{Token, TokenType};
 use angular_compiler::parse_util::{ParseLocation, ParseSourceSpan};
+use std::sync::Arc;
 
 pub use serializer::serialize_nodes;
 
@@ -70,7 +71,7 @@ fn get_token_type(token: &Token) -> TokenType {
     }
 }
 
-fn get_token_parts(token: &Token) -> &Vec<String> {
+fn get_token_parts(token: &Token) -> &Vec<Arc<str>> {
     match token {
         Token::TagOpenStart(t) => &t.parts,
         Token::TagOpenEnd(t) => &t.parts,
@@ -464,7 +465,7 @@ pub fn humanize_parts(tokens: &[Token]) -> Vec<Vec<String>> {
         .iter()
         .map(|token| {
             let mut parts = vec![to_screaming_snake_case(get_token_type(token))];
-            parts.extend(get_token_parts(token).iter().map(|p| p.clone()));
+            parts.extend(get_token_parts(token).iter().map(|p| p.to_string()));
             parts
         })
         .collect()
@@ -612,7 +613,7 @@ mod tests {
         use angular_compiler::parse_util::{ParseLocation, ParseSourceFile};
 
         let file = ParseSourceFile::new("test".to_string(), "test.html".to_string());
-        let location = ParseLocation::new(file, 0, 2, 5);
+        let location = ParseLocation::new(Arc::new(file), 0, 2, 5);
 
         assert_eq!(humanize_line_column(&location), "2:5");
     }

@@ -12,6 +12,6 @@ use angular_compiler::parse_util::{ParseLocation, ParseSourceFile, ParseSourceSp
 #[allow(dead_code)]
 pub fn get_fake_span(file_name: &str) -> ParseSourceSpan {
     let file = ParseSourceFile::new(String::new(), file_name.to_string());
-    let location = ParseLocation::new(file, 0, 0, 0);
+    let location = ParseLocation::new(std::sync::Arc::new(file), 0, 0, 0);
     ParseSourceSpan::new(location.clone(), location)
 }

@@ -12,6 +12,7 @@ use angular_compiler::render3::view::compiler::compile_component_from_metadata;
 use angular_compiler::schema::dom_element_schema_registry::DomElementSchemaRegistry;
 use angular_compiler::template_parser::binding_parser::BindingParser;
 use indexmap::IndexMap;
+use std::sync::Arc;
 
 #[path = "util.rs"]
 mod util;
@@ -21,15 +22,15 @@ fn compile_template(template: &str) -> (Vec<o::Statement>, ConstantPool) {
     let consts = parse_r3(template, ParseR3Options::default());
 
     // Create minimal metadata
-    let source_file = ParseSourceFile::new("".to_string(), "test.ts".to_string());
-    let start = ParseLocation::new(source_file.clone(), 0, 0, 0);
+    let source_file = Arc::new(ParseSourceFile::new("".to_string(), "test.ts".to_string()));
+    let start = ParseLocation::new(Arc::clone(&source_file), 0, 0, 0);
     let end = ParseLocation::new(source_file, 0, 0, 0);
     let type_span = ParseSourceSpan::new(start, end);
 
     // Initialize required registries/parsers for binding parser
     let parser = Parser::new();
     let schema_registry = DomElementSchemaRegistry::new();
-    let binding_parser = BindingParser::new(&parser, &schema_registry, vec![]);
+    let mut binding_parser = BindingParser::new(&parser, &schema_registry, vec![]);
 
     let directive_meta = R3DirectiveMetadata {
         name: "TestComponent".to_string(),
@@ -82,7 +83,7 @@ fn compile_template(template: &str) -> (Vec<o::Statement>, ConstantPool) {
 
     let mut constant_pool = ConstantPool::new(false);
     let compiled =
-        compile_component_from_metadata(&component_meta, &mut constant_pool, &binding_parser);
+        compile_component_from_metadata(&component_meta, &mut constant_pool, &mut binding_parser);
 
     let statements = constant_pool.statements.clone();
     if let o::Expression::InvokeFn(_expr) = compiled.expression {
@@ -165,13 +166,13 @@ fn should_handle_ngfor_nested_svg_attributes() {
 
     // Inline setup from compile_template to access 'compiled'
     let consts = parse_r3(template, ParseR3Options::default());
-    let source_file = ParseSourceFile::new("".to_string(), "test.ts".to_string());
-    let start = ParseLocation::new(source_file.clone(), 0, 0, 0);
+    let source_file = Arc::new(ParseSourceFile::new("".to_string(), "test.ts".to_string()));
+    let start = ParseLocation::new(Arc::clone(&source_file), 0, 0, 0);
     let end = ParseLocation::new(source_file, 0, 0, 0);
     let type_span = ParseSourceSpan::new(start, end);
     let parser = Parser::new();
     let schema_registry = DomElementSchemaRegistry::new();
-    let binding_parser = BindingParser::new(&parser, &schema_registry, vec![]);
+    let mut binding_parser = BindingParser::new(&parser, &schema_registry, vec![]);
 
     let directive_meta = R3DirectiveMetadata {
         name: "TestComponent".to_string(),
@@ -224,7 +225,7 @@ fn should_handle_ngfor_nested_svg_attributes() {
 
     let mut constant_pool = ConstantPool::new(false);
     let compiled =
-        compile_component_from_metadata(&component_meta, &mut constant_pool, &binding_parser);
+        compile_component_from_metadata(&component_meta, &mut constant_pool, &mut binding_parser);
 
     let compiled_str = format!("{:?}", compiled.expression);
 

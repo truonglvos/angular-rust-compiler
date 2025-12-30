@@ -768,9 +768,9 @@ mod tests {
             let root_names: Vec<String> = root_entities
                 .iter()
                 .map(|e| match e {
-                    TemplateEntity::LetDeclaration(decl) => decl.name.clone(),
-                    TemplateEntity::Variable(var) => var.name.clone(),
-                    TemplateEntity::Reference(ref_) => ref_.name.clone(),
+                    TemplateEntity::LetDeclaration(decl) => decl.name.to_string(),
+                    TemplateEntity::Variable(var) => var.name.to_string(),
+                    TemplateEntity::Reference(ref_) => ref_.name.to_string(),
                 })
                 .collect();
             assert!(root_names.contains(&"one".to_string()));
@@ -804,7 +804,7 @@ mod tests {
             let root_names: Vec<String> = root_entities
                 .iter()
                 .filter_map(|e| match e {
-                    TemplateEntity::LetDeclaration(l) => Some(l.name.clone()),
+                    TemplateEntity::LetDeclaration(l) => Some(l.name.to_string()),
                     _ => None,
                 })
                 .collect();
@@ -826,7 +826,7 @@ mod tests {
                     let branch_names: Vec<String> = branch_entities
                         .iter()
                         .filter_map(|e| match e {
-                            TemplateEntity::LetDeclaration(l) => Some(l.name.clone()),
+                            TemplateEntity::LetDeclaration(l) => Some(l.name.to_string()),
                             _ => None,
                         })
                         .collect();
@@ -862,7 +862,7 @@ mod tests {
                 if let AST::PropertyRead(_prop) = &ast {
                     if let Some(target) = res.get_expression_target(&ast) {
                         if let TemplateEntity::LetDeclaration(decl) = target {
-                            assert_eq!(decl.name, "value");
+                            assert_eq!(decl.name, "value".into());
                         } else {
                             panic!("Expected LetDeclaration, got {:?}", target);
                         }
@@ -991,7 +991,7 @@ mod tests {
                             angular_compiler::render3::view::t2_api::ReferenceTarget::Element(
                                 el,
                             ) => {
-                                assert_eq!(el.name, "div");
+                                assert_eq!(el.name, "div".into());
                             }
                             _ => panic!("Expected element reference"),
                         }
@@ -1052,7 +1052,11 @@ mod tests {
                 let res = binder.bind(target);
 
                 if let Some(t::R3Node::Element(el)) = parse_result.nodes.first() {
-                    if let Some(attr) = el.attributes.iter().find(|a| a.name == "inputBinding") {
+                    if let Some(attr) = el
+                        .attributes
+                        .iter()
+                        .find(|a| a.name == "inputBinding".into())
+                    {
                         if let Some(consumer) =
                             res.get_consumer_of_binding(attr as &dyn std::any::Any)
                         {
@@ -1086,7 +1090,11 @@ mod tests {
                 let res = binder.bind(target);
 
                 if let Some(t::R3Node::Template(tmpl)) = parse_result.nodes.first() {
-                    if let Some(attr) = tmpl.attributes.iter().find(|a| a.name == "inputBinding") {
+                    if let Some(attr) = tmpl
+                        .attributes
+                        .iter()
+                        .find(|a| a.name == "inputBinding".into())
+                    {
                         if let Some(consumer) =
                             res.get_consumer_of_binding(attr as &dyn std::any::Any)
                         {
@@ -1253,7 +1261,7 @@ mod tests {
 
                 if let Some(t::R3Node::Template(tmpl)) = parse_result.nodes.first() {
                     if let Some(reference) = tmpl.references.first() {
-                        if reference.name == "myTemplate" {
+                        if reference.name == "myTemplate".into() {
                             let target = res.get_reference_target(reference);
                             if let Some(ReferenceTarget::Template(_)) = target {
                                 // Successfully resolved to template
@@ -1276,7 +1284,7 @@ mod tests {
 
                 if let Some(t::R3Node::Element(el)) = parse_result.nodes.first() {
                     if let Some(reference) = el.references.first() {
-                        if reference.name == "myDiv" {
+                        if reference.name == "myDiv".into() {
                             let target = res.get_reference_target(reference);
                             if let Some(ReferenceTarget::Element(_)) = target {
                                 // Successfully resolved to element
@@ -1299,7 +1307,8 @@ mod tests {
                 let res = binder.bind(target);
 
                 if let Some(t::R3Node::Element(el)) = parse_result.nodes.first() {
-                    if let Some(reference) = el.references.iter().find(|r| r.value == "dir") {
+                    if let Some(reference) = el.references.iter().find(|r| r.value == "dir".into())
+                    {
                         let target = res.get_reference_target(reference);
                         if let Some(ReferenceTarget::DirectiveOnNode {
                             directive: _,
@@ -1690,7 +1699,7 @@ mod tests {
                             &t::DeferredTrigger::Viewport(viewport_trigger.clone()),
                         );
                         if let Some(el) = trigger_el {
-                            assert_eq!(el.name, "div");
+                            assert_eq!(el.name, "div".into());
                         }
                     }
                 }
