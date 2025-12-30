@@ -171,7 +171,7 @@ export class TwoWayBindingTest {
         i0.ɵɵelementStart(14, 'input', 4);
         i0.ɵɵtwoWayListener(
           'ngModelChange',
-          function TwoWayBindingTest_Template_input_ngModelChange_0_twoWayListener($event) {
+          function TwoWayBindingTest_Template_input_ngModelChange_14_twoWayListener($event) {
             i0.ɵɵtwoWayBindingSet(ctx.name, $event) || (ctx.name = $event);
             return $event;
           },
@@ -186,7 +186,7 @@ export class TwoWayBindingTest {
         i0.ɵɵelementStart(20, 'input', 5);
         i0.ɵɵtwoWayListener(
           'ngModelChange',
-          function TwoWayBindingTest_Template_input_ngModelChange_0_twoWayListener($event) {
+          function TwoWayBindingTest_Template_input_ngModelChange_20_twoWayListener($event) {
             i0.ɵɵtwoWayBindingSet(ctx.email, $event) || (ctx.email = $event);
             return $event;
           },
@@ -204,7 +204,7 @@ export class TwoWayBindingTest {
         i0.ɵɵelementStart(29, 'input', 6);
         i0.ɵɵtwoWayListener(
           'ngModelChange',
-          function TwoWayBindingTest_Template_input_ngModelChange_0_twoWayListener($event) {
+          function TwoWayBindingTest_Template_input_ngModelChange_29_twoWayListener($event) {
             i0.ɵɵtwoWayBindingSet(ctx.age, $event) || (ctx.age = $event);
             return $event;
           },
@@ -222,7 +222,7 @@ export class TwoWayBindingTest {
         i0.ɵɵelementStart(38, 'textarea', 7);
         i0.ɵɵtwoWayListener(
           'ngModelChange',
-          function TwoWayBindingTest_Template_textarea_ngModelChange_0_twoWayListener($event) {
+          function TwoWayBindingTest_Template_textarea_ngModelChange_38_twoWayListener($event) {
             i0.ɵɵtwoWayBindingSet(ctx.message, $event) || (ctx.message = $event);
             return $event;
           },
@@ -240,7 +240,7 @@ export class TwoWayBindingTest {
         i0.ɵɵelementStart(47, 'select', 8);
         i0.ɵɵtwoWayListener(
           'ngModelChange',
-          function TwoWayBindingTest_Template_select_ngModelChange_0_twoWayListener($event) {
+          function TwoWayBindingTest_Template_select_ngModelChange_47_twoWayListener($event) {
             i0.ɵɵtwoWayBindingSet(ctx.selectedCountry, $event) || (ctx.selectedCountry = $event);
             return $event;
           },
@@ -256,7 +256,7 @@ export class TwoWayBindingTest {
         i0.ɵɵelementStart(54, 'div', 3)(55, 'label')(56, 'input', 10);
         i0.ɵɵtwoWayListener(
           'ngModelChange',
-          function TwoWayBindingTest_Template_input_ngModelChange_0_twoWayListener($event) {
+          function TwoWayBindingTest_Template_input_ngModelChange_56_twoWayListener($event) {
             i0.ɵɵtwoWayBindingSet(ctx.agreeTerms, $event) || (ctx.agreeTerms = $event);
             return $event;
           },
@@ -270,7 +270,7 @@ export class TwoWayBindingTest {
         i0.ɵɵelementStart(60, 'div', 3)(61, 'label')(62, 'input', 10);
         i0.ɵɵtwoWayListener(
           'ngModelChange',
-          function TwoWayBindingTest_Template_input_ngModelChange_0_twoWayListener($event) {
+          function TwoWayBindingTest_Template_input_ngModelChange_62_twoWayListener($event) {
             i0.ɵɵtwoWayBindingSet(ctx.receiveNewsletter, $event) ||
               (ctx.receiveNewsletter = $event);
             return $event;
@@ -288,7 +288,7 @@ export class TwoWayBindingTest {
         i0.ɵɵelementStart(69, 'div', 3)(70, 'label')(71, 'input', 11);
         i0.ɵɵtwoWayListener(
           'ngModelChange',
-          function TwoWayBindingTest_Template_input_ngModelChange_0_twoWayListener($event) {
+          function TwoWayBindingTest_Template_input_ngModelChange_71_twoWayListener($event) {
             i0.ɵɵtwoWayBindingSet(ctx.gender, $event) || (ctx.gender = $event);
             return $event;
           },
@@ -299,7 +299,7 @@ export class TwoWayBindingTest {
         i0.ɵɵelementStart(73, 'label')(74, 'input', 12);
         i0.ɵɵtwoWayListener(
           'ngModelChange',
-          function TwoWayBindingTest_Template_input_ngModelChange_0_twoWayListener($event) {
+          function TwoWayBindingTest_Template_input_ngModelChange_74_twoWayListener($event) {
             i0.ɵɵtwoWayBindingSet(ctx.gender, $event) || (ctx.gender = $event);
             return $event;
           },
@@ -310,7 +310,7 @@ export class TwoWayBindingTest {
         i0.ɵɵelementStart(76, 'label')(77, 'input', 13);
         i0.ɵɵtwoWayListener(
           'ngModelChange',
-          function TwoWayBindingTest_Template_input_ngModelChange_0_twoWayListener($event) {
+          function TwoWayBindingTest_Template_input_ngModelChange_77_twoWayListener($event) {
             i0.ɵɵtwoWayBindingSet(ctx.gender, $event) || (ctx.gender = $event);
             return $event;
           },
@@ -330,7 +330,7 @@ export class TwoWayBindingTest {
         i0.ɵɵelementStart(87, 'input', 14);
         i0.ɵɵtwoWayListener(
           'ngModelChange',
-          function TwoWayBindingTest_Template_input_ngModelChange_0_twoWayListener($event) {
+          function TwoWayBindingTest_Template_input_ngModelChange_87_twoWayListener($event) {
             i0.ɵɵtwoWayBindingSet(ctx.volume, $event) || (ctx.volume = $event);
             return $event;
           },
@@ -344,7 +344,7 @@ export class TwoWayBindingTest {
         i0.ɵɵelementStart(92, 'input', 14);
         i0.ɵɵtwoWayListener(
           'ngModelChange',
-          function TwoWayBindingTest_Template_input_ngModelChange_0_twoWayListener($event) {
+          function TwoWayBindingTest_Template_input_ngModelChange_92_twoWayListener($event) {
             i0.ɵɵtwoWayBindingSet(ctx.brightness, $event) || (ctx.brightness = $event);
             return $event;
           },
@@ -361,7 +361,7 @@ export class TwoWayBindingTest {
         i0.ɵɵelementStart(100, 'input', 17);
         i0.ɵɵtwoWayListener(
           'ngModelChange',
-          function TwoWayBindingTest_Template_input_ngModelChange_0_twoWayListener($event) {
+          function TwoWayBindingTest_Template_input_ngModelChange_100_twoWayListener($event) {
             i0.ɵɵtwoWayBindingSet(ctx.selectedDate, $event) || (ctx.selectedDate = $event);
             return $event;
           },
@@ -376,7 +376,7 @@ export class TwoWayBindingTest {
         i0.ɵɵelementStart(106, 'input', 18);
         i0.ɵɵtwoWayListener(
           'ngModelChange',
-          function TwoWayBindingTest_Template_input_ngModelChange_0_twoWayListener($event) {
+          function TwoWayBindingTest_Template_input_ngModelChange_106_twoWayListener($event) {
             i0.ɵɵtwoWayBindingSet(ctx.selectedTime, $event) || (ctx.selectedTime = $event);
             return $event;
           },
@@ -394,7 +394,7 @@ export class TwoWayBindingTest {
         i0.ɵɵelementStart(115, 'input', 19);
         i0.ɵɵtwoWayListener(
           'ngModelChange',
-          function TwoWayBindingTest_Template_input_ngModelChange_0_twoWayListener($event) {
+          function TwoWayBindingTest_Template_input_ngModelChange_115_twoWayListener($event) {
             i0.ɵɵtwoWayBindingSet(ctx.favoriteColor, $event) || (ctx.favoriteColor = $event);
             return $event;
           },

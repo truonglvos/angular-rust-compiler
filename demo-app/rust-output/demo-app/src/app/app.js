@@ -20,6 +20,108 @@ import { PropertyBindingTest } from './src/components/property-binding-test/prop
 import { TwoWayBindingTest } from './src/components/two-way-binding-test/two-way-binding-test';
 import { UnusedImportComponent } from './unused-import.component';
 import { AnyTestComponent } from './src/components/any-test/any-test';
+import {
+  Benchmark0Component,
+  Benchmark1Component,
+  Benchmark2Component,
+  Benchmark3Component,
+  Benchmark4Component,
+  Benchmark5Component,
+  Benchmark6Component,
+  Benchmark7Component,
+  Benchmark8Component,
+  Benchmark9Component,
+  Benchmark10Component,
+  Benchmark11Component,
+  Benchmark12Component,
+  Benchmark13Component,
+  Benchmark14Component,
+  Benchmark15Component,
+  Benchmark16Component,
+  Benchmark17Component,
+  Benchmark18Component,
+  Benchmark19Component,
+  Benchmark20Component,
+  Benchmark21Component,
+  Benchmark22Component,
+  Benchmark23Component,
+  Benchmark24Component,
+  Benchmark25Component,
+  Benchmark26Component,
+  Benchmark27Component,
+  Benchmark28Component,
+  Benchmark29Component,
+  Benchmark30Component,
+  Benchmark31Component,
+  Benchmark32Component,
+  Benchmark33Component,
+  Benchmark34Component,
+  Benchmark35Component,
+  Benchmark36Component,
+  Benchmark37Component,
+  Benchmark38Component,
+  Benchmark39Component,
+  Benchmark40Component,
+  Benchmark41Component,
+  Benchmark42Component,
+  Benchmark43Component,
+  Benchmark44Component,
+  Benchmark45Component,
+  Benchmark46Component,
+  Benchmark47Component,
+  Benchmark48Component,
+  Benchmark49Component,
+  Benchmark50Component,
+  Benchmark51Component,
+  Benchmark52Component,
+  Benchmark53Component,
+  Benchmark54Component,
+  Benchmark55Component,
+  Benchmark56Component,
+  Benchmark57Component,
+  Benchmark58Component,
+  Benchmark59Component,
+  Benchmark60Component,
+  Benchmark61Component,
+  Benchmark62Component,
+  Benchmark63Component,
+  Benchmark64Component,
+  Benchmark65Component,
+  Benchmark66Component,
+  Benchmark67Component,
+  Benchmark68Component,
+  Benchmark69Component,
+  Benchmark70Component,
+  Benchmark71Component,
+  Benchmark72Component,
+  Benchmark73Component,
+  Benchmark74Component,
+  Benchmark75Component,
+  Benchmark76Component,
+  Benchmark77Component,
+  Benchmark78Component,
+  Benchmark79Component,
+  Benchmark80Component,
+  Benchmark81Component,
+  Benchmark82Component,
+  Benchmark83Component,
+  Benchmark84Component,
+  Benchmark85Component,
+  Benchmark86Component,
+  Benchmark87Component,
+  Benchmark88Component,
+  Benchmark89Component,
+  Benchmark90Component,
+  Benchmark91Component,
+  Benchmark92Component,
+  Benchmark93Component,
+  Benchmark94Component,
+  Benchmark95Component,
+  Benchmark96Component,
+  Benchmark97Component,
+  Benchmark98Component,
+  Benchmark99Component,
+} from './benchmark';
 import * as i0 from '@angular/core';
 const _c0 = () => ({
   title: 'Explore the Docs',
@@ -53,7 +155,7 @@ function App_For_30_Template(rf, ctx) {
     i0.ɵɵtext(2);
     i0.ɵɵelementEnd();
     i0.ɵɵnamespaceSVG();
-    i0.ɵɵelementStart(3, 'svg', 34)(4, 'path', 35);
+    i0.ɵɵelementStart(3, 'svg', 35)(4, 'path', 36);
     i0.ɵɵelementEnd()()();
   }
   if (rf & 2) {
@@ -67,7 +169,7 @@ function App_For_30_Template(rf, ctx) {
 }
 function App_div_47_Template(rf, ctx) {
   if (rf & 1) {
-    i0.ɵɵelementStart(0, 'div', 36);
+    i0.ɵɵelementStart(0, 'div', 37);
     i0.ɵɵtext(1);
     i0.ɵɵelementEnd();
   }
@@ -86,7 +188,7 @@ export class App {
   haderChange = output();
   surname = 'Lê';
   name = 'Trường';
-  title = signal('demo-app 5');
+  title = signal('demo-app 555 33 3 44 555 222');
   items = signal([
     {
       title: 'Item 9',
@@ -112,7 +214,7 @@ export class App {
   static ɵcmp = /* @__PURE__ */ i0.ɵɵdefineComponent({
     type: App,
     selectors: [['app-root']],
-    decls: 53,
+    decls: 154,
     vars: 19,
     consts: [
       [1, 'main'],
@@ -264,6 +366,7 @@ export class App {
       ],
       ['id', 'test-div', 'title', 'Hello World'],
       ['class', 'ngfor-test', 4, 'ngFor', 'ngForOf'],
+      [1, 'benchmark-section', 2, 'display', 'none'],
       [
         'xmlns',
         'http://www.w3.org/2000/svg',
@@ -339,7 +442,7 @@ export class App {
         i0.ɵɵnamespaceHTML();
         i0.ɵɵelement(41, 'router-outlet')(42, 'app-ng-for');
         i0.ɵɵelementStart(43, 'h2');
-        i0.ɵɵtext(44, 'Test Inline Style');
+        i0.ɵɵtext(44, 'Test Inline Style 333 45');
         i0.ɵɵelementEnd();
         i0.ɵɵelementStart(45, 'div', 32);
         i0.ɵɵtext(46, 'Test attributes');
@@ -349,12 +452,93 @@ export class App {
           50,
           'app-property-binding-test',
         )(51, 'app-two-way-binding-test')(52, 'app-any-test');
+        i0.ɵɵelementStart(53, 'section', 34);
+        i0.ɵɵelement(54, 'app-benchmark-0')(55, 'app-benchmark-1')(56, 'app-benchmark-2')(
+          57,
+          'app-benchmark-3',
+        )(58, 'app-benchmark-4')(59, 'app-benchmark-5')(60, 'app-benchmark-6')(
+          61,
+          'app-benchmark-7',
+        )(62, 'app-benchmark-8')(63, 'app-benchmark-9')(64, 'app-benchmark-10')(
+          65,
+          'app-benchmark-11',
+        )(66, 'app-benchmark-12')(67, 'app-benchmark-13')(68, 'app-benchmark-14')(
+          69,
+          'app-benchmark-15',
+        )(70, 'app-benchmark-16')(71, 'app-benchmark-17')(72, 'app-benchmark-18')(
+          73,
+          'app-benchmark-19',
+        )(74, 'app-benchmark-20')(75, 'app-benchmark-21')(76, 'app-benchmark-22')(
+          77,
+          'app-benchmark-23',
+        )(78, 'app-benchmark-24')(79, 'app-benchmark-25')(80, 'app-benchmark-26')(
+          81,
+          'app-benchmark-27',
+        )(82, 'app-benchmark-28')(83, 'app-benchmark-29')(84, 'app-benchmark-30')(
+          85,
+          'app-benchmark-31',
+        )(86, 'app-benchmark-32')(87, 'app-benchmark-33')(88, 'app-benchmark-34')(
+          89,
+          'app-benchmark-35',
+        )(90, 'app-benchmark-36')(91, 'app-benchmark-37')(92, 'app-benchmark-38')(
+          93,
+          'app-benchmark-39',
+        )(94, 'app-benchmark-40')(95, 'app-benchmark-41')(96, 'app-benchmark-42')(
+          97,
+          'app-benchmark-43',
+        )(98, 'app-benchmark-44')(99, 'app-benchmark-45')(100, 'app-benchmark-46')(
+          101,
+          'app-benchmark-47',
+        )(102, 'app-benchmark-48')(103, 'app-benchmark-49')(104, 'app-benchmark-50')(
+          105,
+          'app-benchmark-51',
+        )(106, 'app-benchmark-52')(107, 'app-benchmark-53')(108, 'app-benchmark-54')(
+          109,
+          'app-benchmark-55',
+        )(110, 'app-benchmark-56')(111, 'app-benchmark-57')(112, 'app-benchmark-58')(
+          113,
+          'app-benchmark-59',
+        )(114, 'app-benchmark-60')(115, 'app-benchmark-61')(116, 'app-benchmark-62')(
+          117,
+          'app-benchmark-63',
+        )(118, 'app-benchmark-64')(119, 'app-benchmark-65')(120, 'app-benchmark-66')(
+          121,
+          'app-benchmark-67',
+        )(122, 'app-benchmark-68')(123, 'app-benchmark-69')(124, 'app-benchmark-70')(
+          125,
+          'app-benchmark-71',
+        )(126, 'app-benchmark-72')(127, 'app-benchmark-73')(128, 'app-benchmark-74')(
+          129,
+          'app-benchmark-75',
+        )(130, 'app-benchmark-76')(131, 'app-benchmark-77')(132, 'app-benchmark-78')(
+          133,
+          'app-benchmark-79',
+        )(134, 'app-benchmark-80')(135, 'app-benchmark-81')(136, 'app-benchmark-82')(
+          137,
+          'app-benchmark-83',
+        )(138, 'app-benchmark-84')(139, 'app-benchmark-85')(140, 'app-benchmark-86')(
+          141,
+          'app-benchmark-87',
+        )(142, 'app-benchmark-88')(143, 'app-benchmark-89')(144, 'app-benchmark-90')(
+          145,
+          'app-benchmark-91',
+        )(146, 'app-benchmark-92')(147, 'app-benchmark-93')(148, 'app-benchmark-94')(
+          149,
+          'app-benchmark-95',
+        )(150, 'app-benchmark-96')(151, 'app-benchmark-97')(152, 'app-benchmark-98')(
+          153,
+          'app-benchmark-99',
+        );
+        i0.ɵɵelementEnd();
       }
       if (rf & 2) {
         i0.ɵɵadvance(20);
         i0.ɵɵtextInterpolate1('Hello, ', ctx.title());
         i0.ɵɵadvance(4);
-        i0.ɵɵtextInterpolate1('hello ', i0.ɵɵpipeBind2(25, 3, ctx.name, ctx.surname));
+        i0.ɵɵtextInterpolate1(
+          'hello le van truong 23 ',
+          i0.ɵɵpipeBind2(25, 3, ctx.name, ctx.surname),
+        );
         i0.ɵɵadvance(5);
         i0.ɵɵrepeater(
           i0.ɵɵpureFunction6(
@@ -398,6 +582,107 @@ export class App {
       EventBindingTest,
       PropertyBindingTest,
       TwoWayBindingTest,
+      AnyTestComponent,
+      Benchmark0Component,
+      Benchmark1Component,
+      Benchmark2Component,
+      Benchmark3Component,
+      Benchmark4Component,
+      Benchmark5Component,
+      Benchmark6Component,
+      Benchmark7Component,
+      Benchmark8Component,
+      Benchmark9Component,
+      Benchmark10Component,
+      Benchmark11Component,
+      Benchmark12Component,
+      Benchmark13Component,
+      Benchmark14Component,
+      Benchmark15Component,
+      Benchmark16Component,
+      Benchmark17Component,
+      Benchmark18Component,
+      Benchmark19Component,
+      Benchmark20Component,
+      Benchmark21Component,
+      Benchmark22Component,
+      Benchmark23Component,
+      Benchmark24Component,
+      Benchmark25Component,
+      Benchmark26Component,
+      Benchmark27Component,
+      Benchmark28Component,
+      Benchmark29Component,
+      Benchmark30Component,
+      Benchmark31Component,
+      Benchmark32Component,
+      Benchmark33Component,
+      Benchmark34Component,
+      Benchmark35Component,
+      Benchmark36Component,
+      Benchmark37Component,
+      Benchmark38Component,
+      Benchmark39Component,
+      Benchmark40Component,
+      Benchmark41Component,
+      Benchmark42Component,
+      Benchmark43Component,
+      Benchmark44Component,
+      Benchmark45Component,
+      Benchmark46Component,
+      Benchmark47Component,
+      Benchmark48Component,
+      Benchmark49Component,
+      Benchmark50Component,
+      Benchmark51Component,
+      Benchmark52Component,
+      Benchmark53Component,
+      Benchmark54Component,
+      Benchmark55Component,
+      Benchmark56Component,
+      Benchmark57Component,
+      Benchmark58Component,
+      Benchmark59Component,
+      Benchmark60Component,
+      Benchmark61Component,
+      Benchmark62Component,
+      Benchmark63Component,
+      Benchmark64Component,
+      Benchmark65Component,
+      Benchmark66Component,
+      Benchmark67Component,
+      Benchmark68Component,
+      Benchmark69Component,
+      Benchmark70Component,
+      Benchmark71Component,
+      Benchmark72Component,
+      Benchmark73Component,
+      Benchmark74Component,
+      Benchmark75Component,
+      Benchmark76Component,
+      Benchmark77Component,
+      Benchmark78Component,
+      Benchmark79Component,
+      Benchmark80Component,
+      Benchmark81Component,
+      Benchmark82Component,
+      Benchmark83Component,
+      Benchmark84Component,
+      Benchmark85Component,
+      Benchmark86Component,
+      Benchmark87Component,
+      Benchmark88Component,
+      Benchmark89Component,
+      Benchmark90Component,
+      Benchmark91Component,
+      Benchmark92Component,
+      Benchmark93Component,
+      Benchmark94Component,
+      Benchmark95Component,
+      Benchmark96Component,
+      Benchmark97Component,
+      Benchmark98Component,
+      Benchmark99Component,
     ],
   });
 }

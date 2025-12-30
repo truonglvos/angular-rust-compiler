@@ -404,7 +404,7 @@ export class EventBindingTest {
         i0.ɵɵelementStart(50, 'input', 10);
         i0.ɵɵtwoWayListener(
           'ngModelChange',
-          function EventBindingTest_Template_input_ngModelChange_0_twoWayListener($event) {
+          function EventBindingTest_Template_input_ngModelChange_50_twoWayListener($event) {
             i0.ɵɵrestoreView(_r1);
             i0.ɵɵtwoWayBindingSet(ctx.formValue, $event) || (ctx.formValue = $event);
             return i0.ɵɵresetView($event);
