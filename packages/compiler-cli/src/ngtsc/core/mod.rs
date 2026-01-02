@@ -10,7 +10,6 @@ pub mod compiler;
 #[cfg(test)]
 mod compiler_test;
 
-
 pub use compiler::{CompilationResult, CompilationTicket, CompilationTicketKind, NgCompiler};
 
 #[derive(Debug, Clone, Default)]

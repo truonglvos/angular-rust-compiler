@@ -1,10 +1,10 @@
- use std::collections::HashMap;
-use std::io;
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 use crate::ngtsc::file_system::{
     AbsoluteFsPath, FileStats, FileSystem, PathManipulation, PathSegment, ReadonlyFileSystem,
 };
+use std::collections::HashMap;
+use std::io;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 pub struct CapturingFileSystem<T: FileSystem> {
     delegate: T,

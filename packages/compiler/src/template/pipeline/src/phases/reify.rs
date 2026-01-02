@@ -433,7 +433,9 @@ fn reify_create_operations(
                                         modifiers: o::StmtModifier::Final,
                                         source_span: None,
                                     })
-                                } else if let SemanticVariable::Identifier(ident_var) = &var_op.variable {
+                                } else if let SemanticVariable::Identifier(ident_var) =
+                                    &var_op.variable
+                                {
                                     // Identifier case: use identifier name as fallback if no unique name assigned
                                     o::Statement::DeclareVar(o::DeclareVarStmt {
                                         name: ident_var.identifier.clone(),
@@ -457,7 +459,7 @@ fn reify_create_operations(
                                 *handler_op = new_op;
                             }
                         }
-                        
+
                         // Collect statements
                         if let Some(stmt_op) = handler_op
                             .as_any()
@@ -470,7 +472,7 @@ fn reify_create_operations(
                     // Create handler function
                     let handler_fn_name = listener_op.handler_fn_name.clone();
                     let mut params = vec![];
-                     if listener_op.consumes_dollar_event {
+                    if listener_op.consumes_dollar_event {
                         params.push(o::FnParam {
                             name: "$event".to_string(),
                             type_: None,
@@ -492,7 +494,7 @@ fn reify_create_operations(
                         listener_op.event_target.clone(),
                         listener_op.source_span.clone().into(),
                     );
-                    
+
                     Some(Box::new(ir::ops::shared::create_statement_op::<
                         Box<dyn CreateOp + Send + Sync>,
                     >(Box::new(stmt))))
@@ -577,7 +579,7 @@ fn reify_create_operations(
                     let handler_fn_name = listener_op.handler_fn_name.clone();
                     let mut params = vec![];
                     // Two-way listeners always consume $event
-                     params.push(o::FnParam {
+                    params.push(o::FnParam {
                         name: "$event".to_string(),
                         type_: None,
                     });
@@ -597,7 +599,7 @@ fn reify_create_operations(
                         false, // Default prevent_default
                         listener_op.source_span.clone().into(),
                     );
-                    
+
                     Some(Box::new(ir::ops::shared::create_statement_op::<
                         Box<dyn CreateOp + Send + Sync>,
                     >(Box::new(stmt))))

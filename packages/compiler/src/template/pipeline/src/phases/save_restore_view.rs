@@ -115,7 +115,8 @@ fn process_unit(
         // Second pass: apply to all listeners in this view
         // Note: listener indices are now shifted by 1 due to prepend
         let component_job_ptr = component_job as *mut ComponentCompilationJob;
-        let unit_ptr = unit as *mut crate::template::pipeline::src::compilation::ViewCompilationUnit;
+        let unit_ptr =
+            unit as *mut crate::template::pipeline::src::compilation::ViewCompilationUnit;
 
         for idx in listener_indices {
             unsafe {
@@ -408,7 +409,7 @@ unsafe fn add_save_restore_view_operation_to_listener(
 
     // DEBUG: Log change detection
     // eprintln!("[save_restore_view] add_save_restore_view: unit={:?}, root={:?}, change_detection={:?}", unit_xref, root_xref, change_detection);
-    
+
     // NOTE: Previously had an optimization that skipped restoreView for OnPush root views,
     // but this was incorrect for Linker-compiled templates where ctx is not properly captured.
     // Now we always add restoreView for all listeners.

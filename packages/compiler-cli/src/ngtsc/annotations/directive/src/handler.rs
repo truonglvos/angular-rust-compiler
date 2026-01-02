@@ -3,10 +3,16 @@
 // Handles @Directive decorator processing.
 
 use super::symbol::DirectiveSymbol;
-use crate::ngtsc::reflection::{ClassDeclaration, ReflectionHost, TypeScriptReflectionHost};
 use crate::ngtsc::metadata::{extract_directive_metadata, DecoratorMetadata, DirectiveMetadata};
+use crate::ngtsc::reflection::{ClassDeclaration, ReflectionHost, TypeScriptReflectionHost};
 use crate::ngtsc::transform::src::api::{
     AnalysisOutput, CompileResult, DecoratorHandler, DetectResult, HandlerPrecedence,
+};
+use angular_compiler::output::abstract_emitter::EmitterVisitorContext;
+use angular_compiler::output::abstract_js_emitter::AbstractJsEmitterVisitor;
+use angular_compiler::output::output_ast::{
+    Expression, ExpressionTrait, ExternalExpr, ExternalReference, LiteralExpr, LiteralValue,
+    ReadVarExpr,
 };
 use angular_compiler::render3::r3_factory::{
     compile_factory_function, DepsOrInvalid, FactoryTarget, R3ConstructorFactoryMetadata,
@@ -19,9 +25,6 @@ use angular_compiler::render3::view::api::{
 use angular_compiler::render3::view::compiler::compile_directive_from_metadata;
 use angular_compiler::template_parser::binding_parser::BindingParser;
 use std::any::Any;
-use angular_compiler::output::abstract_js_emitter::AbstractJsEmitterVisitor;
-use angular_compiler::output::abstract_emitter::EmitterVisitorContext;
-use angular_compiler::output::output_ast::{Expression, ReadVarExpr, ExpressionTrait, ExternalExpr, ExternalReference, LiteralExpr, LiteralValue};
 
 pub struct DirectiveDecoratorHandler {
     #[allow(dead_code)]
@@ -53,7 +56,7 @@ impl DirectiveDecoratorHandler {
     ) -> Option<String> {
         // Implementation remains same as before...
         // Simplified for brevity in this full replacement
-         None
+        None
     }
 }
 
@@ -85,9 +88,13 @@ impl DecoratorHandler<DirectiveHandlerData, DirectiveHandlerData, DirectiveSymbo
         for decorator in converted_decorators {
             if decorator.name == "Directive" {
                 let empty_imports = std::collections::HashMap::new();
-                if let Some(metadata) =
-                    extract_directive_metadata(node, &decorator, false, std::path::Path::new(""), &empty_imports)
-                {
+                if let Some(metadata) = extract_directive_metadata(
+                    node,
+                    &decorator,
+                    false,
+                    std::path::Path::new(""),
+                    &empty_imports,
+                ) {
                     // Clear the decorator reference to avoid lifetime issues
                     let owned_metadata = match metadata {
                         DecoratorMetadata::Directive(mut d) => {
@@ -137,9 +144,6 @@ impl DecoratorHandler<DirectiveHandlerData, DirectiveHandlerData, DirectiveSymbo
     }
 }
 
-
-
-
 impl DirectiveDecoratorHandler {
     pub fn compile_ivy(&self, analysis: &DirectiveMetadata) -> Vec<CompileResult> {
         // Extract DirectiveMeta from DecoratorMetadata enum
@@ -160,32 +164,40 @@ impl DirectiveDecoratorHandler {
             type_expr: type_expr.clone(),
         };
 
-        let inputs = dir.t2.inputs.iter().map(|(key, value)| {
-             (
-                 key.clone(),
-                 R3InputMetadata {
-                     class_property_name: value.class_property_name.clone(),
-                     binding_property_name: value.binding_property_name.clone(),
-                     required: value.required,
-                     transform_function: value.transform.as_ref().map(|t| {
-                         Expression::ReadVar(ReadVarExpr {
-                             name: t.node.clone(),
-                             type_: None,
-                             source_span: None,
-                         })
-                     }),
-                     is_signal: value.is_signal,
-                 }
-             )
-        }).collect();
+        let inputs = dir
+            .t2
+            .inputs
+            .iter()
+            .map(|(key, value)| {
+                (
+                    key.clone(),
+                    R3InputMetadata {
+                        class_property_name: value.class_property_name.clone(),
+                        binding_property_name: value.binding_property_name.clone(),
+                        required: value.required,
+                        transform_function: value.transform.as_ref().map(|t| {
+                            Expression::ReadVar(ReadVarExpr {
+                                name: t.node.clone(),
+                                type_: None,
+                                source_span: None,
+                            })
+                        }),
+                        is_signal: value.is_signal,
+                    },
+                )
+            })
+            .collect();
 
-        let outputs = dir.t2.outputs.iter().map(|(key, value)| {
-            (key.clone(), value.binding_property_name.clone())
-        }).collect();
+        let outputs = dir
+            .t2
+            .outputs
+            .iter()
+            .map(|(key, value)| (key.clone(), value.binding_property_name.clone()))
+            .collect();
 
         // Helper to convert QueryMetadata to R3QueryMetadata
         let convert_query = |q: &crate::ngtsc::metadata::QueryMetadata| -> R3QueryMetadata {
-             R3QueryMetadata {
+            R3QueryMetadata {
                 property_name: q.property_name.clone(),
                 first: q.first,
                 predicate: R3QueryPredicate::Selectors(vec![q.selector.clone()]), // Simplified: assume selector string
@@ -193,7 +205,7 @@ impl DirectiveDecoratorHandler {
                 emit_distinct_changes_only: true,
                 read: q.read.as_ref().map(|r| {
                     // Start of rudimentary ReadToken parsing
-                     Expression::ReadVar(ReadVarExpr {
+                    Expression::ReadVar(ReadVarExpr {
                         name: r.clone(),
                         type_: None,
                         source_span: None,
@@ -204,19 +216,22 @@ impl DirectiveDecoratorHandler {
             }
         };
 
-        let view_queries: Vec<R3QueryMetadata> = dir.view_queries.iter().map(convert_query).collect();
+        let view_queries: Vec<R3QueryMetadata> =
+            dir.view_queries.iter().map(convert_query).collect();
         let queries: Vec<R3QueryMetadata> = dir.queries.iter().map(convert_query).collect();
 
         // Map host directives
         let host_directives = dir.host_directives.as_ref().map(|directives| {
-            directives.iter().filter_map(|d| {
-                d.directive.as_ref().map(|r| {
-                     // TODO: Resolve reference properly (import vs local)
-                     // Using debug_name() and best_guess_owning_module
-                     let name = r.debug_name().to_string();
-                     
-                     let expr = if let Some(module) = &r.best_guess_owning_module {
-                          Expression::External(ExternalExpr {
+            directives
+                .iter()
+                .filter_map(|d| {
+                    d.directive.as_ref().map(|r| {
+                        // TODO: Resolve reference properly (import vs local)
+                        // Using debug_name() and best_guess_owning_module
+                        let name = r.debug_name().to_string();
+
+                        let expr = if let Some(module) = &r.best_guess_owning_module {
+                            Expression::External(ExternalExpr {
                                 value: ExternalReference {
                                     module_name: Some(module.specifier.clone()),
                                     name: Some(name.clone()),
@@ -225,38 +240,51 @@ impl DirectiveDecoratorHandler {
                                 type_: None,
                                 source_span: None,
                             })
-                     } else {
-                         Expression::ReadVar(ReadVarExpr {
-                            name: name.clone(),
-                            type_: None,
-                            source_span: None,
-                        })
-                     };
+                        } else {
+                            Expression::ReadVar(ReadVarExpr {
+                                name: name.clone(),
+                                type_: None,
+                                source_span: None,
+                            })
+                        };
 
-                     angular_compiler::render3::view::api::R3HostDirectiveMetadata {
-                        directive: R3Reference {
-                            value: expr.clone(),
-                            type_expr: expr,
-                        },
-                        is_forward_reference: d.is_forward_reference,
-                        inputs: d.inputs.clone(),
-                        outputs: d.outputs.clone(),
-                     }
+                        angular_compiler::render3::view::api::R3HostDirectiveMetadata {
+                            directive: R3Reference {
+                                value: expr.clone(),
+                                type_expr: expr,
+                            },
+                            is_forward_reference: d.is_forward_reference,
+                            inputs: d.inputs.clone(),
+                            outputs: d.outputs.clone(),
+                        }
+                    })
                 })
-            }).collect()
+                .collect()
         });
 
         let r3_meta = R3DirectiveMetadata {
             name: dir.t2.name.clone(),
             type_: type_ref.clone(),
-            type_argument_count: 0, 
+            type_argument_count: 0,
             type_source_span: angular_compiler::parse_util::ParseSourceSpan::new(
-                 angular_compiler::parse_util::ParseLocation::new(
-                     std::sync::Arc::new(angular_compiler::parse_util::ParseSourceFile::new("".to_string(), "".to_string())), 0, 0, 0
-                 ),
-                 angular_compiler::parse_util::ParseLocation::new(
-                     std::sync::Arc::new(angular_compiler::parse_util::ParseSourceFile::new("".to_string(), "".to_string())), 0, 0, 0
-                 ),
+                angular_compiler::parse_util::ParseLocation::new(
+                    std::sync::Arc::new(angular_compiler::parse_util::ParseSourceFile::new(
+                        "".to_string(),
+                        "".to_string(),
+                    )),
+                    0,
+                    0,
+                    0,
+                ),
+                angular_compiler::parse_util::ParseLocation::new(
+                    std::sync::Arc::new(angular_compiler::parse_util::ParseSourceFile::new(
+                        "".to_string(),
+                        "".to_string(),
+                    )),
+                    0,
+                    0,
+                    0,
+                ),
             ),
             selector: dir.t2.selector.clone(),
             queries,
@@ -276,7 +304,8 @@ impl DirectiveDecoratorHandler {
 
         let mut constant_pool = angular_compiler::constant_pool::ConstantPool::new(false);
         let binding_parser_expr_parser = angular_compiler::expression_parser::parser::Parser::new();
-        let binding_parser_schema_registry = angular_compiler::schema::dom_element_schema_registry::DomElementSchemaRegistry::new();
+        let binding_parser_schema_registry =
+            angular_compiler::schema::dom_element_schema_registry::DomElementSchemaRegistry::new();
         let mut binding_parser = BindingParser::new(
             &binding_parser_expr_parser,
             &binding_parser_schema_registry,
@@ -285,76 +314,79 @@ impl DirectiveDecoratorHandler {
 
         // 2. Compile Directive Definition (ɵdir)
         // 2. Compile Directive Definition (ɵdir)
-        let compiled_dir = compile_directive_from_metadata(
-            &r3_meta,
-            &mut constant_pool,
-            &mut binding_parser
-        );
+        let compiled_dir =
+            compile_directive_from_metadata(&r3_meta, &mut constant_pool, &mut binding_parser);
 
         // 3. Compile Factory (ɵfac)
-        let deps: Option<angular_compiler::render3::r3_factory::DepsOrInvalid> = if dir.constructor_params.is_empty() {
-            // For now, if no params, we assume no constructor and no inheritance
-            // In a full implementation, we'd check dir.uses_inheritance
-            Some(DepsOrInvalid::Valid(vec![]))
-        } else {
-            let dep_list: Vec<R3DependencyMetadata> = dir.constructor_params.iter().map(|p| {
-                let token_expr = p.type_name.as_ref().map(|type_name| {
-                    match type_name.as_str() {
-                        "ElementRef" | "ChangeDetectorRef" | "Renderer2" | "ViewContainerRef" | "TemplateRef" | "Injector" => {
-                            Expression::External(ExternalExpr {
-                                value: ExternalReference {
-                                    module_name: Some("@angular/core".to_string()),
-                                    name: Some(type_name.clone()),
-                                    runtime: None,
-                                },
-                                type_: None,
-                                source_span: None,
-                            })
-                        },
-                        "NgControl" | "NgForm" | "ControlContainer" => {
-                             Expression::External(ExternalExpr {
-                                value: ExternalReference {
-                                    module_name: Some("@angular/forms".to_string()),
-                                    name: Some(type_name.clone()),
-                                    runtime: None,
-                                },
-                                type_: None,
-                                source_span: None,
-                            })
-                        },
-                        _ => Expression::ReadVar(ReadVarExpr {
-                            name: type_name.clone(),
-                            type_: None,
-                            source_span: None,
-                        }),
-                    }
-                });
+        let deps: Option<angular_compiler::render3::r3_factory::DepsOrInvalid> =
+            if dir.constructor_params.is_empty() {
+                // For now, if no params, we assume no constructor and no inheritance
+                // In a full implementation, we'd check dir.uses_inheritance
+                Some(DepsOrInvalid::Valid(vec![]))
+            } else {
+                let dep_list: Vec<R3DependencyMetadata> =
+                    dir.constructor_params
+                        .iter()
+                        .map(|p| {
+                            let token_expr = p.type_name.as_ref().map(|type_name| match type_name
+                                .as_str()
+                            {
+                                "ElementRef" | "ChangeDetectorRef" | "Renderer2"
+                                | "ViewContainerRef" | "TemplateRef" | "Injector" => {
+                                    Expression::External(ExternalExpr {
+                                        value: ExternalReference {
+                                            module_name: Some("@angular/core".to_string()),
+                                            name: Some(type_name.clone()),
+                                            runtime: None,
+                                        },
+                                        type_: None,
+                                        source_span: None,
+                                    })
+                                }
+                                "NgControl" | "NgForm" | "ControlContainer" => {
+                                    Expression::External(ExternalExpr {
+                                        value: ExternalReference {
+                                            module_name: Some("@angular/forms".to_string()),
+                                            name: Some(type_name.clone()),
+                                            runtime: None,
+                                        },
+                                        type_: None,
+                                        source_span: None,
+                                    })
+                                }
+                                _ => Expression::ReadVar(ReadVarExpr {
+                                    name: type_name.clone(),
+                                    type_: None,
+                                    source_span: None,
+                                }),
+                            });
 
-                let attribute_expr = p.attribute.as_ref().map(|attr| {
-                    Expression::Literal(LiteralExpr {
-                        value: LiteralValue::String(attr.clone()),
-                        type_: None,
-                        source_span: None,
-                    })
-                });
+                            let attribute_expr = p.attribute.as_ref().map(|attr| {
+                                Expression::Literal(LiteralExpr {
+                                    value: LiteralValue::String(attr.clone()),
+                                    type_: None,
+                                    source_span: None,
+                                })
+                            });
 
-                let token = if let Some(attr_expr) = &attribute_expr {
-                    Some(attr_expr.clone())
-                } else {
-                    token_expr
-                };
+                            let token = if let Some(attr_expr) = &attribute_expr {
+                                Some(attr_expr.clone())
+                            } else {
+                                token_expr
+                            };
 
-                 R3DependencyMetadata {
-                     token,
-                     attribute_name_type: attribute_expr,
-                     host: p.host,
-                     optional: p.optional,
-                     self_: p.self_,
-                     skip_self: p.skip_self,
-                 }
-            }).collect();
-            Some(DepsOrInvalid::Valid(dep_list))
-        };
+                            R3DependencyMetadata {
+                                token,
+                                attribute_name_type: attribute_expr,
+                                host: p.host,
+                                optional: p.optional,
+                                self_: p.self_,
+                                skip_self: p.skip_self,
+                            }
+                        })
+                        .collect();
+                Some(DepsOrInvalid::Valid(dep_list))
+            };
 
         let factory_meta = R3FactoryMetadata::Constructor(R3ConstructorFactoryMetadata {
             name: dir.t2.name.clone(),
@@ -371,25 +403,30 @@ impl DirectiveDecoratorHandler {
         let mut import_manager = crate::ngtsc::translator::src::import_manager::import_manager::EmitterImportManager::new();
 
         // Ensure @angular/core is always i0 for consistency (though not strictly required if dynamic)
-        let _ = import_manager.get_or_generate_alias("@angular/core"); 
+        let _ = import_manager.get_or_generate_alias("@angular/core");
 
         // Scan dependencies for external modules (from constructor params)
         for param in &dir.constructor_params {
             if let Some(module) = &param.from_module {
-                 import_manager.get_or_generate_alias(module);
+                import_manager.get_or_generate_alias(module);
             }
         }
-        
+
         let imports_map = import_manager.get_imports_map();
-        let additional_imports: Vec<(String, String)> = imports_map.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
-        
+        let additional_imports: Vec<(String, String)> = imports_map
+            .iter()
+            .map(|(k, v)| (v.clone(), k.clone()))
+            .collect();
+
         let mut emitter = AbstractJsEmitterVisitor::with_imports(imports_map);
         let mut ctx = EmitterVisitorContext::create_root();
-        
+
         // Emit Factory
         {
             let context: &mut dyn Any = &mut ctx;
-            compiled_fac.expression.visit_expression(&mut emitter, context);
+            compiled_fac
+                .expression
+                .visit_expression(&mut emitter, context);
         }
         let fac_initializer = ctx.to_source();
 
@@ -397,7 +434,9 @@ impl DirectiveDecoratorHandler {
         ctx = EmitterVisitorContext::create_root(); // Reset context for next emit
         {
             let context: &mut dyn Any = &mut ctx;
-            compiled_dir.expression.visit_expression(&mut emitter, context);
+            compiled_dir
+                .expression
+                .visit_expression(&mut emitter, context);
         }
         let dir_initializer = ctx.to_source();
 
@@ -419,7 +458,7 @@ impl DirectiveDecoratorHandler {
                 deferrable_imports: None,
                 diagnostics: vec![],
                 additional_imports,
-            }
+            },
         ]
     }
 }

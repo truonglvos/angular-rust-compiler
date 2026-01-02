@@ -5,10 +5,10 @@
 pub mod compilation;
 pub mod conversion;
 pub mod emit;
+mod host_binding_tests;
 pub mod ingest;
 pub mod ingest_helpers;
 mod ingest_test;
-mod host_binding_tests;
 pub mod instruction;
 pub mod phases;
 pub mod util;

@@ -579,7 +579,10 @@ mod tests {
             assert_eq!(*data, "MatButton");
         });
 
-        assert!(matched, "button[mat-button] should match <button mat-button>");
+        assert!(
+            matched,
+            "button[mat-button] should match <button mat-button>"
+        );
     }
 }
 

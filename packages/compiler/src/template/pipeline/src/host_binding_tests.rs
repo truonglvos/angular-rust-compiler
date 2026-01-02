@@ -1,4 +1,3 @@
-
 #[cfg(test)]
 mod tests {
     use crate::constant_pool::ConstantPool;
@@ -46,22 +45,28 @@ mod tests {
         run_host(&mut job);
 
         // Check hostAttrs (job.root.attributes)
-        assert!(
-            job.root.attributes.is_some(),
-            "hostAttrs should be present"
-        );
-        
+        assert!(job.root.attributes.is_some(), "hostAttrs should be present");
+
         if let Some(Expression::LiteralArray(arr)) = &job.root.attributes {
-             // We expect something like [AttributeMarker.Classes, "foo", AttributeMarker.Styles, "color", "red"] or similar
-             // Inspecting the actual structure might be intricate, but just asserting it's not empty and contains "foo" is a good start.
-             
-             let debug_str = format!("{:?}", arr);
-             assert!(debug_str.contains("foo"), "hostAttrs should contain class 'foo'");
-             // Styles are parsed into key/value pairs
-             assert!(debug_str.contains("color"), "hostAttrs should contain style key 'color'");
-             assert!(debug_str.contains("red"), "hostAttrs should contain style value 'red'");
+            // We expect something like [AttributeMarker.Classes, "foo", AttributeMarker.Styles, "color", "red"] or similar
+            // Inspecting the actual structure might be intricate, but just asserting it's not empty and contains "foo" is a good start.
+
+            let debug_str = format!("{:?}", arr);
+            assert!(
+                debug_str.contains("foo"),
+                "hostAttrs should contain class 'foo'"
+            );
+            // Styles are parsed into key/value pairs
+            assert!(
+                debug_str.contains("color"),
+                "hostAttrs should contain style key 'color'"
+            );
+            assert!(
+                debug_str.contains("red"),
+                "hostAttrs should contain style value 'red'"
+            );
         } else {
-             panic!("hostAttrs should be a LiteralArray");
+            panic!("hostAttrs should be a LiteralArray");
         }
 
         // Check hostBindings function - it should NOT contain generic style/class instruction if they were extracted

@@ -304,7 +304,6 @@ pub fn link_file(source_code: String, filename: String) -> Result<String> {
             }
         }
 
-
         fn transform_statements(&self, stmts: Vec<o::Statement>) -> Vec<o::Statement> {
             stmts
                 .into_iter()
@@ -616,12 +615,23 @@ pub fn link_file(source_code: String, filename: String) -> Result<String> {
                                                                         Some(target_name),
                                                                     );
 
-                                                                let js_code = if constant_pool.statements.is_empty() {
-                                                                    self.emit_expression(&result_expr)
+                                                                let js_code = if constant_pool
+                                                                    .statements
+                                                                    .is_empty()
+                                                                {
+                                                                    self.emit_expression(
+                                                                        &result_expr,
+                                                                    )
                                                                 } else {
-                                                                    let stmts_code =
-                                                                        self.emit_statements(constant_pool.statements);
-                                                                    let expr_code = self.emit_expression(&result_expr);
+                                                                    let stmts_code = self
+                                                                        .emit_statements(
+                                                                            constant_pool
+                                                                                .statements,
+                                                                        );
+                                                                    let expr_code = self
+                                                                        .emit_expression(
+                                                                            &result_expr,
+                                                                        );
                                                                     format!(
                                                                         "(function() {{ {} return {}; }})()",
                                                                         stmts_code, expr_code

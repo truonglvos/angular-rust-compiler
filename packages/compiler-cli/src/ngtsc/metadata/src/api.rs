@@ -43,8 +43,6 @@ pub enum BaseClass<'a> {
     Dynamic,
 }
 
-
-
 /// Metadata for a single input mapping.
 /// Matches TypeScript's InputMapping (L149-165)
 #[derive(Debug, Clone)]
@@ -233,9 +231,9 @@ pub struct ConstructorParam {
     pub from_module: Option<String>,
     /// Dependency flags.
     pub attribute: Option<String>, // @Attribute('name')
-    pub optional: bool, // @Optional()
-    pub host: bool, // @Host()
-    pub self_: bool, // @Self()
+    pub optional: bool,  // @Optional()
+    pub host: bool,      // @Host()
+    pub self_: bool,     // @Self()
     pub skip_self: bool, // @SkipSelf()
 }
 

@@ -10,13 +10,15 @@ use crate::render3::r3_identifiers::Identifiers as R3;
 use crate::render3::util::R3CompiledExpression;
 use crate::render3::view::api::{R3ComponentMetadata, R3TemplateDependencyMetadata};
 use crate::render3::view::compiler::compile_styles;
+use crate::render3::view::util::{
+    conditionally_create_directive_binding_literal, InputBindingValue,
+};
 use crate::template::pipeline::ir;
 use crate::template::pipeline::src::compilation::{
     CompilationJob, CompilationUnit, ComponentCompilationJob, HostBindingCompilationJob,
 };
 use crate::template::pipeline::src::instruction as ng;
 use indexmap::IndexMap;
-use crate::render3::view::util::{conditionally_create_directive_binding_literal, InputBindingValue};
 
 /// Helper to create R3 selector array from CssSelector
 /// Format: ["button", "mat-button", ""] for button[mat-button]
@@ -171,10 +173,8 @@ pub fn emit_component(
         if !selector_str.is_empty() {
             if let Ok(selectors) = CssSelector::parse(selector_str) {
                 // Create array of selector arrays
-                let selector_arrays: Vec<o::Expression> = selectors
-                    .iter()
-                    .map(|s| create_selector_array(s))
-                    .collect();
+                let selector_arrays: Vec<o::Expression> =
+                    selectors.iter().map(|s| create_selector_array(s)).collect();
                 o::Expression::LiteralArray(o::LiteralArrayExpr {
                     entries: selector_arrays,
                     type_: None,
@@ -226,7 +226,8 @@ pub fn emit_component(
     // viewQuery function for @ViewChild/@ViewChildren
     if !metadata.directive.view_queries.is_empty() {
         // eprintln!("DEBUG: [emit] Emitting viewQuery for {} queries", metadata.directive.view_queries.len());
-        let view_query_fn = emit_view_query_function(&metadata.directive.view_queries, &metadata.directive.name);
+        let view_query_fn =
+            emit_view_query_function(&metadata.directive.view_queries, &metadata.directive.name);
         definition_entries.push(o::LiteralMapEntry {
             key: "viewQuery".into(),
             value: Box::new(view_query_fn),
@@ -289,8 +290,6 @@ pub fn emit_component(
         value: Box::new(*o::literal(metadata.directive.is_standalone)),
         quoted: false,
     });
-
-
 
     // styles - shim CSS with [_ngcontent-%COMP%] selectors when Emulated encapsulation
     definition_entries.push(o::LiteralMapEntry {
@@ -435,7 +434,7 @@ pub fn emit_component(
     // Add dependencies if any - wrap in closure for deferred evaluation
     if !metadata.declarations.is_empty() {
         let mut dep_exprs: Vec<o::Expression> = vec![];
-        
+
         for (i, decl) in metadata.declarations.iter().enumerate() {
             let is_used = job.used_dependencies.contains(&i);
             let is_module = matches!(decl, R3TemplateDependencyMetadata::NgModule(_));
@@ -459,19 +458,19 @@ pub fn emit_component(
 
             let deps_value = match metadata.declaration_list_emit_mode {
                 crate::render3::view::api::DeclarationListEmitMode::Direct => deps_array,
-                crate::render3::view::api::DeclarationListEmitMode::Closure | 
-                crate::render3::view::api::DeclarationListEmitMode::ClosureResolved => {
+                crate::render3::view::api::DeclarationListEmitMode::Closure
+                | crate::render3::view::api::DeclarationListEmitMode::ClosureResolved => {
                     o::Expression::ArrowFn(o::ArrowFunctionExpr {
                         params: vec![],
                         body: o::ArrowFunctionBody::Expression(Box::new(deps_array)),
                         type_: None,
                         source_span: None,
                     })
-                },
+                }
                 crate::render3::view::api::DeclarationListEmitMode::RuntimeResolved => {
-                   // RuntimeResolved usually implies closure too in AOT context, or different handling.
-                   // For now treat as closure or todo.
-                   o::Expression::ArrowFn(o::ArrowFunctionExpr {
+                    // RuntimeResolved usually implies closure too in AOT context, or different handling.
+                    // For now treat as closure or todo.
+                    o::Expression::ArrowFn(o::ArrowFunctionExpr {
                         params: vec![],
                         body: o::ArrowFunctionBody::Expression(Box::new(deps_array)),
                         type_: None,
@@ -487,7 +486,6 @@ pub fn emit_component(
             });
         }
     }
-
 
     let definition = o::Expression::LiteralMap(o::LiteralMapExpr {
         entries: definition_entries,
@@ -827,26 +825,32 @@ pub fn emit_ops(job: &ComponentCompilationJob, ops: Vec<&dyn ir::Op>) -> Vec<o::
                         proj_op
                             .handle
                             .get_slot()
-                            .expect("Projection slot must be allocated") as f64,
+                            .expect("Projection slot must be allocated")
+                            as f64,
                     )];
                     if proj_op.projection_slot_index > 0 {
                         args.push(*o::literal(proj_op.projection_slot_index as f64));
                     }
                     if let Some(const_idx) = proj_op.attributes.as_ref() {
-                         // TODO: Support projection attributes (e.g. for fallback view)
-                         // For now, we only support basic projection
-                         // If attributes exist, we might need to handle them similar to directives
+                        // TODO: Support projection attributes (e.g. for fallback view)
+                        // For now, we only support basic projection
+                        // If attributes exist, we might need to handle them similar to directives
                     }
-                     // Fallback view handling (optional)
+                    // Fallback view handling (optional)
                     if let Some(fallback_view_xref) = proj_op.fallback_view {
-                         let fallback_view = if fallback_view_xref == job.root.xref {
-                             &job.root
-                         } else {
-                             job.views.get(&fallback_view_xref).expect("Fallback view not found")
-                         };
-                         let fn_name = fallback_view.fn_name().expect("Fallback view function name not assigned").to_string();
-                          // Fallback view not fully implemented yet in args, mimicking ngtsc might require more complex logic
-                          // But typically it's just projection(slot, selector, attrs)
+                        let fallback_view = if fallback_view_xref == job.root.xref {
+                            &job.root
+                        } else {
+                            job.views
+                                .get(&fallback_view_xref)
+                                .expect("Fallback view not found")
+                        };
+                        let fn_name = fallback_view
+                            .fn_name()
+                            .expect("Fallback view function name not assigned")
+                            .to_string();
+                        // Fallback view not fully implemented yet in args, mimicking ngtsc might require more complex logic
+                        // But typically it's just projection(slot, selector, attrs)
                     }
 
                     stmts.push(o::Statement::Expression(o::ExpressionStatement {
@@ -871,7 +875,7 @@ pub fn emit_ops(job: &ComponentCompilationJob, ops: Vec<&dyn ir::Op>) -> Vec<o::
                     } else {
                         vec![]
                     };
-                     stmts.push(o::Statement::Expression(o::ExpressionStatement {
+                    stmts.push(o::Statement::Expression(o::ExpressionStatement {
                         expr: Box::new(o::Expression::InvokeFn(o::InvokeFunctionExpr {
                             fn_: o::import_ref(R3::projection_def()),
                             args,
@@ -1295,7 +1299,7 @@ fn emit_view_query_function(
                 }
                 _ => String::new(),
             };
-            
+
             // Create _cN constant reference for the selector string
             // For simplicity, we'll use the selector string directly as a literal array
             let selector_arr = o::Expression::LiteralArray(o::LiteralArrayExpr {
@@ -1357,7 +1361,7 @@ fn emit_view_query_function(
 
         for query in view_queries {
             // i0.ɵɵqueryRefresh((_t = i0.ɵɵloadQuery())) && (ctx.propertyName = _t.first);
-            
+
             // loadQuery call
             let load_query = o::Expression::InvokeFn(o::InvokeFunctionExpr {
                 fn_: Box::new(o::Expression::External(o::ExternalExpr {

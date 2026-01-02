@@ -26,9 +26,9 @@ pub use src::api::{
     OwnedDirectiveMeta,
     OwningModule,
     PipeMeta,
+    QueryMetadata,
     // Reference types
     Reference,
-    QueryMetadata,
     T2DirectiveMeta,
     T2DirectiveMetadata,
     TemplateGuardMeta,

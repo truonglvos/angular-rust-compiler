@@ -1,16 +1,23 @@
 use std::path::{Path, PathBuf};
 
+use super::capturing_fs::CapturingFileSystem;
 use crate::ngtsc::core::NgCompilerOptions;
 use crate::ngtsc::file_system::NodeJSFileSystem;
 use crate::ngtsc::program::NgtscProgram;
-use super::capturing_fs::CapturingFileSystem;
 use std::time::Instant;
 
-pub fn parallel_compile(files: &[PathBuf], project_path: &Path) -> anyhow::Result<Vec<(PathBuf, String)>> {
+pub fn parallel_compile(
+    files: &[PathBuf],
+    project_path: &Path,
+) -> anyhow::Result<Vec<(PathBuf, String)>> {
     let start = Instant::now();
-    println!("Compiling {} files in parallel (via NgCompiler)...", files.len());
+    println!(
+        "Compiling {} files in parallel (via NgCompiler)...",
+        files.len()
+    );
 
-    let root_names: Vec<String> = files.iter()
+    let root_names: Vec<String> = files
+        .iter()
         .map(|p| p.to_string_lossy().to_string())
         .collect();
 
@@ -28,7 +35,9 @@ pub fn parallel_compile(files: &[PathBuf], project_path: &Path) -> anyhow::Resul
 
     // Initial analysis
     eprintln!("Analyzing structure...");
-    program.load_ng_structure(project_path).map_err(|e| anyhow::anyhow!(e))?;
+    program
+        .load_ng_structure(project_path)
+        .map_err(|e| anyhow::anyhow!(e))?;
 
     // Emit (compilation)
     eprintln!("Emitting code...");
@@ -45,7 +54,7 @@ pub fn parallel_compile(files: &[PathBuf], project_path: &Path) -> anyhow::Resul
     // Collect outputs from capturing_fs
     let mut results = Vec::new();
     let files_map = capturing_fs.files.lock().unwrap();
-    
+
     // Sort output for deterministic bundling (optional but good)
     let mut keys: Vec<_> = files_map.keys().collect();
     keys.sort();
@@ -57,6 +66,6 @@ pub fn parallel_compile(files: &[PathBuf], project_path: &Path) -> anyhow::Resul
     }
 
     // Fallback: if no files emitted (e.g. all errors), results is empty.
-    
+
     Ok(results)
 }

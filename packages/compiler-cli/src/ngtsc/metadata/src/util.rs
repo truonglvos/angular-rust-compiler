@@ -3,16 +3,16 @@
 //! This module contains functions for extracting Angular metadata from TypeScript AST.
 //! Matches TypeScript's util.ts
 
+use crate::ngtsc::imports::OwningModule;
 use oxc_ast::ast::Program;
 use oxc_ast::ast::{Declaration, Expression, ModuleDeclaration, ObjectPropertyKind, PropertyKey};
 use std::collections::HashMap;
-use crate::ngtsc::imports::OwningModule;
 
 use super::api::{
     ComponentMetadata, DecoratorMetadata, DirectiveMeta, DirectiveTypeCheckMeta, InjectableMeta,
     MatchSource, MetaKind, PipeMeta, Reference, T2DirectiveMetadata,
 };
-use super::property_mapping::{InputOrOutput, DecoratorInputTransform};
+use super::property_mapping::{DecoratorInputTransform, InputOrOutput};
 use crate::ngtsc::reflection::{
     ClassDeclaration, Decorator, ReflectionHost, TypeScriptReflectionHost,
 };
@@ -31,7 +31,6 @@ pub fn extract_directive_metadata<'a>(
         .as_ref()
         .map(|id| id.name.to_string())
         .unwrap_or_default();
-
 
     let mut meta = DirectiveMeta {
         kind: MetaKind::Directive,
@@ -109,7 +108,9 @@ pub fn extract_directive_metadata<'a>(
                                     "SkipSelf" => skip_self = true,
                                     "Attribute" => {
                                         if let Some(arg) = call.arguments.first() {
-                                            if let Some(Expression::StringLiteral(s)) = arg.as_expression() {
+                                            if let Some(Expression::StringLiteral(s)) =
+                                                arg.as_expression()
+                                            {
                                                 attribute = Some(s.value.to_string());
                                             }
                                         }
@@ -118,7 +119,7 @@ pub fn extract_directive_metadata<'a>(
                                 }
                             }
                         } else if let Expression::Identifier(ident) = &dec.expression {
-                             match ident.name.as_str() {
+                            match ident.name.as_str() {
                                 "Optional" => optional = true,
                                 "Host" => host = true,
                                 "Self" => self_ = true,
@@ -141,7 +142,6 @@ pub fn extract_directive_metadata<'a>(
                 }
                 break; // Only one constructor
             }
-
         }
     }
 
@@ -169,10 +169,17 @@ pub fn extract_directive_metadata<'a>(
                                             }
                                             Expression::ObjectExpression(obj) => {
                                                 for p in &obj.properties {
-                                                    if let ObjectPropertyKind::ObjectProperty(prop) = p {
+                                                    if let ObjectPropertyKind::ObjectProperty(
+                                                        prop,
+                                                    ) = p
+                                                    {
                                                         let key_name = match &prop.key {
-                                                            PropertyKey::StaticIdentifier(id) => Some(id.name.as_str()),
-                                                            PropertyKey::StringLiteral(s) => Some(s.value.as_str()),
+                                                            PropertyKey::StaticIdentifier(id) => {
+                                                                Some(id.name.as_str())
+                                                            }
+                                                            PropertyKey::StringLiteral(s) => {
+                                                                Some(s.value.as_str())
+                                                            }
                                                             _ => None,
                                                         };
 
@@ -260,7 +267,7 @@ pub fn extract_directive_metadata<'a>(
                             // Extract options from arguments
                             // input(initialValue, options) or input.required(options)
                             // model(initialValue, options) or model.required(options)
-                            
+
                             let options_arg = if is_required {
                                 call.arguments.first()
                             } else {
@@ -274,7 +281,9 @@ pub fn extract_directive_metadata<'a>(
                                         if let ObjectPropertyKind::ObjectProperty(op) = p {
                                             if let PropertyKey::StaticIdentifier(k) = &op.key {
                                                 if k.name == "alias" {
-                                                    if let Some(val) = extract_string_value(&op.value) {
+                                                    if let Some(val) =
+                                                        extract_string_value(&op.value)
+                                                    {
                                                         alias = val;
                                                     }
                                                 }
@@ -406,18 +415,18 @@ pub fn extract_directive_metadata<'a>(
                                 // Let's simplify and assume standard viewChild/contentChild for now.
                                 // Actually, checking if it is .required is tricky if it's a MemberExpression.
                                 // If it is "viewChild" identifier, it's the standard one.
-                                
+
                                 let mut selector: Option<String> = None;
                                 let mut _read: Option<String> = None;
 
                                 if let Some(arg) = call.arguments.first() {
-                                     match arg.as_expression() {
+                                    match arg.as_expression() {
                                         Some(Expression::StringLiteral(s)) => {
                                             selector = Some(s.value.to_string());
-                                        },
-                                         // Handle type reference or other selectors later
+                                        }
+                                        // Handle type reference or other selectors later
                                         _ => {}
-                                     }
+                                    }
                                 }
 
                                 if let Some(sel) = selector {
@@ -426,7 +435,7 @@ pub fn extract_directive_metadata<'a>(
                                         selector: sel,
                                         first,
                                         descendants: true, // Default for signals?
-                                        is_static: false, // Signals are dynamic
+                                        is_static: false,  // Signals are dynamic
                                         read: None,
                                         is_signal: true,
                                     };
@@ -460,7 +469,9 @@ pub fn extract_directive_metadata<'a>(
                                 let mut selector: Option<String> = None;
                                 if let Some(arg) = call.arguments.first() {
                                     selector = match arg.as_expression() {
-                                        Some(Expression::StringLiteral(s)) => Some(s.value.to_string()),
+                                        Some(Expression::StringLiteral(s)) => {
+                                            Some(s.value.to_string())
+                                        }
                                         _ => None,
                                     };
                                 }
@@ -468,34 +479,42 @@ pub fn extract_directive_metadata<'a>(
                                 // Extract options (second argument)
                                 let mut read = None;
                                 let mut descendants = !first;
-                                
+
                                 if let Some(arg) = call.arguments.get(1) {
-                                     if let Some(Expression::ObjectExpression(obj)) = arg.as_expression() {
-                                         for p in &obj.properties {
-                                             if let ObjectPropertyKind::ObjectProperty(prop) = p {
-                                                 let key = match &prop.key {
-                                                     PropertyKey::StaticIdentifier(id) => Some(id.name.as_str()),
-                                                     _ => None,
-                                                 };
-                                                 
-                                                 match key {
-                                                     Some("read") => {
-                                                          if let Expression::Identifier(id) = &prop.value {
-                                                              read = Some(id.name.to_string());
-                                                          }
-                                                     }
-                                                     Some("descendants") => {
-                                                          if let Expression::BooleanLiteral(b) = &prop.value {
-                                                              descendants = b.value;
-                                                          }
-                                                     }
-                                                     _ => {}
-                                                 }
-                                             }
-                                         }
-                                     }
+                                    if let Some(Expression::ObjectExpression(obj)) =
+                                        arg.as_expression()
+                                    {
+                                        for p in &obj.properties {
+                                            if let ObjectPropertyKind::ObjectProperty(prop) = p {
+                                                let key = match &prop.key {
+                                                    PropertyKey::StaticIdentifier(id) => {
+                                                        Some(id.name.as_str())
+                                                    }
+                                                    _ => None,
+                                                };
+
+                                                match key {
+                                                    Some("read") => {
+                                                        if let Expression::Identifier(id) =
+                                                            &prop.value
+                                                        {
+                                                            read = Some(id.name.to_string());
+                                                        }
+                                                    }
+                                                    Some("descendants") => {
+                                                        if let Expression::BooleanLiteral(b) =
+                                                            &prop.value
+                                                        {
+                                                            descendants = b.value;
+                                                        }
+                                                    }
+                                                    _ => {}
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
-                                
+
                                 if let Some(sel) = selector {
                                     let query_meta = super::api::QueryMetadata {
                                         property_name: prop_name.to_string(),
@@ -506,7 +525,7 @@ pub fn extract_directive_metadata<'a>(
                                         read,
                                         is_signal: false,
                                     };
-                                    
+
                                     if is_view {
                                         meta.view_queries.push(query_meta);
                                     } else {
@@ -534,7 +553,6 @@ pub fn extract_directive_metadata<'a>(
                     "ngOnDestroy" => meta.lifecycle.uses_on_destroy = true,
                     _ => {}
                 }
-
 
                 for dec in &method.decorators {
                     let mut is_host_listener = false;
@@ -792,25 +810,33 @@ pub fn extract_directive_metadata<'a>(
                                             if let Some(expr) = e.as_expression() {
                                                 if let Expression::Identifier(ident) = expr {
                                                     let ident_name = ident.name.as_str();
-                                                    let owning_module = imports_map.get(ident_name).map(|specifier| {
-                                                        OwningModule::new(specifier.clone(), source_file.to_string_lossy())
-                                                    });
+                                                    let owning_module = imports_map
+                                                        .get(ident_name)
+                                                        .map(|specifier| {
+                                                            OwningModule::new(
+                                                                specifier.clone(),
+                                                                source_file.to_string_lossy(),
+                                                            )
+                                                        });
 
                                                     if let Some(owning_module) = owning_module {
-                                                         // We can't use with_owning_module directly because it doesn't take span/source_file manually
-                                                         let mut r = Reference::from_name_with_span(
-                                                            ident_name.to_string(),
-                                                            Some(source_file.to_path_buf()),
-                                                            ident.span, 
-                                                         );
-                                                         r.best_guess_owning_module = Some(owning_module);
-                                                         return Some(r);
-                                                    } else {
-                                                        return Some(Reference::from_name_with_span(
+                                                        // We can't use with_owning_module directly because it doesn't take span/source_file manually
+                                                        let mut r = Reference::from_name_with_span(
                                                             ident_name.to_string(),
                                                             Some(source_file.to_path_buf()),
                                                             ident.span,
-                                                        ));
+                                                        );
+                                                        r.best_guess_owning_module =
+                                                            Some(owning_module);
+                                                        return Some(r);
+                                                    } else {
+                                                        return Some(
+                                                            Reference::from_name_with_span(
+                                                                ident_name.to_string(),
+                                                                Some(source_file.to_path_buf()),
+                                                                ident.span,
+                                                            ),
+                                                        );
                                                     }
                                                 }
                                             }
@@ -918,28 +944,34 @@ pub fn extract_directive_metadata<'a>(
                                 if let Expression::ArrayExpression(arr) = &prop.value {
                                     let mut directives = Vec::new();
                                     for elem in &arr.elements {
-                                         if let Some(expr) = elem.as_expression() {
-                                             // Can be Identifier (just the directive) or Object ({directive: ..., inputs: ..., outputs: ...})
-                                             let mut directive_ref = None;
-                                             let mut inputs = None;
-                                             let mut outputs = None;
+                                        if let Some(expr) = elem.as_expression() {
+                                            // Can be Identifier (just the directive) or Object ({directive: ..., inputs: ..., outputs: ...})
+                                            let mut directive_ref = None;
+                                            let mut inputs = None;
+                                            let mut outputs = None;
 
-                                             match expr {
-                                                 Expression::Identifier(ident) => {
-                                                     directive_ref = Some(Reference::from_name_with_span(
-                                                         ident.name.to_string(),
-                                                          Some(source_file.to_path_buf()),
-                                                          ident.span,
-                                                     ));
-                                                 }
-                                                 Expression::ObjectExpression(obj) => {
-                                                     for p in &obj.properties {
-                                                         if let ObjectPropertyKind::ObjectProperty(prop) = p {
-                                                             let key = match &prop.key {
-                                                                 PropertyKey::StaticIdentifier(id) => Some(id.name.as_str()),
-                                                                 _ => None,
-                                                             };
-                                                             match key {
+                                            match expr {
+                                                Expression::Identifier(ident) => {
+                                                    directive_ref =
+                                                        Some(Reference::from_name_with_span(
+                                                            ident.name.to_string(),
+                                                            Some(source_file.to_path_buf()),
+                                                            ident.span,
+                                                        ));
+                                                }
+                                                Expression::ObjectExpression(obj) => {
+                                                    for p in &obj.properties {
+                                                        if let ObjectPropertyKind::ObjectProperty(
+                                                            prop,
+                                                        ) = p
+                                                        {
+                                                            let key = match &prop.key {
+                                                                PropertyKey::StaticIdentifier(
+                                                                    id,
+                                                                ) => Some(id.name.as_str()),
+                                                                _ => None,
+                                                            };
+                                                            match key {
                                                                  Some("directive") => {
                                                                      if let Expression::Identifier(ident) = &prop.value {
                                                                          directive_ref = Some(Reference::from_name_with_span(
@@ -987,19 +1019,19 @@ pub fn extract_directive_metadata<'a>(
                                                                  }
                                                                  _ => {}
                                                              }
-                                                         }
-                                                     }
-                                                 }
-                                                 _ => {}
-                                             }
+                                                        }
+                                                    }
+                                                }
+                                                _ => {}
+                                            }
 
-                                             directives.push(super::api::HostDirectiveMeta {
-                                                 directive: directive_ref,
-                                                 is_forward_reference: false,
-                                                 inputs,
-                                                 outputs,
-                                             });
-                                         }
+                                            directives.push(super::api::HostDirectiveMeta {
+                                                directive: directive_ref,
+                                                is_forward_reference: false,
+                                                inputs,
+                                                outputs,
+                                            });
+                                        }
                                     }
                                     meta.host_directives = Some(directives);
                                 }
@@ -1134,9 +1166,15 @@ pub fn get_all_metadata<'a>(
                 if let Some(specifiers) = &import_decl.specifiers {
                     for spec in specifiers {
                         let local_name = match spec {
-                            oxc_ast::ast::ImportDeclarationSpecifier::ImportSpecifier(s) => s.local.name.as_str(),
-                            oxc_ast::ast::ImportDeclarationSpecifier::ImportDefaultSpecifier(s) => s.local.name.as_str(),
-                            oxc_ast::ast::ImportDeclarationSpecifier::ImportNamespaceSpecifier(s) => s.local.name.as_str(),
+                            oxc_ast::ast::ImportDeclarationSpecifier::ImportSpecifier(s) => {
+                                s.local.name.as_str()
+                            }
+                            oxc_ast::ast::ImportDeclarationSpecifier::ImportDefaultSpecifier(s) => {
+                                s.local.name.as_str()
+                            }
+                            oxc_ast::ast::ImportDeclarationSpecifier::ImportNamespaceSpecifier(
+                                s,
+                            ) => s.local.name.as_str(),
                         };
                         imports_map.insert(local_name.to_string(), source.to_string());
                     }
@@ -1257,18 +1295,18 @@ mod tests {
             }
             None
         }
-        
+
         fn find_declaration(&self, name: &str) -> Option<&ast::Declaration<'a>> {
             for stmt in &self.program.body {
                 if let ast::Statement::ExportNamedDeclaration(decl) = stmt {
                     if let Some(declaration) = &decl.declaration {
-                         if let ast::Declaration::ClassDeclaration(class) = declaration {
+                        if let ast::Declaration::ClassDeclaration(class) = declaration {
                             if let Some(id) = &class.id {
                                 if id.name == name {
                                     return Some(declaration);
                                 }
                             }
-                         }
+                        }
                     }
                 }
             }
@@ -1299,36 +1337,46 @@ mod tests {
                 @Input() regular: string;
             }
         "#;
-        
+
         let allocator = Allocator::default();
         let program = TestProgram::new(&allocator, source);
-        let class_decl = program.find_class("TestComponent").expect("Class not found");
-        
+        let class_decl = program
+            .find_class("TestComponent")
+            .expect("Class not found");
+
         let host = TypeScriptReflectionHost::new();
         // find declaration to get decorators
-        let decl = program.find_declaration("TestComponent").expect("Declaration not found");
+        let decl = program
+            .find_declaration("TestComponent")
+            .expect("Declaration not found");
         let decorators = host.get_decorators_of_declaration(decl);
-        let decorator = decorators.iter().find(|d| d.name == "Component").expect("Component decorator not found");
-        
+        let decorator = decorators
+            .iter()
+            .find(|d| d.name == "Component")
+            .expect("Component decorator not found");
+
         let path = std::path::Path::new("test.ts");
         let imports = HashMap::new(); // Empty imports map for this test
-        
-        let metadata = extract_directive_metadata(
-            class_decl,
-            decorator,
-            true,
-            path,
-            &imports
-        ).expect("Metadata extraction failed");
-        
+
+        let metadata = extract_directive_metadata(class_decl, decorator, true, path, &imports)
+            .expect("Metadata extraction failed");
+
         if let DecoratorMetadata::Directive(dir) = metadata {
             // Verify 'checked' model
-            let checked = dir.t2.inputs.get("checked").expect("checked input not found");
+            let checked = dir
+                .t2
+                .inputs
+                .get("checked")
+                .expect("checked input not found");
             assert!(checked.is_signal);
             assert_eq!(checked.binding_property_name, "checked");
             assert!(!checked.required);
-            
-            let checked_out = dir.t2.outputs.get("checked").expect("checked output not found");
+
+            let checked_out = dir
+                .t2
+                .outputs
+                .get("checked")
+                .expect("checked output not found");
             assert_eq!(checked_out.binding_property_name, "checkedChange");
 
             // Verify 'maybe' model with alias
@@ -1336,19 +1384,26 @@ mod tests {
             assert!(maybe.is_signal);
             assert_eq!(maybe.binding_property_name, "val"); // Alias used
             assert!(!maybe.required);
-            
+
             let maybe_out = dir.t2.outputs.get("maybe").expect("maybe output not found");
             assert_eq!(maybe_out.binding_property_name, "valChange"); // Alias + Change
 
             // Verify 'disabled' required model with alias
-            let disabled = dir.t2.inputs.get("disabled").expect("disabled input not found");
+            let disabled = dir
+                .t2
+                .inputs
+                .get("disabled")
+                .expect("disabled input not found");
             assert!(disabled.is_signal);
             assert_eq!(disabled.binding_property_name, "isDisabled");
             assert!(disabled.required);
-            
-            let disabled_out = dir.t2.outputs.get("disabled").expect("disabled output not found");
-            assert_eq!(disabled_out.binding_property_name, "isDisabledChange");
 
+            let disabled_out = dir
+                .t2
+                .outputs
+                .get("disabled")
+                .expect("disabled output not found");
+            assert_eq!(disabled_out.binding_property_name, "isDisabledChange");
         } else {
             panic!("Expected Directive metadata");
         }
@@ -1384,51 +1439,74 @@ mod tests {
         let allocator = Allocator::default();
         let test_program = TestProgram::new(&allocator, source);
         let class_decl = test_program.find_class("TestComponent").unwrap();
-        
+
         let host = TypeScriptReflectionHost::new();
         // find declaration to get decorators
-        let decl = test_program.find_declaration("TestComponent").expect("Declaration not found");
+        let decl = test_program
+            .find_declaration("TestComponent")
+            .expect("Declaration not found");
         let decorators = host.get_decorators_of_declaration(decl);
-        let decorator = decorators.iter().find(|d| d.name == "Component").expect("Component decorator not found");
-        
+        let decorator = decorators
+            .iter()
+            .find(|d| d.name == "Component")
+            .expect("Component decorator not found");
+
         let path = std::path::Path::new("test.ts");
         let imports = HashMap::new(); // Empty imports map for this test
 
         let meta = extract_directive_metadata(
-            class_decl,
-            decorator,
-            true, // is_component
-            path,
-            &imports
-        ).expect("Metadata extraction failed");
+            class_decl, decorator, true, // is_component
+            path, &imports,
+        )
+        .expect("Metadata extraction failed");
 
         if let DecoratorMetadata::Directive(dir) = meta {
-             // Verify Signal View Child
-            let v_child = dir.view_queries.iter().find(|q| q.property_name == "vChild").expect("vChild not found");
+            // Verify Signal View Child
+            let v_child = dir
+                .view_queries
+                .iter()
+                .find(|q| q.property_name == "vChild")
+                .expect("vChild not found");
             assert_eq!(v_child.selector, "vRef");
             assert!(v_child.first);
             assert!(v_child.is_signal);
-            
+
             // Verify Signal View Children
-            let v_children = dir.view_queries.iter().find(|q| q.property_name == "vChildren").expect("vChildren not found");
+            let v_children = dir
+                .view_queries
+                .iter()
+                .find(|q| q.property_name == "vChildren")
+                .expect("vChildren not found");
             assert_eq!(v_children.selector, "vRef");
             assert!(!v_children.first);
             assert!(v_children.is_signal);
-            
+
             // Verify Signal Content Child
-            let c_child = dir.queries.iter().find(|q| q.property_name == "cChild").expect("cChild not found");
+            let c_child = dir
+                .queries
+                .iter()
+                .find(|q| q.property_name == "cChild")
+                .expect("cChild not found");
             assert_eq!(c_child.selector, "cRef");
             assert!(c_child.first);
             assert!(c_child.is_signal);
-            
+
             // Verify Signal Content Children
-            let c_children = dir.queries.iter().find(|q| q.property_name == "cChildren").expect("cChildren not found");
+            let c_children = dir
+                .queries
+                .iter()
+                .find(|q| q.property_name == "cChildren")
+                .expect("cChildren not found");
             assert_eq!(c_children.selector, "cRef");
             assert!(!c_children.first);
             assert!(c_children.is_signal);
-            
+
             // Verify Decorator View Child
-            let dec_child = dir.view_queries.iter().find(|q| q.property_name == "decChild").expect("decChild not found");
+            let dec_child = dir
+                .view_queries
+                .iter()
+                .find(|q| q.property_name == "decChild")
+                .expect("decChild not found");
             assert_eq!(dec_child.selector, "decRef");
             assert!(dec_child.first);
             assert!(!dec_child.is_signal);
@@ -1462,45 +1540,47 @@ mod tests {
             })
             export class TestComponent {}
         "#;
-        
+
         let allocator = Allocator::default();
         let program = TestProgram::new(&allocator, source);
-        let class_decl = program.find_class("TestComponent").expect("Class not found");
-        
+        let class_decl = program
+            .find_class("TestComponent")
+            .expect("Class not found");
+
         let host = TypeScriptReflectionHost::new();
-        let decl = program.find_declaration("TestComponent").expect("Declaration not found");
+        let decl = program
+            .find_declaration("TestComponent")
+            .expect("Declaration not found");
         let decorators = host.get_decorators_of_declaration(decl);
-        let decorator = decorators.iter().find(|d| d.name == "Component").expect("Component decorator not found");
-        
+        let decorator = decorators
+            .iter()
+            .find(|d| d.name == "Component")
+            .expect("Component decorator not found");
+
         let path = std::path::Path::new("test.ts");
         let imports = HashMap::new();
-        
-        let metadata = extract_directive_metadata(
-            class_decl,
-            decorator,
-            true,
-            path,
-            &imports
-        ).expect("Metadata extraction failed");
-        
+
+        let metadata = extract_directive_metadata(class_decl, decorator, true, path, &imports)
+            .expect("Metadata extraction failed");
+
         if let DecoratorMetadata::Directive(dir) = metadata {
             let host_dirs = dir.host_directives.expect("hostDirectives not found");
             assert_eq!(host_dirs.len(), 2);
-            
+
             // First: HostDir (simple)
             let hd1 = &host_dirs[0];
             assert_eq!(hd1.directive.as_ref().unwrap().debug_name(), "HostDir");
             assert!(hd1.inputs.is_none());
             assert!(hd1.outputs.is_none());
-            
+
             // Second: Object with inputs/outputs
             let hd2 = &host_dirs[1];
             assert_eq!(hd2.directive.as_ref().unwrap().debug_name(), "HostDir");
-            
+
             let inputs = hd2.inputs.as_ref().expect("inputs not found");
             assert_eq!(inputs.get("input1"), Some(&"alias1".to_string()));
             assert_eq!(inputs.get("input2"), Some(&"input2".to_string()));
-            
+
             let outputs = hd2.outputs.as_ref().expect("outputs not found");
             assert_eq!(outputs.get("output1"), Some(&"alias1".to_string()));
             assert_eq!(outputs.get("output2"), Some(&"output2".to_string()));

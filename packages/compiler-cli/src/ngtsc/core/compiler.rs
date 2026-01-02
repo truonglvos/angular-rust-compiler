@@ -52,10 +52,7 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
         }
     }
 
-    pub fn analyze_async(
-        &mut self,
-        root_names: &[String],
-    ) -> Result<CompilationResult, String> {
+    pub fn analyze_async(&mut self, root_names: &[String]) -> Result<CompilationResult, String> {
         // eprintln!("DEBUG: NgCompiler::analyze_async called with {} root files", root_names.len());
         let mut result = CompilationResult::default();
         let metadata_reader = OxcMetadataReader;
@@ -111,11 +108,11 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                                     Ok(content) => {
                                         // eprintln!("DEBUG: Successfully read template file: {}", template_path);
                                         Some(content)
-                                    },
+                                    }
                                     Err(e) => {
                                         // eprintln!("DEBUG: Failed to read template file: {} (Error: {})", template_path, e);
                                         None
-                                    },
+                                    }
                                 }
                             } else {
                                 None
@@ -292,7 +289,7 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                             // Track failed properties that couldn't be parsed (accumulated across all directives)
                             let mut failed_properties: Vec<super::ast_transformer::FailedProperty> = Vec::new();
                             let mut last_def_name = "ɵcmp".to_string(); // Default, will be updated for each directive
-                            
+
                             for directive in directives {
                                 let (compiled_results, directive_name) = match directive {
                                     DecoratorMetadata::Directive(dir) => {
@@ -420,7 +417,7 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                                 ..oxc_codegen::CodegenOptions::default()
                             });
                             let mut code = codegen.build(&parse_result.program).code;
-                            
+
                             // Replace placeholders with real expressions
                             for prop in &failed_properties {
                                 // Codegen for string literals with single_quote: true will be 'placeholder'
@@ -619,54 +616,55 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
             }));
         }
 
-
-        
         // Wait, I can't easily change the `if let` structure without rewriting more lines.
         // `compiled_results` is used in loop at line 592 (by reference).
         // Then line 604 consumes it `into_iter`.
-        
+
         // Strategy:
         // 1. Find main result by reference first.
         // 2. If found, proceed.
         // 3. Inside, iterate over `compiled_results` (which was not consumed if I change line 604 to `iter()`).
-        
+
         let main_result = compiled_results
-             .iter()
-             .find(|r| r.name == "ɵcmp" || r.name == "ɵdir");
-             
+            .iter()
+            .find(|r| r.name == "ɵcmp" || r.name == "ɵdir");
+
         if let Some(r) = main_result {
-             if let Some(initializer) = &r.initializer {
-                 // Logic here
-             }
+            if let Some(initializer) = &r.initializer {
+                // Logic here
+            }
         }
-        
+
         // BUT the replacement target is the `if let` block.
         // So I will replace the `if let` block with the new logic.
-        
+
         // New block:
-        let main_result_ref = compiled_results.iter().find(|r| r.name == "ɵcmp" || r.name == "ɵdir");
+        let main_result_ref = compiled_results
+            .iter()
+            .find(|r| r.name == "ɵcmp" || r.name == "ɵdir");
         if let Some(main_res) = main_result_ref {
             if let Some(initializer) = &main_res.initializer {
-                let mut import_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
-                
+                let mut import_map: std::collections::HashMap<String, String> =
+                    std::collections::HashMap::new();
+
                 // Collect imports from ALL results (fac, dir, etc)
                 for res in &compiled_results {
                     for (alias, module) in &res.additional_imports {
                         import_map.insert(alias.clone(), module.clone());
                     }
                 }
-                
+
                 // Generate imports string
                 let mut import_stmts = String::new();
                 let mut sorted_aliases: Vec<_> = import_map.keys().collect();
                 sorted_aliases.sort();
-                
+
                 for alias in sorted_aliases {
                     let module = import_map.get(alias).unwrap();
                     import_stmts.push_str(&format!("import * as {} from '{}';\n", alias, module));
                 }
-                
-                 let final_content = if let Some(src_file) = source_file.as_ref() {
+
+                let final_content = if let Some(src_file) = source_file.as_ref() {
                     let source_path =
                         crate::ngtsc::file_system::AbsoluteFsPath::from(src_file.as_path());
                     match fs.read_file(&source_path) {
@@ -690,7 +688,7 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                     let file_name = src_file.file_name().unwrap_or_default();
                     let file_name_str = file_name.to_string_lossy();
                     let js_name = file_name_str.replace(".ts", ".js");
-    
+
                     for out_path in compilation_files {
                         if out_path.ends_with(&js_name) {
                             let _ = fs.write_file(
@@ -774,4 +772,3 @@ fn extract_and_remove_imports(code: &str) -> (Vec<String>, String) {
 
     (imports, remaining_lines.join("\n"))
 }
-

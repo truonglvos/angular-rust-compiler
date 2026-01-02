@@ -408,9 +408,8 @@ fn maybe_record_directive_usage(
     let used_deps_clone: Vec<usize> = used_dependencies.iter().copied().collect();
 
     // DEBUG: Trace matching for ALL elements
-    // eprintln!("DEBUG: [ingest] Component: {}, Match Element: {}, Attrs: {:?}, Directives Found: {}, Matched Indices: {:?}, Used Dependencies: {:?}", 
+    // eprintln!("DEBUG: [ingest] Component: {}, Match Element: {}, Attrs: {:?}, Directives Found: {}, Matched Indices: {:?}, Used Dependencies: {:?}",
     //     component_name, tag_name, selector.attrs, has_directives, matched_indices, used_deps_clone);
-
 
     has_directives
 }

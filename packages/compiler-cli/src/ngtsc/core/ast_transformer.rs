@@ -55,7 +55,7 @@ pub fn transform_component_ast<'a>(
         def_expr_str,
         def_name,
     );
-    
+
     raw_suffix
 }
 
@@ -64,7 +64,9 @@ pub fn remove_angular_decorators<'a>(program: &mut Program<'a>, class_name: &str
     for stmt in &mut program.body {
         match stmt {
             Statement::ExportDefaultDeclaration(export_decl) => {
-                if let ExportDefaultDeclarationKind::ClassDeclaration(class) = &mut export_decl.declaration {
+                if let ExportDefaultDeclarationKind::ClassDeclaration(class) =
+                    &mut export_decl.declaration
+                {
                     if class.id.as_ref().map(|id| id.name.as_str()) == Some(class_name) {
                         remove_decorators_from_class(class);
                     }
@@ -124,15 +126,17 @@ fn remove_decorators_from_class(class: &mut Class) {
                     let decorator_name = get_decorator_name(decorator);
                     !member_decorators.contains(&decorator_name.as_str())
                 });
-                
+
                 // If it's a constructor, also remove decorators from parameters
                 if method.kind == MethodDefinitionKind::Constructor {
                     for param in &mut method.value.params.items {
                         param.decorators.retain(|decorator| {
                             let decorator_name = get_decorator_name(decorator);
-                             // Also remove dependency injection decorators
-                            let di_decorators = ["Optional", "Self", "SkipSelf", "Host", "Attribute"];
-                            let should_keep = !member_decorators.contains(&decorator_name.as_str()) && !di_decorators.contains(&decorator_name.as_str());
+                            // Also remove dependency injection decorators
+                            let di_decorators =
+                                ["Optional", "Self", "SkipSelf", "Host", "Attribute"];
+                            let should_keep = !member_decorators.contains(&decorator_name.as_str())
+                                && !di_decorators.contains(&decorator_name.as_str());
                             should_keep
                         });
                     }
@@ -210,7 +214,7 @@ fn add_static_properties_to_class<'a>(
     let mut failed_def = false;
     let mut class_found = false;
     let mut class_stmt_idx = None;
-    
+
     // Find the class declaration and add static properties
     for (idx, stmt) in program.body.iter_mut().enumerate() {
         match stmt {
@@ -257,9 +261,9 @@ fn add_static_properties_to_class<'a>(
             _ => {}
         }
     }
-    
+
     let mut failed_properties = Vec::new();
-    
+
     if class_found {
         use oxc_parser::Parser;
         use oxc_span::SourceType;
@@ -286,7 +290,14 @@ fn add_static_properties_to_class<'a>(
                 for stmt in result.program.body {
                     stmts_to_insert.push(stmt);
                 }
-                add_placeholder_to_class(allocator, program, component_name, "ɵfac", fac_expr_str, &mut failed_properties);
+                add_placeholder_to_class(
+                    allocator,
+                    program,
+                    component_name,
+                    "ɵfac",
+                    fac_expr_str,
+                    &mut failed_properties,
+                );
             }
         }
 
@@ -301,7 +312,14 @@ fn add_static_properties_to_class<'a>(
                 for stmt in result.program.body {
                     stmts_to_insert.push(stmt);
                 }
-                add_placeholder_to_class(allocator, program, component_name, def_name, def_expr_str, &mut failed_properties);
+                add_placeholder_to_class(
+                    allocator,
+                    program,
+                    component_name,
+                    def_name,
+                    def_expr_str,
+                    &mut failed_properties,
+                );
             }
         }
 
@@ -312,7 +330,7 @@ fn add_static_properties_to_class<'a>(
             }
         }
     }
-    
+
     failed_properties
 }
 
@@ -328,25 +346,43 @@ fn add_placeholder_to_class<'a>(
     let ast = AstBuilder::new(allocator);
     let placeholder = format!("__NG_RAW_{}_{}__", class_name, prop_name);
     let placeholder_expr = format!("'{}'", placeholder);
-    
+
     // Find class again and push PropertyDefinition
     for stmt in program.body.iter_mut() {
         let class = match stmt {
             Statement::ExportNamedDeclaration(export_decl) => {
                 if let Some(Declaration::ClassDeclaration(class)) = &mut export_decl.declaration {
-                    if class.id.as_ref().map(|id| id.name.as_str()) == Some(class_name) { Some(class) } else { None }
-                } else { None }
+                    if class.id.as_ref().map(|id| id.name.as_str()) == Some(class_name) {
+                        Some(class)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             }
             Statement::ClassDeclaration(class) => {
-                if class.id.as_ref().map(|id| id.name.as_str()) == Some(class_name) { Some(class) } else { None }
+                if class.id.as_ref().map(|id| id.name.as_str()) == Some(class_name) {
+                    Some(class)
+                } else {
+                    None
+                }
             }
             _ => None,
         };
-        
+
         if let Some(class) = class {
-            if let Some(prop_def) = create_static_property(allocator, &ast, prop_name, allocator.alloc_str(&placeholder_expr)) {
-                class.body.body.push(ClassElement::PropertyDefinition(prop_def));
-                
+            if let Some(prop_def) = create_static_property(
+                allocator,
+                &ast,
+                prop_name,
+                allocator.alloc_str(&placeholder_expr),
+            ) {
+                class
+                    .body
+                    .body
+                    .push(ClassElement::PropertyDefinition(prop_def));
+
                 failed_properties.push(FailedProperty {
                     class_name: class_name.to_string(),
                     prop_name: prop_name.to_string(),
@@ -370,11 +406,11 @@ fn add_properties_to_class_body<'a>(
     let ast = AstBuilder::new(allocator);
     let mut f_ok = false;
     let mut d_ok = false;
-    
+
     // Find the last non-constructor method to insert static properties after it
     // This ensures ɵfac and ɵdir are at the very end, after all methods
     let mut insert_position = class.body.body.len();
-    
+
     // Search from the end to find the last method (not constructor)
     for (idx, element) in class.body.body.iter().enumerate().rev() {
         if let ClassElement::MethodDefinition(method) = element {
@@ -385,7 +421,7 @@ fn add_properties_to_class_body<'a>(
             }
         }
     }
-    
+
     // If no regular methods found, find the last element of any type (constructor, property, etc.)
     // This handles classes with only constructor and properties
     if insert_position == class.body.body.len() {
@@ -395,24 +431,37 @@ fn add_properties_to_class_body<'a>(
             break;
         }
     }
-    
+
     if !fac_expr_str.is_empty() {
-        if let Some(mut prop_def) = create_static_property(allocator, &ast, "ɵfac", allocator.alloc_str(fac_expr_str)) {
+        if let Some(mut prop_def) =
+            create_static_property(allocator, &ast, "ɵfac", allocator.alloc_str(fac_expr_str))
+        {
             prop_def.span = oxc_ast::ast::Span::default();
-            class.body.body.insert(insert_position, ClassElement::PropertyDefinition(prop_def));
+            class
+                .body
+                .body
+                .insert(insert_position, ClassElement::PropertyDefinition(prop_def));
             f_ok = true;
             insert_position += 1; // Update for next insertion
         }
     }
 
     if !def_expr_str.is_empty() {
-        if let Some(mut prop_def) = create_static_property(allocator, &ast, prop_name, allocator.alloc_str(def_expr_str)) {
+        if let Some(mut prop_def) = create_static_property(
+            allocator,
+            &ast,
+            prop_name,
+            allocator.alloc_str(def_expr_str),
+        ) {
             prop_def.span = oxc_ast::ast::Span::default();
-            class.body.body.insert(insert_position, ClassElement::PropertyDefinition(prop_def));
+            class
+                .body
+                .body
+                .insert(insert_position, ClassElement::PropertyDefinition(prop_def));
             d_ok = true;
         }
     }
-    
+
     (f_ok, d_ok)
 }
 
@@ -428,10 +477,7 @@ fn create_static_property<'a>(
     use oxc_span::SourceType;
     use std::ptr;
 
-    let template_str = format!(
-        "class _ {{ static {} = {}; }}",
-        prop_name, expr_str
-    );
+    let template_str = format!("class _ {{ static {} = {}; }}", prop_name, expr_str);
     let template = allocator.alloc_str(&template_str);
     let source_type = SourceType::mjs();
     let parser = Parser::new(allocator, template, source_type);
@@ -466,31 +512,31 @@ fn create_static_property<'a>(
                 unsafe {
                     let expr_ptr = &expr_stmt.expression as *const Expression<'a>;
                     let expr_copy = ptr::read(expr_ptr);
-                    
+
                     // Create the identifier for property name
-                    let key = PropertyKey::StaticIdentifier(ast.alloc(
-                        ast.identifier_name(SPAN, ast.atom(prop_name))
-                    ));
-                    
+                    let key = PropertyKey::StaticIdentifier(
+                        ast.alloc(ast.identifier_name(SPAN, ast.atom(prop_name))),
+                    );
+
                     // Create PropertyDefinition with correct OXC API argument order:
                     // (span, type, decorators, key, type_annotation, value, computed, static, ...)
                     let prop_def = ast.alloc_property_definition(
                         SPAN,
                         PropertyDefinitionType::PropertyDefinition,
-                        ast.vec(),  // decorators
+                        ast.vec(), // decorators
                         key,
-                        None::<oxc_allocator::Box<'a, oxc_ast::ast::TSTypeAnnotation<'a>>>,  // type_annotation
-                        Some(expr_copy),  // value: Option<Expression>
-                        false,  // computed
-                        true,   // static_
-                        false,  // declare
-                        false,  // r#override
-                        false,  // optional
-                        false,  // definite
-                        false,  // readonly
-                        None,   // accessibility
+                        None::<oxc_allocator::Box<'a, oxc_ast::ast::TSTypeAnnotation<'a>>>, // type_annotation
+                        Some(expr_copy), // value: Option<Expression>
+                        false,           // computed
+                        true,            // static_
+                        false,           // declare
+                        false,           // r#override
+                        false,           // optional
+                        false,           // definite
+                        false,           // readonly
+                        None,            // accessibility
                     );
-                    
+
                     return Some(prop_def);
                 }
             }
@@ -503,14 +549,14 @@ fn create_static_property<'a>(
     } else {
         expr_str
     };
-    
+
     let stripped_template = allocator.alloc_str(&format!(
         "class _ {{ static {} = {}; }}",
         prop_name, stripped
     ));
     let stripped_parser = Parser::new(allocator, stripped_template, source_type);
     let stripped_result = stripped_parser.parse();
-    
+
     if stripped_result.errors.is_empty() {
         for stmt in &stripped_result.program.body {
             if let Statement::ClassDeclaration(class_decl) = stmt {
@@ -526,7 +572,7 @@ fn create_static_property<'a>(
             }
         }
     }
-    
+
     None
 }
 
@@ -560,17 +606,20 @@ fn ensure_imports<'a>(
             if !has_import {
                 // Create: import { Symbol } from 'module_path';
                 let local = ast.binding_identifier(SPAN, ast.atom(symbol_name));
-                let imported = ModuleExportName::IdentifierName(ast.identifier_name(SPAN, ast.atom(symbol_name)));
-                
-                let import_specifier = ast.import_specifier(SPAN, imported, local, ImportOrExportKind::Value);
+                let imported = ModuleExportName::IdentifierName(
+                    ast.identifier_name(SPAN, ast.atom(symbol_name)),
+                );
+
+                let import_specifier =
+                    ast.import_specifier(SPAN, imported, local, ImportOrExportKind::Value);
 
                 let source = ast.string_literal(SPAN, ast.atom(module_path), None);
 
                 let import_decl = ast.module_declaration_import_declaration(
                     SPAN,
-                    Some(ast.vec1(ImportDeclarationSpecifier::ImportSpecifier(ast.alloc(
-                        import_specifier,
-                    )))),
+                    Some(ast.vec1(ImportDeclarationSpecifier::ImportSpecifier(
+                        ast.alloc(import_specifier),
+                    ))),
                     source,
                     None,
                     None::<oxc_allocator::Box<'_, WithClause<'_>>>,
@@ -595,7 +644,7 @@ fn ensure_imports<'a>(
                     if import.source.value.as_str() == module_path {
                         if let Some(specifiers) = &import.specifiers {
                             return specifiers.iter().any(|s| {
-                                matches!(s, ImportDeclarationSpecifier::ImportNamespaceSpecifier(ns) 
+                                matches!(s, ImportDeclarationSpecifier::ImportNamespaceSpecifier(ns)
                                     if ns.local.name.as_str() == alias)
                             });
                         }

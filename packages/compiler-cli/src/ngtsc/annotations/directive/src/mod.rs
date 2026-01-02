@@ -11,9 +11,7 @@ pub mod query_functions;
 pub mod symbol;
 
 // Re-exports
-pub use handler::{
-    DirectiveDecoratorHandler, DirectiveHandlerData,
-};
+pub use handler::{DirectiveDecoratorHandler, DirectiveHandlerData};
 pub use initializer_function_access::{
     validate_access_of_initializer_api_member, AccessLevel, AccessLevelError, InitializerApiConfig,
 };

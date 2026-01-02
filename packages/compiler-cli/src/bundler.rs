@@ -1,9 +1,9 @@
-use std::path::{Path, PathBuf};
-use crate::config::angular::{AngularConfig, BuildOptions};
-use glob::glob;
 use crate::compile::parallel::parallel_compile;
+use crate::config::angular::{AngularConfig, BuildOptions};
 use anyhow::Result;
+use glob::glob;
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 pub struct BundleResult {
     pub bundle_js: String,
@@ -16,22 +16,28 @@ pub struct BundleResult {
 pub fn bundle_project(project_path: &Path) -> Result<BundleResult> {
     // 1. Load configuration
     let config = AngularConfig::load(project_path)?;
-    let (name, project) = config.projects.iter().next().ok_or_else(|| anyhow::anyhow!("No project found"))?;
+    let (name, project) = config
+        .projects
+        .iter()
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("No project found"))?;
 
-    let build_options = project.architect.as_ref()
+    let build_options = project
+        .architect
+        .as_ref()
         .and_then(|a| a.get("build"))
         .and_then(|t| t.options.as_ref());
-        
+
     let root_dir = project_path.parent().unwrap_or_else(|| Path::new("."));
 
     // 2. Resolve Entry Point (Still useful for bootstrapping, though we compile everything)
     // We don't strictly need main_file here if we glob everything, but logic might use it?
     // Actually we don't use main_file for anything other than resolve_dependencies which we are removing.
-    
+
     // 3. Resolve Files (Glob all .ts files)
     let pattern = root_dir.join("src/**/*.ts");
     let pattern_str = pattern.to_string_lossy();
-    
+
     let files: Vec<PathBuf> = glob(&pattern_str)
         .map_err(|e| anyhow::anyhow!("Failed to read glob pattern: {}", e))?
         .filter_map(Result::ok)
@@ -52,16 +58,17 @@ pub fn bundle_project(project_path: &Path) -> Result<BundleResult> {
 
     for (path, content) in compiled_contents {
         let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("");
-        
+
         // Calculate relative path for Virtual FS (relative to project root/CWD?)
         // The project_path passed in is "angular.json" path.
         // We want paths relative to that directory usually.
-        let relative_file_path = path.strip_prefix(project_path.parent().unwrap_or(Path::new(".")))
+        let relative_file_path = path
+            .strip_prefix(project_path.parent().unwrap_or(Path::new(".")))
             .unwrap_or(&path);
         let relative_path_str = relative_file_path.to_string_lossy().to_string();
-        
+
         // Populate files map with original content
-        // We ensure keys start with / or ./ to be clear? 
+        // We ensure keys start with / or ./ to be clear?
         // Vite expects /src/... for absolute virtual files.
         // Let's store as `src/app/main.js` (relative).
         files_map.insert(relative_path_str, content.clone());
@@ -98,8 +105,8 @@ pub fn bundle_project(project_path: &Path) -> Result<BundleResult> {
     let mut styles_css = None;
     if let Some(options) = build_options {
         if let Some(styles) = &options.styles {
-             let mut combined_css = String::new();
-             for style in styles {
+            let mut combined_css = String::new();
+            for style in styles {
                 let path = root_dir.join(style);
                 if path.exists() {
                     let content = std::fs::read_to_string(&path)?;
@@ -110,10 +117,10 @@ pub fn bundle_project(project_path: &Path) -> Result<BundleResult> {
                     combined_css.push_str(&content);
                     combined_css.push_str("\n");
                 }
-             }
-             if !combined_css.is_empty() {
-                 styles_css = Some(combined_css);
-             }
+            }
+            if !combined_css.is_empty() {
+                styles_css = Some(combined_css);
+            }
         }
     }
 
@@ -123,8 +130,8 @@ pub fn bundle_project(project_path: &Path) -> Result<BundleResult> {
         if let Some(scripts) = &options.scripts {
             let mut combined_js = String::new();
             for script in scripts {
-                 let path = root_dir.join(script);
-                 if path.exists() {
+                let path = root_dir.join(script);
+                if path.exists() {
                     let content = std::fs::read_to_string(&path)?;
                     // Add to files map
                     files_map.insert(script.clone(), content.clone());
@@ -132,7 +139,7 @@ pub fn bundle_project(project_path: &Path) -> Result<BundleResult> {
                     combined_js.push_str(&format!("// {} \n", script));
                     combined_js.push_str(&content);
                     combined_js.push_str("\n");
-                 }
+                }
             }
             if !combined_js.is_empty() {
                 scripts_js = Some(combined_js);
@@ -147,15 +154,15 @@ pub fn bundle_project(project_path: &Path) -> Result<BundleResult> {
             let src_path = root_dir.join(index);
             if src_path.exists() {
                 let mut content = std::fs::read_to_string(&src_path)?;
-                
+
                 // Inject styles
                 if styles_css.is_some() {
-                     let link_tag = r#"<link rel="stylesheet" href="styles.css">"#;
-                     if let Some(pos) = content.find("</head>") {
-                         content.insert_str(pos, &format!("{}\n", link_tag));
-                     } else {
-                         content.push_str(&format!("\n{}", link_tag));
-                     }
+                    let link_tag = r#"<link rel="stylesheet" href="styles.css">"#;
+                    if let Some(pos) = content.find("</head>") {
+                        content.insert_str(pos, &format!("{}\n", link_tag));
+                    } else {
+                        content.push_str(&format!("\n{}", link_tag));
+                    }
                 }
 
                 // Inject bundle
@@ -163,7 +170,7 @@ pub fn bundle_project(project_path: &Path) -> Result<BundleResult> {
                 if let Some(pos) = content.find("</body>") {
                     content.insert_str(pos, &format!("{}\n", script_tag));
                 } else {
-                     content.push_str(&format!("\n{}", script_tag));
+                    content.push_str(&format!("\n{}", script_tag));
                 }
 
                 // Inject scripts
@@ -172,7 +179,7 @@ pub fn bundle_project(project_path: &Path) -> Result<BundleResult> {
                     if let Some(pos) = content.find("</body>") {
                         content.insert_str(pos, &format!("{}\n", script_tag));
                     } else {
-                         content.push_str(&format!("\n{}", script_tag));
+                        content.push_str(&format!("\n{}", script_tag));
                     }
                 }
                 index_html = Some(content);

@@ -32,11 +32,11 @@ impl PartialComponentLinker2 {
     ) -> Result<R3ComponentMetadata, String> {
         // DEBUG: Trace function entry
         // eprintln!("[Linker2] to_r3_component_metadata called, target_name: {:?}", target_name);
-        
+
         // DEBUG: Print all metadata keys
         let keys: Vec<String> = meta_obj.to_map().keys().cloned().collect();
         // eprintln!("[Linker2] Metadata keys: {:?}", keys);
-        
+
         // Essential fields
         let type_name_str = if let Ok(t) = meta_obj.get_value("type") {
             meta_obj.host.print_node(&t.node)
@@ -45,7 +45,6 @@ impl PartialComponentLinker2 {
         } else {
             return Err("Missing 'type' property and no target_name provided".to_string());
         };
-
 
         // Create a ReadVarExpr with the string representation
         // This avoids WrappedNodeExpr and 'static requirement
@@ -132,10 +131,15 @@ impl PartialComponentLinker2 {
                 idx = val as u32;
             } else if let Ok(val) = meta_obj.get_value("encapsulation") {
                 let text = val.print();
-                if text.contains("ViewEncapsulation.None") { idx = 2; }
-                else if text.contains("ViewEncapsulation.ShadowDom") { idx = 3; }
-                else if text.contains("ViewEncapsulation.Emulated") { idx = 0; }
-                else if text.contains("ViewEncapsulation.Native") { idx = 1; }
+                if text.contains("ViewEncapsulation.None") {
+                    idx = 2;
+                } else if text.contains("ViewEncapsulation.ShadowDom") {
+                    idx = 3;
+                } else if text.contains("ViewEncapsulation.Emulated") {
+                    idx = 0;
+                } else if text.contains("ViewEncapsulation.Native") {
+                    idx = 1;
+                }
             }
             match idx {
                 0 => ViewEncapsulation::Emulated,
@@ -153,8 +157,11 @@ impl PartialComponentLinker2 {
                 idx = val as u32;
             } else if let Ok(val) = meta_obj.get_value("changeDetection") {
                 let text = val.print();
-                if text.contains("ChangeDetectionStrategy.OnPush") { idx = 0; }
-                else if text.contains("ChangeDetectionStrategy.Default") { idx = 1; }
+                if text.contains("ChangeDetectionStrategy.OnPush") {
+                    idx = 0;
+                } else if text.contains("ChangeDetectionStrategy.Default") {
+                    idx = 1;
+                }
             }
             let strategy = match idx {
                 0 => ChangeDetectionStrategy::OnPush,
@@ -377,11 +384,13 @@ impl PartialComponentLinker2 {
             vec![]
         };
 
-
         // Host
         let has_host = meta_obj.has("host");
         if has_host {
-            eprintln!("[Linker] Found 'host' key in metadata! Keys: {:?}", meta_obj.to_map().keys().cloned().collect::<Vec<_>>());
+            eprintln!(
+                "[Linker] Found 'host' key in metadata! Keys: {:?}",
+                meta_obj.to_map().keys().cloned().collect::<Vec<_>>()
+            );
         }
         let host = if has_host {
             let host_obj = meta_obj.get_object("host")?;
@@ -394,7 +403,7 @@ impl PartialComponentLinker2 {
 
             for (key, val) in host_obj.to_map() {
                 let val_ast = AstValue::new(val.clone(), meta_obj.host);
-                
+
                 if key == "attributes" && val_ast.is_object() {
                     let obj = val_ast.get_object()?;
                     for (k, v) in obj.to_map() {
@@ -457,10 +466,6 @@ impl PartialComponentLinker2 {
                 }
             }
 
-
-
-
-
             R3HostMetadata {
                 attributes,
                 listeners,
@@ -470,7 +475,6 @@ impl PartialComponentLinker2 {
         } else {
             R3HostMetadata::default()
         };
-
 
         // Dependencies (Directives/Pipes)
         let mut declarations = Vec::new();
@@ -558,10 +562,8 @@ impl PartialComponentLinker2 {
         // Parse exportAs
         let export_as = if meta_obj.has("exportAs") {
             if let Ok(arr) = meta_obj.get_array("exportAs") {
-                let exports: Result<Vec<String>, String> = arr
-                    .iter()
-                    .map(|e| e.get_string())
-                    .collect();
+                let exports: Result<Vec<String>, String> =
+                    arr.iter().map(|e| e.get_string()).collect();
                 exports.ok()
             } else {
                 None

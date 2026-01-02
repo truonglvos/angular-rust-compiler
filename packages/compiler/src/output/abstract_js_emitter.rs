@@ -753,7 +753,7 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
                 ctx.print(Some(expr), alias, false);
                 ctx.print(Some(expr), ".", false);
             }
-            // If module_name is present but not in our imports map, 
+            // If module_name is present but not in our imports map,
             // we assume the symbol is already available in scope via a local import
             // (e.g., `import { MatButton } from '...'`), so we just emit the name.
             // This avoids generating invalid JavaScript like `@angular/material/button.MatButton`

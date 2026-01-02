@@ -144,7 +144,10 @@ pub fn compile_component_from_metadata(
             events: meta.directive.host.listeners.clone(),
         };
 
-        let mut host_job_instance = crate::template::pipeline::src::ingest::ingest_host_binding(host_input, (*constant_pool).clone());
+        let mut host_job_instance = crate::template::pipeline::src::ingest::ingest_host_binding(
+            host_input,
+            (*constant_pool).clone(),
+        );
         crate::template::pipeline::src::phases::run_host(&mut host_job_instance);
         *constant_pool = host_job_instance.pool.clone();
         Some(host_job_instance)

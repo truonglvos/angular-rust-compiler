@@ -431,19 +431,21 @@ impl Compiler {
         // 2. Setup Compiler Options
         let mut options = NgCompilerOptions::default();
         if !root_names.is_empty() {
-             // Find common root
-             let mut common_root = fs.dirname(&root_names[0]);
-             for path in &root_names[1..] {
-                 while !path.starts_with(&common_root) {
-                     let parent = fs.dirname(&common_root);
-                     if parent == common_root { break; } // Reached root
-                     common_root = parent;
-                 }
-             }
-             eprintln!("[Rust Binding] Common root: {}", common_root);
-             options.out_dir = Some(common_root.clone());
-             options.root_dir = Some(common_root.clone());
-             options.project = root_names[0].clone();
+            // Find common root
+            let mut common_root = fs.dirname(&root_names[0]);
+            for path in &root_names[1..] {
+                while !path.starts_with(&common_root) {
+                    let parent = fs.dirname(&common_root);
+                    if parent == common_root {
+                        break;
+                    } // Reached root
+                    common_root = parent;
+                }
+            }
+            eprintln!("[Rust Binding] Common root: {}", common_root);
+            options.out_dir = Some(common_root.clone());
+            options.root_dir = Some(common_root.clone());
+            options.project = root_names[0].clone();
         }
         // Ensure we compile all inputs - default behavior is sufficient
 
@@ -538,7 +540,10 @@ impl Compiler {
         use std::path::Path;
 
         match resolve_dependencies(Path::new(&entry_file)) {
-            Ok(paths) => paths.into_iter().map(|p| p.to_string_lossy().to_string()).collect(),
+            Ok(paths) => paths
+                .into_iter()
+                .map(|p| p.to_string_lossy().to_string())
+                .collect(),
             Err(e) => {
                 eprintln!("Failed to resolve dependencies: {}", e);
                 vec![]
@@ -568,7 +573,7 @@ pub struct NapiBundleResult {
     pub index_html: Option<String>,
     pub files: HashMap<String, String>,
 }
-    
+
 #[napi]
 impl Compiler {
     // ... existing impl ...
@@ -598,6 +603,6 @@ impl Compiler {
             }
         }
     }
-    
+
     // ... existing methods ...
 }

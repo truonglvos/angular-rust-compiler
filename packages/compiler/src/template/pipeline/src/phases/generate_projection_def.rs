@@ -6,13 +6,13 @@
 //! populate `project` arguments, and generate the required `projectionDef` instruction for the job's
 //! root view.
 
+use crate::core::SelectorFlags;
+use crate::directive_matching::CssSelector;
 use crate::output::output_ast::Expression;
 use crate::template::pipeline::ir;
 use crate::template::pipeline::ir::ops::create::{create_projection_def_op, ProjectionOp};
 use crate::template::pipeline::src::compilation::{CompilationJob, ComponentCompilationJob};
 use crate::template::pipeline::src::conversion::{literal_or_array_literal, LiteralType};
-use crate::directive_matching::CssSelector;
-use crate::core::SelectorFlags;
 
 pub fn generate_projection_defs(job: &mut dyn CompilationJob) {
     if job.kind() != crate::template::pipeline::src::compilation::CompilationJobKind::Tmpl {
@@ -89,7 +89,9 @@ pub fn generate_projection_defs(job: &mut dyn CompilationJob) {
 
                                 // Classes
                                 for class_name in &selector.class_names {
-                                    vec.push(LiteralType::Number(SelectorFlags::CLASS as u32 as f64));
+                                    vec.push(LiteralType::Number(
+                                        SelectorFlags::CLASS as u32 as f64,
+                                    ));
                                     vec.push(LiteralType::String(class_name.clone()));
                                 }
 
@@ -108,7 +110,9 @@ pub fn generate_projection_defs(job: &mut dyn CompilationJob) {
                                     if let Some(element) = &not_selector.element {
                                         if element != "*" {
                                             vec.push(LiteralType::Number(
-                                                (SelectorFlags::NOT as u32 | SelectorFlags::ELEMENT as u32) as f64,
+                                                (SelectorFlags::NOT as u32
+                                                    | SelectorFlags::ELEMENT as u32)
+                                                    as f64,
                                             ));
                                             vec.push(LiteralType::String(element.clone()));
                                         }
@@ -117,7 +121,9 @@ pub fn generate_projection_defs(job: &mut dyn CompilationJob) {
                                     // Classes
                                     for class_name in &not_selector.class_names {
                                         vec.push(LiteralType::Number(
-                                            (SelectorFlags::NOT as u32 | SelectorFlags::CLASS as u32) as f64,
+                                            (SelectorFlags::NOT as u32
+                                                | SelectorFlags::CLASS as u32)
+                                                as f64,
                                         ));
                                         vec.push(LiteralType::String(class_name.clone()));
                                     }
@@ -125,21 +131,29 @@ pub fn generate_projection_defs(job: &mut dyn CompilationJob) {
                                     // Attributes
                                     for i in (0..not_selector.attrs.len()).step_by(2) {
                                         vec.push(LiteralType::Number(
-                                            (SelectorFlags::NOT as u32 | SelectorFlags::ATTRIBUTE as u32) as f64,
+                                            (SelectorFlags::NOT as u32
+                                                | SelectorFlags::ATTRIBUTE as u32)
+                                                as f64,
                                         ));
-                                        vec.push(LiteralType::String(not_selector.attrs[i].clone()));
-                                        vec.push(LiteralType::String(not_selector.attrs[i + 1].clone()));
+                                        vec.push(LiteralType::String(
+                                            not_selector.attrs[i].clone(),
+                                        ));
+                                        vec.push(LiteralType::String(
+                                            not_selector.attrs[i + 1].clone(),
+                                        ));
                                     }
                                 }
 
                                 LiteralType::Array(vec)
                             })
                             .collect();
-                         
+
                         LiteralType::Array(selectors_list)
                     } else {
                         // Fallback if parse fails (shouldn't happen with valid selectors)
-                         LiteralType::Array(vec![LiteralType::Array(vec![LiteralType::String(s.clone())])])
+                        LiteralType::Array(vec![LiteralType::Array(vec![LiteralType::String(
+                            s.clone(),
+                        )])])
                     }
                 })
                 .collect();

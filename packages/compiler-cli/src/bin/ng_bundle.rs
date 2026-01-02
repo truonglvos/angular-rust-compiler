@@ -1,8 +1,8 @@
+use angular_compiler_cli::bundler::bundle_project;
+use angular_compiler_cli::config::angular::AngularConfig;
 use clap::{Arg, Command};
 use std::path::{Path, PathBuf};
 use std::process;
-use angular_compiler_cli::config::angular::AngularConfig;
-use angular_compiler_cli::bundler::bundle_project;
 
 fn main() {
     let matches = Command::new("ng_bundle")
@@ -16,10 +16,7 @@ fn main() {
                 .help("Path to angular.json or tsconfig.json")
                 .global(true),
         )
-        .subcommand(
-            Command::new("serve")
-                .about("Serve the application using Vite")
-        )
+        .subcommand(Command::new("serve").about("Serve the application using Vite"))
         .get_matches();
 
     let project_arg = matches.get_one::<String>("project").cloned();
@@ -44,21 +41,24 @@ fn run_serve(project_arg: Option<String>) {
     let project_path = resolve_project_path(project_arg);
     // Canonicalize path to make it absolute
     let project_path = std::fs::canonicalize(&project_path).unwrap_or(project_path);
-    
+
     let root_dir = project_path.parent().unwrap_or(Path::new("."));
 
     if !project_path.exists() {
-         eprintln!("Warning: Project configuration not found at {:?}, assuming default vite config availability.", project_path);
+        eprintln!("Warning: Project configuration not found at {:?}, assuming default vite config availability.", project_path);
     }
 
     println!("Starting Vite server via Node.js...");
     println!("Project: {:?}", project_path);
-    
+
     // Call vite via nodejs (npx vite)
     let status = process::Command::new("npx")
         .arg("vite")
         .current_dir(root_dir)
-        .env("ANGULAR_PROJECT_PATH", project_path.to_string_lossy().as_ref())
+        .env(
+            "ANGULAR_PROJECT_PATH",
+            project_path.to_string_lossy().as_ref(),
+        )
         .status();
 
     match status {
@@ -98,7 +98,9 @@ fn run_build(project_arg: Option<String>) {
 
     println!("Building project: {}", name);
 
-    let build_options = project.architect.as_ref()
+    let build_options = project
+        .architect
+        .as_ref()
         .and_then(|a| a.get("build"))
         .and_then(|t| t.options.as_ref());
 
@@ -115,7 +117,10 @@ fn run_build(project_arg: Option<String>) {
     let mut dist_dir = project_path.parent().unwrap_or(Path::new(".")).join("dist");
     if let Some(options) = build_options {
         if let Some(out_path) = &options.output_path {
-            dist_dir = project_path.parent().unwrap_or(Path::new(".")).join(out_path);
+            dist_dir = project_path
+                .parent()
+                .unwrap_or(Path::new("."))
+                .join(out_path);
         }
     }
 
@@ -153,54 +158,64 @@ fn run_build(project_arg: Option<String>) {
     if let Some(options) = build_options {
         if let Some(assets) = &options.assets {
             println!("Processing {} assets...", assets.len());
-            process_assets(assets, &project_path.parent().unwrap(), &dist_dir).unwrap_or_else(|e| {
-                eprintln!("Failed to process assets: {}", e);
-            });
+            process_assets(assets, &project_path.parent().unwrap(), &dist_dir).unwrap_or_else(
+                |e| {
+                    eprintln!("Failed to process assets: {}", e);
+                },
+            );
         }
     }
 }
 
-fn process_assets(assets: &[angular_compiler_cli::config::angular::Asset], project_root: &Path, dist_dir: &Path) -> anyhow::Result<()> {
+fn process_assets(
+    assets: &[angular_compiler_cli::config::angular::Asset],
+    project_root: &Path,
+    dist_dir: &Path,
+) -> anyhow::Result<()> {
     use angular_compiler_cli::config::angular::Asset;
-    
+
     for asset in assets {
         match asset {
             Asset::String(pattern) => {
-                 let full_pattern = project_root.join(pattern);
-                 let pattern_str = full_pattern.to_string_lossy();
-                 
-                 for entry in glob::glob(&pattern_str)? {
-                     let path = entry?;
-                     if path.is_file() {
-                         let relative = path.strip_prefix(project_root).unwrap_or(&path);
-                         let dest = dist_dir.join(relative);
-                         if let Some(parent) = dest.parent() {
-                             std::fs::create_dir_all(parent)?;
-                         }
-                         std::fs::copy(&path, &dest)?;
-                     }
-                 }
-            },
-            Asset::Object { glob, input, output } => {
+                let full_pattern = project_root.join(pattern);
+                let pattern_str = full_pattern.to_string_lossy();
+
+                for entry in glob::glob(&pattern_str)? {
+                    let path = entry?;
+                    if path.is_file() {
+                        let relative = path.strip_prefix(project_root).unwrap_or(&path);
+                        let dest = dist_dir.join(relative);
+                        if let Some(parent) = dest.parent() {
+                            std::fs::create_dir_all(parent)?;
+                        }
+                        std::fs::copy(&path, &dest)?;
+                    }
+                }
+            }
+            Asset::Object {
+                glob,
+                input,
+                output,
+            } => {
                 let input_dir = project_root.join(input);
                 let output_dir = if let Some(out) = output {
                     dist_dir.join(out)
                 } else {
                     dist_dir.to_path_buf()
                 };
-                
+
                 let pattern = input_dir.join(glob);
                 let pattern_str = pattern.to_string_lossy();
-                
+
                 for entry in glob::glob(&pattern_str)? {
                     let path = entry?;
                     if path.is_file() {
                         let relative = path.strip_prefix(&input_dir).unwrap_or(&path);
                         let dest = output_dir.join(relative);
-                         if let Some(parent) = dest.parent() {
-                             std::fs::create_dir_all(parent)?;
-                         }
-                         std::fs::copy(&path, &dest)?;
+                        if let Some(parent) = dest.parent() {
+                            std::fs::create_dir_all(parent)?;
+                        }
+                        std::fs::copy(&path, &dest)?;
                     }
                 }
             }
