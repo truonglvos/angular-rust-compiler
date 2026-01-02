@@ -211,14 +211,22 @@ pub fn collect_element_consts(job: &mut dyn CompilationJob) {
     } else if job_kind == CompilationJobKind::Host {
         if let Some(host_job) = job.as_any_mut().downcast_mut::<HostBindingCompilationJob>() {
             let root_xref = host_job.root.xref;
+            // eprintln!("DEBUG: [const_collection] Host job root_xref: {:?}, all_element_attributes keys: {:?}", root_xref, all_element_attributes.keys().collect::<Vec<_>>());
             for (xref, attributes) in all_element_attributes.iter() {
                 if *xref != root_xref {
                     panic!("An attribute would be const collected into the host binding's template function, but is not associated with the root xref.");
                 }
+                // eprintln!("DEBUG: [const_collection] Serializing host attributes: classes={}, styles={}, attrs={}", attributes.classes.len(), attributes.styles.len(), attributes.attributes.len());
                 let attr_array = serialize_attributes(attributes.clone());
+                // eprintln!("DEBUG: [const_collection] Serialized hostAttrs array has {} entries", attr_array.entries.len());
                 if !attr_array.entries.is_empty() {
                     host_job.root.attributes = Some(Expression::LiteralArray(attr_array));
+                } else {
+                    // eprintln!("DEBUG: [const_collection] WARNING: hostAttrs array is empty, not setting host_job.root.attributes");
                 }
+            }
+            if !all_element_attributes.contains_key(&root_xref) {
+                // eprintln!("DEBUG: [const_collection] WARNING: No attributes found for root_xref {:?}", root_xref);
             }
         }
     }

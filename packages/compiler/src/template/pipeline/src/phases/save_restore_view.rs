@@ -73,29 +73,10 @@ fn process_unit(
     let root_xref = component_job.root.xref();
     let is_root = unit_xref == root_xref;
 
-    // Prepend a variable op with SavedView for this unit FIRST
-    // (before collecting op indices, since prepend may reallocate)
-    let saved_view_xref = component_job.allocate_xref_id();
-
-    let saved_view_variable = SemanticVariable::SavedView(SavedViewVariable::new(unit_xref));
-    let get_current_view_expr = Expression::GetCurrentView(GetCurrentViewExpr::new());
-
-    let variable_op = create_variable_op::<Box<dyn ir::CreateOp + Send + Sync>>(
-        saved_view_xref,
-        saved_view_variable,
-        Box::new(get_current_view_expr),
-        VariableFlags::NONE,
-    );
-
-    // Box the variable op to match the OpList type
-    let boxed_variable_op: Box<dyn ir::CreateOp + Send + Sync> = Box::new(variable_op);
-    unit.create_mut().prepend(vec![boxed_variable_op]);
-
-    // Note: indices are shifted by 1 due to prepend
+    // Collect all listener indices and check if ANY needs restoreView
     let mut listener_indices: Vec<usize> = Vec::new();
     let mut any_listener_needs_restore_view = false;
 
-    // First pass: collect all listener indices and check if ANY needs restoreView
     for (idx, op) in unit.create_mut().iter_mut().enumerate() {
         match op.kind() {
             OpKind::Listener
@@ -104,14 +85,9 @@ fn process_unit(
             | OpKind::AnimationListener => {
                 listener_indices.push(idx);
 
-                // NGTSC logic:
-                // 1. Embedded views ALWAYS need restoreView (unit !== job.root)
-                // 2. Root views ONLY need restoreView if handler contains ReferenceExpr or ContextLetReferenceExpr
-                if !is_root {
-                    // Embedded view - always needs restoreView
-                    any_listener_needs_restore_view = true;
-                } else if check_needs_restore_view(op) {
-                    // Root view - only needs restoreView for reference expressions
+                // We need restoreView if we're in a nested view (to restore the correct ctx),
+                // OR if we're in any view (including root) and use template references/variables.
+                if !is_root || check_needs_restore_view(op) {
                     any_listener_needs_restore_view = true;
                 }
             }
@@ -119,16 +95,32 @@ fn process_unit(
         }
     }
 
-    // Second pass: if ANY listener needs restoreView, apply to ALL listeners in this view
+    // Only proceed with save/restore if actually needed
     if any_listener_needs_restore_view {
+        // Prepend a variable op with SavedView for this unit
+        let saved_view_xref = component_job.allocate_xref_id();
+        let saved_view_variable = SemanticVariable::SavedView(SavedViewVariable::new(unit_xref));
+        let get_current_view_expr = Expression::GetCurrentView(GetCurrentViewExpr::new());
+
+        let variable_op = create_variable_op::<Box<dyn ir::CreateOp + Send + Sync>>(
+            saved_view_xref,
+            saved_view_variable,
+            Box::new(get_current_view_expr),
+            VariableFlags::NONE,
+        );
+
+        let boxed_variable_op: Box<dyn ir::CreateOp + Send + Sync> = Box::new(variable_op);
+        unit.create_mut().prepend(vec![boxed_variable_op]);
+
+        // Second pass: apply to all listeners in this view
+        // Note: listener indices are now shifted by 1 due to prepend
         let component_job_ptr = component_job as *mut ComponentCompilationJob;
-        let unit_ptr =
-            unit as *mut crate::template::pipeline::src::compilation::ViewCompilationUnit;
+        let unit_ptr = unit as *mut crate::template::pipeline::src::compilation::ViewCompilationUnit;
 
         for idx in listener_indices {
             unsafe {
                 let unit_ref = &mut *unit_ptr;
-                if let Some(op) = unit_ref.create_mut().get_mut(idx) {
+                if let Some(op) = unit_ref.create_mut().get_mut(idx + 1) {
                     add_save_restore_view_operation_to_listener(
                         unit_ptr,
                         op,
@@ -414,12 +406,12 @@ unsafe fn add_save_restore_view_operation_to_listener(
     let root_xref = unsafe { (&*component_job_ptr).root.xref() };
     let change_detection = unsafe { (&*component_job_ptr).change_detection };
 
-    // Optimization: For OnPush components, listeners in the root view that only access state
-    // via ctx (which is captured) do not need to restore the view or use resetView.
-    // This matches NGTSC behavior.
-    if unit_xref == root_xref && change_detection == Some(ChangeDetectionStrategy::OnPush) {
-        return;
-    }
+    // DEBUG: Log change detection
+    // eprintln!("[save_restore_view] add_save_restore_view: unit={:?}, root={:?}, change_detection={:?}", unit_xref, root_xref, change_detection);
+    
+    // NOTE: Previously had an optimization that skipped restoreView for OnPush root views,
+    // but this was incorrect for Linker-compiled templates where ctx is not properly captured.
+    // Now we always add restoreView for all listeners.
 
     let context_variable = if unit_xref == root_xref {
         // For the root view, we want to use the generic 'ctx' available in the closure,

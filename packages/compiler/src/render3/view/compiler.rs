@@ -83,158 +83,77 @@ pub fn compile_component_from_metadata(
     constant_pool: &mut ConstantPool,
     binding_parser: &mut BindingParser,
 ) -> R3CompiledExpression {
-    let mut definition_map = base_directive_fields(&meta.directive, constant_pool, binding_parser);
-    add_features(&mut definition_map, &meta.directive, Some(meta));
+    // eprintln!("DEBUG: compile_component_from_metadata called for {}, inputs len: {}", meta.directive.name, meta.directive.inputs.len());
+    // 1. Ingest
+    let mut job = crate::template::pipeline::src::ingest::ingest_component(
+        meta.directive.name.clone(),
+        meta.template.nodes.clone(),
+        constant_pool.clone(),
+        crate::template::pipeline::src::compilation::TemplateCompilationMode::Full,
+        meta.relative_context_file_path.clone(),
+        meta.i18n_use_external_ids,
+        meta.defer.clone(),
+        None, // all_deferrable_deps_fn
+        meta.relative_template_path.clone(),
+        false, // enable_debug_locations
+        meta.change_detection.as_ref().and_then(|cd| match cd {
+            super::api::ChangeDetectionOrExpression::Strategy(s) => Some(*s),
+            _ => None,
+        }),
+        meta.declarations.clone(),
+    );
 
-    // TODO: Implement full template compilation using pipeline
-    // For now, set placeholder values
-    definition_map.set("decls", Some(literal(LiteralValue::Number(0.0))));
-    definition_map.set("vars", Some(literal(LiteralValue::Number(0.0))));
+    // 2. Run phases
+    crate::template::pipeline::src::phases::run(&mut job);
+    *constant_pool = job.pool.clone();
 
-    // ng-content selectors
-    if !meta.template.ng_content_selectors.is_empty() {
-        let selectors: Vec<Expression> = meta
-            .template
-            .ng_content_selectors
-            .iter()
-            .map(|s| literal(LiteralValue::String(s.clone())))
-            .collect();
-        definition_map.set(
-            "ngContentSelectors",
-            Some(Expression::LiteralArray(LiteralArrayExpr {
-                entries: selectors,
-                type_: None,
-                source_span: None,
-            })),
-        );
-    }
-
-    // declarations/dependencies
-    if meta.declaration_list_emit_mode != DeclarationListEmitMode::RuntimeResolved
-        && !meta.declarations.is_empty()
+    // 3. Handle Host Bindings if present
+    let host_job = if !meta.directive.host.attributes.is_empty()
+        || !meta.directive.host.listeners.is_empty()
+        || !meta.directive.host.properties.is_empty()
+        || meta.directive.host.special_attributes.class_attr.is_some()
+        || meta.directive.host.special_attributes.style_attr.is_some()
     {
-        let decl_types: Vec<Expression> = meta
-            .declarations
-            .iter()
-            .map(|d| match d {
-                R3TemplateDependencyMetadata::Directive(dir) => dir.type_.clone(),
-                R3TemplateDependencyMetadata::Pipe(pipe) => pipe.type_.clone(),
-                R3TemplateDependencyMetadata::NgModule(ng_module) => ng_module.type_.clone(),
-            })
-            .collect();
-        let list = Expression::LiteralArray(LiteralArrayExpr {
-            entries: decl_types,
-            type_: None,
-            source_span: None,
-        });
-        definition_map.set(
-            "dependencies",
-            Some(compile_declaration_list(
-                list,
-                meta.declaration_list_emit_mode,
-            )),
-        );
-    } else if meta.declaration_list_emit_mode == DeclarationListEmitMode::RuntimeResolved {
-        let mut args = vec![meta.directive.type_.value.clone()];
-        if let Some(ref raw_imports) = meta.raw_imports {
-            args.push(raw_imports.clone());
-        }
-        let deps_call = Expression::InvokeFn(InvokeFunctionExpr {
-            fn_: Box::new(external_expr(R3::get_component_deps_factory())),
-            args,
-            type_: None,
-            source_span: None,
-            pure: false,
-        });
-        definition_map.set("dependencies", Some(deps_call));
-    }
-
-    // Styles
-    let mut has_styles = meta
-        .external_styles
-        .as_ref()
-        .map_or(false, |s| !s.is_empty());
-    if !meta.styles.is_empty() {
-        let style_values = if meta.encapsulation == ViewEncapsulation::Emulated {
-            compile_styles(&meta.styles, CONTENT_ATTR, HOST_ATTR)
-        } else {
-            meta.styles.clone()
-        };
-
-        // TODO: Fix constant_pool.get_const_literal() type conversion
-        let style_nodes: Vec<Expression> = style_values
-            .iter()
-            .filter(|s| !s.trim().is_empty())
-            .map(|style| literal(LiteralValue::String(style.clone())))
-            .collect();
-
-        if !style_nodes.is_empty() {
-            has_styles = true;
-            definition_map.set(
-                "styles",
-                Some(Expression::LiteralArray(LiteralArrayExpr {
-                    entries: style_nodes,
+        let mut attributes = meta.directive.host.attributes.clone();
+        if let Some(class_attr) = &meta.directive.host.special_attributes.class_attr {
+            attributes.insert(
+                "class".to_string(),
+                Expression::Literal(LiteralExpr {
+                    value: LiteralValue::String(class_attr.clone()),
                     type_: None,
                     source_span: None,
-                })),
+                }),
             );
         }
-    }
-
-    // Encapsulation
-    let mut encapsulation = meta.encapsulation;
-    if !has_styles && encapsulation == ViewEncapsulation::Emulated {
-        encapsulation = ViewEncapsulation::None;
-    }
-    if encapsulation != ViewEncapsulation::Emulated {
-        definition_map.set(
-            "encapsulation",
-            Some(literal(LiteralValue::Number(encapsulation as u32 as f64))),
-        );
-    }
-
-    // Animations
-    if let Some(ref animations) = meta.animations {
-        let data_map = Expression::LiteralMap(LiteralMapExpr {
-            entries: vec![LiteralMapEntry {
-                key: "animation".to_string(),
-                value: Box::new(animations.clone()),
-                quoted: false,
-            }],
-            type_: None,
-            source_span: None,
-        });
-        definition_map.set("data", Some(data_map));
-    }
-
-    // Change detection
-    if let Some(ref change_detection) = meta.change_detection {
-        match change_detection {
-            super::api::ChangeDetectionOrExpression::Strategy(strategy) => {
-                if *strategy != ChangeDetectionStrategy::Default {
-                    definition_map.set(
-                        "changeDetection",
-                        Some(literal(LiteralValue::Number(*strategy as u32 as f64))),
-                    );
-                }
-            }
-            super::api::ChangeDetectionOrExpression::Expression(expr) => {
-                definition_map.set("changeDetection", Some(expr.clone()));
-            }
+        if let Some(style_attr) = &meta.directive.host.special_attributes.style_attr {
+            attributes.insert(
+                "style".to_string(),
+                Expression::Literal(LiteralExpr {
+                    value: LiteralValue::String(style_attr.clone()),
+                    type_: None,
+                    source_span: None,
+                }),
+            );
         }
-    }
 
-    let expression = Expression::InvokeFn(InvokeFunctionExpr {
-        fn_: Box::new(external_expr(R3::define_component())),
-        args: vec![Expression::LiteralMap(definition_map.to_literal_map())],
-        type_: None,
-        source_span: None,
-        pure: true,
-    });
+        let host_input = crate::template::pipeline::src::ingest::HostBindingInput {
+            component_name: meta.directive.name.clone(),
+            component_selector: meta.directive.selector.clone().unwrap_or_default(),
+            properties: meta.directive.host.properties.clone(),
+            attributes,
+            events: meta.directive.host.listeners.clone(),
+        };
 
-    let type_ = create_component_type(meta);
+        let mut host_job_instance = crate::template::pipeline::src::ingest::ingest_host_binding(host_input, (*constant_pool).clone());
+        crate::template::pipeline::src::phases::run_host(&mut host_job_instance);
+        *constant_pool = host_job_instance.pool.clone();
+        Some(host_job_instance)
+    } else {
+        None
+    };
 
-    R3CompiledExpression::new(expression, type_, vec![])
+    // 4. Emit
+    crate::template::pipeline::src::emit::emit_component(&job, meta, host_job.as_ref())
 }
 
 /// Helper to create R3 selector array from CssSelector
@@ -345,6 +264,7 @@ fn base_directive_fields(
             )
         })
         .collect();
+
     if let Some(inputs_expr) = conditionally_create_directive_binding_literal(&inputs_map, true) {
         definition_map.set("inputs", Some(Expression::LiteralMap(inputs_expr)));
     }
@@ -377,7 +297,9 @@ fn base_directive_fields(
     }
 
     // standalone
-    if !meta.is_standalone {
+    if meta.is_standalone {
+        definition_map.set("standalone", Some(literal(LiteralValue::Bool(true))));
+    } else {
         definition_map.set("standalone", Some(literal(LiteralValue::Bool(false))));
     }
 

@@ -3,7 +3,7 @@
 //! This module defines the core metadata types used throughout the Angular compiler.
 //! Matches: angular/packages/compiler-cli/src/ngtsc/metadata/src/api.ts
 
-use super::property_mapping::ClassPropertyMapping;
+use super::property_mapping::{ClassPropertyMapping, DecoratorInputTransform};
 pub use crate::ngtsc::imports::{OwningModule, Reference};
 use angular_compiler::ml_parser::ast::Node as HtmlNode;
 pub use angular_compiler::render3::view::t2_api::{
@@ -43,13 +43,7 @@ pub enum BaseClass<'a> {
     Dynamic,
 }
 
-/// Metadata for an `@Input()` transform function.
-/// Matches TypeScript's DecoratorInputTransform (L180-193)
-#[derive(Debug, Clone)]
-pub struct DecoratorInputTransform {
-    pub node: String, // AST node placeholder
-    pub type_ref: String,
-}
+
 
 /// Metadata for a single input mapping.
 /// Matches TypeScript's InputMapping (L149-165)
@@ -182,8 +176,8 @@ pub struct DirectiveMeta<'a> {
     pub type_check: DirectiveTypeCheckMeta,
 
     // === Additional DirectiveMeta fields ===
-    /// The list of queries declared by the directive.
-    pub queries: Vec<String>,
+    /// The list of content queries declared by the directive.
+    pub queries: Vec<QueryMetadata>,
     /// Class inputs which come from decorator array (not class members).
     pub input_field_names_from_metadata_array: Option<HashSet<String>>,
     /// A Reference to the base class for the directive, if one was detected.
@@ -222,6 +216,10 @@ pub struct DirectiveMeta<'a> {
     pub source_file: Option<PathBuf>,
     /// Constructor parameters for dependency injection.
     pub constructor_params: Vec<ConstructorParam>,
+    /// View queries (@ViewChild, @ViewChildren, viewChild, viewChildren).
+    pub view_queries: Vec<QueryMetadata>,
+    /// Lifecycle hooks detected on the class.
+    pub lifecycle: angular_compiler::render3::view::api::R3LifecycleMetadata,
 }
 
 /// Constructor parameter metadata.
@@ -233,6 +231,31 @@ pub struct ConstructorParam {
     pub type_name: Option<String>,
     /// Module where the type comes from (e.g., "@angular/core", "@angular/forms").
     pub from_module: Option<String>,
+    /// Dependency flags.
+    pub attribute: Option<String>, // @Attribute('name')
+    pub optional: bool, // @Optional()
+    pub host: bool, // @Host()
+    pub self_: bool, // @Self()
+    pub skip_self: bool, // @SkipSelf()
+}
+
+/// Metadata for queries (ViewChild, ViewChildren, ContentChild, ContentChildren).
+#[derive(Debug, Clone)]
+pub struct QueryMetadata {
+    /// Property name on the component class.
+    pub property_name: String,
+    /// The template reference variable or component/directive type selector.
+    pub selector: String,
+    /// Whether to return only the first match (ViewChild) or all matches (ViewChildren).
+    pub first: bool,
+    /// Whether to include descendants.
+    pub descendants: bool,
+    /// Whether the query is static (resolved before change detection).
+    pub is_static: bool,
+    /// Optional read token.
+    pub read: Option<String>,
+    /// Whether the query is signal-based.
+    pub is_signal: bool,
 }
 
 impl<'a> T2DirectiveMeta for DirectiveMeta<'a> {
@@ -304,6 +327,8 @@ impl<'a> Default for DirectiveMeta<'a> {
             local_referenced_symbols: None,
             source_file: None,
             constructor_params: Vec::new(),
+            view_queries: Vec::new(),
+            lifecycle: angular_compiler::render3::view::api::R3LifecycleMetadata::default(),
         }
     }
 }
@@ -338,6 +363,8 @@ impl<'a> Clone for DirectiveMeta<'a> {
             local_referenced_symbols: self.local_referenced_symbols.clone(),
             source_file: self.source_file.clone(),
             constructor_params: self.constructor_params.clone(),
+            view_queries: self.view_queries.clone(),
+            lifecycle: self.lifecycle.clone(),
         }
     }
 }

@@ -390,15 +390,27 @@ fn maybe_record_directive_usage(
 
     // Match against available dependencies
     // Split borrows to allow matching
+    let component_name = job.component_name().to_string();
     let matcher = &job.selector_matcher;
     let selector = &job.temp_selector;
     let used_dependencies = &mut job.used_dependencies;
 
     let mut has_directives = false;
+    let mut matched_indices = Vec::new();
     matcher.match_selector(selector, |_, &dep_index| {
+        // eprintln!("DEBUG: [ingest] Matched dependency at index {} for element {}", dep_index, tag_name);
+        matched_indices.push(dep_index);
         used_dependencies.insert(dep_index);
         has_directives = true;
     });
+
+    // Clone used_dependencies to avoid borrow checker issues
+    let used_deps_clone: Vec<usize> = used_dependencies.iter().copied().collect();
+
+    // DEBUG: Trace matching for ALL elements
+    // eprintln!("DEBUG: [ingest] Component: {}, Match Element: {}, Attrs: {:?}, Directives Found: {}, Matched Indices: {:?}, Used Dependencies: {:?}", 
+    //     component_name, tag_name, selector.attrs, has_directives, matched_indices, used_deps_clone);
+
 
     has_directives
 }
@@ -409,6 +421,7 @@ fn ingest_element(
     element: t::Element,
     job: &mut ComponentCompilationJob,
 ) {
+    // eprintln!("DEBUG: [ingest] Ingesting element: {} in component: {}", element.name, job.component_name());
     // Check i18n metadata
     if let Some(ref i18n_meta) = element.i18n {
         match i18n_meta {
@@ -440,9 +453,10 @@ fn ingest_element(
     // Note: We need to update ingest_element_bindings to take 'view'
     ingest_element_bindings(view, id, &element, job);
 
+    // Use element_name (stripped namespace) for matching, but keep original for other purposes
     let has_directives = maybe_record_directive_usage(
         job,
-        &element.name,
+        &element_name, // Use stripped name for matching
         &element.attributes,
         &element.inputs,
         &element.outputs,

@@ -15,6 +15,10 @@ path = "src/bin/ngc.rs"
 name = "ng-xi18n"
 path = "src/bin/ng_xi18n.rs"
 
+[[bin]]
+name = "ng_bundle"
+path = "src/bin/ng_bundle.rs"
+
 [dependencies]
 # Depend on compiler package
 angular-compiler = { path = "../compiler" }

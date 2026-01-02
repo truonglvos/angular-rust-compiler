@@ -10,6 +10,7 @@ pub mod compiler;
 #[cfg(test)]
 mod compiler_test;
 
+
 pub use compiler::{CompilationResult, CompilationTicket, CompilationTicketKind, NgCompiler};
 
 #[derive(Debug, Clone, Default)]
@@ -21,6 +22,7 @@ pub struct NgCompilerOptions {
     pub skip_template_codegen: bool,
     pub flat_module_out_file: Option<String>,
     pub out_dir: Option<String>,
+    pub root_dir: Option<String>,
 }
 
 /// Compilation diagnostics

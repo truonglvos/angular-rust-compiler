@@ -1,0 +1,13 @@
+{
+  "name": "vite-plugin-angular-rust",
+  "version": "0.0.1",
+  "description": "Vite plugin for Angular using Rust compiler",
+  "main": "src/index.js",
+  "type": "module",
+  "dependencies": {
+    "vite": "^5.0.0"
+  },
+  "peerDependencies": {
+    "vite": "^5.0.0"
+  }
+}

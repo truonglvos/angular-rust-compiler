@@ -52,17 +52,23 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
         }
     }
 
-    pub fn analyze_async(&self, root_names: &[String]) -> Result<CompilationResult, String> {
+    pub fn analyze_async(
+        &mut self,
+        root_names: &[String],
+    ) -> Result<CompilationResult, String> {
+        // eprintln!("DEBUG: NgCompiler::analyze_async called with {} root files", root_names.len());
         let mut result = CompilationResult::default();
         let metadata_reader = OxcMetadataReader;
 
         for file in root_names {
             let path = PathBuf::from(file);
             let abs_path = AbsoluteFsPath::from(&path);
+            // eprintln!("DEBUG: analyze_async processing file: {:?}", abs_path);
 
             let content = match self.fs.read_file(&abs_path) {
                 Ok(c) => c,
                 Err(e) => {
+                    // eprintln!("DEBUG: analyze_async failed to read file: {:?}", abs_path);
                     return Err(format!(
                         "File not found or unreadable: {:?} ({})",
                         abs_path, e
@@ -77,16 +83,18 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
 
             if !ret.errors.is_empty() {
                 for error in ret.errors {
-                    println!("Error parsing {:?}: {:?}", path, error);
+                    // eprintln!("DEBUG: Error parsing {:?}: {:?}", path, error);
                 }
                 return Err(format!("Failed to parse {:?}", path));
             } else {
                 let mut directives = metadata_reader.get_directive_metadata(&ret.program, &path);
+                // eprintln!("DEBUG: Extracted {} decorators from {:?}", directives.len(), abs_path);
 
                 // Parse templates for components that have inline templates
                 for directive in &mut directives {
                     // Only components have templates and styles
                     if let DecoratorMetadata::Directive(ref mut dir) = directive {
+                        // eprintln!("DEBUG: Found directive/component: {}", dir.t2.name);
                         if !dir.t2.is_component {
                             continue;
                         }
@@ -98,9 +106,16 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                                 let component_dir = self.fs.dirname(abs_path.as_str());
                                 let template_path =
                                     self.fs.resolve(&[&component_dir, template_url]);
+                                // eprintln!("DEBUG: Resolving template URL '{}' relative to '{}' -> '{}'", template_url, component_dir, template_path);
                                 match self.fs.read_file(&template_path) {
-                                    Ok(content) => Some(content),
-                                    Err(_) => None,
+                                    Ok(content) => {
+                                        // eprintln!("DEBUG: Successfully read template file: {}", template_path);
+                                        Some(content)
+                                    },
+                                    Err(e) => {
+                                        // eprintln!("DEBUG: Failed to read template file: {} (Error: {})", template_path, e);
+                                        None
+                                    },
                                 }
                             } else {
                                 None
@@ -155,6 +170,7 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
         &self,
         compilation_result: &CompilationResult,
     ) -> Result<Vec<crate::ngtsc::core::Diagnostic>, String> {
+        use oxc_ast::ast::*;
         let mut result_diagnostics: Vec<crate::ngtsc::core::Diagnostic> = Vec::new();
         let fs = self.fs;
 
@@ -207,26 +223,33 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
 
                 // Setup output path
                 let mut out_path = if let Some(out_dir) = &self.options.out_dir {
-                    let project_path = std::path::Path::new(&self.options.project);
-                    let project_root = project_path.parent().unwrap_or(std::path::Path::new("."));
-                    let absolute_project_root =
-                        std::fs::canonicalize(project_root).unwrap_or(project_root.to_path_buf());
+                    let absolute_project_root = if let Some(root_dir) = &self.options.root_dir {
+                        let p = PathBuf::from(root_dir);
+                        std::fs::canonicalize(&p).unwrap_or(p)
+                    } else {
+                        let project_path = std::path::Path::new(&self.options.project);
+                        let project_root = project_path.parent().unwrap_or(std::path::Path::new("."));
+                        std::fs::canonicalize(project_root).unwrap_or(project_root.to_path_buf())
+                    };
 
                     let absolute_src_file = std::fs::canonicalize(&src_file)
                         .unwrap_or(src_file.clone());
 
                     let relative_path = absolute_src_file
                         .strip_prefix(&absolute_project_root)
-                        .unwrap_or_else(|_| std::path::Path::new(src_file.file_name().unwrap()));
+                        .unwrap_or_else(|_| {
+                            std::path::Path::new(src_file.file_name().unwrap())
+                        });
 
                     let mut p = PathBuf::from(out_dir);
                     p.push(relative_path);
-                    p.set_extension("js");
-                    p
+
+                    let out_file_path = p.with_extension("js");
+                    out_file_path
                 } else {
                     let mut p = PathBuf::from(&src_file);
-                    p.set_extension("js");
-                    p
+                    let out_file_path = p.with_extension("js");
+                    out_file_path
                 };
 
                 // Ensure parent dir exists
@@ -266,6 +289,10 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                             );
 
                             // Step 3: AST-based Ivy transformation for ALL directives in this file
+                            // Track failed properties that couldn't be parsed (accumulated across all directives)
+                            let mut failed_properties: Vec<super::ast_transformer::FailedProperty> = Vec::new();
+                            let mut last_def_name = "ɵcmp".to_string(); // Default, will be updated for each directive
+                            
                             for directive in directives {
                                 let (compiled_results, directive_name) = match directive {
                                     DecoratorMetadata::Directive(dir) => {
@@ -356,7 +383,8 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                                 // Finding the main initializer (cmp, pipe, prov)
                                 let main_result = compiled_results.iter().find(|r| r.name == "ɵcmp" || r.name == "ɵpipe" || r.name == "ɵprov" || r.name == "ɵdir");
                                 let main_initializer = main_result.and_then(|r| r.initializer.as_deref()).unwrap_or("null");
-                                let def_name = main_result.map(|r| r.name.as_str()).unwrap_or("ɵcmp");
+                                let def_name = main_result.map(|r| r.name.clone()).unwrap_or_else(|| "ɵcmp".to_string());
+                                last_def_name = def_name.clone(); // Store for post-processing
 
                                 let cmp_expr_str = format!("/*@__PURE__*/ {}", main_initializer);
 
@@ -371,16 +399,18 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                                     // Use additional_imports from main result, or fallback to first result
                                     let additional_imports = main_result.map(|r| r.additional_imports.as_slice()).unwrap_or_else(|| compiled_results[0].additional_imports.as_slice());
 
-                                    super::ast_transformer::transform_component_ast(
+                                    let failed = super::ast_transformer::transform_component_ast(
                                         &allocator,
                                         &mut parse_result.program,
                                         &directive_name,
                                         hoisted_statements_arena,
                                         fac_expr_arena, // fac
                                         cmp_expr_arena, // cmp/pipe/prov
-                                        def_name, // Use correct field name (ɵcmp, ɵdir, ɵpipe, or ɵprov)
+                                        &def_name, // Use correct field name (ɵcmp, ɵdir, ɵpipe, or ɵprov)
                                         additional_imports,
                                     );
+
+                                    failed_properties.extend(failed);
                                 }
                             }
 
@@ -389,7 +419,20 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
                                 single_quote: true,
                                 ..oxc_codegen::CodegenOptions::default()
                             });
-                            let code = codegen.build(&parse_result.program).code;
+                            let mut code = codegen.build(&parse_result.program).code;
+                            
+                            // Replace placeholders with real expressions
+                            for prop in &failed_properties {
+                                // Codegen for string literals with single_quote: true will be 'placeholder'
+                                let placeholder_pattern = format!("'{}'", prop.placeholder);
+                                if code.contains(&placeholder_pattern) {
+                                    code = code.replace(&placeholder_pattern, &prop.expr);
+                                }
+                            }
+
+                            // Fix property names (ɵUNIQUE_FAC -> ɵfac, ɵUNIQUE_DIR -> last_def_name)
+                            code = code.replace("ɵUNIQUE_FAC", "ɵfac");
+                            code = code.replace("ɵUNIQUE_DIR", &last_def_name);
 
                             Some(code)
                         } else {
@@ -450,10 +493,14 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
 
             if let Some(out_dir) = &self.options.out_dir {
                 // Calculate output path preserving directory structure
-                let project_path = std::path::Path::new(&self.options.project);
-                let project_root = project_path.parent().unwrap_or(std::path::Path::new("."));
-                let absolute_project_root =
-                    std::fs::canonicalize(project_root).unwrap_or(project_root.to_path_buf());
+                let absolute_project_root = if let Some(root_dir) = &self.options.root_dir {
+                    let p = PathBuf::from(root_dir);
+                    std::fs::canonicalize(&p).unwrap_or(p)
+                } else {
+                    let project_path = std::path::Path::new(&self.options.project);
+                    let project_root = project_path.parent().unwrap_or(std::path::Path::new("."));
+                    std::fs::canonicalize(project_root).unwrap_or(project_root.to_path_buf())
+                };
 
                 let absolute_src_file =
                     std::fs::canonicalize(file.as_path()).unwrap_or(file.as_path().to_path_buf());
@@ -572,45 +619,89 @@ impl<'a, T: FileSystem> NgCompiler<'a, T> {
             }));
         }
 
-        if let Some(initializer) = compiled_results
-            .into_iter()
-            .find(|r| r.name == "ɵcmp" || r.name == "ɵdir")
-            .and_then(|r| r.initializer)
-        {
-            let final_content = if let Some(src_file) = source_file.as_ref() {
-                let source_path =
-                    crate::ngtsc::file_system::AbsoluteFsPath::from(src_file.as_path());
-                match fs.read_file(&source_path) {
-                    Ok(content) => {
-                        let source_text = content.clone();
-                        let stripped = strip_angular_decorator(&source_text);
-                        format!("{}\n\n{}.ɵfac = function {}_Factory(t) {{ return new (t || {})(); }};\n{}.ɵcmp = /*@__PURE__*/ {};",
-                               stripped, directive_name, directive_name, directive_name, directive_name, initializer)
-                    }
-                    Err(_) => format!(
-                        "// Error reading file\nexport class {} {{}}",
-                        directive_name
-                    ),
-                }
-            } else {
-                format!("export class {} {{}}", directive_name)
-            };
 
-            if let Some(src_file) = source_file {
-                let file_name = src_file.file_name().unwrap_or_default();
-                let file_name_str = file_name.to_string_lossy();
-                let js_name = file_name_str.replace(".ts", ".js");
-
-                for out_path in compilation_files {
-                    if out_path.ends_with(&js_name) {
-                        let _ = fs.write_file(
-                            &crate::ngtsc::file_system::AbsoluteFsPath::from(out_path),
-                            final_content.as_bytes(),
-                            None,
-                        );
+        
+        // Wait, I can't easily change the `if let` structure without rewriting more lines.
+        // `compiled_results` is used in loop at line 592 (by reference).
+        // Then line 604 consumes it `into_iter`.
+        
+        // Strategy:
+        // 1. Find main result by reference first.
+        // 2. If found, proceed.
+        // 3. Inside, iterate over `compiled_results` (which was not consumed if I change line 604 to `iter()`).
+        
+        let main_result = compiled_results
+             .iter()
+             .find(|r| r.name == "ɵcmp" || r.name == "ɵdir");
+             
+        if let Some(r) = main_result {
+             if let Some(initializer) = &r.initializer {
+                 // Logic here
+             }
+        }
+        
+        // BUT the replacement target is the `if let` block.
+        // So I will replace the `if let` block with the new logic.
+        
+        // New block:
+        let main_result_ref = compiled_results.iter().find(|r| r.name == "ɵcmp" || r.name == "ɵdir");
+        if let Some(main_res) = main_result_ref {
+            if let Some(initializer) = &main_res.initializer {
+                let mut import_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+                
+                // Collect imports from ALL results (fac, dir, etc)
+                for res in &compiled_results {
+                    for (alias, module) in &res.additional_imports {
+                        import_map.insert(alias.clone(), module.clone());
                     }
                 }
-                component_files.insert(src_file);
+                
+                // Generate imports string
+                let mut import_stmts = String::new();
+                let mut sorted_aliases: Vec<_> = import_map.keys().collect();
+                sorted_aliases.sort();
+                
+                for alias in sorted_aliases {
+                    let module = import_map.get(alias).unwrap();
+                    import_stmts.push_str(&format!("import * as {} from '{}';\n", alias, module));
+                }
+                
+                 let final_content = if let Some(src_file) = source_file.as_ref() {
+                    let source_path =
+                        crate::ngtsc::file_system::AbsoluteFsPath::from(src_file.as_path());
+                    match fs.read_file(&source_path) {
+                        Ok(content) => {
+                            let source_text = content.clone();
+                            let stripped = strip_angular_decorator(&source_text);
+                            // We strictly prepend the imports.
+                            format!("{}\n{}\n\n{}.ɵfac = function {}_Factory(t) {{ return new (t || {})(); }};\n{}.ɵcmp = /*@__PURE__*/ {};",
+                                   import_stmts, stripped, directive_name, directive_name, directive_name, directive_name, initializer)
+                        }
+                        Err(_) => format!(
+                            "// Error reading file\nexport class {} {{}}",
+                            directive_name
+                        ),
+                    }
+                } else {
+                    format!("export class {} {{}}", directive_name)
+                };
+
+                if let Some(src_file) = source_file {
+                    let file_name = src_file.file_name().unwrap_or_default();
+                    let file_name_str = file_name.to_string_lossy();
+                    let js_name = file_name_str.replace(".ts", ".js");
+    
+                    for out_path in compilation_files {
+                        if out_path.ends_with(&js_name) {
+                            let _ = fs.write_file(
+                                &crate::ngtsc::file_system::AbsoluteFsPath::from(out_path),
+                                final_content.as_bytes(),
+                                None,
+                            );
+                        }
+                    }
+                    component_files.insert(src_file);
+                }
             }
         }
     }
@@ -683,3 +774,4 @@ fn extract_and_remove_imports(code: &str) -> (Vec<String>, String) {
 
     (imports, remaining_lines.join("\n"))
 }
+

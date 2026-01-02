@@ -59,6 +59,20 @@ pub struct R3DirectiveMetadata {
 pub struct R3LifecycleMetadata {
     /// Whether the directive uses NgOnChanges.
     pub uses_on_changes: bool,
+    /// Whether the directive uses NgOnInit.
+    pub uses_on_init: bool,
+    /// Whether the directive uses NgDoCheck.
+    pub uses_do_check: bool,
+    /// Whether the directive uses NgAfterContentInit.
+    pub uses_after_content_init: bool,
+    /// Whether the directive uses NgAfterContentChecked.
+    pub uses_after_content_checked: bool,
+    /// Whether the directive uses NgAfterViewInit.
+    pub uses_after_view_init: bool,
+    /// Whether the directive uses NgAfterViewChecked.
+    pub uses_after_view_checked: bool,
+    /// Whether the directive uses NgOnDestroy.
+    pub uses_on_destroy: bool,
 }
 
 /// Defines how dynamic imports for deferred dependencies should be emitted.

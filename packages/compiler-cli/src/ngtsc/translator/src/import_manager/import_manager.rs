@@ -282,3 +282,54 @@ where
         expr
     }
 }
+
+// =========================================================================================
+// EmitterImportManager
+// A simplified ImportManager for use specifically with AbstractJsEmitter where no AST context exists.
+// =========================================================================================
+
+pub struct EmitterImportManager {
+    /// Map of module name -> alias (e.g. "@angular/core" -> "i0")
+    imports: HashMap<String, String>,
+    /// Counter for generating unique aliases
+    next_id: usize,
+}
+
+impl EmitterImportManager {
+    pub fn new() -> Self {
+        Self {
+            imports: HashMap::new(),
+            next_id: 0,
+        }
+    }
+
+    /// Get the alias for a module, generating one if it doesn't exist.
+    pub fn get_or_generate_alias(&mut self, module_name: &str) -> String {
+        if let Some(alias) = self.imports.get(module_name) {
+            return alias.clone();
+        }
+
+        let alias = format!("i{}", self.next_id);
+        self.next_id += 1;
+        self.imports.insert(module_name.to_string(), alias.clone());
+        alias
+    }
+
+    /// Get the current map of imports to aliases
+    pub fn get_imports_map(&self) -> HashMap<String, String> {
+        self.imports.clone()
+    }
+
+    /// Generate the import statements to be prepended to the file
+    pub fn generate_import_statements(&self) -> String {
+        let mut statements = String::new();
+        // Sort imports to ensure deterministic output
+        let mut sorted_imports: Vec<_> = self.imports.iter().collect();
+        sorted_imports.sort_by_key(|(module, _)| *module);
+
+        for (module, alias) in sorted_imports {
+            statements.push_str(&format!("import * as {} from '{}';\n", alias, module));
+        }
+        statements
+    }
+}

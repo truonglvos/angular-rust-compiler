@@ -30,6 +30,13 @@ impl PartialComponentLinker2 {
         source_url: &str,
         target_name: Option<&str>,
     ) -> Result<R3ComponentMetadata, String> {
+        // DEBUG: Trace function entry
+        // eprintln!("[Linker2] to_r3_component_metadata called, target_name: {:?}", target_name);
+        
+        // DEBUG: Print all metadata keys
+        let keys: Vec<String> = meta_obj.to_map().keys().cloned().collect();
+        // eprintln!("[Linker2] Metadata keys: {:?}", keys);
+        
         // Essential fields
         let type_name_str = if let Ok(t) = meta_obj.get_value("type") {
             meta_obj.host.print_node(&t.node)
@@ -39,10 +46,11 @@ impl PartialComponentLinker2 {
             return Err("Missing 'type' property and no target_name provided".to_string());
         };
 
+
         // Create a ReadVarExpr with the string representation
         // This avoids WrappedNodeExpr and 'static requirement
         let wrapped_type = o::Expression::ReadVar(o::ReadVarExpr {
-            name: type_name_str,
+            name: type_name_str.clone(),
             type_: None,
             source_span: None,
         });
@@ -119,8 +127,16 @@ impl PartialComponentLinker2 {
         }
 
         let encapsulation = if meta_obj.has("encapsulation") {
-            // Assuming it sends an index
-            let idx = meta_obj.get_number("encapsulation")? as u32;
+            let mut idx = 0; // Default ViewEncapsulation.Emulated
+            if let Ok(val) = meta_obj.get_number("encapsulation") {
+                idx = val as u32;
+            } else if let Ok(val) = meta_obj.get_value("encapsulation") {
+                let text = val.print();
+                if text.contains("ViewEncapsulation.None") { idx = 2; }
+                else if text.contains("ViewEncapsulation.ShadowDom") { idx = 3; }
+                else if text.contains("ViewEncapsulation.Emulated") { idx = 0; }
+                else if text.contains("ViewEncapsulation.Native") { idx = 1; }
+            }
             match idx {
                 0 => ViewEncapsulation::Emulated,
                 2 => ViewEncapsulation::None,
@@ -132,7 +148,14 @@ impl PartialComponentLinker2 {
         };
 
         let change_detection = if meta_obj.has("changeDetection") {
-            let idx = meta_obj.get_number("changeDetection")? as u32;
+            let mut idx = 1; // Default ChangeDetectionStrategy.Default
+            if let Ok(val) = meta_obj.get_number("changeDetection") {
+                idx = val as u32;
+            } else if let Ok(val) = meta_obj.get_value("changeDetection") {
+                let text = val.print();
+                if text.contains("ChangeDetectionStrategy.OnPush") { idx = 0; }
+                else if text.contains("ChangeDetectionStrategy.Default") { idx = 1; }
+            }
             let strategy = match idx {
                 0 => ChangeDetectionStrategy::OnPush,
                 1 => ChangeDetectionStrategy::Default,
@@ -203,6 +226,37 @@ impl PartialComponentLinker2 {
                             },
                         );
                     }
+                } else if val_ast.is_object() {
+                    let input_obj = val_ast.get_object()?;
+                    let class_property_name = input_obj
+                        .get_string("classPropertyName")
+                        .unwrap_or_else(|_| key.clone());
+                    let binding_property_name = input_obj
+                        .get_string("publicName")
+                        .unwrap_or_else(|_| key.clone());
+                    let required = input_obj.get_bool("isRequired").unwrap_or(false);
+                    let is_signal = input_obj.get_bool("isSignal").unwrap_or(false);
+                    let transform_function = if input_obj.has("transformFunction") {
+                        let transform_node = input_obj.get_value("transformFunction")?.node;
+                        let transform_str = meta_obj.host.print_node(&transform_node);
+                        Some(o::Expression::RawCode(o::RawCodeExpr {
+                            code: transform_str,
+                            source_span: None,
+                        }))
+                    } else {
+                        None
+                    };
+
+                    inputs.insert(
+                        key.clone(),
+                        R3InputMetadata {
+                            class_property_name,
+                            binding_property_name,
+                            required,
+                            is_signal,
+                            transform_function,
+                        },
+                    );
                 }
             }
         }
@@ -271,11 +325,67 @@ impl PartialComponentLinker2 {
             vec![]
         };
 
-        let view_queries = vec![]; // TODO: extract from 'viewQueries' property, similar structure
+        // ViewQueries - extract from 'viewQueries' property (for @ViewChild/@ViewChildren)
+        let view_queries = if meta_obj.has("viewQueries") {
+            let view_queries_arr = meta_obj.get_array("viewQueries")?;
+            eprintln!("[Linker] Found {} viewQueries", view_queries_arr.len());
+            view_queries_arr
+                .iter()
+                .map(|q| {
+                    let q_obj = q.get_object()?;
+                    let property_name = q_obj.get_string("propertyName")?;
+                    let first = q_obj.get_bool("first").unwrap_or(false);
+                    let predicate = if q_obj.has("predicate") {
+                        let p = q_obj.get_value("predicate")?;
+                        if p.is_string() {
+                            angular_compiler::render3::view::api::R3QueryPredicate::Selectors(vec![
+                                p.get_string()?,
+                            ])
+                        } else if p.is_array() {
+                            let arr = p.get_array()?;
+                            let selectors = arr
+                                .iter()
+                                .map(|s| s.get_string())
+                                .collect::<Result<_, _>>()?;
+                            angular_compiler::render3::view::api::R3QueryPredicate::Selectors(
+                                selectors,
+                            )
+                        } else {
+                            angular_compiler::render3::view::api::R3QueryPredicate::Selectors(vec![
+                                "".to_string(),
+                            ])
+                        }
+                    } else {
+                        angular_compiler::render3::view::api::R3QueryPredicate::Selectors(vec![])
+                    };
+
+                    Ok(R3QueryMetadata {
+                        property_name,
+                        first,
+                        predicate,
+                        descendants: q_obj.get_bool("descendants").unwrap_or(false),
+                        emit_distinct_changes_only: q_obj
+                            .get_bool("emitDistinctChangesOnly")
+                            .unwrap_or(true),
+                        read: None, // TODO: handle read token
+                        static_: q_obj.get_bool("static").unwrap_or(false),
+                        is_signal: q_obj.get_bool("isSignal").unwrap_or(false),
+                    })
+                })
+                .collect::<Result<Vec<_>, String>>()?
+        } else {
+            vec![]
+        };
+
 
         // Host
-        let host = if meta_obj.has("host") {
+        let has_host = meta_obj.has("host");
+        if has_host {
+            eprintln!("[Linker] Found 'host' key in metadata! Keys: {:?}", meta_obj.to_map().keys().cloned().collect::<Vec<_>>());
+        }
+        let host = if has_host {
             let host_obj = meta_obj.get_object("host")?;
+
             let mut attributes = HashMap::new();
             let mut listeners = HashMap::new();
             let mut properties = HashMap::new();
@@ -284,8 +394,46 @@ impl PartialComponentLinker2 {
 
             for (key, val) in host_obj.to_map() {
                 let val_ast = AstValue::new(val.clone(), meta_obj.host);
-                if val_ast.is_string() {
-                    let val_str = val_ast.get_string()?;
+                
+                if key == "attributes" && val_ast.is_object() {
+                    let obj = val_ast.get_object()?;
+                    for (k, v) in obj.to_map() {
+                        let v_ast = AstValue::new(v.clone(), meta_obj.host);
+                        let v_str = v_ast.print(); // Usually a string literal or expression
+                        attributes.insert(
+                            k.clone(),
+                            o::Expression::Literal(o::LiteralExpr {
+                                value: o::LiteralValue::String(v_str),
+                                type_: None,
+                                source_span: None,
+                            }),
+                        );
+                    }
+                } else if key == "listeners" && val_ast.is_object() {
+                    let obj = val_ast.get_object()?;
+                    for (k, v) in obj.to_map() {
+                        let v_ast = AstValue::new(v.clone(), meta_obj.host);
+                        listeners.insert(k.clone(), v_ast.print());
+                    }
+                } else if key == "properties" && val_ast.is_object() {
+                    let obj = val_ast.get_object()?;
+                    for (k, v) in obj.to_map() {
+                        let v_ast = AstValue::new(v.clone(), meta_obj.host);
+                        properties.insert(k.clone(), v_ast.print());
+                    }
+                } else if key == "classAttribute" {
+                    special_attributes.class_attr = Some(val_ast.print());
+                } else if key == "styleAttribute" {
+                    special_attributes.style_attr = Some(val_ast.print());
+                } else {
+                    // Fallback for flat format or other keys
+                    let is_str = val_ast.is_string();
+                    let val_str = if is_str {
+                        val_ast.get_string()?
+                    } else {
+                        val_ast.print()
+                    };
+
                     if key.starts_with("(") && key.ends_with(")") {
                         let event_name = &key[1..key.len() - 1];
                         listeners.insert(event_name.to_string(), val_str);
@@ -309,6 +457,10 @@ impl PartialComponentLinker2 {
                 }
             }
 
+
+
+
+
             R3HostMetadata {
                 attributes,
                 listeners,
@@ -318,6 +470,7 @@ impl PartialComponentLinker2 {
         } else {
             R3HostMetadata::default()
         };
+
 
         // Dependencies (Directives/Pipes)
         let mut declarations = Vec::new();
@@ -402,9 +555,34 @@ impl PartialComponentLinker2 {
             }
         }
 
+        // Parse exportAs
+        let export_as = if meta_obj.has("exportAs") {
+            if let Ok(arr) = meta_obj.get_array("exportAs") {
+                let exports: Result<Vec<String>, String> = arr
+                    .iter()
+                    .map(|e| e.get_string())
+                    .collect();
+                exports.ok()
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // Parse usesInheritance
+        let uses_inheritance = meta_obj.get_bool("usesInheritance").unwrap_or(false);
+
+        // Extract simple class name from type_name_str (e.g. "i0.MyComponent" -> "MyComponent")
+        let simple_name = type_name_str
+            .split('.')
+            .last()
+            .unwrap_or(&type_name_str)
+            .to_string();
+
         // Construct R3DirectiveMetadata (subset)
         let directive = R3DirectiveMetadata {
-            name: "Component".to_string(), // TODO: extract class name
+            name: simple_name,
             type_: type_ref.clone(),
             type_argument_count: 0,
             type_source_span: dummy_span,
@@ -416,8 +594,8 @@ impl PartialComponentLinker2 {
             lifecycle: R3LifecycleMetadata::default(),
             inputs,
             outputs,
-            uses_inheritance: false,
-            export_as: None,
+            uses_inheritance,
+            export_as,
             providers: None,
             is_standalone: meta_obj.get_bool("isStandalone").unwrap_or(false),
             is_signal: meta_obj.get_bool("isSignal").unwrap_or(false),
@@ -510,7 +688,7 @@ impl PartialComponentLinker2 {
             defer: R3ComponentDeferMetadata::PerComponent {
                 dependencies_fn: None,
             },
-            declaration_list_emit_mode: DeclarationListEmitMode::Direct,
+            declaration_list_emit_mode: DeclarationListEmitMode::Closure,
             styles,
             external_styles: None,
             encapsulation,
@@ -536,6 +714,7 @@ impl<TExpression: AstNode> PartialLinker<TExpression> for PartialComponentLinker
         target_name: Option<&str>,
     ) -> o::Expression {
         // TODO: Use source_url to resolve template if needed
+        // println!("[LINKER] link_partial_declaration called, source_url: {}", source_url);
         match self.to_r3_component_metadata(meta_obj, source_url, target_name) {
             Ok(meta) => {
                 let _parser = angular_compiler::expression_parser::parser::Parser::new();

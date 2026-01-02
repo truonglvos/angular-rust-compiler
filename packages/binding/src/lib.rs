@@ -215,6 +215,7 @@ impl FileSystem for CapturingFileSystem {
         _exclusive: Option<bool>,
     ) -> io::Result<()> {
         let mut captured = self.captured_files.lock().unwrap();
+        eprintln!("[Rust Binding] Writing to memory: {}", path);
         captured.insert(path.clone(), data.to_vec());
         Ok(())
     }
@@ -282,68 +283,25 @@ impl Compiler {
     }
 
     /// Read cached compile result from disk
-    fn read_compiler_cache(&self, hash: &str) -> Option<CompileResult> {
-        let cache_file = self.compiler_cache_dir.join(format!("{}.json", hash));
-        if let Ok(content) = fs::read_to_string(&cache_file) {
-            if let Ok(cached) = serde_json::from_str::<CachedCompileResult>(&content) {
-                return Some(CompileResult {
-                    code: cached.code,
-                    diagnostics: cached
-                        .diagnostics
-                        .into_iter()
-                        .map(|d| Diagnostic {
-                            file: d.file,
-                            message: d.message,
-                            code: d.code,
-                            start: d.start,
-                            length: d.length,
-                        })
-                        .collect(),
-                });
-            }
-        }
+    fn read_compiler_cache(&self, _hash: &str) -> Option<CompileResult> {
+        // CACHE DISABLED TEMPORARILY
         None
     }
 
     /// Write compile result to disk cache
-    fn write_compiler_cache(&self, hash: &str, result: &CompileResult) {
-        let cache_file = self.compiler_cache_dir.join(format!("{}.json", hash));
-        let cached = CachedCompileResult {
-            code: result.code.clone(),
-            diagnostics: result
-                .diagnostics
-                .iter()
-                .map(|d| CachedDiagnostic {
-                    file: d.file.clone(),
-                    message: d.message.clone(),
-                    code: d.code,
-                    start: d.start,
-                    length: d.length,
-                })
-                .collect(),
-        };
-        if let Ok(json) = serde_json::to_string(&cached) {
-            let _ = fs::write(&cache_file, json);
-        }
+    fn write_compiler_cache(&self, _hash: &str, _result: &CompileResult) {
+        // CACHE DISABLED TEMPORARILY
     }
 
     /// Read cached linker result from disk
-    fn read_linker_cache(&self, hash: &str) -> Option<String> {
-        let cache_file = self.linker_cache_dir.join(format!("{}.json", hash));
-        if let Ok(content) = fs::read_to_string(&cache_file) {
-            if let Ok(cached) = serde_json::from_str::<String>(&content) {
-                return Some(cached);
-            }
-        }
+    fn read_linker_cache(&self, _hash: &str) -> Option<String> {
+        // CACHE DISABLED TEMPORARILY
         None
     }
 
     /// Write linker result to disk cache
-    fn write_linker_cache(&self, hash: &str, result: &str) {
-        let cache_file = self.linker_cache_dir.join(format!("{}.json", hash));
-        if let Ok(json) = serde_json::to_string(result) {
-            let _ = fs::write(&cache_file, json);
-        }
+    fn write_linker_cache(&self, _hash: &str, _result: &str) {
+        // CACHE DISABLED TEMPORARILY
     }
 
     #[napi]
@@ -472,9 +430,21 @@ impl Compiler {
 
         // 2. Setup Compiler Options
         let mut options = NgCompilerOptions::default();
-        let first_file = &root_names[0];
-        options.project = first_file.clone();
-        options.out_dir = Some(fs.dirname(first_file));
+        if !root_names.is_empty() {
+             // Find common root
+             let mut common_root = fs.dirname(&root_names[0]);
+             for path in &root_names[1..] {
+                 while !path.starts_with(&common_root) {
+                     let parent = fs.dirname(&common_root);
+                     if parent == common_root { break; } // Reached root
+                     common_root = parent;
+                 }
+             }
+             eprintln!("[Rust Binding] Common root: {}", common_root);
+             options.out_dir = Some(common_root.clone());
+             options.root_dir = Some(common_root.clone());
+             options.project = root_names[0].clone();
+        }
         // Ensure we compile all inputs - default behavior is sufficient
 
         // 3. Create Program (ONCE)
@@ -543,7 +513,13 @@ impl Compiler {
             let output_path_str = abs_path_str.replace(".ts", ".js");
             let output_path = AbsoluteFsPath::from(Path::new(&output_path_str));
 
-            let code = fs.read_file(&output_path).ok();
+            let code = match fs.read_file(&output_path) {
+                Ok(c) => Some(c),
+                Err(_) => {
+                    eprintln!("[Rust Binding] Failed to read from memory: {}", output_path);
+                    None
+                }
+            };
             let diags = file_diagnostics.remove(&abs_path_str).unwrap_or_default();
 
             results.push(BatchEntryResult {
@@ -554,6 +530,20 @@ impl Compiler {
         }
 
         results
+    }
+
+    #[napi]
+    pub fn get_dependencies(&self, entry_file: String) -> Vec<String> {
+        use angular_compiler_cli::ngtsc::dependency::resolution::resolve_dependencies;
+        use std::path::Path;
+
+        match resolve_dependencies(Path::new(&entry_file)) {
+            Ok(paths) => paths.into_iter().map(|p| p.to_string_lossy().to_string()).collect(),
+            Err(e) => {
+                eprintln!("Failed to resolve dependencies: {}", e);
+                vec![]
+            }
+        }
     }
 }
 
@@ -568,4 +558,46 @@ pub struct BatchEntryResult {
     pub filename: String,
     pub code: Option<String>,
     pub diagnostics: Vec<Diagnostic>,
+}
+
+#[napi(object)]
+pub struct NapiBundleResult {
+    pub bundle_js: String,
+    pub styles_css: Option<String>,
+    pub scripts_js: Option<String>,
+    pub index_html: Option<String>,
+    pub files: HashMap<String, String>,
+}
+    
+#[napi]
+impl Compiler {
+    // ... existing impl ...
+
+    #[napi]
+    pub fn bundle(&self, project_path: String) -> NapiBundleResult {
+        use angular_compiler_cli::bundler::bundle_project;
+        use std::path::Path;
+
+        match bundle_project(Path::new(&project_path)) {
+            Ok(res) => NapiBundleResult {
+                bundle_js: res.bundle_js,
+                styles_css: res.styles_css,
+                scripts_js: res.scripts_js,
+                index_html: res.index_html,
+                files: res.files,
+            },
+            Err(e) => {
+                eprintln!("Bundle Error: {}", e);
+                NapiBundleResult {
+                    bundle_js: format!("/* Bundle Error: {} */", e),
+                    styles_css: None,
+                    scripts_js: None,
+                    index_html: None,
+                    files: HashMap::new(),
+                }
+            }
+        }
+    }
+    
+    // ... existing methods ...
 }

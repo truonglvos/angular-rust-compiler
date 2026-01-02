@@ -792,6 +792,10 @@ impl Identifiers {
         Self::make_ref(Some("ɵɵExternalStylesFeature"))
     }
 
+    pub fn standalone_feature() -> ExternalReference {
+        Self::make_ref(Some("ɵɵStandaloneFeature"))
+    }
+
     pub fn listener() -> ExternalReference {
         Self::make_ref(Some("ɵɵlistener"))
     }

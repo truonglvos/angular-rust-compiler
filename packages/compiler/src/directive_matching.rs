@@ -270,6 +270,8 @@ impl<T: Clone> SelectorMatcher<T> {
             callback_data,
             id: self.counter,
         };
+        // DEBUG: Trace directive registration
+        // eprintln!("DEBUG: Registering directive with Selector: {}, Raw: {:?}", css_selector, css_selector);
         self.counter += 1;
 
         // Index by element
@@ -371,6 +373,8 @@ impl<T: Clone> SelectorMatcher<T> {
                     }
                 }
                 // Check generic attribute match (selector has [attr] without value, indexed as "")
+                // This handles cases where the element has an attribute with a value,
+                // but the pattern selector only specifies the attribute name without a value
                 if !value.is_empty() {
                     if let Some(contexts) = attr_values.get("") {
                         for context in contexts {
@@ -544,6 +548,38 @@ mod tests {
     fn test_unescape_attribute_error() {
         let result = CssSelector::unescape_attribute("test$attr");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_attribute_selector_no_value() {
+        // Test parsing button[mat-button] (attribute without value)
+        let selectors = CssSelector::parse("button[mat-button]").unwrap();
+        assert_eq!(selectors.len(), 1);
+        assert_eq!(selectors[0].element, Some("button".to_string()));
+        assert_eq!(selectors[0].get_attr("mat-button"), Some(""));
+    }
+
+    #[test]
+    fn test_matcher_attribute_no_value() {
+        // Test matching button[mat-button] directive with <button mat-button> element
+        let mut matcher = SelectorMatcher::new();
+
+        // Register directive with selector button[mat-button]
+        let directive_selector = CssSelector::parse("button[mat-button]").unwrap();
+        matcher.add_selectable(directive_selector[0].clone(), "MatButton");
+
+        // Create element selector for <button mat-button>
+        let mut element_selector = CssSelector::new();
+        element_selector.set_element("button");
+        element_selector.add_attribute("mat-button", ""); // Empty value
+
+        let mut matched = false;
+        matcher.match_selector(&element_selector, |_sel, data| {
+            matched = true;
+            assert_eq!(*data, "MatButton");
+        });
+
+        assert!(matched, "button[mat-button] should match <button mat-button>");
     }
 }
 

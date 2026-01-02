@@ -36,3 +36,5 @@ pub mod tsc_plugin;
 pub mod util;
 pub mod validation;
 pub mod xi18n;
+
+pub mod dependency;

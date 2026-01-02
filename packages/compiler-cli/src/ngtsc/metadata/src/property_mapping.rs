@@ -11,6 +11,15 @@ pub struct InputOrOutput {
     pub class_property_name: String,
     pub binding_property_name: String,
     pub is_signal: bool,
+    pub required: bool,
+    pub transform: Option<DecoratorInputTransform>,
+}
+
+/// Metadata for an `@Input()` transform function.
+#[derive(Debug, Clone)]
+pub struct DecoratorInputTransform {
+    pub node: String, // AST node placeholder
+    pub type_ref: String,
 }
 
 /// A mapping of class properties to their Angular bindings (inputs or outputs).

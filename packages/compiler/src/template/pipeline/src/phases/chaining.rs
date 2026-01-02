@@ -214,7 +214,6 @@ fn chain_operations_impl_create(
     }
 
     // Apply updates
-    // println!("Applying updates: count {}, Removing indices: count {}", updates.len(), indices_to_remove.len());
     for (index, expr) in updates {
         if let Some(op) = op_list.get_mut(index) {
             if let Some(stmt_op) = op
@@ -294,8 +293,6 @@ fn chain_operations_impl_update(
             let chain_key = ExternalRefKey::from_ref(&chain_state.instruction);
             let compatible_instruction = chain_compat.get(&chain_key);
             let compatible_key = compatible_instruction.map(|r| ExternalRefKey::from_ref(r));
-
-            // println!("Chain state: {:?}, Compatible: {:?}, Current: {:?}", chain_key.1, compatible_key.as_ref().map(|k| &k.1), instruction_key.1);
 
             if compatible_key.as_ref() == Some(&instruction_key)
                 && chain_state.length < MAX_CHAIN_LENGTH

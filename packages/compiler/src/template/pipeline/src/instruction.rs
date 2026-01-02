@@ -177,6 +177,19 @@ pub fn enable_bindings() -> o::Statement {
     call(Identifiers::enable_bindings(), vec![], None)
 }
 
+pub fn listener(
+    name: String,
+    handler_fn: o::Expression,
+    event_target: Option<String>,
+    source_span: Option<ParseSourceSpan>,
+) -> o::Statement {
+    let mut args = vec![*o::literal(name), handler_fn];
+    if let Some(target) = event_target {
+        args.push(*o::literal(target));
+    }
+    call(Identifiers::listener(), args, source_span)
+}
+
 pub fn two_way_listener<S: AsRef<str>>(
     name: S,
     handler: o::Expression,

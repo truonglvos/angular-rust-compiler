@@ -37,6 +37,10 @@ impl<'a, T: FileSystem> NgtscProgram<'a, T> {
     }
 
     pub fn load_ng_structure(&mut self, _path: &Path) -> Result<(), String> {
+        // eprintln!("DEBUG: NgtscProgram::load_ng_structure called with {} root files", self.root_names.len());
+        for name in &self.root_names {
+            // eprintln!("DEBUG: Root file: {}", name);
+        }
         // We trigger analysis with the root files we know about
         let res = self.compiler.analyze_async(&self.root_names)?;
         self.result = Some(res);

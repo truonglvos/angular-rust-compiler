@@ -88,6 +88,37 @@ impl PartialDirectiveLinker2 {
                             },
                         );
                     }
+                } else if val_ast.is_object() {
+                    let input_obj = val_ast.get_object()?;
+                    let class_property_name = input_obj
+                        .get_string("classPropertyName")
+                        .unwrap_or_else(|_| key.clone());
+                    let binding_property_name = input_obj
+                        .get_string("publicName")
+                        .unwrap_or_else(|_| key.clone());
+                    let required = input_obj.get_bool("isRequired").unwrap_or(false);
+                    let is_signal = input_obj.get_bool("isSignal").unwrap_or(false);
+                    let transform_function = if input_obj.has("transformFunction") {
+                        let transform_node = input_obj.get_value("transformFunction")?.node;
+                        let transform_str = meta_obj.host.print_node(&transform_node);
+                        Some(o::Expression::RawCode(o::RawCodeExpr {
+                            code: transform_str,
+                            source_span: None,
+                        }))
+                    } else {
+                        None
+                    };
+
+                    inputs.insert(
+                        key.clone(),
+                        R3InputMetadata {
+                            class_property_name,
+                            binding_property_name,
+                            required,
+                            is_signal,
+                            transform_function,
+                        },
+                    );
                 }
             }
         }
@@ -227,9 +258,9 @@ impl PartialDirectiveLinker2 {
                     } else if key.starts_with("[") && key.ends_with("]") {
                         let prop_name = &key[1..key.len() - 1];
                         properties.insert(prop_name.to_string(), val_str);
-                    } else if key == "class" {
+                    } else if key == "class" || key == "classAttribute" {
                         special_attributes.class_attr = Some(val_str);
-                    } else if key == "style" {
+                    } else if key == "style" || key == "styleAttribute" {
                         special_attributes.style_attr = Some(val_str);
                     } else {
                         attributes.insert(

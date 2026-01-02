@@ -384,11 +384,15 @@ fn reify_create_operations(
             }
 
             ir::OpKind::Listener => {
+                // eprintln!("[reify] Found ListenerOp");
                 if let Some(listener_op) = op
                     .as_any_mut()
                     .downcast_mut::<ir::ops::create::ListenerOp>()
                 {
-                    // Reify handler operations similar to reifyUpdateOperations in TS
+                    // Reify handler operations
+                    let mut handler_stmts = vec![];
+                    // eprintln!("[reify] Handler ops count: {}", listener_op.handler_ops.len());
+
                     for handler_op in &mut listener_op.handler_ops {
                         // First, transform IR expressions
                         ir::transform_expressions_in_op(
@@ -429,9 +433,17 @@ fn reify_create_operations(
                                         modifiers: o::StmtModifier::Final,
                                         source_span: None,
                                     })
+                                } else if let SemanticVariable::Identifier(ident_var) = &var_op.variable {
+                                    // Identifier case: use identifier name as fallback if no unique name assigned
+                                    o::Statement::DeclareVar(o::DeclareVarStmt {
+                                        name: ident_var.identifier.clone(),
+                                        value: Some(Box::new(reified_initializer)),
+                                        type_: None,
+                                        modifiers: o::StmtModifier::Final,
+                                        source_span: None,
+                                    })
                                 } else {
                                     // No variable name: emit as expression statement
-                                    // This matches NGTSC behavior for restoreView() calls
                                     o::Statement::Expression(o::ExpressionStatement {
                                         expr: Box::new(reified_initializer),
                                         source_span: None,
@@ -445,16 +457,57 @@ fn reify_create_operations(
                                 *handler_op = new_op;
                             }
                         }
+                        
+                        // Collect statements
+                        if let Some(stmt_op) = handler_op
+                            .as_any()
+                            .downcast_ref::<ir::ops::shared::StatementOp<Box<dyn ir::UpdateOp + Send + Sync>>>()
+                        {
+                            handler_stmts.push(*stmt_op.statement.clone());
+                        }
                     }
+
+                    // Create handler function
+                    let handler_fn_name = listener_op.handler_fn_name.clone();
+                    let mut params = vec![];
+                     if listener_op.consumes_dollar_event {
+                        params.push(o::FnParam {
+                            name: "$event".to_string(),
+                            type_: None,
+                        });
+                    }
+
+                    let handler_fn = o::Expression::Fn(o::FunctionExpr {
+                        name: handler_fn_name,
+                        params,
+                        statements: handler_stmts,
+                        type_: None,
+                        source_span: None,
+                    });
+
+                    // Create listener statement
+                    let stmt = ng::listener(
+                        listener_op.name.to_string(),
+                        handler_fn,
+                        listener_op.event_target.clone(),
+                        listener_op.source_span.clone().into(),
+                    );
+                    
+                    Some(Box::new(ir::ops::shared::create_statement_op::<
+                        Box<dyn CreateOp + Send + Sync>,
+                    >(Box::new(stmt))))
+                } else {
+                    None
                 }
-                None
             }
             ir::OpKind::TwoWayListener => {
                 if let Some(listener_op) = op
                     .as_any_mut()
                     .downcast_mut::<ir::ops::create::TwoWayListenerOp>()
                 {
-                    // Reify handler operations similar to reifyUpdateOperations in TS
+                    // Reify handler operations
+                    let mut handler_stmts = vec![];
+
                     for handler_op in &mut listener_op.handler_ops {
                         // First, transform IR expressions
                         ir::transform_expressions_in_op(
@@ -497,7 +550,6 @@ fn reify_create_operations(
                                     })
                                 } else {
                                     // No variable name: emit as expression statement
-                                    // This matches NGTSC behavior for restoreView() calls
                                     o::Statement::Expression(o::ExpressionStatement {
                                         expr: Box::new(reified_initializer),
                                         source_span: None,
@@ -511,9 +563,47 @@ fn reify_create_operations(
                                 *handler_op = new_op;
                             }
                         }
+
+                        // Collect statements
+                        if let Some(stmt_op) = handler_op
+                            .as_any()
+                            .downcast_ref::<ir::ops::shared::StatementOp<Box<dyn ir::UpdateOp + Send + Sync>>>()
+                        {
+                            handler_stmts.push(*stmt_op.statement.clone());
+                        }
                     }
+
+                    // Create handler function
+                    let handler_fn_name = listener_op.handler_fn_name.clone();
+                    let mut params = vec![];
+                    // Two-way listeners always consume $event
+                     params.push(o::FnParam {
+                        name: "$event".to_string(),
+                        type_: None,
+                    });
+
+                    let handler_fn = o::Expression::Fn(o::FunctionExpr {
+                        name: handler_fn_name,
+                        params,
+                        statements: handler_stmts,
+                        type_: None,
+                        source_span: None,
+                    });
+
+                    // Create listener statement
+                    let stmt = ng::two_way_listener(
+                        listener_op.name.to_string(),
+                        handler_fn,
+                        false, // Default prevent_default
+                        listener_op.source_span.clone().into(),
+                    );
+                    
+                    Some(Box::new(ir::ops::shared::create_statement_op::<
+                        Box<dyn CreateOp + Send + Sync>,
+                    >(Box::new(stmt))))
+                } else {
+                    None
                 }
-                None
             }
             _ => None,
         };

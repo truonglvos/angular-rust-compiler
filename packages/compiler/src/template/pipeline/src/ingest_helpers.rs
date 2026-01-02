@@ -86,10 +86,17 @@ pub fn ingest_host_attribute(
     security_contexts: Vec<SecurityContext>,
 ) {
     // Host attributes should always be extracted to const hostAttrs
+    // We treat them as generic Attribute initially so that attribute_extraction phase
+    // can correctly identify them as extractable static attributes.
+    // Specialize_bindings would otherwise convert ClassName/StyleProperty to ops that aren't extracted.
+    let binding_kind = ir::BindingKind::Attribute;
+
+    // eprintln!("DEBUG: [ingest_host_attribute] Ingesting host attribute: name={}, binding_kind={:?}, value={:?}", name, binding_kind, value);
+
     // Create binding op with is_text_attr = true
     let binding_op = ir::ops::update::create_binding_op(
         job.root_mut().xref(),
-        ir::BindingKind::Attribute,
+        binding_kind,
         name.into(),
         BindingExpression::Expression(value.clone()),
         None, // unit

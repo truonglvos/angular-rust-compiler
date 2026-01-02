@@ -26,6 +26,13 @@ pub struct AbstractJsEmitterVisitor {
     imports: HashMap<String, String>,
 }
 
+fn is_assignment_like(expr: &o::Expression) -> bool {
+    matches!(
+        expr,
+        o::Expression::WriteVar(_) | o::Expression::WriteProp(_) | o::Expression::WriteKey(_)
+    )
+}
+
 impl AbstractJsEmitterVisitor {
     pub fn new() -> Self {
         AbstractJsEmitterVisitor {
@@ -145,13 +152,29 @@ impl AbstractJsEmitterVisitor {
         expr: &o::BinaryOperatorExpr,
         ctx: &mut EmitterVisitorContext,
     ) {
+        let lhs_needs_parens = is_assignment_like(&expr.lhs);
+        if lhs_needs_parens {
+            ctx.print(Some(expr), "(", false);
+        }
         self.emit_expression(&expr.lhs, ctx);
+        if lhs_needs_parens {
+            ctx.print(Some(expr), ")", false);
+        }
+
         if let Some(op_str) = BINARY_OPERATORS.get(&expr.operator) {
             ctx.print(Some(expr), " ", false);
             ctx.print(Some(expr), op_str, false);
             ctx.print(Some(expr), " ", false);
         }
+
+        let rhs_needs_parens = is_assignment_like(&expr.rhs);
+        if rhs_needs_parens {
+            ctx.print(Some(expr), "(", false);
+        }
         self.emit_expression(&expr.rhs, ctx);
+        if rhs_needs_parens {
+            ctx.print(Some(expr), ")", false);
+        }
     }
 
     fn emit_read_prop_expr(&mut self, expr: &o::ReadPropExpr, ctx: &mut EmitterVisitorContext) {
@@ -234,7 +257,14 @@ impl AbstractJsEmitterVisitor {
             o::UnaryOperator::Plus => "+",
         };
         ctx.print(Some(expr), op_str, false);
+        let needs_parens = is_assignment_like(&expr.expr);
+        if needs_parens {
+            ctx.print(Some(expr), "(", false);
+        }
         self.emit_expression(&expr.expr, ctx);
+        if needs_parens {
+            ctx.print(Some(expr), ")", false);
+        }
     }
 
     fn emit_parenthesized_expr(
@@ -363,7 +393,14 @@ impl AbstractJsEmitterVisitor {
 
     fn emit_not_expr(&mut self, expr: &o::NotExpr, ctx: &mut EmitterVisitorContext) {
         ctx.print(Some(expr), "!", false);
+        let needs_parens = is_assignment_like(&expr.condition);
+        if needs_parens {
+            ctx.print(Some(expr), "(", false);
+        }
         self.emit_expression(&expr.condition, ctx);
+        if needs_parens {
+            ctx.print(Some(expr), ")", false);
+        }
     }
 
     fn emit_if_null_expr(&mut self, expr: &o::IfNullExpr, ctx: &mut EmitterVisitorContext) {
@@ -715,10 +752,11 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
             } else if let Some(alias) = self.imports.get(module_name) {
                 ctx.print(Some(expr), alias, false);
                 ctx.print(Some(expr), ".", false);
-            } else {
-                ctx.print(Some(expr), module_name, false);
-                ctx.print(Some(expr), ".", false);
             }
+            // If module_name is present but not in our imports map, 
+            // we assume the symbol is already available in scope via a local import
+            // (e.g., `import { MatButton } from '...'`), so we just emit the name.
+            // This avoids generating invalid JavaScript like `@angular/material/button.MatButton`
         }
 
         if let Some(name) = &ref_expr.name {
@@ -732,7 +770,17 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
         expr: &o::BinaryOperatorExpr,
         context: &mut dyn Any,
     ) -> Box<dyn Any> {
+        let lhs_needs_parens = is_assignment_like(&expr.lhs);
+        if lhs_needs_parens {
+            let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
+            ctx.print(Some(expr), "(", false);
+        }
         expr.lhs.as_ref().visit_expression(self, context);
+        if lhs_needs_parens {
+            let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
+            ctx.print(Some(expr), ")", false);
+        }
+
         {
             let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
             if let Some(op_str) = BINARY_OPERATORS.get(&expr.operator) {
@@ -741,7 +789,17 @@ impl o::ExpressionVisitor for AbstractJsEmitterVisitor {
                 ctx.print(Some(expr), " ", false);
             }
         }
+
+        let rhs_needs_parens = is_assignment_like(&expr.rhs);
+        if rhs_needs_parens {
+            let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
+            ctx.print(Some(expr), "(", false);
+        }
         expr.rhs.as_ref().visit_expression(self, context);
+        if rhs_needs_parens {
+            let ctx = context.downcast_mut::<EmitterVisitorContext>().unwrap();
+            ctx.print(Some(expr), ")", false);
+        }
         Box::new(())
     }
 

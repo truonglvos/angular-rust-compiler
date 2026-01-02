@@ -8,6 +8,7 @@ pub mod emit;
 pub mod ingest;
 pub mod ingest_helpers;
 mod ingest_test;
+mod host_binding_tests;
 pub mod instruction;
 pub mod phases;
 pub mod util;

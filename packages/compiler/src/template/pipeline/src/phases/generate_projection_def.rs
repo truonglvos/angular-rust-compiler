@@ -11,6 +11,8 @@ use crate::template::pipeline::ir;
 use crate::template::pipeline::ir::ops::create::{create_projection_def_op, ProjectionOp};
 use crate::template::pipeline::src::compilation::{CompilationJob, ComponentCompilationJob};
 use crate::template::pipeline::src::conversion::{literal_or_array_literal, LiteralType};
+use crate::directive_matching::CssSelector;
+use crate::core::SelectorFlags;
 
 pub fn generate_projection_defs(job: &mut dyn CompilationJob) {
     if job.kind() != crate::template::pipeline::src::compilation::CompilationJobKind::Tmpl {
@@ -68,21 +70,76 @@ pub fn generate_projection_defs(job: &mut dyn CompilationJob) {
         // default behavior with no arguments instead.
         let def_expr: Option<Expression> = if selectors.len() > 1 || selectors[0] != "*" {
             // Parse selectors to R3 selector format
+            // ProjectionDef = (string | R3CssSelector[])[]
             let def: Vec<LiteralType> = selectors
                 .iter()
                 .map(|s| {
                     if s == "*" {
                         LiteralType::String(s.clone())
+                    } else if let Ok(css_selectors) = CssSelector::parse(s) {
+                        // R3CssSelector[]
+                        let selectors_list: Vec<LiteralType> = css_selectors
+                            .iter()
+                            .map(|selector| {
+                                let mut vec = Vec::new();
+                                // Element name
+                                vec.push(LiteralType::String(
+                                    selector.element.clone().unwrap_or_default(),
+                                ));
+
+                                // Classes
+                                for class_name in &selector.class_names {
+                                    vec.push(LiteralType::Number(SelectorFlags::CLASS as u32 as f64));
+                                    vec.push(LiteralType::String(class_name.clone()));
+                                }
+
+                                // Attributes
+                                for i in (0..selector.attrs.len()).step_by(2) {
+                                    vec.push(LiteralType::Number(
+                                        SelectorFlags::ATTRIBUTE as u32 as f64,
+                                    ));
+                                    vec.push(LiteralType::String(selector.attrs[i].clone()));
+                                    vec.push(LiteralType::String(selector.attrs[i + 1].clone()));
+                                }
+
+                                // Not Selectors
+                                for not_selector in &selector.not_selectors {
+                                    // Element
+                                    if let Some(element) = &not_selector.element {
+                                        if element != "*" {
+                                            vec.push(LiteralType::Number(
+                                                (SelectorFlags::NOT as u32 | SelectorFlags::ELEMENT as u32) as f64,
+                                            ));
+                                            vec.push(LiteralType::String(element.clone()));
+                                        }
+                                    }
+
+                                    // Classes
+                                    for class_name in &not_selector.class_names {
+                                        vec.push(LiteralType::Number(
+                                            (SelectorFlags::NOT as u32 | SelectorFlags::CLASS as u32) as f64,
+                                        ));
+                                        vec.push(LiteralType::String(class_name.clone()));
+                                    }
+
+                                    // Attributes
+                                    for i in (0..not_selector.attrs.len()).step_by(2) {
+                                        vec.push(LiteralType::Number(
+                                            (SelectorFlags::NOT as u32 | SelectorFlags::ATTRIBUTE as u32) as f64,
+                                        ));
+                                        vec.push(LiteralType::String(not_selector.attrs[i].clone()));
+                                        vec.push(LiteralType::String(not_selector.attrs[i + 1].clone()));
+                                    }
+                                }
+
+                                LiteralType::Array(vec)
+                            })
+                            .collect();
+                         
+                        LiteralType::Array(selectors_list)
                     } else {
-                        // Parse selector to R3 selector format
-                        // R3 selector is a nested array: [[element, attr1, attr2, ...], ...]
-                        // For simple selectors, we'll create a basic structure
-                        // TODO: Implement full selector parsing (parseSelectorToR3Selector)
-                        LiteralType::Array(vec![
-                            LiteralType::String("".to_string()), // namespace
-                            LiteralType::String(s.clone()),      // element/selector
-                            LiteralType::String("".to_string()), // attrs (empty for now)
-                        ])
+                        // Fallback if parse fails (shouldn't happen with valid selectors)
+                         LiteralType::Array(vec![LiteralType::Array(vec![LiteralType::String(s.clone())])])
                     }
                 })
                 .collect();

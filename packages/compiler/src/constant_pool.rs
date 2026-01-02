@@ -102,7 +102,7 @@ impl ConstantPool {
                 name,
                 value: Some(Box::new(literal.clone())),
                 type_: None,
-                modifiers: o::StmtModifier::Final,
+                modifiers: o::StmtModifier::None,
                 source_span: None,
             });
             self.statements.push(stmt);
@@ -127,7 +127,7 @@ impl ConstantPool {
                 name,
                 value: Some(Box::new(literal)),
                 type_: None,
-                modifiers: o::StmtModifier::Final,
+                modifiers: o::StmtModifier::None,
                 source_span: None,
             });
             self.statements.push(stmt);
@@ -224,7 +224,7 @@ impl ConstantPool {
                     params: func_expr_clone.params,
                     statements: func_expr_clone.statements,
                     type_: func_expr_clone.type_,
-                    modifiers: o::StmtModifier::Final,
+                    modifiers: o::StmtModifier::None,
                     source_span: func_expr_clone.source_span,
                 })
             }
@@ -232,7 +232,7 @@ impl ConstantPool {
                 name: name.clone(),
                 value: Some(Box::new(fn_expr)),
                 type_: None,
-                modifiers: o::StmtModifier::Final,
+                modifiers: o::StmtModifier::None,
                 source_span: None,
             }),
         };

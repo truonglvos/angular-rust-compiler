@@ -34,6 +34,7 @@ mod tests {
             skip_template_codegen: false,
             flat_module_out_file: None,
             out_dir: None,
+            root_dir: None,
         };
 
         let ticket = CompilationTicket {
@@ -42,7 +43,7 @@ mod tests {
             fs: &*fs_arc, // Deref Arc to get reference to MockFileSystem
         };
 
-        let compiler = NgCompiler::new(ticket);
+        let mut compiler = NgCompiler::new(ticket);
         let result = compiler
             .analyze_async(&["/app.component.ts".to_string()])
             .expect("Analysis failed");
@@ -106,6 +107,7 @@ mod tests {
             skip_template_codegen: false,
             flat_module_out_file: None,
             out_dir: None,
+            root_dir: None,
         };
 
         let ticket = CompilationTicket {
@@ -114,7 +116,7 @@ mod tests {
             fs: &*fs_arc,
         };
 
-        let compiler = NgCompiler::new(ticket);
+        let mut compiler = NgCompiler::new(ticket);
         let result = compiler.analyze_async(&["/app.component.ts".to_string()]);
 
         assert!(result.is_ok());
@@ -170,6 +172,7 @@ mod tests {
             skip_template_codegen: false,
             flat_module_out_file: None,
             out_dir: None,
+            root_dir: None,
         };
 
         let ticket = CompilationTicket {
@@ -178,7 +181,7 @@ mod tests {
             fs: &*fs_arc,
         };
 
-        let compiler = NgCompiler::new(ticket);
+        let mut compiler = NgCompiler::new(ticket);
         let result = compiler.analyze_async(&["/app.component.ts".to_string()]);
 
         assert!(result.is_ok());

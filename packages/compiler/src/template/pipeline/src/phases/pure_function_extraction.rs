@@ -62,7 +62,7 @@ impl SharedConstantDefinition for PureFunctionConstant {
             name,
             value: Some(Box::new(*arrow_fn)),
             type_: None,
-            modifiers: o::StmtModifier::Final,
+            modifiers: o::StmtModifier::None,
             source_span: None,
         })
     }

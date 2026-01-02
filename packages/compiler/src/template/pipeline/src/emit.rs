@@ -3,6 +3,7 @@
 //! Corresponds to packages/compiler/src/template/pipeline/src/emit.ts
 
 use crate::core::ViewEncapsulation;
+use crate::directive_matching::CssSelector;
 use crate::output::output_ast as o;
 use crate::output::output_ast::Expression;
 use crate::render3::r3_identifiers::Identifiers as R3;
@@ -14,6 +15,37 @@ use crate::template::pipeline::src::compilation::{
     CompilationJob, CompilationUnit, ComponentCompilationJob, HostBindingCompilationJob,
 };
 use crate::template::pipeline::src::instruction as ng;
+use indexmap::IndexMap;
+use crate::render3::view::util::{conditionally_create_directive_binding_literal, InputBindingValue};
+
+/// Helper to create R3 selector array from CssSelector
+/// Format: ["button", "mat-button", ""] for button[mat-button]
+fn create_selector_array(selector: &CssSelector) -> o::Expression {
+    let mut entries = vec![];
+
+    // Element
+    entries.push(*o::literal(selector.element.clone().unwrap_or_default()));
+
+    // Attributes (stored in pairs: [name, value, name, value, ...])
+    for i in (0..selector.attrs.len()).step_by(2) {
+        entries.push(*o::literal(selector.attrs[i].clone()));
+        if i + 1 < selector.attrs.len() {
+            entries.push(*o::literal(selector.attrs[i + 1].clone()));
+        } else {
+            entries.push(*o::literal(String::new()));
+        }
+    }
+
+    // Classes - not needed for R3 selector array format (classes are handled differently)
+    // R3 selector array format: [element, attr1, value1, attr2, value2, ...]
+    // Classes are not included in this format
+
+    o::Expression::LiteralArray(o::LiteralArrayExpr {
+        entries,
+        type_: None,
+        source_span: None,
+    })
+}
 
 /// Emits a view unit as a FunctionExpr.
 /// Corresponds to emitView in TypeScript emit.ts
@@ -133,17 +165,37 @@ pub fn emit_component(
     let vars = job.root.vars.unwrap_or(0);
     let type_expr = metadata.directive.type_.value.clone();
 
-    let selectors_expr = if let Some(s) = &metadata.directive.selector {
-        let inner = o::Expression::LiteralArray(o::LiteralArrayExpr {
-            entries: vec![*o::literal(s.clone())],
-            type_: None,
-            source_span: None,
-        });
-        o::Expression::LiteralArray(o::LiteralArrayExpr {
-            entries: vec![inner],
-            type_: None,
-            source_span: None,
-        })
+    // Parse selector string into CssSelector and emit as R3 selector array format
+    // Format: [["button", "mat-button", ""], ["a", "mat-button", ""]] for "button[mat-button], a[mat-button]"
+    let selectors_expr = if let Some(selector_str) = &metadata.directive.selector {
+        if !selector_str.is_empty() {
+            if let Ok(selectors) = CssSelector::parse(selector_str) {
+                // Create array of selector arrays
+                let selector_arrays: Vec<o::Expression> = selectors
+                    .iter()
+                    .map(|s| create_selector_array(s))
+                    .collect();
+                o::Expression::LiteralArray(o::LiteralArrayExpr {
+                    entries: selector_arrays,
+                    type_: None,
+                    source_span: None,
+                })
+            } else {
+                // Fallback: emit as string if parsing fails
+                let inner = o::Expression::LiteralArray(o::LiteralArrayExpr {
+                    entries: vec![*o::literal(selector_str.clone())],
+                    type_: None,
+                    source_span: None,
+                });
+                o::Expression::LiteralArray(o::LiteralArrayExpr {
+                    entries: vec![inner],
+                    type_: None,
+                    source_span: None,
+                })
+            }
+        } else {
+            *o::literal(o::LiteralValue::Null)
+        }
     } else {
         *o::literal(o::LiteralValue::Null)
     };
@@ -171,6 +223,17 @@ pub fn emit_component(
         },
     ];
 
+    // viewQuery function for @ViewChild/@ViewChildren
+    if !metadata.directive.view_queries.is_empty() {
+        // eprintln!("DEBUG: [emit] Emitting viewQuery for {} queries", metadata.directive.view_queries.len());
+        let view_query_fn = emit_view_query_function(&metadata.directive.view_queries, &metadata.directive.name);
+        definition_entries.push(o::LiteralMapEntry {
+            key: "viewQuery".into(),
+            value: Box::new(view_query_fn),
+            quoted: false,
+        });
+    }
+
     // hostBindings, hostVars, hostAttrs
     if let Some(host_job) = host_job {
         // hostBindings
@@ -194,11 +257,14 @@ pub fn emit_component(
 
         // hostAttrs
         if let Some(host_attrs) = &host_job.root.attributes {
+            // eprintln!("DEBUG: [emit] Emitting hostAttrs for component: {:?}", host_attrs);
             definition_entries.push(o::LiteralMapEntry {
                 key: "hostAttrs".into(),
                 value: Box::new(host_attrs.clone()),
                 quoted: false,
             });
+        } else {
+            // eprintln!("DEBUG: [emit] WARNING: No hostAttrs found for component");
         }
     }
 
@@ -223,6 +289,8 @@ pub fn emit_component(
         value: Box::new(*o::literal(metadata.directive.is_standalone)),
         quoted: false,
     });
+
+
 
     // styles - shim CSS with [_ngcontent-%COMP%] selectors when Emulated encapsulation
     definition_entries.push(o::LiteralMapEntry {
@@ -267,6 +335,18 @@ pub fn emit_component(
         quoted: false,
     });
 
+    if let Some(content_selectors) = &job.content_selectors {
+        eprintln!(
+            "DEBUG: Emitting ngContentSelectors for {}",
+            metadata.directive.name
+        );
+        definition_entries.push(o::LiteralMapEntry {
+            key: "ngContentSelectors".into(),
+            value: Box::new(content_selectors.clone()),
+            quoted: false,
+        });
+    }
+
     if let Some(export_as) = &metadata.directive.export_as {
         definition_entries.push(o::LiteralMapEntry {
             key: "exportAs".into(),
@@ -304,38 +384,29 @@ pub fn emit_component(
     }
 
     // Add inputs
-    if !metadata.directive.inputs.is_empty() {
-        let mut input_entries = vec![];
-        for (prop_name, input) in &metadata.directive.inputs {
-            let value = if input.is_signal {
-                // Signal input: [1, binding_name]
-                // 1 = InputFlags.SignalBased
-                o::Expression::LiteralArray(o::LiteralArrayExpr {
-                    entries: vec![
-                        *o::literal(1.0),
-                        *o::literal(input.binding_property_name.clone()),
-                    ],
-                    type_: None,
-                    source_span: None,
-                })
-            } else {
-                *o::literal(input.binding_property_name.clone())
-            };
+    let inputs_map: IndexMap<String, InputBindingValue> = metadata
+        .directive
+        .inputs
+        .iter()
+        .map(|(k, v)| {
+            (
+                k.clone(),
+                InputBindingValue::Complex(crate::render3::view::util::InputBindingMetadata {
+                    class_property_name: v.class_property_name.clone(),
+                    binding_property_name: v.binding_property_name.clone(),
+                    transform_function: v.transform_function.clone(),
+                    is_signal: v.is_signal,
+                }),
+            )
+        })
+        .collect();
 
-            input_entries.push(o::LiteralMapEntry {
-                key: prop_name.clone(),
-                value: Box::new(value),
-                quoted: false,
-            });
-        }
-
+    // eprintln!("DEBUG: [emit] Component {} has {} inputs", metadata.directive.name, metadata.directive.inputs.len());
+    if let Some(inputs_expr) = conditionally_create_directive_binding_literal(&inputs_map, true) {
+        // eprintln!("DEBUG: [emit] Emitting inputs map with {} entries", inputs_map.len());
         definition_entries.push(o::LiteralMapEntry {
             key: "inputs".into(),
-            value: Box::new(o::Expression::LiteralMap(o::LiteralMapExpr {
-                entries: input_entries,
-                type_: None,
-                source_span: None,
-            })),
+            value: Box::new(o::Expression::LiteralMap(inputs_expr)),
             quoted: false,
         });
     }
@@ -361,30 +432,62 @@ pub fn emit_component(
         });
     }
 
-    // Add dependencies if any
+    // Add dependencies if any - wrap in closure for deferred evaluation
     if !metadata.declarations.is_empty() {
-        let dep_exprs: Vec<o::Expression> = metadata
-            .declarations
-            .iter()
-            .map(|decl| match decl {
-                R3TemplateDependencyMetadata::Directive(dir) => dir.type_.clone(),
-                R3TemplateDependencyMetadata::Pipe(pipe) => pipe.type_.clone(),
-                R3TemplateDependencyMetadata::NgModule(module) => module.type_.clone(),
-            })
-            .collect();
+        let mut dep_exprs: Vec<o::Expression> = vec![];
+        
+        for (i, decl) in metadata.declarations.iter().enumerate() {
+            let is_used = job.used_dependencies.contains(&i);
+            let is_module = matches!(decl, R3TemplateDependencyMetadata::NgModule(_));
+
+            if is_used || is_module {
+                let expr = match decl {
+                    R3TemplateDependencyMetadata::Directive(dir) => dir.type_.clone(),
+                    R3TemplateDependencyMetadata::Pipe(pipe) => pipe.type_.clone(),
+                    R3TemplateDependencyMetadata::NgModule(module) => module.type_.clone(),
+                };
+                dep_exprs.push(expr);
+            }
+        }
 
         if !dep_exprs.is_empty() {
+            let deps_array = o::Expression::LiteralArray(o::LiteralArrayExpr {
+                entries: dep_exprs,
+                type_: None,
+                source_span: None,
+            });
+
+            let deps_value = match metadata.declaration_list_emit_mode {
+                crate::render3::view::api::DeclarationListEmitMode::Direct => deps_array,
+                crate::render3::view::api::DeclarationListEmitMode::Closure | 
+                crate::render3::view::api::DeclarationListEmitMode::ClosureResolved => {
+                    o::Expression::ArrowFn(o::ArrowFunctionExpr {
+                        params: vec![],
+                        body: o::ArrowFunctionBody::Expression(Box::new(deps_array)),
+                        type_: None,
+                        source_span: None,
+                    })
+                },
+                crate::render3::view::api::DeclarationListEmitMode::RuntimeResolved => {
+                   // RuntimeResolved usually implies closure too in AOT context, or different handling.
+                   // For now treat as closure or todo.
+                   o::Expression::ArrowFn(o::ArrowFunctionExpr {
+                        params: vec![],
+                        body: o::ArrowFunctionBody::Expression(Box::new(deps_array)),
+                        type_: None,
+                        source_span: None,
+                    })
+                }
+            };
+
             definition_entries.push(o::LiteralMapEntry {
                 key: "dependencies".into(),
-                value: Box::new(o::Expression::LiteralArray(o::LiteralArrayExpr {
-                    entries: dep_exprs,
-                    type_: None,
-                    source_span: None,
-                })),
+                value: Box::new(deps_value),
                 quoted: false,
             });
         }
     }
+
 
     let definition = o::Expression::LiteralMap(o::LiteralMapExpr {
         entries: definition_entries,
@@ -716,6 +819,68 @@ pub fn emit_ops(job: &ComponentCompilationJob, ops: Vec<&dyn ir::Op>) -> Vec<o::
                             source_span: None,
                         }));
                     }
+                }
+            }
+            ir::OpKind::Projection => {
+                if let Some(proj_op) = op.as_any().downcast_ref::<ir::ops::create::ProjectionOp>() {
+                    let mut args = vec![*o::literal(
+                        proj_op
+                            .handle
+                            .get_slot()
+                            .expect("Projection slot must be allocated") as f64,
+                    )];
+                    if proj_op.projection_slot_index > 0 {
+                        args.push(*o::literal(proj_op.projection_slot_index as f64));
+                    }
+                    if let Some(const_idx) = proj_op.attributes.as_ref() {
+                         // TODO: Support projection attributes (e.g. for fallback view)
+                         // For now, we only support basic projection
+                         // If attributes exist, we might need to handle them similar to directives
+                    }
+                     // Fallback view handling (optional)
+                    if let Some(fallback_view_xref) = proj_op.fallback_view {
+                         let fallback_view = if fallback_view_xref == job.root.xref {
+                             &job.root
+                         } else {
+                             job.views.get(&fallback_view_xref).expect("Fallback view not found")
+                         };
+                         let fn_name = fallback_view.fn_name().expect("Fallback view function name not assigned").to_string();
+                          // Fallback view not fully implemented yet in args, mimicking ngtsc might require more complex logic
+                          // But typically it's just projection(slot, selector, attrs)
+                    }
+
+                    stmts.push(o::Statement::Expression(o::ExpressionStatement {
+                        expr: Box::new(o::Expression::InvokeFn(o::InvokeFunctionExpr {
+                            fn_: o::import_ref(R3::projection()),
+                            args,
+                            type_: None,
+                            source_span: None,
+                            pure: false,
+                        })),
+                        source_span: None,
+                    }));
+                }
+            }
+            ir::OpKind::ProjectionDef => {
+                if let Some(proj_def_op) = op
+                    .as_any()
+                    .downcast_ref::<ir::ops::create::ProjectionDefOp>()
+                {
+                    let args = if let Some(def) = &proj_def_op.def {
+                        vec![def.clone()]
+                    } else {
+                        vec![]
+                    };
+                     stmts.push(o::Statement::Expression(o::ExpressionStatement {
+                        expr: Box::new(o::Expression::InvokeFn(o::InvokeFunctionExpr {
+                            fn_: o::import_ref(R3::projection_def()),
+                            args,
+                            type_: None,
+                            source_span: None,
+                            pure: false,
+                        })),
+                        source_span: None,
+                    }));
                 }
             }
             ir::OpKind::Advance => {
@@ -1092,4 +1257,251 @@ pub fn emit_host_binding_function(job: &HostBindingCompilationJob) -> Option<o::
         type_: None,
         source_span: None,
     }))
+}
+
+/// Emits a viewQuery function for @ViewChild/@ViewChildren decorators.
+/// Generates code like:
+/// ```js
+/// function ComponentName_Query(rf, ctx) {
+///   if (rf & 1) {
+///     i0.ɵɵviewQuery(_c0, 5)(_c1, 5)(_c2, 5);
+///   }
+///   if (rf & 2) {
+///     let _t;
+///     i0.ɵɵqueryRefresh((_t = i0.ɵɵloadQuery())) && (ctx.checkbox = _t.first);
+///     i0.ɵɵqueryRefresh((_t = i0.ɵɵloadQuery())) && (ctx.input = _t.first);
+///     i0.ɵɵqueryRefresh((_t = i0.ɵɵloadQuery())) && (ctx.label = _t.first);
+///   }
+/// }
+/// ```
+fn emit_view_query_function(
+    view_queries: &[crate::render3::view::api::R3QueryMetadata],
+    component_name: &str,
+) -> o::Expression {
+    let fn_name = format!("{}_Query", component_name);
+    let mut create_stmts = vec![];
+    let mut update_stmts = vec![];
+
+    // Generate create block (rf & 1): chained ɵɵviewQuery calls
+    if !view_queries.is_empty() {
+        // Build chained viewQuery expression
+        // i0.ɵɵviewQuery(_c0, 5)(_c1, 5)(_c2, 5)
+        let mut chain_expr: Option<o::Expression> = None;
+
+        for query in view_queries {
+            let selector = match &query.predicate {
+                crate::render3::view::api::R3QueryPredicate::Selectors(selectors) => {
+                    selectors.first().cloned().unwrap_or_default()
+                }
+                _ => String::new(),
+            };
+            
+            // Create _cN constant reference for the selector string
+            // For simplicity, we'll use the selector string directly as a literal array
+            let selector_arr = o::Expression::LiteralArray(o::LiteralArrayExpr {
+                entries: vec![*o::literal(selector.clone())],
+                type_: None,
+                source_span: None,
+            });
+
+            // Flags: 5 = DescendantsOnly (for ViewChild with descendants=false)
+            let flags = if query.first { 5.0 } else { 4.0 };
+
+            if chain_expr.is_none() {
+                // First call: i0.ɵɵviewQuery(selector, flags)
+                chain_expr = Some(o::Expression::InvokeFn(o::InvokeFunctionExpr {
+                    fn_: Box::new(o::Expression::External(o::ExternalExpr {
+                        value: o::ExternalReference {
+                            module_name: Some("@angular/core".to_string()),
+                            name: Some("ɵɵviewQuery".to_string()),
+                            runtime: None,
+                        },
+                        type_: None,
+                        source_span: None,
+                    })),
+                    args: vec![selector_arr, *o::literal(flags)],
+                    type_: None,
+                    source_span: None,
+                    pure: false,
+                }));
+            } else {
+                // Chain call: prev(selector, flags)
+                chain_expr = Some(o::Expression::InvokeFn(o::InvokeFunctionExpr {
+                    fn_: Box::new(chain_expr.take().unwrap()),
+                    args: vec![selector_arr, *o::literal(flags)],
+                    type_: None,
+                    source_span: None,
+                    pure: false,
+                }));
+            }
+        }
+
+        if let Some(expr) = chain_expr {
+            create_stmts.push(o::Statement::Expression(o::ExpressionStatement {
+                expr: Box::new(expr),
+                source_span: None,
+            }));
+        }
+    }
+
+    // Generate update block (rf & 2): let _t; + queryRefresh calls
+    if !view_queries.is_empty() {
+        // Add: let _t;
+        update_stmts.push(o::Statement::DeclareVar(o::DeclareVarStmt {
+            name: "_t".to_string(),
+            value: None,
+            type_: None,
+            modifiers: o::StmtModifier::None,
+            source_span: None,
+        }));
+
+        for query in view_queries {
+            // i0.ɵɵqueryRefresh((_t = i0.ɵɵloadQuery())) && (ctx.propertyName = _t.first);
+            
+            // loadQuery call
+            let load_query = o::Expression::InvokeFn(o::InvokeFunctionExpr {
+                fn_: Box::new(o::Expression::External(o::ExternalExpr {
+                    value: o::ExternalReference {
+                        module_name: Some("@angular/core".to_string()),
+                        name: Some("ɵɵloadQuery".to_string()),
+                        runtime: None,
+                    },
+                    type_: None,
+                    source_span: None,
+                })),
+                args: vec![],
+                type_: None,
+                source_span: None,
+                pure: false,
+            });
+
+            // _t = i0.ɵɵloadQuery()
+            let assign_t = o::Expression::BinaryOp(o::BinaryOperatorExpr {
+                operator: o::BinaryOperator::Assign,
+                lhs: Box::new(*o::variable("_t")),
+                rhs: Box::new(load_query),
+                type_: None,
+                source_span: None,
+            });
+
+            // Wrap in parentheses (represented as-is in output)
+            let wrapped_assign = assign_t;
+
+            // queryRefresh((_t = loadQuery()))
+            let query_refresh = o::Expression::InvokeFn(o::InvokeFunctionExpr {
+                fn_: Box::new(o::Expression::External(o::ExternalExpr {
+                    value: o::ExternalReference {
+                        module_name: Some("@angular/core".to_string()),
+                        name: Some("ɵɵqueryRefresh".to_string()),
+                        runtime: None,
+                    },
+                    type_: None,
+                    source_span: None,
+                })),
+                args: vec![wrapped_assign],
+                type_: None,
+                source_span: None,
+                pure: false,
+            });
+
+            // ctx.propertyName = _t.first (or _t for ViewChildren)
+            let result_access = if query.first {
+                // _t.first
+                o::Expression::ReadProp(o::ReadPropExpr {
+                    receiver: Box::new(*o::variable("_t")),
+                    name: "first".to_string(),
+                    type_: None,
+                    source_span: None,
+                })
+            } else {
+                // _t (entire query list)
+                *o::variable("_t")
+            };
+
+            // ctx.propertyName = ...
+            let ctx_prop_assign = o::Expression::BinaryOp(o::BinaryOperatorExpr {
+                operator: o::BinaryOperator::Assign,
+                lhs: Box::new(o::Expression::ReadProp(o::ReadPropExpr {
+                    receiver: Box::new(*o::variable("ctx")),
+                    name: query.property_name.clone(),
+                    type_: None,
+                    source_span: None,
+                })),
+                rhs: Box::new(result_access),
+                type_: None,
+                source_span: None,
+            });
+
+            // Wrap assignment in parens to ensure correct precedence: a && (b = c)
+            let wrapped_assign = o::Expression::Parens(o::ParenthesizedExpr {
+                expr: Box::new(ctx_prop_assign),
+                type_: None,
+                source_span: None,
+            });
+
+            // queryRefresh(...) && (ctx.prop = _t.first)
+            let and_expr = o::Expression::BinaryOp(o::BinaryOperatorExpr {
+                operator: o::BinaryOperator::And,
+                lhs: Box::new(query_refresh),
+                rhs: Box::new(wrapped_assign),
+                type_: None,
+                source_span: None,
+            });
+
+            update_stmts.push(o::Statement::Expression(o::ExpressionStatement {
+                expr: Box::new(and_expr),
+                source_span: None,
+            }));
+        }
+    }
+
+    // Build function body with if (rf & 1) and if (rf & 2) blocks
+    let mut body = vec![];
+
+    if !create_stmts.is_empty() {
+        body.push(o::Statement::IfStmt(o::IfStmt {
+            condition: Box::new(o::Expression::BinaryOp(o::BinaryOperatorExpr {
+                operator: o::BinaryOperator::BitwiseAnd,
+                lhs: Box::new(*o::variable("rf")),
+                rhs: Box::new(*o::literal(1.0)),
+                type_: None,
+                source_span: None,
+            })),
+            true_case: create_stmts,
+            false_case: vec![],
+            source_span: None,
+        }));
+    }
+
+    if !update_stmts.is_empty() {
+        body.push(o::Statement::IfStmt(o::IfStmt {
+            condition: Box::new(o::Expression::BinaryOp(o::BinaryOperatorExpr {
+                operator: o::BinaryOperator::BitwiseAnd,
+                lhs: Box::new(*o::variable("rf")),
+                rhs: Box::new(*o::literal(2.0)),
+                type_: None,
+                source_span: None,
+            })),
+            true_case: update_stmts,
+            false_case: vec![],
+            source_span: None,
+        }));
+    }
+
+    o::Expression::Fn(o::FunctionExpr {
+        name: Some(fn_name),
+        params: vec![
+            o::FnParam {
+                name: "rf".to_string(),
+                type_: None,
+            },
+            o::FnParam {
+                name: "ctx".to_string(),
+                type_: None,
+            },
+        ],
+        statements: body,
+        type_: None,
+        source_span: None,
+    })
 }

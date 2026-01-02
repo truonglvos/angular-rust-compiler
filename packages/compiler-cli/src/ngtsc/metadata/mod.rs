@@ -28,6 +28,7 @@ pub use src::api::{
     PipeMeta,
     // Reference types
     Reference,
+    QueryMetadata,
     T2DirectiveMeta,
     T2DirectiveMetadata,
     TemplateGuardMeta,
@@ -38,6 +39,7 @@ pub use src::util::{
     extract_directive_metadata, extract_injectable_metadata, extract_pipe_metadata,
     get_all_metadata,
 };
+pub use src::ModuleMetadataReader;
 
 // Implement MetadataReader for OxcMetadataReader
 // Note: The lifetime is tied to the Program's allocator

@@ -13,3 +13,5 @@ pub use api::*;
 pub use property_mapping::{ClassPropertyMapping, ClassPropertyName, InputOrOutput};
 pub use registry::{MetadataReader, OxcMetadataReader};
 pub use util::{extract_directive_metadata, extract_injectable_metadata, extract_pipe_metadata};
+pub mod reader;
+pub use reader::ModuleMetadataReader;

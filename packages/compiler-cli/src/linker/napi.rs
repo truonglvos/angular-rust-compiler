@@ -85,6 +85,16 @@ pub fn link_file(source_code: String, filename: String) -> Result<String> {
             ctx.to_source()
         }
 
+        fn emit_statements(&self, stmts: Vec<o::Statement>) -> String {
+            let stmts = self.transform_statements(stmts);
+            let mut visitor = AbstractJsEmitterVisitor::new();
+            let mut ctx = EmitterVisitorContext::new(0);
+            for stmt in stmts {
+                stmt.visit_statement(&mut visitor, &mut ctx);
+            }
+            ctx.to_source()
+        }
+
         fn transform_expression(&self, expr: o::Expression) -> o::Expression {
             match expr {
                 o::Expression::External(e) => {
@@ -293,6 +303,7 @@ pub fn link_file(source_code: String, filename: String) -> Result<String> {
                 other => other,
             }
         }
+
 
         fn transform_statements(&self, stmts: Vec<o::Statement>) -> Vec<o::Statement> {
             stmts
@@ -605,8 +616,17 @@ pub fn link_file(source_code: String, filename: String) -> Result<String> {
                                                                         Some(target_name),
                                                                     );
 
-                                                                let js_code = self
-                                                                    .emit_expression(&result_expr);
+                                                                let js_code = if constant_pool.statements.is_empty() {
+                                                                    self.emit_expression(&result_expr)
+                                                                } else {
+                                                                    let stmts_code =
+                                                                        self.emit_statements(constant_pool.statements);
+                                                                    let expr_code = self.emit_expression(&result_expr);
+                                                                    format!(
+                                                                        "(function() {{ {} return {}; }})()",
+                                                                        stmts_code, expr_code
+                                                                    )
+                                                                };
 
                                                                 // Field name: ɵcmp, ɵdir, ɵpipe, ɵprov, ɵmod?
                                                                 // PartialLinkerTrait doesn't expose field name.
@@ -701,10 +721,19 @@ pub fn link_file(source_code: String, filename: String) -> Result<String> {
                                     );
 
                                     // Emit JS
-                                    let js_code = self.emit_expression(&result_expr);
+                                    let js_code = if constant_pool.statements.is_empty() {
+                                        self.emit_expression(&result_expr)
+                                    } else {
+                                        let stmts_code =
+                                            self.emit_statements(constant_pool.statements);
+                                        let expr_code = self.emit_expression(&result_expr);
+                                        format!(
+                                            "(function() {{ {} return {}; }})()",
+                                            stmts_code, expr_code
+                                        )
+                                    };
                                     // println!("[Rust Linker] Linked Partial Declaration {} -> {:.100}...", n, js_code);
 
-                                    // Record replacement
                                     let span = expr.span;
                                     self.replacements.push((span.start, span.end, js_code));
                                 }
@@ -764,9 +793,34 @@ pub fn link_file(source_code: String, filename: String) -> Result<String> {
     visitor.replacements.sort_by(|a, b| b.0.cmp(&a.0));
 
     let mut result_code = source_code.clone();
+    let had_replacements = !visitor.replacements.is_empty();
 
     for (start, end, new_text) in visitor.replacements {
         result_code.replace_range((start as usize)..(end as usize), &new_text);
+    }
+
+    // Extract NgModule and directive metadata from linked code for later use
+    // This enables dynamic resolution of NgModule exports during template compilation
+    if had_replacements {
+        let module_path = if filename.contains("@angular/") {
+            filename.split("node_modules/").last().unwrap_or(&filename)
+        } else {
+            &filename
+        };
+        let (modules, directives) = crate::linker::metadata_extractor::extract_metadata_from_linked(
+            module_path,
+            &result_code,
+        );
+        if !modules.is_empty() || !directives.is_empty() {
+            writeln!(
+                log_file,
+                "[Metadata] Extracted {} NgModules, {} directives from {}",
+                modules.len(),
+                directives.len(),
+                module_path
+            )
+            .ok();
+        }
     }
 
     Ok(result_code)

@@ -227,7 +227,7 @@ fn process_unit(
                 name: track_fn_name.clone(),
                 value: Some(Box::new(arrow_fn)),
                 type_: None,
-                modifiers: crate::output::output_ast::StmtModifier::Final,
+                modifiers: crate::output::output_ast::StmtModifier::None,
                 source_span: None,
             });
             pool.statements.push(const_stmt);

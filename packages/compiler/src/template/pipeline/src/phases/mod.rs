@@ -104,6 +104,10 @@ pub fn run(job: &mut ComponentCompilationJob) {
     // Create pipe operations before slot allocation
     pipe_creation::create_pipes(job);
 
+    // Generate projection definitions (must run before slot allocation to reserve slots)
+    generate_projection_def::generate_projection_defs(job);
+    remove_content_selectors::remove_content_selectors(job);
+
     slot_allocation::phase(job);
     pure_function_extraction::phase(job); // Extract pure functions to constants like _c0, _c1
     track_fn_optimization::optimize_track_fns(job); // Generate track functions for @for loops
