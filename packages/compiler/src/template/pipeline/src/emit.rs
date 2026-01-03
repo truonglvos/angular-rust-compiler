@@ -1582,8 +1582,17 @@ fn emit_view_query_function(
                     source_span: None,
                 });
 
-                // Flags: 5 = DescendantsOnly (for ViewChild with descendants=false)
-                let flags = if query.first { 5.0 } else { 4.0 };
+                // Flags: 1 = Descendants, 2 = Static, 4 = EmitDistinctChangesOnly
+                let mut flags = 0.0;
+                if query.descendants {
+                    flags += 1.0;
+                }
+                if query.static_ {
+                    flags += 2.0;
+                }
+                if query.emit_distinct_changes_only {
+                    flags += 4.0;
+                }
 
                 let mut args = vec![
                     o::Expression::ReadProp(o::ReadPropExpr {
