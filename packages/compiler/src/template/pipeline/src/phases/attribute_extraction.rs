@@ -390,14 +390,14 @@ fn process_unit(
                 update_ops_to_remove.insert(index);
             }
         } else if let Some(prop_op) = op_ref.as_any().downcast_ref::<PropertyOp>() {
-            let binding_kind =
-                if prop_op.i18n_message.is_some() && prop_op.template_kind.is_none() {
-                    BindingKind::I18n
-                } else if prop_op.is_structural_template_attribute {
-                    BindingKind::Template
-                } else {
-                    BindingKind::Property
-                };
+            let binding_kind = if prop_op.i18n_message.is_some() && prop_op.template_kind.is_none()
+            {
+                BindingKind::I18n
+            } else if prop_op.is_structural_template_attribute {
+                BindingKind::Template
+            } else {
+                BindingKind::Property
+            };
 
             if (job_kind != CompilationJobKind::Host || binding_kind == BindingKind::I18n)
                 && prop_op.binding_kind != BindingKind::LegacyAnimation

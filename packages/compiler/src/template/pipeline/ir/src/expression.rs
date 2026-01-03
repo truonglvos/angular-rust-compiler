@@ -1846,9 +1846,7 @@ pub fn transform_expressions_in_op(
     // For now, this is a placeholder that can be extended
 
     match op.kind() {
-        OpKind::Binding
-        | OpKind::AnimationString
-        | OpKind::AnimationBinding => {
+        OpKind::Binding | OpKind::AnimationString | OpKind::AnimationBinding => {
             if let Some(op) = op
                 .as_any_mut()
                 .downcast_mut::<crate::template::pipeline::ir::ops::update::BindingOp>()

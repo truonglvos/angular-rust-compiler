@@ -583,7 +583,10 @@ pub fn emit_component(
     R3CompiledExpression::new(*expr, o::dynamic_type(), statements)
 }
 
-pub fn emit_ops(job: &dyn crate::template::pipeline::src::compilation::CompilationJob, ops: Vec<&dyn ir::Op>) -> Vec<o::Statement> {
+pub fn emit_ops(
+    job: &dyn crate::template::pipeline::src::compilation::CompilationJob,
+    ops: Vec<&dyn ir::Op>,
+) -> Vec<o::Statement> {
     let mut stmts = vec![];
 
     for op in ops {
@@ -926,8 +929,7 @@ pub fn emit_ops(job: &dyn crate::template::pipeline::src::compilation::Compilati
                         let fallback_view = if fallback_view_xref == job.root_xref() {
                             job.root()
                         } else {
-                            get_unit(job, fallback_view_xref)
-                                .expect("Fallback view not found")
+                            get_unit(job, fallback_view_xref).expect("Fallback view not found")
                         };
                         let fn_name = fallback_view
                             .fn_name()
@@ -1197,15 +1199,12 @@ pub fn emit_ops(job: &dyn crate::template::pipeline::src::compilation::Compilati
                             panic!("Unexpected interpolation in PropertyOp");
                         }
                     };
-                    
+
                     let instruction = R3::property();
                     let sanitizer = prop_op.sanitizer.clone();
-                    
-                    let mut args = vec![
-                        *o::literal(prop_op.name.to_string()),
-                        expression,
-                    ];
-                    
+
+                    let mut args = vec![*o::literal(prop_op.name.to_string()), expression];
+
                     if let Some(sanitizer_fn) = sanitizer {
                         args.push(sanitizer_fn);
                     }
@@ -1224,11 +1223,11 @@ pub fn emit_ops(job: &dyn crate::template::pipeline::src::compilation::Compilati
             }
             ir::OpKind::Attribute => {
                 if let Some(attr_op) = op.as_any().downcast_ref::<ir::ops::update::AttributeOp>() {
-                     // TODO: attributes can be interpolated (attributeInterpolate)
-                     // If expression is interpolation, use attributeInterpolate
-                     // For now assume expression
-                     
-                     let expression = match &attr_op.expression {
+                    // TODO: attributes can be interpolated (attributeInterpolate)
+                    // If expression is interpolation, use attributeInterpolate
+                    // For now assume expression
+
+                    let expression = match &attr_op.expression {
                         crate::template::pipeline::ir::ops::update::BindingExpression::Expression(e) => {
                              e.clone()
                         }
@@ -1236,20 +1235,17 @@ pub fn emit_ops(job: &dyn crate::template::pipeline::src::compilation::Compilati
                             panic!("Unexpected interpolation in AttributeOp");
                         }
                      };
-                     
-                     let instruction = R3::attribute();
-                     let sanitizer = attr_op.sanitizer.clone();
-                     
-                     let mut args = vec![
-                        *o::literal(attr_op.name.to_string()),
-                        expression,
-                     ];
-                     
-                     if let Some(sanitizer_fn) = sanitizer {
+
+                    let instruction = R3::attribute();
+                    let sanitizer = attr_op.sanitizer.clone();
+
+                    let mut args = vec![*o::literal(attr_op.name.to_string()), expression];
+
+                    if let Some(sanitizer_fn) = sanitizer {
                         args.push(sanitizer_fn);
-                     }
-                     
-                     stmts.push(o::Statement::Expression(o::ExpressionStatement {
+                    }
+
+                    stmts.push(o::Statement::Expression(o::ExpressionStatement {
                         expr: Box::new(o::Expression::InvokeFn(o::InvokeFunctionExpr {
                             fn_: o::import_ref(instruction),
                             args,
@@ -1287,17 +1283,14 @@ pub fn emit_ops(job: &dyn crate::template::pipeline::src::compilation::Compilati
                             panic!("Unexpected interpolation in StylePropOp");
                          }
                     };
-                    
+
                     let instruction = R3::style_prop();
-                    let mut args = vec![
-                        *o::literal(style_op.name.to_string()),
-                        expression,
-                    ];
-                    
+                    let mut args = vec![*o::literal(style_op.name.to_string()), expression];
+
                     if let Some(unit) = &style_op.unit {
                         args.push(*o::literal(unit.clone()));
                     }
-                    
+
                     stmts.push(o::Statement::Expression(o::ExpressionStatement {
                         expr: Box::new(o::Expression::InvokeFn(o::InvokeFunctionExpr {
                             fn_: o::import_ref(instruction),
@@ -1311,7 +1304,9 @@ pub fn emit_ops(job: &dyn crate::template::pipeline::src::compilation::Compilati
                 }
             }
             ir::OpKind::ClassMap => {
-                if let Some(class_map_op) = op.as_any().downcast_ref::<ir::ops::update::ClassMapOp>() {
+                if let Some(class_map_op) =
+                    op.as_any().downcast_ref::<ir::ops::update::ClassMapOp>()
+                {
                     let expression = match &class_map_op.expression {
                          crate::template::pipeline::ir::ops::update::BindingExpression::Expression(e) => e.clone(),
                          crate::template::pipeline::ir::ops::update::BindingExpression::Interpolation(_) => {
@@ -1319,7 +1314,7 @@ pub fn emit_ops(job: &dyn crate::template::pipeline::src::compilation::Compilati
                              panic!("Unexpected interpolation in ClassMapOp");
                          }
                     };
-                    
+
                     let instruction = R3::class_map();
                     stmts.push(o::Statement::Expression(o::ExpressionStatement {
                         expr: Box::new(o::Expression::InvokeFn(o::InvokeFunctionExpr {
@@ -1334,14 +1329,16 @@ pub fn emit_ops(job: &dyn crate::template::pipeline::src::compilation::Compilati
                 }
             }
             ir::OpKind::StyleMap => {
-                if let Some(style_map_op) = op.as_any().downcast_ref::<ir::ops::update::StyleMapOp>() {
+                if let Some(style_map_op) =
+                    op.as_any().downcast_ref::<ir::ops::update::StyleMapOp>()
+                {
                     let expression = match &style_map_op.expression {
                          crate::template::pipeline::ir::ops::update::BindingExpression::Expression(e) => e.clone(),
                          crate::template::pipeline::ir::ops::update::BindingExpression::Interpolation(_) => {
                              panic!("Unexpected interpolation in StyleMapOp");
                          }
                     };
-                    
+
                     let instruction = R3::style_map();
                     stmts.push(o::Statement::Expression(o::ExpressionStatement {
                         expr: Box::new(o::Expression::InvokeFn(o::InvokeFunctionExpr {
