@@ -1,0 +1,39 @@
+:host {
+  display: block;
+  padding: 16px;
+}
+
+h2 {
+  margin-bottom: 24px;
+  color: #333;
+}
+
+section {
+  margin: 16px 0;
+}
+
+.example-label {
+  font-weight: 500;
+  margin-bottom: 12px;
+  color: #666;
+}
+
+.example-input-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+mat-form-field {
+  min-width: 250px;
+}
+
+.full-width {
+  width: 100%;
+  max-width: 500px;
+}
+
+mat-divider {
+  margin: 24px 0;
+}

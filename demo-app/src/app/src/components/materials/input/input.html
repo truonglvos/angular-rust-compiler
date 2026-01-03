@@ -1,0 +1,121 @@
+<h2>Mat Input Demo</h2>
+
+<section>
+  <div class="example-label">Basic Input</div>
+  <div class="example-input-row">
+    <mat-form-field appearance="fill">
+      <mat-label>Simple input</mat-label>
+      <input matInput placeholder="Type something..." />
+    </mat-form-field>
+  </div>
+</section>
+
+<mat-divider />
+
+<section>
+  <div class="example-label">Input with Hint</div>
+  <div class="example-input-row">
+    <mat-form-field appearance="fill">
+      <mat-label>Enter your email</mat-label>
+      <input
+        matInput
+        placeholder="pat@example.com"
+        [(ngModel)]="email"
+        (blur)="updateErrorMessage()"
+      />
+      <mat-hint>We'll never share your email</mat-hint>
+    </mat-form-field>
+  </div>
+</section>
+
+<mat-divider />
+
+<section>
+  <div class="example-label">Input with Error</div>
+  <div class="example-input-row">
+    <mat-form-field appearance="fill">
+      <mat-label>Email</mat-label>
+      <input matInput placeholder="Enter email" [(ngModel)]="email" (blur)="updateErrorMessage()" />
+      @if (errorMessage) {
+        <mat-error>{{ errorMessage }}</mat-error>
+      }
+    </mat-form-field>
+  </div>
+</section>
+
+<mat-divider />
+
+<section>
+  <div class="example-label">Input Appearance Variants</div>
+  <div class="example-input-row">
+    <mat-form-field appearance="fill">
+      <mat-label>Fill appearance</mat-label>
+      <input matInput placeholder="Fill" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Outline appearance</mat-label>
+      <input matInput placeholder="Outline" />
+    </mat-form-field>
+  </div>
+</section>
+
+<mat-divider />
+
+<section>
+  <div class="example-label">Input with Prefix/Suffix</div>
+  <div class="example-input-row">
+    <mat-form-field appearance="fill">
+      <mat-label>Amount</mat-label>
+      <span matTextPrefix>$&nbsp;</span>
+      <input matInput placeholder="0.00" type="number" />
+      <span matTextSuffix>.00</span>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Search</mat-label>
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput placeholder="Search..." />
+      <button matSuffix matIconButton aria-label="Clear">
+        <mat-icon>close</mat-icon>
+      </button>
+    </mat-form-field>
+  </div>
+</section>
+
+<mat-divider />
+
+<section>
+  <div class="example-label">Disabled Input</div>
+  <div class="example-input-row">
+    <mat-form-field appearance="fill">
+      <mat-label>Disabled input</mat-label>
+      <input matInput placeholder="Cannot edit" disabled />
+    </mat-form-field>
+  </div>
+</section>
+
+<mat-divider />
+
+<section>
+  <div class="example-label">Password Input</div>
+  <div class="example-input-row">
+    <mat-form-field appearance="fill">
+      <mat-label>Password</mat-label>
+      <input matInput type="password" placeholder="Enter password" [(ngModel)]="password" />
+      <mat-hint>Min 8 characters</mat-hint>
+    </mat-form-field>
+  </div>
+</section>
+
+<mat-divider />
+
+<section>
+  <div class="example-label">Textarea</div>
+  <div class="example-input-row">
+    <mat-form-field appearance="fill" class="full-width">
+      <mat-label>Leave a comment</mat-label>
+      <textarea matInput placeholder="Write your message here..." rows="4"></textarea>
+    </mat-form-field>
+  </div>
+</section>
