@@ -77,6 +77,26 @@ impl PartialDirectiveLinker2 {
                     let arr = val_ast.get_array()?;
                     if !arr.is_empty() {
                         let binding_name = arr[0].get_string()?;
+                        let mut _alias = binding_name.clone();
+                        let mut transform_function = None;
+
+                        // Check for alias/flags at index 1
+                        if arr.len() > 1 {
+                            if let Ok(s) = arr[1].get_string() {
+                                _alias = s;
+                            }
+                        }
+
+                        // Check for transform at index 2
+                        if arr.len() > 2 {
+                            let transform_node = &arr[2];
+                            let transform_str = meta_obj.host.print_node(&transform_node.node);
+                            transform_function = Some(o::Expression::RawCode(o::RawCodeExpr {
+                                code: transform_str,
+                                source_span: None,
+                            }));
+                        }
+
                         inputs.insert(
                             key.clone(),
                             R3InputMetadata {
@@ -84,7 +104,7 @@ impl PartialDirectiveLinker2 {
                                 binding_property_name: binding_name,
                                 required: false,
                                 is_signal: false,
-                                transform_function: None,
+                                transform_function,
                             },
                         );
                     }
@@ -203,9 +223,12 @@ impl PartialDirectiveLinker2 {
                 if let Ok(listeners_obj) = host_obj.get_object("listeners") {
                     for (event_name, handler) in listeners_obj.to_map() {
                         let handler_ast = AstValue::new(handler.clone(), meta_obj.host);
-                        if handler_ast.is_string() {
-                            listeners.insert(event_name.clone(), handler_ast.get_string()?);
-                        }
+                        let handler_str = if handler_ast.is_string() {
+                            handler_ast.get_string()?
+                        } else {
+                            handler_ast.print()
+                        };
+                        listeners.insert(event_name.clone(), handler_str);
                     }
                 }
             }
@@ -215,9 +238,12 @@ impl PartialDirectiveLinker2 {
                 if let Ok(properties_obj) = host_obj.get_object("properties") {
                     for (prop_name, binding) in properties_obj.to_map() {
                         let binding_ast = AstValue::new(binding.clone(), meta_obj.host);
-                        if binding_ast.is_string() {
-                            properties.insert(prop_name.clone(), binding_ast.get_string()?);
-                        }
+                        let binding_str = if binding_ast.is_string() {
+                            binding_ast.get_string()?
+                        } else {
+                            binding_ast.print()
+                        };
+                        properties.insert(prop_name.clone(), binding_str);
                     }
                 }
             }
@@ -227,17 +253,19 @@ impl PartialDirectiveLinker2 {
                 if let Ok(attributes_obj) = host_obj.get_object("attributes") {
                     for (attr_name, attr_value) in attributes_obj.to_map() {
                         let attr_ast = AstValue::new(attr_value.clone(), meta_obj.host);
-                        if attr_ast.is_string() {
-                            let val_str = attr_ast.get_string()?;
-                            attributes.insert(
-                                attr_name.clone(),
-                                o::Expression::Literal(o::LiteralExpr {
-                                    value: o::LiteralValue::String(val_str),
-                                    type_: None,
-                                    source_span: None,
-                                }),
-                            );
-                        }
+                        let val_str = if attr_ast.is_string() {
+                            attr_ast.get_string()?
+                        } else {
+                            attr_ast.print()
+                        };
+                        attributes.insert(
+                            attr_name.clone(),
+                            o::Expression::Literal(o::LiteralExpr {
+                                value: o::LiteralValue::String(val_str),
+                                type_: None,
+                                source_span: None,
+                            }),
+                        );
                     }
                 }
             }
@@ -250,28 +278,32 @@ impl PartialDirectiveLinker2 {
                 }
 
                 let val_ast = AstValue::new(val.clone(), meta_obj.host);
-                if val_ast.is_string() {
-                    let val_str = val_ast.get_string()?;
-                    if key.starts_with("(") && key.ends_with(")") {
-                        let event_name = &key[1..key.len() - 1];
-                        listeners.insert(event_name.to_string(), val_str);
-                    } else if key.starts_with("[") && key.ends_with("]") {
-                        let prop_name = &key[1..key.len() - 1];
-                        properties.insert(prop_name.to_string(), val_str);
-                    } else if key == "class" || key == "classAttribute" {
-                        special_attributes.class_attr = Some(val_str);
-                    } else if key == "style" || key == "styleAttribute" {
-                        special_attributes.style_attr = Some(val_str);
-                    } else {
-                        attributes.insert(
-                            key.clone(),
-                            o::Expression::Literal(o::LiteralExpr {
-                                value: o::LiteralValue::String(val_str),
-                                type_: None,
-                                source_span: None,
-                            }),
-                        );
-                    }
+                // Fallback to print() if not string
+                let val_str = if val_ast.is_string() {
+                    val_ast.get_string()?
+                } else {
+                    val_ast.print()
+                };
+
+                if key.starts_with("(") && key.ends_with(")") {
+                    let event_name = &key[1..key.len() - 1];
+                    listeners.insert(event_name.to_string(), val_str);
+                } else if key.starts_with("[") && key.ends_with("]") {
+                    let prop_name = &key[1..key.len() - 1];
+                    properties.insert(prop_name.to_string(), val_str);
+                } else if key == "class" || key == "classAttribute" {
+                    special_attributes.class_attr = Some(val_str);
+                } else if key == "style" || key == "styleAttribute" {
+                    special_attributes.style_attr = Some(val_str);
+                } else {
+                    attributes.insert(
+                        key.clone(),
+                        o::Expression::Literal(o::LiteralExpr {
+                            value: o::LiteralValue::String(val_str),
+                            type_: None,
+                            source_span: None,
+                        }),
+                    );
                 }
             }
 

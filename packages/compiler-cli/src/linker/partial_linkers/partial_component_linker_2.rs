@@ -34,7 +34,7 @@ impl PartialComponentLinker2 {
         // eprintln!("[Linker2] to_r3_component_metadata called, target_name: {:?}", target_name);
 
         // DEBUG: Print all metadata keys
-        let keys: Vec<String> = meta_obj.to_map().keys().cloned().collect();
+        // let keys: Vec<String> = meta_obj.to_map().keys().cloned().collect();
         // eprintln!("[Linker2] Metadata keys: {:?}", keys);
 
         // Essential fields
@@ -221,7 +221,30 @@ impl PartialComponentLinker2 {
                     let arr = val_ast.get_array()?;
                     if !arr.is_empty() {
                         let binding_name = arr[0].get_string()?;
-                        // TODO: handle flags/transform if present in 2nd element
+                        let mut _alias = binding_name.clone();
+                        let mut transform_function = None;
+
+                        // Check for alias/flags at index 1
+                        if arr.len() > 1 {
+                            if let Ok(s) = arr[1].get_string() {
+                                _alias = s;
+                            }
+                        }
+
+                        // Check for transform at index 2?
+                        // Note: Partial Ivy inputs format is typically [publicName, alias]
+                        // If transform is present, it might be at index 2.
+                        if arr.len() > 2 {
+                            let transform_node = &arr[2];
+                            // Transform is usually an expression (identifier or arrow fn)
+                            // We construct a RawCode expression for it
+                            let transform_str = meta_obj.host.print_node(&transform_node.node);
+                            transform_function = Some(o::Expression::RawCode(o::RawCodeExpr {
+                                code: transform_str,
+                                source_span: None,
+                            }));
+                        }
+
                         inputs.insert(
                             key.clone(),
                             R3InputMetadata {
@@ -229,7 +252,7 @@ impl PartialComponentLinker2 {
                                 binding_property_name: binding_name,
                                 required: false,
                                 is_signal: false,
-                                transform_function: None,
+                                transform_function,
                             },
                         );
                     }
@@ -264,6 +287,73 @@ impl PartialComponentLinker2 {
                             transform_function,
                         },
                     );
+                }
+            }
+        }
+
+        // Parse propDecorators for Inputs (and potentially Outputs/Queries)
+        if meta_obj.has("propDecorators") {
+            let props = meta_obj.get_object("propDecorators")?;
+            for (prop_name, decorators_val) in props.to_map() {
+                let decorators_ast = AstValue::new(decorators_val.clone(), meta_obj.host);
+                if let Ok(decorators) = decorators_ast.get_array() {
+                    for decorator in decorators {
+                        if let Ok(decorator_obj) = decorator.get_object() {
+                            if let Ok(type_node) = decorator_obj.get_value("type") {
+                                let type_name = meta_obj.host.print_node(&type_node.node);
+                                // Check if it's Input
+                                if type_name.ends_with("Input") {
+                                    let mut binding_name = prop_name.clone();
+                                    let mut required = false;
+                                    let mut is_signal = false;
+                                    let mut transform_function = None;
+                                    let mut alias = None;
+
+                                    if let Ok(args) = decorator_obj.get_array("args") {
+                                        if !args.is_empty() {
+                                            let arg0 = &args[0];
+                                            if arg0.is_string() {
+                                                alias = Some(arg0.get_string()?);
+                                                binding_name = alias.clone().unwrap();
+                                            } else if arg0.is_object() {
+                                                let config = arg0.get_object()?;
+                                                if let Ok(a) = config.get_string("alias") {
+                                                    alias = Some(a.clone());
+                                                    binding_name = a;
+                                                }
+                                                required =
+                                                    config.get_bool("required").unwrap_or(false);
+                                                // isSignal isn't typically in @Input args, mainly transform
+                                                if config.has("transform") {
+                                                    let transform_node =
+                                                        config.get_value("transform")?.node;
+                                                    let transform_str =
+                                                        meta_obj.host.print_node(&transform_node);
+                                                    transform_function = Some(
+                                                        o::Expression::RawCode(o::RawCodeExpr {
+                                                            code: transform_str,
+                                                            source_span: None,
+                                                        }),
+                                                    );
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    inputs.insert(
+                                        prop_name.clone(),
+                                        R3InputMetadata {
+                                            class_property_name: prop_name.clone(),
+                                            binding_property_name: binding_name,
+                                            required,
+                                            is_signal,
+                                            transform_function,
+                                        },
+                                    );
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
